@@ -2,8 +2,9 @@ use std::collections::HashSet;
 use std::fmt;
 
 use serde::Deserialize;
-use serde_json::Value;
 use uuid::Uuid;
+
+use crate::condition::Condition;
 
 /// The body of Rail Center's `GET /v1/policy-bundle`.
 #[derive(Debug, Deserialize)]
@@ -76,8 +77,7 @@ pub struct Policy {
     pub name: String,
     /// Lowest first, ties broken by id.
     pub priority: i64,
-    /// Carried unread: a bad condition only refuses a request that reaches it.
-    pub condition: Value,
+    pub condition: Condition,
     pub action: Action,
     pub enabled: bool,
 }
@@ -190,7 +190,11 @@ fn check_bindings(bindings: &[Binding], policies: &[Policy]) -> Result<(), Unusa
             _ => {}
         }
         // Ignores `enabled`: a disabled id is still a real policy, an unknown one a broken bundle.
-        if let Some(id) = binding.policy_ids.iter().find(|id| !known_bindings.contains(id)) {
+        if let Some(id) = binding
+            .policy_ids
+            .iter()
+            .find(|id| !known_bindings.contains(id))
+        {
             return refuse(format!("binding {key:?} names unknown policy {id}"));
         }
     }

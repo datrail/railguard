@@ -1,11 +1,12 @@
 use rail_policy::{
-    Action, BindingMode, EndpointKey, EnforcementMode, Fallback, SchemaVersion, parse_bundle,
+    Action, BindingMode, Condition, EndpointKey, EnforcementMode, Fallback, Predicate,
+    SchemaVersion, Source, parse_bundle,
 };
 use serde::Deserialize;
 use serde_json::Value;
 use uuid::Uuid;
 
-const VECTORS: &str = include_str!("../../../vectors/bundle.json");
+const VECTORS: &str = include_str!("../../../vectors/parse_bundle_conformance_cases.json");
 
 const EXAMPLE: &str = r##"{
   "schema_version": "2.0",
@@ -93,7 +94,12 @@ fn test_reads_every_field_rail_center_publishes() {
     let policy = &bundle.policies[0];
     assert_eq!(policy.name, "P1");
     assert_eq!(policy.action, Action::Block);
-    assert_eq!(policy.condition["op"], "lt");
+    let Condition::Valid(Predicate::Lt { path, value }) = &policy.condition else {
+        panic!("{:?}", policy.condition);
+    };
+    assert_eq!(path.source, Source::Ticket);
+    assert_eq!(path.keys, ["posture", "overall", "score"]);
+    assert_eq!(*value, 40.0);
 
     let binding = &bundle.bindings[0];
     assert_eq!(binding.mode, BindingMode::Gated);
@@ -126,11 +132,13 @@ fn test_keeps_bindings_that_differ_past_the_slug() {
 }
 
 #[test]
-fn test_reads_an_operand_too_long_for_a_double() {
-    let operand = "1".repeat(401);
-    let bundle = EXAMPLE.replace(r#""value": 40"#, &format!(r#""value": {operand}"#));
+fn test_reads_an_operand_as_the_nearest_double() {
+    let bundle = EXAMPLE.replace(r#""value": 40"#, r#""value": 6.934698245112694e276"#);
     let bundle = parse_bundle(&bundle).unwrap();
-    assert_eq!(bundle.policies[0].condition["value"].to_string(), operand);
+    let Condition::Valid(Predicate::Lt { value, .. }) = &bundle.policies[0].condition else {
+        panic!("{:?}", bundle.policies[0].condition);
+    };
+    assert_eq!(value.to_bits(), 0x79690975fbde15b0);
 }
 
 #[test]
@@ -164,4 +172,14 @@ fn test_reads_an_endpoint_key_with_a_separator_in_its_call() {
 fn test_refuses_an_endpoint_key_with_too_few_parts() {
     let bundle = EXAMPLE.replace("#refund_order", "");
     assert!(parse_bundle(&bundle).is_err());
+}
+
+#[test]
+fn test_keeps_a_bundle_whose_condition_is_unknown() {
+    let bundle = EXAMPLE.replace(r#""op": "lt""#, r#""op": "unknown""#);
+    let bundle = parse_bundle(&bundle).unwrap();
+    assert!(matches!(
+        bundle.policies[0].condition,
+        Condition::Unknown(_)
+    ));
 }
