@@ -92,10 +92,36 @@ pub enum Action {
 
 #[derive(Debug, Deserialize)]
 pub struct Binding {
-    /// `<slug>#<path>#<method>[#<call>]`.
-    pub endpoint_key: String,
+    pub endpoint_key: EndpointKey,
     pub mode: BindingMode,
     pub policy_ids: Vec<Uuid>,
+}
+
+/// `<slug>#<path>#<method>#<call>` on the wire. Only `call` can contain a `#`.
+#[derive(Debug, PartialEq, Deserialize)]
+#[serde(try_from = "String")]
+pub struct EndpointKey {
+    pub slug: String,
+    pub path: String,
+    pub method: String,
+    pub call: String,
+}
+
+impl TryFrom<String> for EndpointKey {
+    type Error = String;
+
+    fn try_from(text: String) -> Result<Self, String> {
+        let parts: Vec<&str> = text.splitn(4, '#').collect();
+        let [slug, path, method, call] = parts[..] else {
+            return Err(format!("endpoint_key {text:?}"));
+        };
+        Ok(Self {
+            slug: slug.to_string(),
+            path: path.to_string(),
+            method: method.to_string(),
+            call: call.to_string(),
+        })
+    }
 }
 
 /// `gated` applies only `policy_ids`; `open` applies no policy.
@@ -123,7 +149,7 @@ pub fn parse_bundle(json: &str) -> Result<Bundle, UnusableBundle> {
         serde_json::from_str(json).map_err(|e| UnusableBundle(e.to_string()))?;
 
     check_policies(&bundle.policies)?;
-    check_bindings(&bundle.bindings)?;
+    check_bindings(&bundle.bindings, &bundle.policies)?;
     bundle
         .policies
         .sort_by_key(|policy| (policy.priority, policy.id));
@@ -144,14 +170,14 @@ fn check_policies(policies: &[Policy]) -> Result<(), UnusableBundle> {
     Ok(())
 }
 
-fn check_bindings(bindings: &[Binding]) -> Result<(), UnusableBundle> {
+fn check_bindings(bindings: &[Binding], policies: &[Policy]) -> Result<(), UnusableBundle> {
+    let known_bindings: HashSet<Uuid> = policies.iter().map(|policy| policy.id).collect();
     let mut seen = HashSet::new();
     for binding in bindings {
         let key = &binding.endpoint_key;
         // The gateway matches keys without the slug, so these reach one endpoint.
-        let local_key = key.split_once('#').map_or(key.as_str(), |(_, rest)| rest);
-        if !seen.insert(local_key) {
-            return refuse(format!("two bindings reach {local_key:?}"));
+        if !seen.insert((&key.path, &key.method, &key.call)) {
+            return refuse(format!("two bindings reach {key:?}"));
         }
         match (&binding.mode, binding.policy_ids.is_empty()) {
             (BindingMode::Open, false) => {
@@ -162,6 +188,10 @@ fn check_bindings(bindings: &[Binding]) -> Result<(), UnusableBundle> {
                 return refuse(format!("gated binding {key:?} names no policy"));
             }
             _ => {}
+        }
+        // Ignores `enabled`: a disabled id is still a real policy, an unknown one a broken bundle.
+        if let Some(id) = binding.policy_ids.iter().find(|id| !known_bindings.contains(id)) {
+            return refuse(format!("binding {key:?} names unknown policy {id}"));
         }
     }
     Ok(())

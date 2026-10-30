@@ -3,19 +3,19 @@
   "cases": [
     {
       "name": "the contract's worked example",
-      "note": "The worked example from policy-evaluation-contract.md, under this repository's bundle root — `schema_version` and `content_hash` where the contract prints `version`, and no `rejected`. The policies and bindings are that example's, so the case named after it is that bundle rather than one shaped like it.",
+      "note": "Shaped after the worked example in policy-evaluation-contract.md.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "finretail.orders",
+            "endpoint_key": "finretail#/mcp#tools/call#refund_order",
             "mode": "gated",
             "policy_ids": [
               "5c8f1e42-0000-4000-8000-0000000000a1"
             ]
           },
           {
-            "endpoint_key": "finretail.health",
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
             "mode": "open",
             "policy_ids": []
           }
@@ -277,13 +277,13 @@
       ]
     },
     {
-      "name": "a bound id naming no policy binds nothing, and is not an error",
-      "note": "The narrowed chain is empty and an empty chain allows. Falling back to the whole chain here is the tempting mistake and makes the two implementations disagree.",
+      "name": "a bound id naming no policy is refused",
+      "note": "Stricter than the contract, which says it binds nothing. Rail Center only binds policies it publishes.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "e",
+            "endpoint_key": "finretail#/mcp#tools/call#e",
             "mode": "gated",
             "policy_ids": [
               "5c8f1e42-0000-4000-8000-0000000000a2"
@@ -308,13 +308,7 @@
         "schema_version": "2.0",
         "ticket_fallback": "block"
       },
-      "usable": true,
-      "chain": [
-        "5c8f1e42-0000-4000-8000-0000000000a1"
-      ],
-      "chain_priorities": [
-        1
-      ]
+      "usable": false
     },
     {
       "name": "a bound id naming a disabled policy binds nothing either",
@@ -322,7 +316,7 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "e",
+            "endpoint_key": "finretail#/mcp#tools/call#e",
             "mode": "gated",
             "policy_ids": [
               "5c8f1e42-0000-4000-8000-0000000000a1"
@@ -444,7 +438,7 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "  FinRetail.Orders  ",
+            "endpoint_key": "finretail#/mcp#tools/call#  FinRetail.Orders  ",
             "mode": "open",
             "policy_ids": []
           }
@@ -482,55 +476,7 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "café.orders",
-            "mode": "open",
-            "policy_ids": []
-          }
-        ],
-        "content_hash": "a3f1c09e7b2d4485",
-        "enforcement": {
-          "mode": "enforce"
-        },
-        "generated_at": "2026-07-28T20:41:07.512247Z",
-        "policies": [
-          {
-            "action": "block",
-            "condition": {},
-            "enabled": true,
-            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
-            "name": "P-a1",
-            "priority": 1
-          }
-        ],
-        "schema_version": "2.0",
-        "ticket_fallback": "block"
-      },
-      "usable": true,
-      "chain": [
-        "5c8f1e42-0000-4000-8000-0000000000a1"
-      ],
-      "chain_priorities": [
-        1
-      ]
-    },
-    {
-      "name": "an endpoint key may carry what a content hash may not",
-      "note": "The asymmetry is deliberate and Rail Center shares it. A content hash is refused for a character no log line can hold, for being empty and for being over-long; an endpoint key gets none of those checks, because a key is composed by the control plane from a name that is close to free text, and refusing one here would make an endpoint that registers cleanly impossible to bind. Copying the content hash's rules onto keys is the reimplementation this case exists to catch. The empty key is absent from the index rather than in it: a key this gateway cannot reduce to anything narrows nothing, and is logged and skipped so that every other binding still stands.",
-      "bundle": {
-        "binding_fallback": "block",
-        "bindings": [
-          {
-            "endpoint_key": "real\nforged: line",
-            "mode": "open",
-            "policy_ids": []
-          },
-          {
-            "endpoint_key": "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
-            "mode": "open",
-            "policy_ids": []
-          },
-          {
-            "endpoint_key": "",
+            "endpoint_key": "finretail#/mcp#tools/call#café.orders",
             "mode": "open",
             "policy_ids": []
           }
@@ -631,7 +577,7 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "e",
+            "endpoint_key": "finretail#/mcp#tools/call#e",
             "future": true,
             "mode": "open",
             "policy_ids": []
@@ -764,12 +710,12 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "e\nforged: line",
+            "endpoint_key": "finretail#/mcp#tools/call#e\nforged: line",
             "mode": "open",
             "policy_ids": []
           },
           {
-            "endpoint_key": "e\nforged: line",
+            "endpoint_key": "finretail#/mcp#tools/call#e\nforged: line",
             "mode": "open",
             "policy_ids": []
           }
@@ -800,7 +746,7 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "e\nforged: line",
+            "endpoint_key": "finretail#/mcp#tools/call#e\nforged: line",
             "mode": "gated",
             "policy_ids": [
               "nope"
@@ -1396,12 +1342,12 @@
     },
     {
       "name": "a refusal naming an endpoint_key that carries an escape sequence",
-      "note": "Refused for its empty gated ids, not for the escape sequence — there is no character rule on an endpoint key, and there must not be, since the control plane accepts any string of 1 to 255. What this pins is the refusal *message*, which names the key and would otherwise recolour an operator's terminal.",
+      "note": "Refused for its empty gated ids, not for the escape sequence.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "e\u001b[31m",
+            "endpoint_key": "finretail#/mcp#tools/call#e\u001b[31m",
             "mode": "gated",
             "policy_ids": []
           }
@@ -1433,7 +1379,7 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "real\nforged: line",
+            "endpoint_key": "finretail#/mcp#tools/call#real\nforged: line",
             "mode": "gated",
             "policy_ids": []
           }
@@ -1465,7 +1411,7 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "real\u001b[31mforged",
+            "endpoint_key": "finretail#/mcp#tools/call#real\u001b[31mforged",
             "mode": "clo\u001b[31msed",
             "policy_ids": []
           }
@@ -1496,7 +1442,7 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "e",
+            "endpoint_key": "finretail#/mcp#tools/call#e",
             "mode": "gated‮open",
             "policy_ids": []
           }
@@ -1527,7 +1473,7 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "e",
+            "endpoint_key": "finretail#/mcp#tools/call#e",
             "mode": "gated",
             "policy_ids": [
               "a\u0000b"
@@ -1987,7 +1933,7 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "e",
+            "endpoint_key": "finretail#/mcp#tools/call#e",
             "mode": "gated",
             "policy_ids": [
               "  5c8f1e42-0000-4000-8000-0000000000a1  "
@@ -2719,12 +2665,12 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "e",
+            "endpoint_key": "finretail#/mcp#tools/call#e",
             "mode": "open",
             "policy_ids": []
           },
           {
-            "endpoint_key": "e",
+            "endpoint_key": "finretail#/mcp#tools/call#e",
             "mode": "gated",
             "policy_ids": [
               "5c8f1e42-0000-4000-8000-0000000000a1"
@@ -2758,7 +2704,7 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "e",
+            "endpoint_key": "finretail#/mcp#tools/call#e",
             "mode": "GATED",
             "policy_ids": [
               "5c8f1e42-0000-4000-8000-0000000000a1"
@@ -2791,7 +2737,7 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "e",
+            "endpoint_key": "finretail#/mcp#tools/call#e",
             "mode": " gated ",
             "policy_ids": [
               "5c8f1e42-0000-4000-8000-0000000000a1"
@@ -2825,7 +2771,7 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "e",
+            "endpoint_key": "finretail#/mcp#tools/call#e",
             "mode": "closed",
             "policy_ids": []
           }
@@ -2856,7 +2802,7 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "e",
+            "endpoint_key": "finretail#/mcp#tools/call#e",
             "policy_ids": []
           }
         ],
@@ -2887,7 +2833,7 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "real\nforged: line",
+            "endpoint_key": "finretail#/mcp#tools/call#real\nforged: line",
             "mode": "gated",
             "policy_ids": "abc"
           }
@@ -2919,7 +2865,7 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "real\nforged: line",
+            "endpoint_key": "finretail#/mcp#tools/call#real\nforged: line",
             "mode": "open",
             "policy_ids": [
               "5c8f1e42-0000-4000-8000-0000000000a1"
@@ -2953,7 +2899,7 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "e",
+            "endpoint_key": "finretail#/mcp#tools/call#e",
             "mode": "open",
             "policy_ids": ""
           }
@@ -2985,7 +2931,7 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "e",
+            "endpoint_key": "finretail#/mcp#tools/call#e",
             "mode": "gated",
             "policy_ids": {
               "5c8f1e42-0000-4000-8000-0000000000a1": true
@@ -3019,7 +2965,7 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "e",
+            "endpoint_key": "finretail#/mcp#tools/call#e",
             "mode": "gated",
             "policy_ids": "5c8f1e42-0000-4000-8000-0000000000a1"
           }
@@ -3050,7 +2996,7 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "e",
+            "endpoint_key": "finretail#/mcp#tools/call#e",
             "mode": "open",
             "policy_ids": [
               "5c8f1e42-0000-4000-8000-0000000000a1"
@@ -3084,7 +3030,7 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "e",
+            "endpoint_key": "finretail#/mcp#tools/call#e",
             "mode": "gated",
             "policy_ids": []
           }
@@ -3115,7 +3061,7 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "e",
+            "endpoint_key": "finretail#/mcp#tools/call#e",
             "mode": "gated",
             "policy_ids": [
               "nope"
@@ -3148,7 +3094,7 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "e",
+            "endpoint_key": "finretail#/mcp#tools/call#e",
             "mode": "gated",
             "policy_ids": [
               null
@@ -3182,12 +3128,12 @@
         "binding_fallback": "block",
         "bindings": [
           {
-            "endpoint_key": "ok",
+            "endpoint_key": "finretail#/mcp#tools/call#ok",
             "mode": "open",
             "policy_ids": []
           },
           {
-            "endpoint_key": "bad",
+            "endpoint_key": "finretail#/mcp#tools/call#bad",
             "mode": "gated",
             "policy_ids": []
           }

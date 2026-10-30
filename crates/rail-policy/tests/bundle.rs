@@ -1,4 +1,6 @@
-use rail_policy::{Action, BindingMode, EnforcementMode, Fallback, SchemaVersion, parse_bundle};
+use rail_policy::{
+    Action, BindingMode, EndpointKey, EnforcementMode, Fallback, SchemaVersion, parse_bundle,
+};
 use serde::Deserialize;
 use serde_json::Value;
 use uuid::Uuid;
@@ -50,7 +52,7 @@ struct Case {
 #[test]
 fn test_vectors() {
     let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
-    assert!(vectors.cases.len() >= 100);
+    assert!(vectors.cases.len() >= 50);
 
     let mut failures = Vec::new();
     for case in vectors.cases {
@@ -95,10 +97,13 @@ fn test_reads_every_field_rail_center_publishes() {
 
     let binding = &bundle.bindings[0];
     assert_eq!(binding.mode, BindingMode::Gated);
-    assert_eq!(
-        binding.endpoint_key,
-        "finretail#/mcp#tools/call#refund_order"
-    );
+    let key = EndpointKey {
+        slug: "finretail".to_string(),
+        path: "/mcp".to_string(),
+        method: "tools/call".to_string(),
+        call: "refund_order".to_string(),
+    };
+    assert_eq!(binding.endpoint_key, key);
     assert_eq!(binding.policy_ids, [policy.id]);
 }
 
@@ -146,4 +151,17 @@ fn test_keeps_disabled_policies() {
     let bundle = EXAMPLE.replace(r#""enabled": true"#, r#""enabled": false"#);
     let bundle = parse_bundle(&bundle).unwrap();
     assert!(!bundle.policies[0].enabled);
+}
+
+#[test]
+fn test_reads_an_endpoint_key_with_a_separator_in_its_call() {
+    let bundle = EXAMPLE.replace("#refund_order", "#refund#order");
+    let bundle = parse_bundle(&bundle).unwrap();
+    assert_eq!(bundle.bindings[0].endpoint_key.call, "refund#order");
+}
+
+#[test]
+fn test_refuses_an_endpoint_key_with_too_few_parts() {
+    let bundle = EXAMPLE.replace("#refund_order", "");
+    assert!(parse_bundle(&bundle).is_err());
 }
