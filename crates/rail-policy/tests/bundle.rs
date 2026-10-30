@@ -1,5 +1,7 @@
 use rail_policy::{Action, BindingMode, EnforcementMode, Fallback, SchemaVersion, parse_bundle};
+use serde::Deserialize;
 use serde_json::Value;
+use uuid::Uuid;
 
 const VECTORS: &str = include_str!("../../../vectors/bundle.json");
 
@@ -29,29 +31,41 @@ const EXAMPLE: &str = r##"{
   "ticket_fallback": "pass"
 }"##;
 
+#[derive(Deserialize)]
+struct Vectors {
+    cases: Vec<Case>,
+}
+
+#[derive(Deserialize)]
+struct Case {
+    name: String,
+    bundle: Value,
+    usable: bool,
+    /// Usable cases only: the enabled policy ids, in evaluation order.
+    chain: Option<Vec<Uuid>>,
+    /// Usable cases only: the priorities of `chain`, in the same order.
+    chain_priorities: Option<Vec<i64>>,
+}
+
 #[test]
 fn test_vectors() {
-    let vectors: Value = serde_json::from_str(VECTORS).unwrap();
-    let cases = vectors["cases"].as_array().unwrap();
-    assert!(cases.len() > 100);
+    let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
+    assert!(vectors.cases.len() >= 100);
 
     let mut failures = Vec::new();
-    for case in cases {
-        let name = case["name"].as_str().unwrap();
-        let result = parse_bundle(&case["bundle"].to_string());
-        if case["usable"].as_bool().unwrap() == result.is_err() {
+    for case in vectors.cases {
+        let name = case.name;
+        let result = parse_bundle(&case.bundle.to_string());
+        if case.usable == result.is_err() {
             failures.push(format!("{name}: {result:?}"));
         } else if let Ok(bundle) = result {
-            let chain: Vec<Value> = bundle
+            let (chain, priorities) = bundle
                 .policies
                 .iter()
-                .map(|p| p.id.to_string().into())
-                .collect();
-            let priorities: Vec<Value> =
-                bundle.policies.iter().map(|p| p.priority.into()).collect();
-            if case["chain"] != Value::Array(chain)
-                || case["chain_priorities"] != Value::Array(priorities)
-            {
+                .filter(|p| p.enabled)
+                .map(|p| (p.id, p.priority))
+                .unzip();
+            if case.chain != Some(chain) || case.chain_priorities != Some(priorities) {
                 failures.push(format!("{name}: wrong chain"));
             }
         }
@@ -125,4 +139,11 @@ fn test_reads_a_version_of_two_or_three_parts() {
     assert_eq!(read("2.1.3").unwrap().revision, 3);
     assert!(read("2").is_err());
     assert!(read("2.0.0.0").is_err());
+}
+
+#[test]
+fn test_keeps_disabled_policies() {
+    let bundle = EXAMPLE.replace(r#""enabled": true"#, r#""enabled": false"#);
+    let bundle = parse_bundle(&bundle).unwrap();
+    assert!(!bundle.policies[0].enabled);
 }

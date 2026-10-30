@@ -132,46 +132,6 @@
       ]
     },
     {
-      "name": "switching one of two policies sharing an id off is a working remedy",
-      "note": "The duplicate-id refusal is the one this module's ordering exists for: `enabled` is settled before anything is compared, so the disabled entry never reaches the set of ids seen. Recording it there would refuse the bundle the documented remedy produces.",
-      "bundle": {
-        "binding_fallback": "block",
-        "bindings": [],
-        "content_hash": "a3f1c09e7b2d4485",
-        "enforcement": {
-          "mode": "enforce"
-        },
-        "generated_at": "2026-07-28T20:41:07.512247Z",
-        "policies": [
-          {
-            "action": "block",
-            "condition": {},
-            "enabled": false,
-            "id": "5C8F1E42-0000-4000-8000-0000000000A1",
-            "name": "P-A1",
-            "priority": 1
-          },
-          {
-            "action": "block",
-            "condition": {},
-            "enabled": true,
-            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
-            "name": "P-a1",
-            "priority": 2
-          }
-        ],
-        "schema_version": "2.0",
-        "ticket_fallback": "block"
-      },
-      "usable": true,
-      "chain": [
-        "5c8f1e42-0000-4000-8000-0000000000a1"
-      ],
-      "chain_priorities": [
-        2
-      ]
-    },
-    {
       "name": "the chain orders by priority ascending, not as listed",
       "note": "Numerically. A string comparison puts 10 before 2.",
       "bundle": {

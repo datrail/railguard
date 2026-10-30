@@ -9,13 +9,16 @@ use uuid::Uuid;
 #[derive(Debug, Deserialize)]
 pub struct Bundle {
     pub schema_version: SchemaVersion,
+    /// Changes with every field but itself and `generated_at`. It orders nothing.
     pub content_hash: String,
     // `generated_at` goes here: nothing reads it yet, and it needs a date type.
     pub enforcement: Enforcement,
-    /// The enabled policies, in evaluation order.
+    /// In evaluation order, including the disabled ones Rail Center publishes.
     pub policies: Vec<Policy>,
     pub bindings: Vec<Binding>,
+    /// For an endpoint with no binding: `block` denies, `pass` walks the whole chain.
     pub binding_fallback: Fallback,
+    /// For a call with no usable ticket, asked first: `block` denies, `pass` goes on without it.
     pub ticket_fallback: Fallback,
 }
 
@@ -51,6 +54,7 @@ pub struct Enforcement {
     pub mode: EnforcementMode,
 }
 
+/// How much of a verdict is acted on: `observe` judges and reports but refuses nothing.
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum EnforcementMode {
@@ -70,13 +74,15 @@ pub enum Fallback {
 pub struct Policy {
     pub id: Uuid,
     pub name: String,
+    /// Lowest first, ties broken by id.
     pub priority: i64,
     /// Carried unread: a bad condition only refuses a request that reaches it.
     pub condition: Value,
     pub action: Action,
-    enabled: bool,
+    pub enabled: bool,
 }
 
+/// `alert` records a match and never denies.
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Action {
@@ -86,11 +92,13 @@ pub enum Action {
 
 #[derive(Debug, Deserialize)]
 pub struct Binding {
+    /// `<slug>#<path>#<method>[#<call>]`.
     pub endpoint_key: String,
     pub mode: BindingMode,
     pub policy_ids: Vec<Uuid>,
 }
 
+/// `gated` applies only `policy_ids`; `open` applies no policy.
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum BindingMode {
@@ -114,7 +122,6 @@ pub fn parse_bundle(json: &str) -> Result<Bundle, UnusableBundle> {
     let mut bundle: Bundle =
         serde_json::from_str(json).map_err(|e| UnusableBundle(e.to_string()))?;
 
-    bundle.policies.retain(|policy| policy.enabled);
     check_policies(&bundle.policies)?;
     check_bindings(&bundle.bindings)?;
     bundle

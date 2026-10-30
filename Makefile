@@ -1,4 +1,4 @@
-.PHONY: build test fmt lint check
+.PHONY: build test fmt lint check coverage
 
 build:
 	cargo build
@@ -14,3 +14,9 @@ lint:
 	cargo clippy --all-targets -- -D warnings
 
 check: lint test
+
+# Needs `cargo install cargo-llvm-cov` and `rustup component add llvm-tools`.
+coverage:
+	cargo llvm-cov --html
+	cargo llvm-cov report
+	@echo "Report: target/llvm-cov/html/index.html"
