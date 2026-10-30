@@ -9,4 +9,7 @@ pub use bundle::{
     Policy, SchemaVersion, UnusableBundle, parse_bundle,
 };
 pub use condition::{Condition, Path, Predicate, Scalar, Source};
-pub use ticket::{Ticket, TicketState, TicketVerifier, parse_base64_ticket, parse_jwt_ticket};
+pub use ticket::{
+    Alignment, Baseline, CategoryPosture, OverallPosture, Posture, PostureLevel, Ticket,
+    TicketClaims, TicketState, TicketVerifier, parse_base64_ticket, parse_jwt_ticket,
+};

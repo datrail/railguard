@@ -1,5 +1,5 @@
 {
-  "_comment": "Conformance cases for parse_base64_ticket, taken from datrail/gateway's tests/vectors/ticket.json at 6758b77. Headers are padded, as Rail Center mints them. Cases about how the header arrives are the runtime's and are removed, as are cases this parser answers differently from the gateway: all of those are input Rail Center does not mint.",
+  "_comment": "Conformance cases for parse_base64_ticket, taken from datrail/gateway's tests/vectors/ticket.json at 6758b77. Headers are padded and carry the claims Rail Center mints, plus unread keys where a case's own bytes are its point. Cases about how the header arrives are the runtime's and are removed, as are cases this parser answers differently from the gateway: all of those are input Rail Center does not mint.",
   "cases": [
     {
       "name": "not base64 at all",
@@ -24,26 +24,6 @@
       "header": "WzEsMl0=",
       "now_in_seconds": 1700000000,
       "state": "malformed"
-    },
-    {
-      "name": "no agent_id is still a ticket",
-      "note": "`exp` is the only claim the reader checks; what else a ticket carries is for a policy's path to ask.",
-      "header": "eyJleHAiOjE3MDAwMDAwNjB9",
-      "now_in_seconds": 1700000000,
-      "state": "valid",
-      "token": {
-        "exp": 1700000060
-      }
-    },
-    {
-      "name": "an agent_id that is not a string is still a ticket",
-      "header": "eyJhZ2VudF9pZCI6NywiZXhwIjoxNzAwMDAwMDYwfQ==",
-      "now_in_seconds": 1700000000,
-      "state": "valid",
-      "token": {
-        "agent_id": 7,
-        "exp": 1700000060
-      }
     },
     {
       "name": "a missing exp is malformed rather than unbounded",
@@ -71,49 +51,113 @@
     },
     {
       "name": "past its expiry",
-      "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE2OTk5OTk5OTl9",
+      "header": "eyJjYXNlX2FnZW50X2lkIjoiYSIsImV4cCI6MTY5OTk5OTk5OSwiaWQiOiIxMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJzYW5kYm94X2lkIjoic2FuZGJveC0xIiwic2FuZGJveF90eXBlIjoia3ViZXJuZXRlcyIsImVudmlyb25tZW50X2ZpbmdlcnByaW50IjoiZmluZ2VycHJpbnQtMSIsInNraWxscyI6WyJmaW5yZXRhaWwjL21jcCN0b29scy9jYWxsI2dldF9vcmRlciJdLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoibG93In0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOjkuNSwiY2FwcGVkIjpmYWxzZX0sImRhdGFfcmVhY2giOnsic2NvcmUiOm51bGwsImNhcHBlZCI6ZmFsc2V9fX0sImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjMwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbXX0sImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIn0=",
       "now_in_seconds": 1700000000,
       "state": "expired"
     },
     {
       "name": "exactly at its expiry is expired, not valid",
-      "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDAwMDB9",
+      "header": "eyJjYXNlX2FnZW50X2lkIjoiYSIsImV4cCI6MTcwMDAwMDAwMCwiaWQiOiIxMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJzYW5kYm94X2lkIjoic2FuZGJveC0xIiwic2FuZGJveF90eXBlIjoia3ViZXJuZXRlcyIsImVudmlyb25tZW50X2ZpbmdlcnByaW50IjoiZmluZ2VycHJpbnQtMSIsInNraWxscyI6WyJmaW5yZXRhaWwjL21jcCN0b29scy9jYWxsI2dldF9vcmRlciJdLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoibG93In0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOjkuNSwiY2FwcGVkIjpmYWxzZX0sImRhdGFfcmVhY2giOnsic2NvcmUiOm51bGwsImNhcHBlZCI6ZmFsc2V9fX0sImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjMwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbXX0sImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIn0=",
       "now_in_seconds": 1700000000,
       "state": "expired"
     },
     {
       "name": "an expired ticket surrenders its claims - a stale score is not a basis",
-      "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE2OTk5OTk5OTksInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTl9fX0=",
+      "header": "eyJjYXNlX2FnZW50X2lkIjoiYSIsImV4cCI6MTY5OTk5OTk5OSwiY2FzZV9wb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjk5fX0sImlkIjoiMTAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOlsiZmlucmV0YWlsIy9tY3AjdG9vbHMvY2FsbCNnZXRfb3JkZXIiXSwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOltdfSwiYWdlbnRfaWQiOiIyMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDIiLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoibG93In0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOjkuNSwiY2FwcGVkIjpmYWxzZX0sImRhdGFfcmVhY2giOnsic2NvcmUiOm51bGwsImNhcHBlZCI6ZmFsc2V9fX19",
       "now_in_seconds": 1700000000,
       "state": "expired"
     },
     {
       "name": "one second before expiry is still valid",
-      "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDAwMDF9",
+      "header": "eyJjYXNlX2FnZW50X2lkIjoiYSIsImV4cCI6MTcwMDAwMDAwMSwiaWQiOiIxMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJzYW5kYm94X2lkIjoic2FuZGJveC0xIiwic2FuZGJveF90eXBlIjoia3ViZXJuZXRlcyIsImVudmlyb25tZW50X2ZpbmdlcnByaW50IjoiZmluZ2VycHJpbnQtMSIsInNraWxscyI6WyJmaW5yZXRhaWwjL21jcCN0b29scy9jYWxsI2dldF9vcmRlciJdLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoibG93In0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOjkuNSwiY2FwcGVkIjpmYWxzZX0sImRhdGFfcmVhY2giOnsic2NvcmUiOm51bGwsImNhcHBlZCI6ZmFsc2V9fX0sImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjMwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbXX0sImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIn0=",
       "now_in_seconds": 1700000000,
       "state": "valid",
       "token": {
-        "agent_id": "a",
-        "exp": 1700000001
-      }
+        "case_agent_id": "a",
+        "exp": 1700000001,
+        "id": "10000000-0000-4000-8000-000000000001",
+        "sandbox_id": "sandbox-1",
+        "sandbox_type": "kubernetes",
+        "environment_fingerprint": "fingerprint-1",
+        "skills": [
+          "finretail#/mcp#tools/call#get_order"
+        ],
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "low"
+          },
+          "categories": {
+            "identity": {
+              "score": 9.5,
+              "capped": false
+            },
+            "data_reach": {
+              "score": null,
+              "capped": false
+            }
+          }
+        },
+        "alignment": {
+          "baseline": {
+            "id": "30000000-0000-4000-8000-000000000003",
+            "label": "prod"
+          },
+          "drifted": []
+        },
+        "agent_id": "20000000-0000-4000-8000-000000000002"
+      },
+      "exp_in_seconds": 1700000001
     },
     {
-      "name": "only the required claims",
-      "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDAwNjB9",
+      "name": "a complete ticket",
+      "header": "eyJjYXNlX2FnZW50X2lkIjoiYSIsImV4cCI6MTcwMDAwMDA2MCwiaWQiOiIxMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJzYW5kYm94X2lkIjoic2FuZGJveC0xIiwic2FuZGJveF90eXBlIjoia3ViZXJuZXRlcyIsImVudmlyb25tZW50X2ZpbmdlcnByaW50IjoiZmluZ2VycHJpbnQtMSIsInNraWxscyI6WyJmaW5yZXRhaWwjL21jcCN0b29scy9jYWxsI2dldF9vcmRlciJdLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoibG93In0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOjkuNSwiY2FwcGVkIjpmYWxzZX0sImRhdGFfcmVhY2giOnsic2NvcmUiOm51bGwsImNhcHBlZCI6ZmFsc2V9fX0sImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjMwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbXX0sImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIn0=",
       "now_in_seconds": 1700000000,
       "state": "valid",
       "token": {
-        "agent_id": "a",
-        "exp": 1700000060
-      }
+        "case_agent_id": "a",
+        "exp": 1700000060,
+        "id": "10000000-0000-4000-8000-000000000001",
+        "sandbox_id": "sandbox-1",
+        "sandbox_type": "kubernetes",
+        "environment_fingerprint": "fingerprint-1",
+        "skills": [
+          "finretail#/mcp#tools/call#get_order"
+        ],
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "low"
+          },
+          "categories": {
+            "identity": {
+              "score": 9.5,
+              "capped": false
+            },
+            "data_reach": {
+              "score": null,
+              "capped": false
+            }
+          }
+        },
+        "alignment": {
+          "baseline": {
+            "id": "30000000-0000-4000-8000-000000000003",
+            "label": "prod"
+          },
+          "drifted": []
+        },
+        "agent_id": "20000000-0000-4000-8000-000000000002"
+      },
+      "exp_in_seconds": 1700000060
     },
     {
-      "name": "carries the nested posture, the alignment and the skills when present",
-      "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDAwNjAsImlkIjoiNWM4ZjFlNDItMDAwMC00MDAwLTgwMDAtMDAwMDAwMDBjMDAxIiwicG9zdHVyZSI6eyJvdmVyYWxsIjp7InNjb3JlIjo4Mi4wLCJsZXZlbCI6ImxvdyJ9LCJjYXRlZ29yaWVzIjp7InNlY3JldHMiOnsic2NvcmUiOjYuNDUsImNhcHBlZCI6dHJ1ZX0sIm5ldHdvcmsiOnsic2NvcmUiOm51bGwsImNhcHBlZCI6ZmFsc2V9fX0sImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjVjOGYxZTQyLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwYjAwMSIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbImxsbV9tb2RlbCJdfSwic2tpbGxzIjpbIngiXX0=",
+      "name": "carries the nested posture, the alignment and the skills",
+      "header": "eyJjYXNlX2FnZW50X2lkIjoiYSIsImV4cCI6MTcwMDAwMDA2MCwiaWQiOiI1YzhmMWU0Mi0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMGMwMDEiLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjgyLjAsImxldmVsIjoibG93In0sImNhdGVnb3JpZXMiOnsic2VjcmV0cyI6eyJzY29yZSI6Ni40NSwiY2FwcGVkIjp0cnVlfSwibmV0d29yayI6eyJzY29yZSI6bnVsbCwiY2FwcGVkIjpmYWxzZX19fSwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiNWM4ZjFlNDItMDAwMC00MDAwLTgwMDAtMDAwMDAwMDBiMDAxIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOlsibGxtX21vZGVsIl19LCJza2lsbHMiOlsieCJdLCJzYW5kYm94X2lkIjoic2FuZGJveC0xIiwic2FuZGJveF90eXBlIjoia3ViZXJuZXRlcyIsImVudmlyb25tZW50X2ZpbmdlcnByaW50IjoiZmluZ2VycHJpbnQtMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIn0=",
       "now_in_seconds": 1700000000,
       "state": "valid",
       "token": {
-        "agent_id": "a",
+        "case_agent_id": "a",
         "exp": 1700000060,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
         "posture": {
@@ -143,18 +187,55 @@
         },
         "skills": [
           "x"
-        ]
-      }
+        ],
+        "sandbox_id": "sandbox-1",
+        "sandbox_type": "kubernetes",
+        "environment_fingerprint": "fingerprint-1",
+        "agent_id": "20000000-0000-4000-8000-000000000002"
+      },
+      "exp_in_seconds": 1700000060
     },
     {
       "name": "a padded spelling decodes",
-      "header": "eyJhZ2VudF9pZCI6ImFiIiwiZXhwIjoxNzAwMDAwMDYwfQ==",
+      "header": "eyJjYXNlX2FnZW50X2lkIjoiYWIiLCJleHAiOjE3MDAwMDAwNjAsImlkIjoiMTAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOlsiZmlucmV0YWlsIy9tY3AjdG9vbHMvY2FsbCNnZXRfb3JkZXIiXSwicG9zdHVyZSI6eyJvdmVyYWxsIjp7InNjb3JlIjo5Mi4wLCJsZXZlbCI6ImxvdyJ9LCJjYXRlZ29yaWVzIjp7ImlkZW50aXR5Ijp7InNjb3JlIjo5LjUsImNhcHBlZCI6ZmFsc2V9LCJkYXRhX3JlYWNoIjp7InNjb3JlIjpudWxsLCJjYXBwZWQiOmZhbHNlfX19LCJhbGlnbm1lbnQiOnsiYmFzZWxpbmUiOnsiaWQiOiIzMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDMiLCJsYWJlbCI6InByb2QifSwiZHJpZnRlZCI6W119LCJhZ2VudF9pZCI6IjIwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMiJ9",
       "now_in_seconds": 1700000000,
       "state": "valid",
       "token": {
-        "agent_id": "ab",
-        "exp": 1700000060
-      }
+        "case_agent_id": "ab",
+        "exp": 1700000060,
+        "id": "10000000-0000-4000-8000-000000000001",
+        "sandbox_id": "sandbox-1",
+        "sandbox_type": "kubernetes",
+        "environment_fingerprint": "fingerprint-1",
+        "skills": [
+          "finretail#/mcp#tools/call#get_order"
+        ],
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "low"
+          },
+          "categories": {
+            "identity": {
+              "score": 9.5,
+              "capped": false
+            },
+            "data_reach": {
+              "score": null,
+              "capped": false
+            }
+          }
+        },
+        "alignment": {
+          "baseline": {
+            "id": "30000000-0000-4000-8000-000000000003",
+            "label": "prod"
+          },
+          "drifted": []
+        },
+        "agent_id": "20000000-0000-4000-8000-000000000002"
+      },
+      "exp_in_seconds": 1700000060
     },
     {
       "name": "a NaN literal is not JSON",
@@ -219,23 +300,55 @@
     },
     {
       "name": "the same payload decodes with its padding",
-      "header": "eyJhZ2VudF9pZCI6ImFiIiwiZXhwIjoxNzAwMDAwMDYwfQ==",
+      "header": "eyJjYXNlX2FnZW50X2lkIjoiYWIiLCJleHAiOjE3MDAwMDAwNjAsImlkIjoiMTAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOlsiZmlucmV0YWlsIy9tY3AjdG9vbHMvY2FsbCNnZXRfb3JkZXIiXSwicG9zdHVyZSI6eyJvdmVyYWxsIjp7InNjb3JlIjo5Mi4wLCJsZXZlbCI6ImxvdyJ9LCJjYXRlZ29yaWVzIjp7ImlkZW50aXR5Ijp7InNjb3JlIjo5LjUsImNhcHBlZCI6ZmFsc2V9LCJkYXRhX3JlYWNoIjp7InNjb3JlIjpudWxsLCJjYXBwZWQiOmZhbHNlfX19LCJhbGlnbm1lbnQiOnsiYmFzZWxpbmUiOnsiaWQiOiIzMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDMiLCJsYWJlbCI6InByb2QifSwiZHJpZnRlZCI6W119LCJhZ2VudF9pZCI6IjIwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMiJ9",
       "now_in_seconds": 1700000000,
       "state": "valid",
       "token": {
-        "agent_id": "ab",
-        "exp": 1700000060
-      }
+        "case_agent_id": "ab",
+        "exp": 1700000060,
+        "id": "10000000-0000-4000-8000-000000000001",
+        "sandbox_id": "sandbox-1",
+        "sandbox_type": "kubernetes",
+        "environment_fingerprint": "fingerprint-1",
+        "skills": [
+          "finretail#/mcp#tools/call#get_order"
+        ],
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "low"
+          },
+          "categories": {
+            "identity": {
+              "score": 9.5,
+              "capped": false
+            },
+            "data_reach": {
+              "score": null,
+              "capped": false
+            }
+          }
+        },
+        "alignment": {
+          "baseline": {
+            "id": "30000000-0000-4000-8000-000000000003",
+            "label": "prod"
+          },
+          "drifted": []
+        },
+        "agent_id": "20000000-0000-4000-8000-000000000002"
+      },
+      "exp_in_seconds": 1700000060
     },
     {
       "name": "nesting at the cap is still read",
-      "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDAwNjAsInNraWxscyI6W1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dfQ==",
+      "header": "eyJjYXNlX2FnZW50X2lkIjoiYSIsImV4cCI6MTcwMDAwMDA2MCwiY2FzZV9za2lsbHMiOltbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW11dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXSwiaWQiOiIxMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJzYW5kYm94X2lkIjoic2FuZGJveC0xIiwic2FuZGJveF90eXBlIjoia3ViZXJuZXRlcyIsImVudmlyb25tZW50X2ZpbmdlcnByaW50IjoiZmluZ2VycHJpbnQtMSIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifSwiY2F0ZWdvcmllcyI6eyJpZGVudGl0eSI6eyJzY29yZSI6OS41LCJjYXBwZWQiOmZhbHNlfSwiZGF0YV9yZWFjaCI6eyJzY29yZSI6bnVsbCwiY2FwcGVkIjpmYWxzZX19fSwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOltdfSwiYWdlbnRfaWQiOiIyMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDIiLCJza2lsbHMiOlsiZmlucmV0YWlsIy9tY3AjdG9vbHMvY2FsbCNnZXRfb3JkZXIiXX0=",
       "now_in_seconds": 1700000000,
       "state": "valid",
       "token": {
-        "agent_id": "a",
+        "case_agent_id": "a",
         "exp": 1700000060,
-        "skills": [
+        "case_skills": [
           [
             [
               [
@@ -359,18 +472,82 @@
               ]
             ]
           ]
+        ],
+        "id": "10000000-0000-4000-8000-000000000001",
+        "sandbox_id": "sandbox-1",
+        "sandbox_type": "kubernetes",
+        "environment_fingerprint": "fingerprint-1",
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "low"
+          },
+          "categories": {
+            "identity": {
+              "score": 9.5,
+              "capped": false
+            },
+            "data_reach": {
+              "score": null,
+              "capped": false
+            }
+          }
+        },
+        "alignment": {
+          "baseline": {
+            "id": "30000000-0000-4000-8000-000000000003",
+            "label": "prod"
+          },
+          "drifted": []
+        },
+        "agent_id": "20000000-0000-4000-8000-000000000002",
+        "skills": [
+          "finretail#/mcp#tools/call#get_order"
         ]
-      }
+      },
+      "exp_in_seconds": 1700000060
     },
     {
       "name": "a bracket inside a string is a character, not structure",
-      "header": "eyJhZ2VudF9pZCI6ICJhW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1siLCAiZXhwIjogMTcwMDAwMDA2MH0=",
+      "header": "eyJjYXNlX2FnZW50X2lkIjogImFbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbWyIsICJleHAiOiAxNzAwMDAwMDYwLCJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsInNhbmRib3hfaWQiOiJzYW5kYm94LTEiLCJzYW5kYm94X3R5cGUiOiJrdWJlcm5ldGVzIiwiZW52aXJvbm1lbnRfZmluZ2VycHJpbnQiOiJmaW5nZXJwcmludC0xIiwic2tpbGxzIjpbImZpbnJldGFpbCMvbWNwI3Rvb2xzL2NhbGwjZ2V0X29yZGVyIl0sInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifSwiY2F0ZWdvcmllcyI6eyJpZGVudGl0eSI6eyJzY29yZSI6OS41LCJjYXBwZWQiOmZhbHNlfSwiZGF0YV9yZWFjaCI6eyJzY29yZSI6bnVsbCwiY2FwcGVkIjpmYWxzZX19fSwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOltdfSwiYWdlbnRfaWQiOiIyMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDIifQ==",
       "now_in_seconds": 1700000000,
       "state": "valid",
       "token": {
-        "agent_id": "a[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[",
-        "exp": 1700000060
-      }
+        "case_agent_id": "a[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[",
+        "exp": 1700000060,
+        "id": "10000000-0000-4000-8000-000000000001",
+        "sandbox_id": "sandbox-1",
+        "sandbox_type": "kubernetes",
+        "environment_fingerprint": "fingerprint-1",
+        "skills": [
+          "finretail#/mcp#tools/call#get_order"
+        ],
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "low"
+          },
+          "categories": {
+            "identity": {
+              "score": 9.5,
+              "capped": false
+            },
+            "data_reach": {
+              "score": null,
+              "capped": false
+            }
+          }
+        },
+        "alignment": {
+          "baseline": {
+            "id": "30000000-0000-4000-8000-000000000003",
+            "label": "prod"
+          },
+          "drifted": []
+        },
+        "agent_id": "20000000-0000-4000-8000-000000000002"
+      },
+      "exp_in_seconds": 1700000060
     },
     {
       "name": "invalid UTF-8 in a key",
@@ -406,28 +583,60 @@
     },
     {
       "name": "an exp at exactly the largest safe integer is still read",
-      "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjkwMDcxOTkyNTQ3NDA5OTF9",
+      "header": "eyJjYXNlX2FnZW50X2lkIjoiYSIsImV4cCI6OTAwNzE5OTI1NDc0MDk5MSwiaWQiOiIxMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJzYW5kYm94X2lkIjoic2FuZGJveC0xIiwic2FuZGJveF90eXBlIjoia3ViZXJuZXRlcyIsImVudmlyb25tZW50X2ZpbmdlcnByaW50IjoiZmluZ2VycHJpbnQtMSIsInNraWxscyI6WyJmaW5yZXRhaWwjL21jcCN0b29scy9jYWxsI2dldF9vcmRlciJdLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoibG93In0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOjkuNSwiY2FwcGVkIjpmYWxzZX0sImRhdGFfcmVhY2giOnsic2NvcmUiOm51bGwsImNhcHBlZCI6ZmFsc2V9fX0sImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjMwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbXX0sImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIn0=",
       "now_in_seconds": 1700000000,
       "state": "valid",
       "token": {
-        "agent_id": "a",
-        "exp": 9007199254740991
-      }
+        "case_agent_id": "a",
+        "exp": 9007199254740991,
+        "id": "10000000-0000-4000-8000-000000000001",
+        "sandbox_id": "sandbox-1",
+        "sandbox_type": "kubernetes",
+        "environment_fingerprint": "fingerprint-1",
+        "skills": [
+          "finretail#/mcp#tools/call#get_order"
+        ],
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "low"
+          },
+          "categories": {
+            "identity": {
+              "score": 9.5,
+              "capped": false
+            },
+            "data_reach": {
+              "score": null,
+              "capped": false
+            }
+          }
+        },
+        "alignment": {
+          "baseline": {
+            "id": "30000000-0000-4000-8000-000000000003",
+            "label": "prod"
+          },
+          "drifted": []
+        },
+        "agent_id": "20000000-0000-4000-8000-000000000002"
+      },
+      "exp_in_seconds": 9007199254740991
     },
     {
       "name": "an exp at the negative end of the safe range is expired, not malformed",
-      "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOi05MDA3MTk5MjU0NzQwOTkxfQ==",
+      "header": "eyJjYXNlX2FnZW50X2lkIjoiYSIsImV4cCI6LTkwMDcxOTkyNTQ3NDA5OTEsImlkIjoiMTAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOlsiZmlucmV0YWlsIy9tY3AjdG9vbHMvY2FsbCNnZXRfb3JkZXIiXSwicG9zdHVyZSI6eyJvdmVyYWxsIjp7InNjb3JlIjo5Mi4wLCJsZXZlbCI6ImxvdyJ9LCJjYXRlZ29yaWVzIjp7ImlkZW50aXR5Ijp7InNjb3JlIjo5LjUsImNhcHBlZCI6ZmFsc2V9LCJkYXRhX3JlYWNoIjp7InNjb3JlIjpudWxsLCJjYXBwZWQiOmZhbHNlfX19LCJhbGlnbm1lbnQiOnsiYmFzZWxpbmUiOnsiaWQiOiIzMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDMiLCJsYWJlbCI6InByb2QifSwiZHJpZnRlZCI6W119LCJhZ2VudF9pZCI6IjIwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMiJ9",
       "now_in_seconds": 1700000000,
       "state": "expired"
     },
     {
       "name": "seventy structures opened and closed in turn nest two deep, not seventy-one",
       "note": "Pins that the scanner decrements on a close. Counting opens alone reaches seventy-one on a ticket that never nests past its own skills list.",
-      "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDM2MDAsImswIjpbXSwiazEiOltdLCJrMiI6W10sImszIjpbXSwiazQiOltdLCJrNSI6W10sIms2IjpbXSwiazciOltdLCJrOCI6W10sIms5IjpbXSwiazEwIjpbXSwiazExIjpbXSwiazEyIjpbXSwiazEzIjpbXSwiazE0IjpbXSwiazE1IjpbXSwiazE2IjpbXSwiazE3IjpbXSwiazE4IjpbXSwiazE5IjpbXSwiazIwIjpbXSwiazIxIjpbXSwiazIyIjpbXSwiazIzIjpbXSwiazI0IjpbXSwiazI1IjpbXSwiazI2IjpbXSwiazI3IjpbXSwiazI4IjpbXSwiazI5IjpbXSwiazMwIjpbXSwiazMxIjpbXSwiazMyIjpbXSwiazMzIjpbXSwiazM0IjpbXSwiazM1IjpbXSwiazM2IjpbXSwiazM3IjpbXSwiazM4IjpbXSwiazM5IjpbXSwiazQwIjpbXSwiazQxIjpbXSwiazQyIjpbXSwiazQzIjpbXSwiazQ0IjpbXSwiazQ1IjpbXSwiazQ2IjpbXSwiazQ3IjpbXSwiazQ4IjpbXSwiazQ5IjpbXSwiazUwIjpbXSwiazUxIjpbXSwiazUyIjpbXSwiazUzIjpbXSwiazU0IjpbXSwiazU1IjpbXSwiazU2IjpbXSwiazU3IjpbXSwiazU4IjpbXSwiazU5IjpbXSwiazYwIjpbXSwiazYxIjpbXSwiazYyIjpbXSwiazYzIjpbXSwiazY0IjpbXSwiazY1IjpbXSwiazY2IjpbXSwiazY3IjpbXSwiazY4IjpbXSwiazY5IjpbXX0=",
+      "header": "eyJjYXNlX2FnZW50X2lkIjoiYSIsImV4cCI6MTcwMDAwMzYwMCwiazAiOltdLCJrMSI6W10sImsyIjpbXSwiazMiOltdLCJrNCI6W10sIms1IjpbXSwiazYiOltdLCJrNyI6W10sIms4IjpbXSwiazkiOltdLCJrMTAiOltdLCJrMTEiOltdLCJrMTIiOltdLCJrMTMiOltdLCJrMTQiOltdLCJrMTUiOltdLCJrMTYiOltdLCJrMTciOltdLCJrMTgiOltdLCJrMTkiOltdLCJrMjAiOltdLCJrMjEiOltdLCJrMjIiOltdLCJrMjMiOltdLCJrMjQiOltdLCJrMjUiOltdLCJrMjYiOltdLCJrMjciOltdLCJrMjgiOltdLCJrMjkiOltdLCJrMzAiOltdLCJrMzEiOltdLCJrMzIiOltdLCJrMzMiOltdLCJrMzQiOltdLCJrMzUiOltdLCJrMzYiOltdLCJrMzciOltdLCJrMzgiOltdLCJrMzkiOltdLCJrNDAiOltdLCJrNDEiOltdLCJrNDIiOltdLCJrNDMiOltdLCJrNDQiOltdLCJrNDUiOltdLCJrNDYiOltdLCJrNDciOltdLCJrNDgiOltdLCJrNDkiOltdLCJrNTAiOltdLCJrNTEiOltdLCJrNTIiOltdLCJrNTMiOltdLCJrNTQiOltdLCJrNTUiOltdLCJrNTYiOltdLCJrNTciOltdLCJrNTgiOltdLCJrNTkiOltdLCJrNjAiOltdLCJrNjEiOltdLCJrNjIiOltdLCJrNjMiOltdLCJrNjQiOltdLCJrNjUiOltdLCJrNjYiOltdLCJrNjciOltdLCJrNjgiOltdLCJrNjkiOltdLCJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsInNhbmRib3hfaWQiOiJzYW5kYm94LTEiLCJzYW5kYm94X3R5cGUiOiJrdWJlcm5ldGVzIiwiZW52aXJvbm1lbnRfZmluZ2VycHJpbnQiOiJmaW5nZXJwcmludC0xIiwic2tpbGxzIjpbImZpbnJldGFpbCMvbWNwI3Rvb2xzL2NhbGwjZ2V0X29yZGVyIl0sInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifSwiY2F0ZWdvcmllcyI6eyJpZGVudGl0eSI6eyJzY29yZSI6OS41LCJjYXBwZWQiOmZhbHNlfSwiZGF0YV9yZWFjaCI6eyJzY29yZSI6bnVsbCwiY2FwcGVkIjpmYWxzZX19fSwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOltdfSwiYWdlbnRfaWQiOiIyMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDIifQ==",
       "now_in_seconds": 1700000000,
       "state": "valid",
       "token": {
-        "agent_id": "a",
+        "case_agent_id": "a",
         "exp": 1700003600,
         "k0": [],
         "k1": [],
@@ -498,29 +707,124 @@
         "k66": [],
         "k67": [],
         "k68": [],
-        "k69": []
-      }
+        "k69": [],
+        "id": "10000000-0000-4000-8000-000000000001",
+        "sandbox_id": "sandbox-1",
+        "sandbox_type": "kubernetes",
+        "environment_fingerprint": "fingerprint-1",
+        "skills": [
+          "finretail#/mcp#tools/call#get_order"
+        ],
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "low"
+          },
+          "categories": {
+            "identity": {
+              "score": 9.5,
+              "capped": false
+            },
+            "data_reach": {
+              "score": null,
+              "capped": false
+            }
+          }
+        },
+        "alignment": {
+          "baseline": {
+            "id": "30000000-0000-4000-8000-000000000003",
+            "label": "prod"
+          },
+          "drifted": []
+        },
+        "agent_id": "20000000-0000-4000-8000-000000000002"
+      },
+      "exp_in_seconds": 1700003600
     },
     {
       "name": "an escaped quote does not end the string it is inside",
       "note": "Seventy brackets follow an escaped quote. Without escape handling the scanner leaves the string there and reads them as structure, past the cap.",
-      "header": "eyJhZ2VudF9pZCI6ImFcIltbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1siLCJleHAiOjE3MDAwMDM2MDB9",
+      "header": "eyJzYW5kYm94X2lkIjoiYVwiW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbWyIsImV4cCI6MTcwMDAwMzYwMCwiaWQiOiIxMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJzYW5kYm94X3R5cGUiOiJrdWJlcm5ldGVzIiwiZW52aXJvbm1lbnRfZmluZ2VycHJpbnQiOiJmaW5nZXJwcmludC0xIiwic2tpbGxzIjpbImZpbnJldGFpbCMvbWNwI3Rvb2xzL2NhbGwjZ2V0X29yZGVyIl0sInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifSwiY2F0ZWdvcmllcyI6eyJpZGVudGl0eSI6eyJzY29yZSI6OS41LCJjYXBwZWQiOmZhbHNlfSwiZGF0YV9yZWFjaCI6eyJzY29yZSI6bnVsbCwiY2FwcGVkIjpmYWxzZX19fSwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOltdfSwiYWdlbnRfaWQiOiIyMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDIifQ==",
       "now_in_seconds": 1700000000,
       "state": "valid",
       "token": {
-        "agent_id": "a\"[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[",
-        "exp": 1700003600
-      }
+        "sandbox_id": "a\"[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[",
+        "exp": 1700003600,
+        "id": "10000000-0000-4000-8000-000000000001",
+        "sandbox_type": "kubernetes",
+        "environment_fingerprint": "fingerprint-1",
+        "skills": [
+          "finretail#/mcp#tools/call#get_order"
+        ],
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "low"
+          },
+          "categories": {
+            "identity": {
+              "score": 9.5,
+              "capped": false
+            },
+            "data_reach": {
+              "score": null,
+              "capped": false
+            }
+          }
+        },
+        "alignment": {
+          "baseline": {
+            "id": "30000000-0000-4000-8000-000000000003",
+            "label": "prod"
+          },
+          "drifted": []
+        },
+        "agent_id": "20000000-0000-4000-8000-000000000002"
+      },
+      "exp_in_seconds": 1700003600
     },
     {
       "name": "the url-safe alphabet decodes",
-      "header": "eyJhZ2VudF9pZCI6ImI-Ml4_NjdefTkzNyIsImV4cCI6MTcwMDAwMzYwMH0=",
+      "header": "eyJwYWQiOiJ4Iiwic2FuZGJveF9pZCI6ImI-Ml4_NjdefTkzNyIsImV4cCI6MTcwMDAwMzYwMCwiaWQiOiIxMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJzYW5kYm94X3R5cGUiOiJrdWJlcm5ldGVzIiwiZW52aXJvbm1lbnRfZmluZ2VycHJpbnQiOiJmaW5nZXJwcmludC0xIiwic2tpbGxzIjpbImZpbnJldGFpbCMvbWNwI3Rvb2xzL2NhbGwjZ2V0X29yZGVyIl0sInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifSwiY2F0ZWdvcmllcyI6eyJpZGVudGl0eSI6eyJzY29yZSI6OS41LCJjYXBwZWQiOmZhbHNlfSwiZGF0YV9yZWFjaCI6eyJzY29yZSI6bnVsbCwiY2FwcGVkIjpmYWxzZX19fSwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOltdfSwiYWdlbnRfaWQiOiIyMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDIifQ==",
       "now_in_seconds": 1700000000,
       "state": "valid",
       "token": {
-        "agent_id": "b>2^?67^}937",
-        "exp": 1700003600
-      }
+        "pad": "x",
+        "sandbox_id": "b>2^?67^}937",
+        "exp": 1700003600,
+        "id": "10000000-0000-4000-8000-000000000001",
+        "sandbox_type": "kubernetes",
+        "environment_fingerprint": "fingerprint-1",
+        "skills": [
+          "finretail#/mcp#tools/call#get_order"
+        ],
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "low"
+          },
+          "categories": {
+            "identity": {
+              "score": 9.5,
+              "capped": false
+            },
+            "data_reach": {
+              "score": null,
+              "capped": false
+            }
+          }
+        },
+        "alignment": {
+          "baseline": {
+            "id": "30000000-0000-4000-8000-000000000003",
+            "label": "prod"
+          },
+          "drifted": []
+        },
+        "agent_id": "20000000-0000-4000-8000-000000000002"
+      },
+      "exp_in_seconds": 1700003600
     },
     {
       "name": "a leading '=' is a corrupted body, not a differently-padded one",
@@ -548,20 +852,9 @@
       "state": "undecodable"
     },
     {
-      "name": "an empty agent_id is a present claim, not a missing one",
-      "note": "The contract makes 0, \"\" and [] present.",
-      "header": "eyJhZ2VudF9pZCI6IiIsImV4cCI6MTcwMDAwMzYwMH0=",
-      "now_in_seconds": 1700000000,
-      "state": "valid",
-      "token": {
-        "agent_id": "",
-        "exp": 1700003600
-      }
-    },
-    {
       "name": "an exp of zero is expired, not malformed",
       "note": "The one value where testing `exp is None` and testing its truth diverge, and the state is what a refusal is eventually reported as.",
-      "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjB9",
+      "header": "eyJjYXNlX2FnZW50X2lkIjoiYSIsImV4cCI6MCwiaWQiOiIxMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJzYW5kYm94X2lkIjoic2FuZGJveC0xIiwic2FuZGJveF90eXBlIjoia3ViZXJuZXRlcyIsImVudmlyb25tZW50X2ZpbmdlcnByaW50IjoiZmluZ2VycHJpbnQtMSIsInNraWxscyI6WyJmaW5yZXRhaWwjL21jcCN0b29scy9jYWxsI2dldF9vcmRlciJdLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoibG93In0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOjkuNSwiY2FwcGVkIjpmYWxzZX0sImRhdGFfcmVhY2giOnsic2NvcmUiOm51bGwsImNhcHBlZCI6ZmFsc2V9fX0sImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjMwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbXX0sImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIn0=",
       "now_in_seconds": 1700000000,
       "state": "expired"
     },
@@ -574,11 +867,11 @@
     {
       "name": "sixty-five sibling objects nest two deep, not sixty-six",
       "note": "A closer that counts only ']' never comes back down, so the enclosing object and sixty-five siblings leave it at sixty-six and a ticket that barely nests is refused.",
-      "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDM2MDAsImswIjp7fSwiazEiOnt9LCJrMiI6e30sImszIjp7fSwiazQiOnt9LCJrNSI6e30sIms2Ijp7fSwiazciOnt9LCJrOCI6e30sIms5Ijp7fSwiazEwIjp7fSwiazExIjp7fSwiazEyIjp7fSwiazEzIjp7fSwiazE0Ijp7fSwiazE1Ijp7fSwiazE2Ijp7fSwiazE3Ijp7fSwiazE4Ijp7fSwiazE5Ijp7fSwiazIwIjp7fSwiazIxIjp7fSwiazIyIjp7fSwiazIzIjp7fSwiazI0Ijp7fSwiazI1Ijp7fSwiazI2Ijp7fSwiazI3Ijp7fSwiazI4Ijp7fSwiazI5Ijp7fSwiazMwIjp7fSwiazMxIjp7fSwiazMyIjp7fSwiazMzIjp7fSwiazM0Ijp7fSwiazM1Ijp7fSwiazM2Ijp7fSwiazM3Ijp7fSwiazM4Ijp7fSwiazM5Ijp7fSwiazQwIjp7fSwiazQxIjp7fSwiazQyIjp7fSwiazQzIjp7fSwiazQ0Ijp7fSwiazQ1Ijp7fSwiazQ2Ijp7fSwiazQ3Ijp7fSwiazQ4Ijp7fSwiazQ5Ijp7fSwiazUwIjp7fSwiazUxIjp7fSwiazUyIjp7fSwiazUzIjp7fSwiazU0Ijp7fSwiazU1Ijp7fSwiazU2Ijp7fSwiazU3Ijp7fSwiazU4Ijp7fSwiazU5Ijp7fSwiazYwIjp7fSwiazYxIjp7fSwiazYyIjp7fSwiazYzIjp7fSwiazY0Ijp7fX0=",
+      "header": "eyJjYXNlX2FnZW50X2lkIjoiYSIsImV4cCI6MTcwMDAwMzYwMCwiazAiOnt9LCJrMSI6e30sImsyIjp7fSwiazMiOnt9LCJrNCI6e30sIms1Ijp7fSwiazYiOnt9LCJrNyI6e30sIms4Ijp7fSwiazkiOnt9LCJrMTAiOnt9LCJrMTEiOnt9LCJrMTIiOnt9LCJrMTMiOnt9LCJrMTQiOnt9LCJrMTUiOnt9LCJrMTYiOnt9LCJrMTciOnt9LCJrMTgiOnt9LCJrMTkiOnt9LCJrMjAiOnt9LCJrMjEiOnt9LCJrMjIiOnt9LCJrMjMiOnt9LCJrMjQiOnt9LCJrMjUiOnt9LCJrMjYiOnt9LCJrMjciOnt9LCJrMjgiOnt9LCJrMjkiOnt9LCJrMzAiOnt9LCJrMzEiOnt9LCJrMzIiOnt9LCJrMzMiOnt9LCJrMzQiOnt9LCJrMzUiOnt9LCJrMzYiOnt9LCJrMzciOnt9LCJrMzgiOnt9LCJrMzkiOnt9LCJrNDAiOnt9LCJrNDEiOnt9LCJrNDIiOnt9LCJrNDMiOnt9LCJrNDQiOnt9LCJrNDUiOnt9LCJrNDYiOnt9LCJrNDciOnt9LCJrNDgiOnt9LCJrNDkiOnt9LCJrNTAiOnt9LCJrNTEiOnt9LCJrNTIiOnt9LCJrNTMiOnt9LCJrNTQiOnt9LCJrNTUiOnt9LCJrNTYiOnt9LCJrNTciOnt9LCJrNTgiOnt9LCJrNTkiOnt9LCJrNjAiOnt9LCJrNjEiOnt9LCJrNjIiOnt9LCJrNjMiOnt9LCJrNjQiOnt9LCJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsInNhbmRib3hfaWQiOiJzYW5kYm94LTEiLCJzYW5kYm94X3R5cGUiOiJrdWJlcm5ldGVzIiwiZW52aXJvbm1lbnRfZmluZ2VycHJpbnQiOiJmaW5nZXJwcmludC0xIiwic2tpbGxzIjpbImZpbnJldGFpbCMvbWNwI3Rvb2xzL2NhbGwjZ2V0X29yZGVyIl0sInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifSwiY2F0ZWdvcmllcyI6eyJpZGVudGl0eSI6eyJzY29yZSI6OS41LCJjYXBwZWQiOmZhbHNlfSwiZGF0YV9yZWFjaCI6eyJzY29yZSI6bnVsbCwiY2FwcGVkIjpmYWxzZX19fSwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOltdfSwiYWdlbnRfaWQiOiIyMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDIifQ==",
       "now_in_seconds": 1700000000,
       "state": "valid",
       "token": {
-        "agent_id": "a",
+        "case_agent_id": "a",
         "exp": 1700003600,
         "k0": {},
         "k1": {},
@@ -644,8 +937,40 @@
         "k61": {},
         "k62": {},
         "k63": {},
-        "k64": {}
-      }
+        "k64": {},
+        "id": "10000000-0000-4000-8000-000000000001",
+        "sandbox_id": "sandbox-1",
+        "sandbox_type": "kubernetes",
+        "environment_fingerprint": "fingerprint-1",
+        "skills": [
+          "finretail#/mcp#tools/call#get_order"
+        ],
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "low"
+          },
+          "categories": {
+            "identity": {
+              "score": 9.5,
+              "capped": false
+            },
+            "data_reach": {
+              "score": null,
+              "capped": false
+            }
+          }
+        },
+        "alignment": {
+          "baseline": {
+            "id": "30000000-0000-4000-8000-000000000003",
+            "label": "prod"
+          },
+          "drifted": []
+        },
+        "agent_id": "20000000-0000-4000-8000-000000000002"
+      },
+      "exp_in_seconds": 1700003600
     },
     {
       "name": "exp false is malformed, as exp true is",
@@ -664,20 +989,52 @@
     {
       "name": "a duplicate key takes the last value, as JSON.parse does",
       "note": "Unspecified by RFC 8259 and agreed by both runtimes. A first-wins reading would honour an expiry the sender wrote over.",
-      "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDM2MDAsImV4cCI6MX0=",
+      "header": "eyJjYXNlX2FnZW50X2lkIjoiYSIsImV4cCI6MTcwMDAwMzYwMCwiZXhwIjoxLCJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsInNhbmRib3hfaWQiOiJzYW5kYm94LTEiLCJzYW5kYm94X3R5cGUiOiJrdWJlcm5ldGVzIiwiZW52aXJvbm1lbnRfZmluZ2VycHJpbnQiOiJmaW5nZXJwcmludC0xIiwic2tpbGxzIjpbImZpbnJldGFpbCMvbWNwI3Rvb2xzL2NhbGwjZ2V0X29yZGVyIl0sInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifSwiY2F0ZWdvcmllcyI6eyJpZGVudGl0eSI6eyJzY29yZSI6OS41LCJjYXBwZWQiOmZhbHNlfSwiZGF0YV9yZWFjaCI6eyJzY29yZSI6bnVsbCwiY2FwcGVkIjpmYWxzZX19fSwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOltdfSwiYWdlbnRfaWQiOiIyMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDIifQ==",
       "now_in_seconds": 1700000000,
       "state": "expired"
     },
     {
       "name": "a now of zero is an instant, not a missing argument",
       "note": "The epoch is a real instant. Testing `now` for truth rather than for None falls back to the wall clock and judges the ticket against a different moment than the caller asked for.",
-      "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDM2MDB9",
+      "header": "eyJjYXNlX2FnZW50X2lkIjoiYSIsImV4cCI6MTcwMDAwMzYwMCwiaWQiOiIxMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJzYW5kYm94X2lkIjoic2FuZGJveC0xIiwic2FuZGJveF90eXBlIjoia3ViZXJuZXRlcyIsImVudmlyb25tZW50X2ZpbmdlcnByaW50IjoiZmluZ2VycHJpbnQtMSIsInNraWxscyI6WyJmaW5yZXRhaWwjL21jcCN0b29scy9jYWxsI2dldF9vcmRlciJdLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoibG93In0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOjkuNSwiY2FwcGVkIjpmYWxzZX0sImRhdGFfcmVhY2giOnsic2NvcmUiOm51bGwsImNhcHBlZCI6ZmFsc2V9fX0sImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjMwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbXX0sImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIn0=",
       "now_in_seconds": 0,
       "state": "valid",
       "token": {
-        "agent_id": "a",
-        "exp": 1700003600
-      }
+        "case_agent_id": "a",
+        "exp": 1700003600,
+        "id": "10000000-0000-4000-8000-000000000001",
+        "sandbox_id": "sandbox-1",
+        "sandbox_type": "kubernetes",
+        "environment_fingerprint": "fingerprint-1",
+        "skills": [
+          "finretail#/mcp#tools/call#get_order"
+        ],
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "low"
+          },
+          "categories": {
+            "identity": {
+              "score": 9.5,
+              "capped": false
+            },
+            "data_reach": {
+              "score": null,
+              "capped": false
+            }
+          }
+        },
+        "alignment": {
+          "baseline": {
+            "id": "30000000-0000-4000-8000-000000000003",
+            "label": "prod"
+          },
+          "drifted": []
+        },
+        "agent_id": "20000000-0000-4000-8000-000000000002"
+      },
+      "exp_in_seconds": 1700003600
     },
     {
       "name": "a lone surrogate is not UTF-8",
@@ -691,6 +1048,428 @@
       "header": "eyJhZ2VuéééédF9pZCI6ImF0dGFja2VyIiwiZXhwIjoxNzAwMDAzNjAwfQ",
       "now_in_seconds": 1700000000,
       "state": "undecodable"
+    },
+    {
+      "name": "an agent_id that is not a uuid",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiYSIsInNhbmRib3hfaWQiOiJzYW5kYm94LTEiLCJzYW5kYm94X3R5cGUiOiJrdWJlcm5ldGVzIiwiZW52aXJvbm1lbnRfZmluZ2VycHJpbnQiOiJmaW5nZXJwcmludC0xIiwic2tpbGxzIjpbImZpbnJldGFpbCMvbWNwI3Rvb2xzL2NhbGwjZ2V0X29yZGVyIl0sImV4cCI6MTcwMDAwMDA2MCwicG9zdHVyZSI6eyJvdmVyYWxsIjp7InNjb3JlIjo5Mi4wLCJsZXZlbCI6ImxvdyJ9LCJjYXRlZ29yaWVzIjp7ImlkZW50aXR5Ijp7InNjb3JlIjo5LjUsImNhcHBlZCI6ZmFsc2V9fX0sImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjMwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbXX19",
+      "now_in_seconds": 1700000000,
+      "state": "malformed"
+    },
+    {
+      "name": "an id that is not a uuid",
+      "header": "eyJpZCI6ImEiLCJhZ2VudF9pZCI6IjIwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMiIsInNhbmRib3hfaWQiOiJzYW5kYm94LTEiLCJzYW5kYm94X3R5cGUiOiJrdWJlcm5ldGVzIiwiZW52aXJvbm1lbnRfZmluZ2VycHJpbnQiOiJmaW5nZXJwcmludC0xIiwic2tpbGxzIjpbImZpbnJldGFpbCMvbWNwI3Rvb2xzL2NhbGwjZ2V0X29yZGVyIl0sImV4cCI6MTcwMDAwMDA2MCwicG9zdHVyZSI6eyJvdmVyYWxsIjp7InNjb3JlIjo5Mi4wLCJsZXZlbCI6ImxvdyJ9LCJjYXRlZ29yaWVzIjp7ImlkZW50aXR5Ijp7InNjb3JlIjo5LjUsImNhcHBlZCI6ZmFsc2V9fX0sImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjMwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbXX19",
+      "now_in_seconds": 1700000000,
+      "state": "malformed"
+    },
+    {
+      "name": "a baseline id that is not a uuid",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOlsiZmlucmV0YWlsIy9tY3AjdG9vbHMvY2FsbCNnZXRfb3JkZXIiXSwiZXhwIjoxNzAwMDAwMDYwLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoibG93In0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOjkuNSwiY2FwcGVkIjpmYWxzZX19fSwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiYSIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbXX19",
+      "now_in_seconds": 1700000000,
+      "state": "malformed"
+    },
+    {
+      "name": "no id",
+      "header": "eyJhZ2VudF9pZCI6IjIwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMiIsInNhbmRib3hfaWQiOiJzYW5kYm94LTEiLCJzYW5kYm94X3R5cGUiOiJrdWJlcm5ldGVzIiwiZW52aXJvbm1lbnRfZmluZ2VycHJpbnQiOiJmaW5nZXJwcmludC0xIiwic2tpbGxzIjpbImZpbnJldGFpbCMvbWNwI3Rvb2xzL2NhbGwjZ2V0X29yZGVyIl0sImV4cCI6MTcwMDAwMDA2MCwicG9zdHVyZSI6eyJvdmVyYWxsIjp7InNjb3JlIjo5Mi4wLCJsZXZlbCI6ImxvdyJ9LCJjYXRlZ29yaWVzIjp7ImlkZW50aXR5Ijp7InNjb3JlIjo5LjUsImNhcHBlZCI6ZmFsc2V9fX0sImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjMwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbXX19",
+      "now_in_seconds": 1700000000,
+      "state": "malformed"
+    },
+    {
+      "name": "no agent_id",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsInNhbmRib3hfaWQiOiJzYW5kYm94LTEiLCJzYW5kYm94X3R5cGUiOiJrdWJlcm5ldGVzIiwiZW52aXJvbm1lbnRfZmluZ2VycHJpbnQiOiJmaW5nZXJwcmludC0xIiwic2tpbGxzIjpbImZpbnJldGFpbCMvbWNwI3Rvb2xzL2NhbGwjZ2V0X29yZGVyIl0sImV4cCI6MTcwMDAwMDA2MCwicG9zdHVyZSI6eyJvdmVyYWxsIjp7InNjb3JlIjo5Mi4wLCJsZXZlbCI6ImxvdyJ9LCJjYXRlZ29yaWVzIjp7ImlkZW50aXR5Ijp7InNjb3JlIjo5LjUsImNhcHBlZCI6ZmFsc2V9fX0sImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjMwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbXX19",
+      "now_in_seconds": 1700000000,
+      "state": "malformed"
+    },
+    {
+      "name": "no sandbox_id",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF90eXBlIjoia3ViZXJuZXRlcyIsImVudmlyb25tZW50X2ZpbmdlcnByaW50IjoiZmluZ2VycHJpbnQtMSIsInNraWxscyI6WyJmaW5yZXRhaWwjL21jcCN0b29scy9jYWxsI2dldF9vcmRlciJdLCJleHAiOjE3MDAwMDAwNjAsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifSwiY2F0ZWdvcmllcyI6eyJpZGVudGl0eSI6eyJzY29yZSI6OS41LCJjYXBwZWQiOmZhbHNlfX19LCJhbGlnbm1lbnQiOnsiYmFzZWxpbmUiOnsiaWQiOiIzMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDMiLCJsYWJlbCI6InByb2QifSwiZHJpZnRlZCI6W119fQ==",
+      "now_in_seconds": 1700000000,
+      "state": "malformed"
+    },
+    {
+      "name": "no environment_fingerprint",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJza2lsbHMiOlsiZmlucmV0YWlsIy9tY3AjdG9vbHMvY2FsbCNnZXRfb3JkZXIiXSwiZXhwIjoxNzAwMDAwMDYwLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoibG93In0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOjkuNSwiY2FwcGVkIjpmYWxzZX19fSwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOltdfX0=",
+      "now_in_seconds": 1700000000,
+      "state": "malformed"
+    },
+    {
+      "name": "no skills",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJleHAiOjE3MDAwMDAwNjAsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifSwiY2F0ZWdvcmllcyI6eyJpZGVudGl0eSI6eyJzY29yZSI6OS41LCJjYXBwZWQiOmZhbHNlfX19LCJhbGlnbm1lbnQiOnsiYmFzZWxpbmUiOnsiaWQiOiIzMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDMiLCJsYWJlbCI6InByb2QifSwiZHJpZnRlZCI6W119fQ==",
+      "now_in_seconds": 1700000000,
+      "state": "malformed"
+    },
+    {
+      "name": "no posture",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOlsiZmlucmV0YWlsIy9tY3AjdG9vbHMvY2FsbCNnZXRfb3JkZXIiXSwiZXhwIjoxNzAwMDAwMDYwLCJhbGlnbm1lbnQiOnsiYmFzZWxpbmUiOnsiaWQiOiIzMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDMiLCJsYWJlbCI6InByb2QifSwiZHJpZnRlZCI6W119fQ==",
+      "now_in_seconds": 1700000000,
+      "state": "malformed"
+    },
+    {
+      "name": "no alignment",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOlsiZmlucmV0YWlsIy9tY3AjdG9vbHMvY2FsbCNnZXRfb3JkZXIiXSwiZXhwIjoxNzAwMDAwMDYwLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoibG93In0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOjkuNSwiY2FwcGVkIjpmYWxzZX19fX0=",
+      "now_in_seconds": 1700000000,
+      "state": "malformed"
+    },
+    {
+      "name": "a null skills",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOm51bGwsImV4cCI6MTcwMDAwMDA2MCwicG9zdHVyZSI6eyJvdmVyYWxsIjp7InNjb3JlIjo5Mi4wLCJsZXZlbCI6ImxvdyJ9LCJjYXRlZ29yaWVzIjp7ImlkZW50aXR5Ijp7InNjb3JlIjo5LjUsImNhcHBlZCI6ZmFsc2V9fX0sImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjMwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbXX19",
+      "now_in_seconds": 1700000000,
+      "state": "malformed"
+    },
+    {
+      "name": "a skill that is not a string",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOlsxXSwiZXhwIjoxNzAwMDAwMDYwLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoibG93In0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOjkuNSwiY2FwcGVkIjpmYWxzZX19fSwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOltdfX0=",
+      "now_in_seconds": 1700000000,
+      "state": "malformed"
+    },
+    {
+      "name": "a null sandbox_id",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6bnVsbCwic2FuZGJveF90eXBlIjoia3ViZXJuZXRlcyIsImVudmlyb25tZW50X2ZpbmdlcnByaW50IjoiZmluZ2VycHJpbnQtMSIsInNraWxscyI6WyJmaW5yZXRhaWwjL21jcCN0b29scy9jYWxsI2dldF9vcmRlciJdLCJleHAiOjE3MDAwMDAwNjAsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifSwiY2F0ZWdvcmllcyI6eyJpZGVudGl0eSI6eyJzY29yZSI6OS41LCJjYXBwZWQiOmZhbHNlfX19LCJhbGlnbm1lbnQiOnsiYmFzZWxpbmUiOnsiaWQiOiIzMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDMiLCJsYWJlbCI6InByb2QifSwiZHJpZnRlZCI6W119fQ==",
+      "now_in_seconds": 1700000000,
+      "state": "malformed"
+    },
+    {
+      "name": "a null environment_fingerprint",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6bnVsbCwic2tpbGxzIjpbImZpbnJldGFpbCMvbWNwI3Rvb2xzL2NhbGwjZ2V0X29yZGVyIl0sImV4cCI6MTcwMDAwMDA2MCwicG9zdHVyZSI6eyJvdmVyYWxsIjp7InNjb3JlIjo5Mi4wLCJsZXZlbCI6ImxvdyJ9LCJjYXRlZ29yaWVzIjp7ImlkZW50aXR5Ijp7InNjb3JlIjo5LjUsImNhcHBlZCI6ZmFsc2V9fX0sImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjMwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbXX19",
+      "now_in_seconds": 1700000000,
+      "state": "malformed"
+    },
+    {
+      "name": "a level outside the vocabulary",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOlsiZmlucmV0YWlsIy9tY3AjdG9vbHMvY2FsbCNnZXRfb3JkZXIiXSwiZXhwIjoxNzAwMDAwMDYwLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoic2V2ZXJlIn0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOjkuNSwiY2FwcGVkIjpmYWxzZX19fSwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOltdfX0=",
+      "now_in_seconds": 1700000000,
+      "state": "malformed"
+    },
+    {
+      "name": "a score written as a string",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOlsiZmlucmV0YWlsIy9tY3AjdG9vbHMvY2FsbCNnZXRfb3JkZXIiXSwiZXhwIjoxNzAwMDAwMDYwLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOiIxIiwibGV2ZWwiOiJsb3cifSwiY2F0ZWdvcmllcyI6eyJpZGVudGl0eSI6eyJzY29yZSI6OS41LCJjYXBwZWQiOmZhbHNlfX19LCJhbGlnbm1lbnQiOnsiYmFzZWxpbmUiOnsiaWQiOiIzMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDMiLCJsYWJlbCI6InByb2QifSwiZHJpZnRlZCI6W119fQ==",
+      "now_in_seconds": 1700000000,
+      "state": "malformed"
+    },
+    {
+      "name": "a null overall score",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOlsiZmlucmV0YWlsIy9tY3AjdG9vbHMvY2FsbCNnZXRfb3JkZXIiXSwiZXhwIjoxNzAwMDAwMDYwLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOm51bGwsImxldmVsIjoibG93In0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOjkuNSwiY2FwcGVkIjpmYWxzZX19fSwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOltdfX0=",
+      "now_in_seconds": 1700000000,
+      "state": "malformed"
+    },
+    {
+      "name": "a null capped",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOlsiZmlucmV0YWlsIy9tY3AjdG9vbHMvY2FsbCNnZXRfb3JkZXIiXSwiZXhwIjoxNzAwMDAwMDYwLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoibG93In0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOjkuNSwiY2FwcGVkIjpudWxsfX19LCJhbGlnbm1lbnQiOnsiYmFzZWxpbmUiOnsiaWQiOiIzMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDMiLCJsYWJlbCI6InByb2QifSwiZHJpZnRlZCI6W119fQ==",
+      "now_in_seconds": 1700000000,
+      "state": "malformed"
+    },
+    {
+      "name": "a baseline with no label",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOlsiZmlucmV0YWlsIy9tY3AjdG9vbHMvY2FsbCNnZXRfb3JkZXIiXSwiZXhwIjoxNzAwMDAwMDYwLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoibG93In0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOjkuNSwiY2FwcGVkIjpmYWxzZX19fSwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIn0sImRyaWZ0ZWQiOltdfX0=",
+      "now_in_seconds": 1700000000,
+      "state": "malformed"
+    },
+    {
+      "name": "a drifted item that is not a string",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOlsiZmlucmV0YWlsIy9tY3AjdG9vbHMvY2FsbCNnZXRfb3JkZXIiXSwiZXhwIjoxNzAwMDAwMDYwLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoibG93In0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOjkuNSwiY2FwcGVkIjpmYWxzZX19fSwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOlsxXX19",
+      "now_in_seconds": 1700000000,
+      "state": "malformed"
+    },
+    {
+      "name": "a null drifted",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOlsiZmlucmV0YWlsIy9tY3AjdG9vbHMvY2FsbCNnZXRfb3JkZXIiXSwiZXhwIjoxNzAwMDAwMDYwLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoibG93In0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOjkuNSwiY2FwcGVkIjpmYWxzZX19fSwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOm51bGx9fQ==",
+      "now_in_seconds": 1700000000,
+      "state": "malformed"
+    },
+    {
+      "name": "shape is checked before expiry: a stale ticket with a bad claim",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiYSIsInNhbmRib3hfaWQiOiJzYW5kYm94LTEiLCJzYW5kYm94X3R5cGUiOiJrdWJlcm5ldGVzIiwiZW52aXJvbm1lbnRfZmluZ2VycHJpbnQiOiJmaW5nZXJwcmludC0xIiwic2tpbGxzIjpbImZpbnJldGFpbCMvbWNwI3Rvb2xzL2NhbGwjZ2V0X29yZGVyIl0sImV4cCI6MTY5OTk5OTk5OSwicG9zdHVyZSI6eyJvdmVyYWxsIjp7InNjb3JlIjo5Mi4wLCJsZXZlbCI6ImxvdyJ9LCJjYXRlZ29yaWVzIjp7ImlkZW50aXR5Ijp7InNjb3JlIjo5LjUsImNhcHBlZCI6ZmFsc2V9fX0sImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjMwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbXX19",
+      "now_in_seconds": 1700000000,
+      "state": "malformed"
+    },
+    {
+      "name": "an agent on no baseline",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOlsiZmlucmV0YWlsIy9tY3AjdG9vbHMvY2FsbCNnZXRfb3JkZXIiXSwiZXhwIjoxNzAwMDAwMDYwLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoibG93In0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOjkuNSwiY2FwcGVkIjpmYWxzZX19fSwiYWxpZ25tZW50Ijp7ImRyaWZ0ZWQiOltdfX0=",
+      "now_in_seconds": 1700000000,
+      "state": "valid",
+      "token": {
+        "id": "10000000-0000-4000-8000-000000000001",
+        "agent_id": "20000000-0000-4000-8000-000000000002",
+        "sandbox_id": "sandbox-1",
+        "sandbox_type": "kubernetes",
+        "environment_fingerprint": "fingerprint-1",
+        "skills": [
+          "finretail#/mcp#tools/call#get_order"
+        ],
+        "exp": 1700000060,
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "low"
+          },
+          "categories": {
+            "identity": {
+              "score": 9.5,
+              "capped": false
+            }
+          }
+        },
+        "alignment": {
+          "drifted": []
+        }
+      },
+      "exp_in_seconds": 1700000060
+    },
+    {
+      "name": "a null sandbox_type",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6bnVsbCwiZW52aXJvbm1lbnRfZmluZ2VycHJpbnQiOiJmaW5nZXJwcmludC0xIiwic2tpbGxzIjpbImZpbnJldGFpbCMvbWNwI3Rvb2xzL2NhbGwjZ2V0X29yZGVyIl0sImV4cCI6MTcwMDAwMDA2MCwicG9zdHVyZSI6eyJvdmVyYWxsIjp7InNjb3JlIjo5Mi4wLCJsZXZlbCI6ImxvdyJ9LCJjYXRlZ29yaWVzIjp7ImlkZW50aXR5Ijp7InNjb3JlIjo5LjUsImNhcHBlZCI6ZmFsc2V9fX0sImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjMwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbXX19",
+      "now_in_seconds": 1700000000,
+      "state": "valid",
+      "token": {
+        "id": "10000000-0000-4000-8000-000000000001",
+        "agent_id": "20000000-0000-4000-8000-000000000002",
+        "sandbox_id": "sandbox-1",
+        "sandbox_type": null,
+        "environment_fingerprint": "fingerprint-1",
+        "skills": [
+          "finretail#/mcp#tools/call#get_order"
+        ],
+        "exp": 1700000060,
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "low"
+          },
+          "categories": {
+            "identity": {
+              "score": 9.5,
+              "capped": false
+            }
+          }
+        },
+        "alignment": {
+          "baseline": {
+            "id": "30000000-0000-4000-8000-000000000003",
+            "label": "prod"
+          },
+          "drifted": []
+        }
+      },
+      "exp_in_seconds": 1700000060
+    },
+    {
+      "name": "no skills declared",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOltdLCJleHAiOjE3MDAwMDAwNjAsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifSwiY2F0ZWdvcmllcyI6eyJpZGVudGl0eSI6eyJzY29yZSI6OS41LCJjYXBwZWQiOmZhbHNlfX19LCJhbGlnbm1lbnQiOnsiYmFzZWxpbmUiOnsiaWQiOiIzMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDMiLCJsYWJlbCI6InByb2QifSwiZHJpZnRlZCI6W119fQ==",
+      "now_in_seconds": 1700000000,
+      "state": "valid",
+      "token": {
+        "id": "10000000-0000-4000-8000-000000000001",
+        "agent_id": "20000000-0000-4000-8000-000000000002",
+        "sandbox_id": "sandbox-1",
+        "sandbox_type": "kubernetes",
+        "environment_fingerprint": "fingerprint-1",
+        "skills": [],
+        "exp": 1700000060,
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "low"
+          },
+          "categories": {
+            "identity": {
+              "score": 9.5,
+              "capped": false
+            }
+          }
+        },
+        "alignment": {
+          "baseline": {
+            "id": "30000000-0000-4000-8000-000000000003",
+            "label": "prod"
+          },
+          "drifted": []
+        }
+      },
+      "exp_in_seconds": 1700000060
+    },
+    {
+      "name": "a category that was not scored",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOlsiZmlucmV0YWlsIy9tY3AjdG9vbHMvY2FsbCNnZXRfb3JkZXIiXSwiZXhwIjoxNzAwMDAwMDYwLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoibG93In0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOm51bGwsImNhcHBlZCI6ZmFsc2V9fX0sImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjMwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbXX19",
+      "now_in_seconds": 1700000000,
+      "state": "valid",
+      "token": {
+        "id": "10000000-0000-4000-8000-000000000001",
+        "agent_id": "20000000-0000-4000-8000-000000000002",
+        "sandbox_id": "sandbox-1",
+        "sandbox_type": "kubernetes",
+        "environment_fingerprint": "fingerprint-1",
+        "skills": [
+          "finretail#/mcp#tools/call#get_order"
+        ],
+        "exp": 1700000060,
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "low"
+          },
+          "categories": {
+            "identity": {
+              "score": null,
+              "capped": false
+            }
+          }
+        },
+        "alignment": {
+          "baseline": {
+            "id": "30000000-0000-4000-8000-000000000003",
+            "label": "prod"
+          },
+          "drifted": []
+        }
+      },
+      "exp_in_seconds": 1700000060
+    },
+    {
+      "name": "a whole-number score",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOlsiZmlucmV0YWlsIy9tY3AjdG9vbHMvY2FsbCNnZXRfb3JkZXIiXSwiZXhwIjoxNzAwMDAwMDYwLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjEwLCJsZXZlbCI6ImxvdyJ9LCJjYXRlZ29yaWVzIjp7ImlkZW50aXR5Ijp7InNjb3JlIjo5LjUsImNhcHBlZCI6ZmFsc2V9fX0sImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjMwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbXX19",
+      "now_in_seconds": 1700000000,
+      "state": "valid",
+      "token": {
+        "id": "10000000-0000-4000-8000-000000000001",
+        "agent_id": "20000000-0000-4000-8000-000000000002",
+        "sandbox_id": "sandbox-1",
+        "sandbox_type": "kubernetes",
+        "environment_fingerprint": "fingerprint-1",
+        "skills": [
+          "finretail#/mcp#tools/call#get_order"
+        ],
+        "exp": 1700000060,
+        "posture": {
+          "overall": {
+            "score": 10,
+            "level": "low"
+          },
+          "categories": {
+            "identity": {
+              "score": 9.5,
+              "capped": false
+            }
+          }
+        },
+        "alignment": {
+          "baseline": {
+            "id": "30000000-0000-4000-8000-000000000003",
+            "label": "prod"
+          },
+          "drifted": []
+        }
+      },
+      "exp_in_seconds": 1700000060
+    },
+    {
+      "name": "a critical level",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOlsiZmlucmV0YWlsIy9tY3AjdG9vbHMvY2FsbCNnZXRfb3JkZXIiXSwiZXhwIjoxNzAwMDAwMDYwLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoiY3JpdGljYWwifSwiY2F0ZWdvcmllcyI6eyJpZGVudGl0eSI6eyJzY29yZSI6OS41LCJjYXBwZWQiOmZhbHNlfX19LCJhbGlnbm1lbnQiOnsiYmFzZWxpbmUiOnsiaWQiOiIzMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDMiLCJsYWJlbCI6InByb2QifSwiZHJpZnRlZCI6W119fQ==",
+      "now_in_seconds": 1700000000,
+      "state": "valid",
+      "token": {
+        "id": "10000000-0000-4000-8000-000000000001",
+        "agent_id": "20000000-0000-4000-8000-000000000002",
+        "sandbox_id": "sandbox-1",
+        "sandbox_type": "kubernetes",
+        "environment_fingerprint": "fingerprint-1",
+        "skills": [
+          "finretail#/mcp#tools/call#get_order"
+        ],
+        "exp": 1700000060,
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "critical"
+          },
+          "categories": {
+            "identity": {
+              "score": 9.5,
+              "capped": false
+            }
+          }
+        },
+        "alignment": {
+          "baseline": {
+            "id": "30000000-0000-4000-8000-000000000003",
+            "label": "prod"
+          },
+          "drifted": []
+        }
+      },
+      "exp_in_seconds": 1700000060
+    },
+    {
+      "name": "a high level",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOlsiZmlucmV0YWlsIy9tY3AjdG9vbHMvY2FsbCNnZXRfb3JkZXIiXSwiZXhwIjoxNzAwMDAwMDYwLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoiaGlnaCJ9LCJjYXRlZ29yaWVzIjp7ImlkZW50aXR5Ijp7InNjb3JlIjo5LjUsImNhcHBlZCI6ZmFsc2V9fX0sImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjMwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbXX19",
+      "now_in_seconds": 1700000000,
+      "state": "valid",
+      "token": {
+        "id": "10000000-0000-4000-8000-000000000001",
+        "agent_id": "20000000-0000-4000-8000-000000000002",
+        "sandbox_id": "sandbox-1",
+        "sandbox_type": "kubernetes",
+        "environment_fingerprint": "fingerprint-1",
+        "skills": [
+          "finretail#/mcp#tools/call#get_order"
+        ],
+        "exp": 1700000060,
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "high"
+          },
+          "categories": {
+            "identity": {
+              "score": 9.5,
+              "capped": false
+            }
+          }
+        },
+        "alignment": {
+          "baseline": {
+            "id": "30000000-0000-4000-8000-000000000003",
+            "label": "prod"
+          },
+          "drifted": []
+        }
+      },
+      "exp_in_seconds": 1700000060
+    },
+    {
+      "name": "a medium level",
+      "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOlsiZmlucmV0YWlsIy9tY3AjdG9vbHMvY2FsbCNnZXRfb3JkZXIiXSwiZXhwIjoxNzAwMDAwMDYwLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoibWVkaXVtIn0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOjkuNSwiY2FwcGVkIjpmYWxzZX19fSwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOltdfX0=",
+      "now_in_seconds": 1700000000,
+      "state": "valid",
+      "token": {
+        "id": "10000000-0000-4000-8000-000000000001",
+        "agent_id": "20000000-0000-4000-8000-000000000002",
+        "sandbox_id": "sandbox-1",
+        "sandbox_type": "kubernetes",
+        "environment_fingerprint": "fingerprint-1",
+        "skills": [
+          "finretail#/mcp#tools/call#get_order"
+        ],
+        "exp": 1700000060,
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "medium"
+          },
+          "categories": {
+            "identity": {
+              "score": 9.5,
+              "capped": false
+            }
+          }
+        },
+        "alignment": {
+          "baseline": {
+            "id": "30000000-0000-4000-8000-000000000003",
+            "label": "prod"
+          },
+          "drifted": []
+        }
+      },
+      "exp_in_seconds": 1700000060
     }
   ]
 }

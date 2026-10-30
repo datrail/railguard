@@ -60,7 +60,7 @@ fn test_reads_a_scalar_operand() {
 
 #[test]
 fn test_reads_an_integer_past_u64_as_a_double() {
-    let text = r#"{"path": "ticket.a", "op": "lt", "value": 18446744073709551616}"#;
+    let text = r#"{"path": "ticket.sandbox_type", "op": "lt", "value": 18446744073709551616}"#;
     let condition: Condition = serde_json::from_str(text).unwrap();
     let Condition::Valid(Predicate::Lt { value, .. }) = condition else {
         panic!("{condition:?}");
@@ -78,8 +78,18 @@ fn test_reads_a_bare_source() {
 }
 
 #[test]
+fn test_reads_a_category_path_of_any_name() {
+    let condition = read(json!({"path": "ticket.posture.categories.new.score", "op": "existing"}));
+    assert!(matches!(
+        condition,
+        Condition::Valid(Predicate::Existing { .. })
+    ));
+}
+
+#[test]
 fn test_ignores_extra_keys() {
-    let condition = read(json!({"path": "ticket.a", "op": "existing", "value": 1, "note": "x"}));
+    let condition =
+        read(json!({"path": "ticket.sandbox_type", "op": "existing", "value": 1, "note": "x"}));
     assert!(matches!(
         condition,
         Condition::Valid(Predicate::Existing { .. })
@@ -89,7 +99,7 @@ fn test_ignores_extra_keys() {
 #[test]
 fn test_reads_an_op_it_does_not_know_as_unknown() {
     let cases = [
-        json!({"path": "ticket.a", "op": "unknown", "value": 1}),
+        json!({"path": "ticket.sandbox_type", "op": "unknown", "value": 1}),
         json!({"path": "session.a", "op": "unknown"}),
         json!({"op": ""}),
     ];
@@ -102,21 +112,23 @@ fn test_reads_an_op_it_does_not_know_as_unknown() {
 fn test_reads_anything_else_as_invalid() {
     let cases = [
         json!("not an object"),
-        json!(["lt", "ticket.a", 5]),
+        json!(["lt", "ticket.sandbox_type", 5]),
         json!(null),
         json!({}),
-        json!({"path": "ticket.a"}),
+        json!({"path": "ticket.sandbox_type"}),
         json!({"op": "existing"}),
         json!({"path": 1, "op": "existing"}),
-        json!({"path": "ticket.a", "op": 1}),
-        json!({"path": "ticket.a", "op": true}),
+        json!({"path": "ticket.sandbox_type", "op": 1}),
+        json!({"path": "ticket.sandbox_type", "op": true}),
         json!({"path": "session.a", "op": "existing"}),
-        json!({"path": "ticket.a", "op": "lt", "value": "1"}),
-        json!({"path": "ticket.a", "op": "lt"}),
-        json!({"path": "ticket.a", "op": "eq", "value": true}),
-        json!({"path": "ticket.a", "op": "eq", "value": null}),
-        json!({"path": "ticket.a", "op": "in", "value": "a"}),
-        json!({"path": "ticket.a", "op": "matches", "value": 1}),
+        json!({"path": "ticket.iat", "op": "existing"}),
+        json!({"path": "ticket.posture.overall.unknown", "op": "existing"}),
+        json!({"path": "ticket.sandbox_type", "op": "lt", "value": "1"}),
+        json!({"path": "ticket.sandbox_type", "op": "lt"}),
+        json!({"path": "ticket.sandbox_type", "op": "eq", "value": true}),
+        json!({"path": "ticket.sandbox_type", "op": "eq", "value": null}),
+        json!({"path": "ticket.sandbox_type", "op": "in", "value": "a"}),
+        json!({"path": "ticket.sandbox_type", "op": "matches", "value": 1}),
     ];
     for condition in cases {
         assert_eq!(read(condition.clone()), Condition::Invalid(condition));

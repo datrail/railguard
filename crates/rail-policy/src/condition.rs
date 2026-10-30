@@ -126,7 +126,34 @@ impl TryFrom<String> for Path {
             Some("request") => Source::Request,
             _ => return Err(format!("path {text:?}")),
         };
-        let keys = parts.map(str::to_string).collect();
+        let keys: Vec<&str> = parts.collect();
+        // A claim this reader doesn't know would read as absent, so a rule on it wouldn't fire.
+        if source == Source::Ticket && !is_ticket_path(&keys) {
+            return Err(format!("path {text:?}"));
+        }
+        let keys = keys.into_iter().map(str::to_string).collect();
         Ok(Self { source, keys })
     }
+}
+
+fn is_ticket_path(keys: &[&str]) -> bool {
+    matches!(
+        keys,
+        [] | ["id"]
+            | ["agent_id"]
+            | ["sandbox_id"]
+            | ["sandbox_type"]
+            | ["environment_fingerprint"]
+            | ["skills"]
+            | ["posture"]
+            | ["posture", "overall"]
+            | ["posture", "overall", "score" | "level"]
+            | ["posture", "categories"]
+            | ["posture", "categories", _]
+            | ["posture", "categories", _, "score" | "capped"]
+            | ["alignment"]
+            | ["alignment", "drifted"]
+            | ["alignment", "baseline"]
+            | ["alignment", "baseline", "id" | "label"]
+    )
 }

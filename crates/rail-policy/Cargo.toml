@@ -4,6 +4,7 @@ edition = "2024"
 
 [dependencies]
 base64 = { version = "0.22", default-features = false, features = ["alloc"] }
+ed25519-dalek = { version = "3", default-features = false }
 serde = { version = "1", features = ["derive"] }
 # The default parser misreads some doubles by a bit, and operands are compared as doubles.
 serde_json = { version = "1", features = ["float_roundtrip"] }
