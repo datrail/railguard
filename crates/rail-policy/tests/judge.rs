@@ -72,6 +72,7 @@ fn judge_case(case: &Case) -> Outcome {
 #[test]
 fn test_vectors() {
     let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
+    assert!(!vectors.cases.is_empty());
 
     let failures: Vec<String> = vectors
         .cases

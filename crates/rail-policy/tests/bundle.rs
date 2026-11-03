@@ -53,6 +53,7 @@ struct Case {
 #[test]
 fn test_vectors() {
     let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
+    assert!(!vectors.cases.is_empty());
 
     let mut failures = Vec::new();
     for case in vectors.cases {
@@ -79,11 +80,7 @@ fn test_vectors() {
 fn test_reads_every_field_rail_center_publishes() {
     let bundle = parse_bundle(EXAMPLE).unwrap();
 
-    let version = SchemaVersion {
-        major: 2,
-        minor: 0,
-        revision: 0,
-    };
+    let version = SchemaVersion { major: 2, minor: 0 };
     assert_eq!(bundle.schema_version, version);
     assert_eq!(bundle.content_hash, "a3f1c09e7b2d4485");
     assert_eq!(bundle.enforcement.mode, EnforcementMode::Observe);
@@ -139,16 +136,24 @@ fn test_reads_an_operand_as_the_nearest_double() {
 }
 
 #[test]
-fn test_reads_a_version_of_two_or_three_parts() {
+fn test_reads_a_version_of_two_numbers() {
     let read = |version: &str| {
         let bundle = EXAMPLE.replace(r#""2.0""#, &format!(r#""{version}""#));
         parse_bundle(&bundle).map(|bundle| bundle.schema_version)
     };
 
-    assert_eq!(read("2.0").unwrap().revision, 0);
-    assert_eq!(read("2.1.3").unwrap().revision, 3);
-    assert!(read("2").is_err());
-    assert!(read("2.0.0.0").is_err());
+    assert_eq!(
+        read("2.10").unwrap(),
+        SchemaVersion {
+            major: 2,
+            minor: 10
+        }
+    );
+    for version in [
+        "2", "2.0.0", "+2.0", "2.+0", "2.", ".0", "2.0 ", "-1.0", "2,0",
+    ] {
+        assert!(read(version).is_err(), "{version:?}");
+    }
 }
 
 #[test]

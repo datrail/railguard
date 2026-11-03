@@ -1,10 +1,10 @@
 .PHONY: build test test-py fmt lint check coverage
 
 build:
-	cargo build
+	cargo build --locked
 
 test:
-	cargo test
+	cargo test --locked
 
 # Rebuilds the wheel, which uv would otherwise reuse from its cache.
 test-py:
@@ -15,8 +15,8 @@ fmt:
 
 lint:
 	cargo fmt --check
-	cargo clippy --all-targets -- -D warnings
-	cargo clippy -p rail-policy-py -- -D warnings
+	cargo clippy --locked --all-targets -- -D warnings
+	cargo clippy --locked -p rail-policy-py -- -D warnings
 
 check: lint test test-py
 

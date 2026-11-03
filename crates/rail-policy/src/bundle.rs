@@ -24,30 +24,32 @@ pub struct Bundle {
     pub ticket_fallback: Fallback,
 }
 
-/// Rail Center writes `MAJOR.MINOR`, which reads as revision 0.
+/// `MAJOR.MINOR`, digits only.
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(try_from = "String")]
 pub struct SchemaVersion {
     pub major: u32,
     pub minor: u32,
-    pub revision: u32,
 }
 
 impl TryFrom<String> for SchemaVersion {
     type Error = String;
 
     fn try_from(text: String) -> Result<Self, String> {
-        let numbers: Result<Vec<u32>, _> = text.split('.').map(str::parse).collect();
-        let (major, minor, revision) = match numbers.as_deref() {
-            Ok(&[major, minor]) => (major, minor, 0),
-            Ok(&[major, minor, revision]) => (major, minor, revision),
-            _ => return Err(format!("schema_version {text:?}")),
+        // Digits only, since `u32::from_str` also takes a leading `+`.
+        let read = |part: &str| -> Option<u32> {
+            if !part.bytes().all(|byte| byte.is_ascii_digit()) {
+                return None;
+            }
+            part.parse().ok()
         };
-        Ok(Self {
-            major,
-            minor,
-            revision,
-        })
+        let version = text.split_once('.').and_then(|(major, minor)| {
+            Some(Self {
+                major: read(major)?,
+                minor: read(minor)?,
+            })
+        });
+        version.ok_or_else(|| format!("schema_version {text:?}"))
     }
 }
 
@@ -168,7 +170,7 @@ fn check_policies(policies: &[Policy]) -> Result<(), UnusableBundle> {
 }
 
 fn check_bindings(bindings: &[Binding], policies: &[Policy]) -> Result<(), UnusableBundle> {
-    let known_bindings: HashSet<Uuid> = policies.iter().map(|policy| policy.id).collect();
+    let known_policies: HashSet<Uuid> = policies.iter().map(|policy| policy.id).collect();
     let mut seen = HashSet::new();
     for binding in bindings {
         let key = &binding.endpoint_key;
@@ -186,11 +188,11 @@ fn check_bindings(bindings: &[Binding], policies: &[Policy]) -> Result<(), Unusa
             }
             _ => {}
         }
-        // Ignores `enabled`: a disabled id is still a real policy, an unknown one a broken bundle.
+        // Stricter than the contract, where an unknown id binds nothing: Rail Center never sends one.
         if let Some(id) = binding
             .policy_ids
             .iter()
-            .find(|id| !known_bindings.contains(id))
+            .find(|id| !known_policies.contains(id))
         {
             return refuse(format!("binding {key:?} names unknown policy {id}"));
         }

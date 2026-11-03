@@ -1,12 +1,24 @@
 use std::collections::HashMap;
 
 use base64::Engine;
-use base64::engine::general_purpose::{URL_SAFE, URL_SAFE_NO_PAD};
-use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+use base64::alphabet::URL_SAFE;
+use base64::engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig};
+use ed25519_dalek::{Signature, VerifyingKey};
 use serde_json::{Map, Value};
 
 /// A reader's clock may lag Rail Center's, so a fresh ticket's `nbf` gets this much. `exp` gets none.
 const NBF_ALLOWANCE_IN_SECONDS: i64 = 60;
+
+/// The largest whole number a double holds exactly, and so the bound on `exp` and `nbf`.
+const MAX_SAFE_INTEGER: f64 = 9_007_199_254_740_991.0;
+
+/// Decodes a body already stripped of its padding and mapped to the url-safe alphabet.
+const BASE64: GeneralPurpose = GeneralPurpose::new(
+    &URL_SAFE,
+    GeneralPurposeConfig::new()
+        .with_decode_padding_mode(DecodePaddingMode::RequireNone)
+        .with_decode_allow_trailing_bits(true),
+);
 
 /// How an `x-rail` value classifies. Only `Valid` carries claims.
 #[derive(Debug, PartialEq)]
@@ -41,30 +53,34 @@ pub struct TicketVerifier {
     pub audience: Option<String>,
 }
 
-/// Reads an unsigned ticket.
+/// Reads an unsigned ticket. The caller reads a missing header as `Absent`, and a repeated one
+/// as `Undecodable`.
 pub fn parse_base64_ticket(value: &str, now_in_seconds: i64) -> TicketState {
-    let Ok(bytes) = URL_SAFE.decode(value) else {
-        return TicketState::Undecodable;
-    };
-    let Ok(payload) = serde_json::from_slice::<Value>(&bytes) else {
+    if value.is_empty() {
+        return TicketState::Absent;
+    }
+    let Some(payload) = decode_base64(value).and_then(|bytes| read_json(&bytes)) else {
         return TicketState::Undecodable;
     };
     let Value::Object(claims) = payload else {
         return TicketState::Malformed;
     };
-    let Some(exp_in_seconds) = claims.get("exp").and_then(Value::as_i64) else {
+    let Some(exp_in_seconds) = claims.get("exp").and_then(read_seconds) else {
         return TicketState::Malformed;
     };
     check_expiry(claims, exp_in_seconds, now_in_seconds)
 }
 
 /// Reads a signed ticket: first failure wins, and nothing in the payload is read until the
-/// signature holds.
+/// signature holds. The caller handles the header as for `parse_base64_ticket`.
 pub fn parse_jwt_ticket(
     value: &str,
     verifier: &TicketVerifier,
     now_in_seconds: i64,
 ) -> TicketState {
+    if value.is_empty() {
+        return TicketState::Absent;
+    }
     let parts: Vec<&str> = value.split('.').collect();
     let [header, payload, signature] = parts[..] else {
         return TicketState::Undecodable;
@@ -74,14 +90,14 @@ pub fn parse_jwt_ticket(
     }
     // The signature covers the first two parts exactly as received.
     let signed = &value[..value.len() - signature.len() - 1];
-    let (Ok(header), Ok(payload), Ok(signature)) = (
-        URL_SAFE_NO_PAD.decode(header),
-        URL_SAFE_NO_PAD.decode(payload),
-        URL_SAFE_NO_PAD.decode(signature),
+    let (Some(header), Some(payload), Some(signature)) = (
+        decode_base64(header),
+        decode_base64(payload),
+        decode_base64(signature),
     ) else {
         return TicketState::Undecodable;
     };
-    let Ok(header @ Value::Object(_)) = serde_json::from_slice(&header) else {
+    let Some(header @ Value::Object(_)) = read_json(&header) else {
         return TicketState::Undecodable;
     };
 
@@ -98,19 +114,20 @@ pub fn parse_jwt_ticket(
     let Ok(signature) = Signature::from_slice(&signature) else {
         return TicketState::BadSignature;
     };
-    if key.verify(signed.as_bytes(), &signature).is_err() {
+    // Strict, so a weak key in the set can't be used to forge a ticket.
+    if key.verify_strict(signed.as_bytes(), &signature).is_err() {
         return TicketState::BadSignature;
     }
 
-    let Ok(payload) = serde_json::from_slice::<Value>(&payload) else {
+    let Some(payload) = read_json(&payload) else {
         return TicketState::Undecodable;
     };
     let Value::Object(claims) = payload else {
         return TicketState::Malformed;
     };
     let (Some(exp_in_seconds), Some(nbf_in_seconds)) = (
-        claims.get("exp").and_then(Value::as_i64),
-        claims.get("nbf").and_then(Value::as_i64),
+        claims.get("exp").and_then(read_seconds),
+        claims.get("nbf").and_then(read_seconds),
     ) else {
         return TicketState::Malformed;
     };
@@ -126,6 +143,37 @@ pub fn parse_jwt_ticket(
         return TicketState::WrongAudience;
     }
     check_expiry(claims, exp_in_seconds, now_in_seconds)
+}
+
+/// Either alphabet, padded or not: a trailing run of `=` is dropped, and nothing else is.
+fn decode_base64(text: &str) -> Option<Vec<u8>> {
+    // The engine refuses any other byte, and a body of length 4n + 1.
+    let body: String = text
+        .trim_end_matches('=')
+        .chars()
+        .map(|c| match c {
+            '+' => '-',
+            '/' => '_',
+            c => c,
+        })
+        .collect();
+    BASE64.decode(body).ok()
+}
+
+/// Strict UTF-8, less one leading byte-order mark.
+fn read_json(bytes: &[u8]) -> Option<Value> {
+    let text = std::str::from_utf8(bytes).ok()?;
+    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
+    serde_json::from_str(text).ok()
+}
+
+/// A whole number of seconds a double holds exactly, written with a fraction or without.
+fn read_seconds(value: &Value) -> Option<i64> {
+    let seconds = value.as_f64()?;
+    if seconds.fract() != 0.0 || seconds.abs() > MAX_SAFE_INTEGER {
+        return None;
+    }
+    Some(seconds as i64)
 }
 
 fn check_expiry(

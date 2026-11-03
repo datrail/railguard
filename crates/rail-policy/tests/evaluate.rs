@@ -54,6 +54,7 @@ fn get_outcome_name(outcome: &Result<bool, Refusal>) -> &'static str {
 #[test]
 fn test_vectors() {
     let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
+    assert!(!vectors.cases.is_empty());
 
     let failures: Vec<String> = vectors
         .cases

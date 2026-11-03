@@ -9,6 +9,10 @@ _VECTORS = Path(__file__).parents[3] / "vectors" / "parse_bundle_conformance_cas
 _CASES = json.loads(_VECTORS.read_text())["cases"]
 
 
+def test_has_cases():
+    assert _CASES
+
+
 @pytest.mark.parametrize("case", _CASES, ids=lambda case: case["name"])
 def test_vectors(case):
     check = validate_bundle(json.dumps(case["bundle"]))
