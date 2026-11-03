@@ -41,13 +41,21 @@ fn test_forwards_a_session_or_discovery_message_unjudged() {
 
 #[test]
 fn test_reads_every_other_method_as_keyless() {
-    for method in ["resources/read", "prompts/get", "completion/complete", ""] {
+    for method in ["resources/read", "prompts/get", "completion/complete"] {
         assert_eq!(
             resolve(method, Some("track_package")),
             Resolution::Judged(Endpoint::Keyless),
             "{method}"
         );
     }
+}
+
+#[test]
+fn test_reads_a_missing_method_as_unrecognised() {
+    assert_eq!(
+        resolve("", None),
+        Resolution::Judged(Endpoint::Unrecognised)
+    );
 }
 
 #[test]

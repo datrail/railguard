@@ -1,6 +1,6 @@
 use rail_policy::{
-    Budget, Decision, Endpoint, EnforcementMode, Environment, FallbackDenial, Headers, Outcome,
-    TicketClaims, compile_bundle, judge, parse_bundle,
+    Budget, Decision, Endpoint, EnforcementMode, Environment, FallbackDenial, Headers, JudgingMode,
+    Outcome, Refusal, TicketClaims, compile_bundle, judge, parse_bundle,
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -16,7 +16,7 @@ struct Vectors {
 struct Case {
     name: String,
     bundle: Value,
-    mode: EnforcementMode,
+    mode: JudgingMode,
     endpoint: Value,
     ticket: Option<TicketClaims>,
     headers: Vec<(String, String)>,
@@ -33,19 +33,23 @@ fn read_endpoint(endpoint: &Value) -> Endpoint {
 
 /// The outcome in the vectors' own shape, so a failure shows both sides alike.
 fn format_outcome(outcome: &Outcome) -> Value {
-    let fallback = outcome.fallback.as_ref().map(|fallback| match fallback {
-        FallbackDenial::Ticket => "ticket",
-        FallbackDenial::Binding => "binding",
-    });
+    let fallbacks: Vec<&str> = outcome
+        .fallbacks
+        .iter()
+        .map(|fallback| match fallback {
+            FallbackDenial::Ticket => "ticket",
+            FallbackDenial::Binding => "binding",
+        })
+        .collect();
     let chain = outcome.chain.as_ref().map(|chain| {
         let decision = match &chain.decision {
             Decision::Allowed => json!("allowed"),
             Decision::Denied(id) => json!({"denied": id}),
-            Decision::Refused(_) => json!("refused"),
+            Decision::Refused { policy, .. } => json!({"refused": policy}),
         };
         json!({"decision": decision, "alerts": chain.alerts})
     });
-    json!({"fallback": fallback, "chain": chain})
+    json!({"fallbacks": fallbacks, "chain": chain})
 }
 
 fn judge_case(case: &Case) -> Outcome {
@@ -113,7 +117,7 @@ fn test_shares_one_budget_across_the_walk() {
         judge(
             &judge_bundle,
             &environment,
-            EnforcementMode::Enforce,
+            JudgingMode::Enforce,
             &mut Budget::new(limit),
         )
         .chain
@@ -125,6 +129,22 @@ fn test_shares_one_budget_across_the_walk() {
     assert_eq!(judge_with(3), Decision::Allowed);
     assert_eq!(
         judge_with(2),
-        Decision::Refused(rail_policy::Refusal::BudgetExceeded)
+        Decision::Refused {
+            policy: "5c8f1e42-0000-4000-8000-000000000003".parse().unwrap(),
+            refusal: Refusal::BudgetExceeded,
+        }
+    );
+}
+
+#[test]
+fn test_judges_nothing_at_mode_none() {
+    assert_eq!(EnforcementMode::None.judging_mode(), None);
+    assert_eq!(
+        EnforcementMode::Observe.judging_mode(),
+        Some(JudgingMode::Observe)
+    );
+    assert_eq!(
+        EnforcementMode::Enforce.judging_mode(),
+        Some(JudgingMode::Enforce)
     );
 }

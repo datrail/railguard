@@ -1,5 +1,5 @@
 {
-  "_comment": "Conformance cases for judge, the fallbacks and the walk. Taken from datrail/gateway's gateway-core/tests/vectors/v2/decide.json (its whole-bundle cases) and fallback.json, at 6758b77; bundles are filled in to the 2.0 shape Rail Center publishes, both fallbacks `pass` unless a case is about one, and claims to the typed claims. fallback.json's `<slug>.<tool>` keys are rewritten to `<slug>#/mcp#tools/call#<tool>`, and its cases with no chain are given one inert alert. An `endpoint` is `keyless`, `unrecognised` or {\"resolved\": key}, the key without its slug. `expect.fallback` is the fallback that denies, and `expect.chain` the walk's verdict, null where a fallback denies at enforce. Removed: 5 with an action other than block or alert, which this reader refuses with the bundle; 2 with an enabled that isn't a boolean, which this reader refuses with the bundle; 2 with mode none, where the caller never calls the judge. Cases marked `added` are this reader's own: the ticket fallback, which the frozen vectors predate, and narrowing order. A case marked `retargeted` says how it was moved onto a claim the typed claims hold.",
+  "_comment": "Conformance cases for judge, the fallbacks and the walk. Taken from datrail/gateway's gateway-core/tests/vectors/v2/decide.json (its whole-bundle cases) and fallback.json, at 6758b77; bundles are filled in to the 2.0 shape Rail Center publishes, both fallbacks `pass` unless a case is about one, and claims to the typed claims. fallback.json's `<slug>.<tool>` keys are rewritten to `<slug>#/mcp#tools/call#<tool>`, and its cases with no chain are given one inert alert. An `endpoint` is `keyless`, `unrecognised` or {\"resolved\": key}, the key without its slug. `expect.fallbacks` lists the fallbacks that deny, in the order asked, and `expect.chain` the walk's verdict, null where a fallback denies at enforce; a refusal names the policy it was reached at. Removed: 5 with an action other than block or alert, which the contract denies on and this reader refuses with the bundle (Rail Center only publishes the two); 2 with an `enabled` missing or not a boolean, which the contract reads as enabled and this reader refuses with the bundle (Rail Center always sends a boolean); 2 with mode none, where the caller never calls the judge. Cases marked `added` are this reader's own: the ticket fallback, which the frozen vectors predate, and narrowing order. A case marked `retargeted` says how it was moved onto a claim the typed claims hold.",
   "cases": [
     {
       "name": "an endpoint with no binding entry is subject to every policy",
@@ -56,7 +56,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": {
             "denied": "5c8f1e42-0000-4000-8000-000000000001"
@@ -135,7 +135,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": {
             "denied": "5c8f1e42-0000-4000-8000-000000000002"
@@ -200,7 +200,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": "allowed",
           "alerts": []
@@ -277,7 +277,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": "allowed",
           "alerts": []
@@ -354,7 +354,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": {
             "denied": "5c8f1e42-0000-4000-8000-000000000002"
@@ -425,7 +425,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": {
             "denied": "5c8f1e42-0000-4000-8000-000000000001"
@@ -496,7 +496,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": {
             "denied": "5c8f1e42-0000-4000-8000-000000000001"
@@ -567,7 +567,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": {
             "denied": "5c8f1e42-0000-4000-8000-000000000001"
@@ -626,7 +626,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": {
             "denied": "5c8f1e42-0000-4000-8000-000000000001"
@@ -697,7 +697,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": {
             "denied": "5c8f1e42-0000-4000-8000-000000000002"
@@ -782,7 +782,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": {
             "denied": "5c8f1e42-0000-4000-8000-000000000003"
@@ -868,7 +868,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": "allowed",
           "alerts": [
@@ -929,7 +929,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": "allowed",
           "alerts": [
@@ -987,7 +987,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": "allowed",
           "alerts": []
@@ -1030,7 +1030,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": "allowed",
           "alerts": []
@@ -1086,7 +1086,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": "allowed",
           "alerts": []
@@ -1155,7 +1155,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": {
             "denied": "5c8f1e42-0000-4000-8000-000000000002"
@@ -1226,7 +1226,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": {
             "denied": "5c8f1e42-0000-4000-8000-000000000001"
@@ -1297,9 +1297,11 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
-          "decision": "refused",
+          "decision": {
+            "refused": "5c8f1e42-0000-4000-8000-000000000009"
+          },
           "alerts": []
         }
       },
@@ -1366,9 +1368,11 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
-          "decision": "refused",
+          "decision": {
+            "refused": "5c8f1e42-0000-4000-8000-000000000001"
+          },
           "alerts": []
         }
       },
@@ -1418,7 +1422,7 @@
       "ticket": null,
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": {
             "denied": "5c8f1e42-0000-4000-8000-0000000000f0"
@@ -1487,7 +1491,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": {
             "denied": "5c8f1e42-0000-4000-8000-0000000000f1"
@@ -1576,7 +1580,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": {
             "denied": "5c8f1e42-0000-4000-8000-0000000000e3"
@@ -1647,7 +1651,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": "allowed",
           "alerts": []
@@ -1707,7 +1711,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": {
             "denied": "5c8f1e42-0000-4000-8000-0000000000f1"
@@ -1783,7 +1787,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": "allowed",
           "alerts": []
@@ -1840,7 +1844,9 @@
       },
       "headers": [],
       "expect": {
-        "fallback": "binding",
+        "fallbacks": [
+          "binding"
+        ],
         "chain": null
       },
       "note": "The rule the whole file is about. No entry, so the fallback answers and the chain is never reached."
@@ -1901,7 +1907,9 @@
       },
       "headers": [],
       "expect": {
-        "fallback": "binding",
+        "fallbacks": [
+          "binding"
+        ],
         "chain": null
       },
       "note": "A bundle with bindings is not a bundle where every endpoint is bound. Reading a non-empty `bindings` as 'this bundle narrows, so walk it' refuses nothing here."
@@ -1962,7 +1970,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": "allowed",
           "alerts": []
@@ -2024,7 +2032,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": "allowed",
           "alerts": []
@@ -2080,7 +2088,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": "allowed",
           "alerts": []
@@ -2144,7 +2152,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": "allowed",
           "alerts": []
@@ -2199,7 +2207,9 @@
       },
       "headers": [],
       "expect": {
-        "fallback": "binding",
+        "fallbacks": [
+          "binding"
+        ],
         "chain": {
           "decision": "allowed",
           "alerts": []
@@ -2255,7 +2265,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": "allowed",
           "alerts": []
@@ -2308,7 +2318,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": "allowed",
           "alerts": []
@@ -2362,7 +2372,9 @@
       },
       "headers": [],
       "expect": {
-        "fallback": "binding",
+        "fallbacks": [
+          "binding"
+        ],
         "chain": null
       },
       "note": "It named an endpoint; the reader declined to compose a key for it. No binding can match a key that was never composed, and the input a reader understands least is not the one to give the benefit of the doubt."
@@ -2413,7 +2425,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": "allowed",
           "alerts": []
@@ -2467,7 +2479,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": "allowed",
           "alerts": []
@@ -2523,7 +2535,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": {
             "denied": "5c8f1e42-0000-4000-8000-0000000000f1"
@@ -2582,7 +2594,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": "allowed",
           "alerts": []
@@ -2639,7 +2651,9 @@
       },
       "headers": [],
       "expect": {
-        "fallback": "binding",
+        "fallbacks": [
+          "binding"
+        ],
         "chain": null
       },
       "note": "The same request the case above allows. `block` refuses it without consulting the chain, which is what makes 'the chain is not consulted' observable: consult it and this call is allowed."
@@ -2715,7 +2729,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": {
             "denied": "5c8f1e42-0000-4000-8000-0000000000a1"
@@ -2757,7 +2771,9 @@
       "ticket": null,
       "headers": [],
       "expect": {
-        "fallback": "ticket",
+        "fallbacks": [
+          "ticket"
+        ],
         "chain": null
       }
     },
@@ -2794,7 +2810,9 @@
       "ticket": null,
       "headers": [],
       "expect": {
-        "fallback": "ticket",
+        "fallbacks": [
+          "ticket"
+        ],
         "chain": {
           "decision": "allowed",
           "alerts": [
@@ -2836,7 +2854,7 @@
       "ticket": null,
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": {
             "denied": "5c8f1e42-0000-4000-8000-0000000000b2"
@@ -2846,7 +2864,7 @@
       }
     },
     {
-      "name": "the ticket fallback answers before the binding fallback",
+      "name": "at observe, both fallbacks that would deny are reported, the ticket fallback first",
       "added": true,
       "bundle": {
         "schema_version": "2.0",
@@ -2878,13 +2896,55 @@
       "ticket": null,
       "headers": [],
       "expect": {
-        "fallback": "ticket",
+        "fallbacks": [
+          "ticket",
+          "binding"
+        ],
         "chain": {
           "decision": "allowed",
           "alerts": [
             "5c8f1e42-0000-4000-8000-0000000000b1"
           ]
         }
+      }
+    },
+    {
+      "name": "at enforce, the ticket fallback answers before the binding fallback",
+      "added": true,
+      "bundle": {
+        "schema_version": "2.0",
+        "content_hash": "walk",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "policies": [
+          {
+            "id": "5c8f1e42-0000-4000-8000-0000000000b1",
+            "name": "P-b1",
+            "priority": 1,
+            "condition": {
+              "path": "ticket",
+              "op": "not_existing"
+            },
+            "action": "alert",
+            "enabled": true
+          }
+        ],
+        "bindings": [],
+        "binding_fallback": "block",
+        "ticket_fallback": "block"
+      },
+      "mode": "enforce",
+      "endpoint": {
+        "resolved": "/mcp#tools/call#track_package"
+      },
+      "ticket": null,
+      "headers": [],
+      "expect": {
+        "fallbacks": [
+          "ticket"
+        ],
+        "chain": null
       }
     },
     {
@@ -2937,7 +2997,7 @@
       },
       "headers": [],
       "expect": {
-        "fallback": null,
+        "fallbacks": [],
         "chain": {
           "decision": {
             "denied": "5c8f1e42-0000-4000-8000-0000000000b3"

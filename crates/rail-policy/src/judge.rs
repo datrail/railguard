@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use uuid::Uuid;
 
+use serde::Deserialize;
+
 use crate::bundle::{Action, BindingMode, Bundle, EnforcementMode, Fallback};
 use crate::environment::{Endpoint, Environment, ResolvedKey};
 use crate::evaluate::{Budget, CompiledCondition, Refusal, compile_condition, evaluate_condition};
@@ -24,11 +26,30 @@ struct ChainPolicy {
     condition: CompiledCondition,
 }
 
-/// What the judge answers for one call. The caller acts on it per the enforcement mode.
+/// The modes that judge a call: at `none` a call is forwarded without one.
+#[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum JudgingMode {
+    Observe,
+    Enforce,
+}
+
+impl EnforcementMode {
+    /// `None` at `none`, where the judge isn't called.
+    pub fn judging_mode(self) -> Option<JudgingMode> {
+        match self {
+            Self::None => None,
+            Self::Observe => Some(JudgingMode::Observe),
+            Self::Enforce => Some(JudgingMode::Enforce),
+        }
+    }
+}
+
+/// What the judge answers for one call. The caller acts on it per its mode.
 #[derive(Debug, PartialEq)]
 pub struct Outcome {
-    /// The fallback that denies the call, if one does.
-    pub fallback: Option<FallbackDenial>,
+    /// The fallbacks that deny the call, in the order asked. At `enforce`, only the first is asked.
+    pub fallbacks: Vec<FallbackDenial>,
     /// The chain's verdict: `None` where a fallback denies at `enforce`, which skips the chain.
     pub chain: Option<ChainVerdict>,
 }
@@ -53,7 +74,11 @@ pub enum Decision {
     Allowed,
     /// By the first `block` policy that matched.
     Denied(Uuid),
-    Refused(Refusal),
+    /// At this policy, whose condition can't be read or which the budget ran out at.
+    Refused {
+        policy: Uuid,
+        refusal: Refusal,
+    },
 }
 
 pub fn compile_bundle(bundle: &Bundle) -> Judge {
@@ -67,17 +92,26 @@ pub fn compile_bundle(bundle: &Bundle) -> Judge {
             condition: compile_condition(&policy.condition),
         })
         .collect();
+    let positions: HashMap<Uuid, usize> = chain
+        .iter()
+        .enumerate()
+        .map(|(position, policy)| (policy.id, position))
+        .collect();
     let bindings = bundle
         .bindings
         .iter()
         .map(|binding| {
-            // A bound policy that is disabled binds nothing.
-            let allowed = match binding.mode {
+            let mut allowed: Vec<usize> = match binding.mode {
                 BindingMode::Open => Vec::new(),
-                BindingMode::Gated => (0..chain.len())
-                    .filter(|&position| binding.policy_ids.contains(&chain[position].id))
+                // A bound policy that is disabled binds nothing.
+                BindingMode::Gated => binding
+                    .policy_ids
+                    .iter()
+                    .filter_map(|id| positions.get(id).copied())
                     .collect(),
             };
+            allowed.sort_unstable();
+            allowed.dedup();
             (binding.endpoint_key.resolved.clone(), allowed)
         })
         .collect();
@@ -92,18 +126,18 @@ pub fn compile_bundle(bundle: &Bundle) -> Judge {
 /// The ticket fallback, then the binding fallback, then the chain. At `enforce` a fallback's
 /// denial ends the judgement; at `observe` the chain is walked anyway, to preview it.
 pub fn judge(
-    judge: &Judge,
+    compiled: &Judge,
     environment: &Environment,
-    mode: EnforcementMode,
+    mode: JudgingMode,
     budget: &mut Budget,
 ) -> Outcome {
-    let enforcing = mode == EnforcementMode::Enforce;
-    let mut fallback = None;
-    if environment.ticket.is_none() && judge.ticket_fallback == Fallback::Block {
-        fallback = Some(FallbackDenial::Ticket);
+    let enforcing = mode == JudgingMode::Enforce;
+    let mut fallbacks = Vec::new();
+    if environment.ticket.is_none() && compiled.ticket_fallback == Fallback::Block {
+        fallbacks.push(FallbackDenial::Ticket);
         if enforcing {
             return Outcome {
-                fallback,
+                fallbacks,
                 chain: None,
             };
         }
@@ -113,29 +147,29 @@ pub fn judge(
         Endpoint::Keyless => (None, false),
         Endpoint::Unrecognised => (None, true),
         Endpoint::Resolved(key) => {
-            let narrowed = judge.bindings.get(key);
+            let narrowed = compiled.bindings.get(key);
             (narrowed, narrowed.is_none())
         }
     };
-    if unbound && judge.binding_fallback == Fallback::Block {
-        fallback.get_or_insert(FallbackDenial::Binding);
+    if unbound && compiled.binding_fallback == Fallback::Block {
+        fallbacks.push(FallbackDenial::Binding);
         if enforcing {
             return Outcome {
-                fallback,
+                fallbacks,
                 chain: None,
             };
         }
     }
     let chain = match narrowed {
         Some(positions) => walk(
-            positions.iter().map(|&position| &judge.chain[position]),
+            positions.iter().map(|&position| &compiled.chain[position]),
             environment,
             budget,
         ),
-        None => walk(judge.chain.iter(), environment, budget),
+        None => walk(compiled.chain.iter(), environment, budget),
     };
     Outcome {
-        fallback,
+        fallbacks,
         chain: Some(chain),
     }
 }
@@ -152,7 +186,10 @@ fn walk<'a>(
             // A refused call reports nothing, its alerts included.
             Err(refusal) => {
                 return ChainVerdict {
-                    decision: Decision::Refused(refusal),
+                    decision: Decision::Refused {
+                        policy: policy.id,
+                        refusal,
+                    },
                     alerts: Vec::new(),
                 };
             }
