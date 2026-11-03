@@ -82,38 +82,9 @@ enum Lookup<'a> {
     Number(f64),
     /// Never compared: `true == 1` in some languages and not in others.
     Bool,
-    List(List<'a>),
+    /// A header with several values, or a list in the ticket, which may hold anything.
+    List(&'a [Value]),
     Object,
-}
-
-/// A header's values, or a list in the ticket, which may hold anything.
-#[derive(Clone, Copy)]
-enum List<'a> {
-    Header(&'a [String]),
-    Ticket(&'a [Value]),
-}
-
-impl<'a> List<'a> {
-    fn len(self) -> usize {
-        match self {
-            Self::Header(values) => values.len(),
-            Self::Ticket(values) => values.len(),
-        }
-    }
-
-    fn is_empty(self) -> bool {
-        self.len() == 0
-    }
-
-    fn items(self) -> impl Iterator<Item = Lookup<'a>> {
-        // Both kinds as one iterator type, without boxing.
-        let (header, ticket) = match self {
-            Self::Header(values) => (values, &[][..]),
-            Self::Ticket(values) => (&[][..], values),
-        };
-        let header = header.iter().map(|value| Lookup::Str(value));
-        header.chain(ticket.iter().map(read_value))
-    }
 }
 
 pub fn compile_condition(condition: &Condition) -> CompiledCondition {
@@ -191,7 +162,7 @@ fn read_value(value: &Value) -> Lookup<'_> {
         // Always some double, since serde_json reads no number past one.
         Value::Number(number) => number.as_f64().map_or(Lookup::Absent, Lookup::Number),
         Value::String(text) => Lookup::Str(text),
-        Value::Array(values) => Lookup::List(List::Ticket(values)),
+        Value::Array(values) => Lookup::List(values),
         Value::Object(_) => Lookup::Object,
     }
 }
@@ -205,8 +176,8 @@ fn resolve_request<'a>(path: &RequestPath, environment: &Environment<'a>) -> Loo
         },
         RequestPath::Header(name) => match environment.headers.get(name) {
             None => Lookup::Absent,
-            Some([value]) => Lookup::Str(value),
-            Some(values) => Lookup::List(List::Header(values)),
+            Some([value]) => read_value(value),
+            Some(values) => Lookup::List(values),
         },
     }
 }
@@ -220,11 +191,19 @@ fn apply(test: &Test, value: Lookup, budget: &mut Budget) -> Result<bool, Refusa
         (Test::NotExisting, value) => matches!(value, Lookup::Absent),
         // On a list, `eq` needs every value to equal, and `ne` any value to differ.
         (Test::Eq(operand), Lookup::List(items)) => {
-            !items.is_empty() && items.items().all(|item| equals(item, operand))
+            !items.is_empty()
+                && items
+                    .iter()
+                    .map(read_value)
+                    .all(|item| equals(item, operand))
         }
         (Test::Eq(operand), value) => equals(value, operand),
         (Test::Ne(operand), Lookup::List(items)) => {
-            !items.is_empty() && items.items().any(|item| !equals(item, operand))
+            !items.is_empty()
+                && items
+                    .iter()
+                    .map(read_value)
+                    .any(|item| !equals(item, operand))
         }
         (Test::Ne(operand), value) => is_scalar(value) && !equals(value, operand),
         (Test::Lt(operand), Lookup::Number(number)) => number < *operand,
@@ -233,20 +212,25 @@ fn apply(test: &Test, value: Lookup, budget: &mut Budget) -> Result<bool, Refusa
         (Test::Gte(operand), Lookup::Number(number)) => number >= *operand,
         (Test::In(operand), Lookup::List(items)) => {
             budget.charge((items.len() as u64).saturating_mul(operand.len() as u64))?;
-            items.items().any(|item| is_member(item, operand))
+            items
+                .iter()
+                .map(read_value)
+                .any(|item| is_member(item, operand))
         }
         (Test::In(operand), value) => {
             budget.charge(operand.len() as u64)?;
             is_member(value, operand)
         }
-        (Test::Contains(operand), Lookup::List(items)) => {
-            items.items().any(|item| equals(item, operand))
-        }
-        (Test::NotContains(operand), Lookup::List(items)) => {
-            !items.items().any(|item| equals(item, operand))
-        }
+        (Test::Contains(operand), Lookup::List(items)) => items
+            .iter()
+            .map(read_value)
+            .any(|item| equals(item, operand)),
+        (Test::NotContains(operand), Lookup::List(items)) => !items
+            .iter()
+            .map(read_value)
+            .any(|item| equals(item, operand)),
         (Test::Matches(glob), Lookup::List(items)) => {
-            for item in items.items() {
+            for item in items.iter().map(read_value) {
                 if let Lookup::Str(text) = item
                     && glob.matches(text, budget)?
                 {
