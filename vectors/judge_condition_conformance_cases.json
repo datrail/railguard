@@ -4310,7 +4310,7 @@
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
       "expect": "refused",
-      "differs": "the gateway compares it as infinity; this reader refuses it, as rail-center/task.md proposes Rail Center do on publish; its ticket, scored past a double too, is undecodable here, so none is usable",
+      "differs": "the gateway compares it as infinity; this reader refuses it, pending a change to the contract that bounds such operands; its ticket, scored past a double too, is undecodable here, so none is usable",
       "note": "Both saturate to the same infinity and compare equal. float() raises where JavaScript saturates, and an exception where a comparison belongs is neither an allow nor a deny."
     },
     {
@@ -4324,7 +4324,7 @@
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
       "expect": "refused",
-      "differs": "the gateway compares it as infinity; this reader refuses it, as rail-center/task.md proposes Rail Center do on publish; its ticket, scored past a double too, is undecodable here, so none is usable"
+      "differs": "the gateway compares it as infinity; this reader refuses it, pending a change to the contract that bounds such operands; its ticket, scored past a double too, is undecodable here, so none is usable"
     },
     {
       "name": "an operand overflowing to infinity is compared, not refused",
@@ -4345,7 +4345,7 @@
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
       "expect": "refused",
-      "differs": "the gateway compares it as infinity; this reader refuses it, as rail-center/task.md proposes Rail Center do on publish"
+      "differs": "the gateway compares it as infinity; this reader refuses it, pending a change to the contract that bounds such operands"
     },
     {
       "name": "in holds for a member",

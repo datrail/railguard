@@ -6,6 +6,7 @@ mod endpoint;
 mod environment;
 mod evaluate;
 mod judge;
+mod sanitize;
 mod ticket;
 
 pub use bundle::{
@@ -21,4 +22,5 @@ pub use evaluate::{
 pub use judge::{
     ChainVerdict, Decision, FallbackDenial, Judge, JudgingMode, Outcome, compile_bundle, judge,
 };
+pub use sanitize::sanitize;
 pub use ticket::{Ticket, TicketState, TicketVerifier, parse_base64_ticket, parse_jwt_ticket};

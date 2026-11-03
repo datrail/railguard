@@ -8,6 +8,7 @@ ed25519-dalek = { version = "3", default-features = false }
 serde = { version = "1", features = ["derive"] }
 # The default parser misreads some doubles by a bit, and operands are compared as doubles.
 serde_json = { version = "1", features = ["float_roundtrip", "raw_value"] }
+unicode-general-category = "1"
 uuid = { version = "1", default-features = false, features = ["serde"] }
 
 [lints.rust]

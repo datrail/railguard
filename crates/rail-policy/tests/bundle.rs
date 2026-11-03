@@ -231,3 +231,15 @@ fn test_names_an_endpoint_key_as_sent_when_refusing() {
         "unusable policy bundle: open binding finretail#/mcp#tools/call#refund_order names policies"
     );
 }
+
+#[test]
+fn test_sanitizes_what_a_refusal_quotes() {
+    let bundle = EXAMPLE
+        .replace(r#""gated""#, r#""open""#)
+        .replace("#refund_order", r"#a\nforged\u001b[31m\u202eé");
+    let refusal = parse_bundle(&bundle).unwrap_err().to_string();
+    assert_eq!(
+        refusal,
+        r"unusable policy bundle: open binding finretail#/mcp#tools/call#a\u{a}forged\u{1b}[31m\u{202e}é names policies"
+    );
+}

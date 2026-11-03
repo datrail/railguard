@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use crate::condition::Condition;
 use crate::endpoint::ResolvedKey;
+use crate::sanitize::sanitize;
 
 /// The body of Rail Center's `GET /v1/policy-bundle`.
 #[derive(Debug, Deserialize)]
@@ -167,8 +168,8 @@ impl fmt::Display for UnusableBundle {
 impl std::error::Error for UnusableBundle {}
 
 pub fn parse_bundle(json: &str) -> Result<Bundle, UnusableBundle> {
-    let mut bundle: Bundle =
-        serde_json::from_str(json).map_err(|e| UnusableBundle(e.to_string()))?;
+    let mut bundle: Bundle = serde_json::from_str(json)
+        .map_err(|e| UnusableBundle(sanitize(&e.to_string()).to_string()))?;
 
     let known_policies = check_policies(&bundle.policies)?;
     check_bindings(&bundle.bindings, &known_policies)?;
@@ -200,17 +201,19 @@ fn check_bindings(
     let mut seen = HashSet::new();
     for binding in bindings {
         let key = &binding.endpoint_key;
+        // From the bundle, so a key holding a newline can't forge a line where this is logged.
+        let shown = sanitize(&key.to_string()).to_string();
         // The gateway matches keys without the slug, so these reach one endpoint.
         if !seen.insert(&key.resolved) {
-            return refuse(format!("two bindings reach {key}"));
+            return refuse(format!("two bindings reach {shown}"));
         }
         match (&binding.mode, binding.policy_ids.is_empty()) {
             (BindingMode::Open, false) => {
-                return refuse(format!("open binding {key} names policies"));
+                return refuse(format!("open binding {shown} names policies"));
             }
             // Read literally, this would disarm the endpoint.
             (BindingMode::Gated, true) => {
-                return refuse(format!("gated binding {key} names no policy"));
+                return refuse(format!("gated binding {shown} names no policy"));
             }
             _ => {}
         }
@@ -220,7 +223,7 @@ fn check_bindings(
             .iter()
             .find(|id| !known_policies.contains(id))
         {
-            return refuse(format!("binding {key} names unknown policy {id}"));
+            return refuse(format!("binding {shown} names unknown policy {id}"));
         }
     }
     Ok(())
