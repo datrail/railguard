@@ -2,7 +2,8 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use crate::condition::{Condition, Path, Predicate, Scalar};
-use crate::environment::{Endpoint, Environment};
+use crate::endpoint::Endpoint;
+use crate::environment::Environment;
 use crate::schema::{RequestPath, TicketPath};
 
 /// The steps one judgement may take, unless the caller sets its own.

@@ -5,7 +5,8 @@ use uuid::Uuid;
 use serde::Deserialize;
 
 use crate::bundle::{Action, BindingMode, Bundle, EnforcementMode, Fallback};
-use crate::environment::{Endpoint, Environment, ResolvedKey};
+use crate::endpoint::{Endpoint, ResolvedKey};
+use crate::environment::Environment;
 use crate::evaluate::{Budget, CompiledCondition, Refusal, compile_condition, evaluate_condition};
 
 /// A bundle in the form calls are judged against.

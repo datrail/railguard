@@ -5,7 +5,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::condition::Condition;
-use crate::environment::ResolvedKey;
+use crate::endpoint::ResolvedKey;
 
 /// The body of Rail Center's `GET /v1/policy-bundle`.
 #[derive(Debug, Deserialize)]

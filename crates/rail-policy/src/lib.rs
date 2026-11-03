@@ -2,6 +2,7 @@
 
 mod bundle;
 mod condition;
+mod endpoint;
 mod environment;
 mod evaluate;
 mod judge;
@@ -13,7 +14,8 @@ pub use bundle::{
     Policy, SchemaVersion, UnusableBundle, parse_bundle,
 };
 pub use condition::{Condition, Path, Predicate, Scalar};
-pub use environment::{Endpoint, Environment, Headers, Resolution, ResolvedKey, resolve_endpoint};
+pub use endpoint::{Endpoint, Resolution, ResolvedKey, resolve_endpoint};
+pub use environment::{Environment, Headers};
 pub use evaluate::{
     Budget, CompiledCondition, DEFAULT_STEP_LIMIT, Refusal, compile_condition, evaluate_condition,
 };
