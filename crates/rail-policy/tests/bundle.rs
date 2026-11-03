@@ -103,9 +103,7 @@ fn test_reads_every_field_rail_center_publishes() {
     assert_eq!(binding.mode, BindingMode::Gated);
     let key = EndpointKey {
         slug: "finretail".to_string(),
-        path: "/mcp".to_string(),
-        method: "tools/call".to_string(),
-        call: "refund_order".to_string(),
+        resolved: "/mcp#tools/call#refund_order".parse().unwrap(),
     };
     assert_eq!(binding.endpoint_key, key);
     assert_eq!(binding.policy_ids, [policy.id]);
@@ -163,13 +161,30 @@ fn test_keeps_disabled_policies() {
 fn test_reads_an_endpoint_key_with_a_separator_in_its_call() {
     let bundle = EXAMPLE.replace("#refund_order", "#refund#order");
     let bundle = parse_bundle(&bundle).unwrap();
-    assert_eq!(bundle.bindings[0].endpoint_key.call, "refund#order");
+    assert_eq!(
+        bundle.bindings[0].endpoint_key.resolved.call(),
+        "refund#order"
+    );
 }
 
 #[test]
 fn test_refuses_an_endpoint_key_with_too_few_parts() {
     let bundle = EXAMPLE.replace("#refund_order", "");
     assert!(parse_bundle(&bundle).is_err());
+}
+
+#[test]
+fn test_refuses_an_endpoint_key_with_an_empty_part() {
+    let keys = [
+        "#/mcp#tools/call#refund_order",
+        "finretail##tools/call#refund_order",
+        "finretail#/mcp##refund_order",
+        "finretail#/mcp#tools/call#",
+    ];
+    for key in keys {
+        let bundle = EXAMPLE.replace("finretail#/mcp#tools/call#refund_order", key);
+        assert!(parse_bundle(&bundle).is_err(), "{key}");
+    }
 }
 
 #[test]

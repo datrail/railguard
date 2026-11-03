@@ -5,6 +5,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::condition::Condition;
+use crate::environment::ResolvedKey;
 
 /// The body of Rail Center's `GET /v1/policy-bundle`.
 #[derive(Debug, Deserialize)]
@@ -97,29 +98,25 @@ pub struct Binding {
     pub policy_ids: Vec<Uuid>,
 }
 
-/// `<slug>#<path>#<method>#<call>` on the wire. Only `call` can contain a `#`.
+/// `<slug>#<path>#<method>#<call>` on the wire: a slug, then the key a host resolves.
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(try_from = "String")]
 pub struct EndpointKey {
     pub slug: String,
-    pub path: String,
-    pub method: String,
-    pub call: String,
+    pub resolved: ResolvedKey,
 }
 
 impl TryFrom<String> for EndpointKey {
     type Error = String;
 
     fn try_from(text: String) -> Result<Self, String> {
-        let parts: Vec<&str> = text.splitn(4, '#').collect();
-        let [slug, path, method, call] = parts[..] else {
+        let Some((slug, rest)) = text.split_once('#').filter(|(slug, _)| !slug.is_empty()) else {
             return Err(format!("endpoint_key {text:?}"));
         };
+        let resolved = rest.parse().map_err(|_| format!("endpoint_key {text:?}"))?;
         Ok(Self {
             slug: slug.to_string(),
-            path: path.to_string(),
-            method: method.to_string(),
-            call: call.to_string(),
+            resolved,
         })
     }
 }
@@ -176,7 +173,7 @@ fn check_bindings(bindings: &[Binding], policies: &[Policy]) -> Result<(), Unusa
     for binding in bindings {
         let key = &binding.endpoint_key;
         // The gateway matches keys without the slug, so these reach one endpoint.
-        if !seen.insert((&key.path, &key.method, &key.call)) {
+        if !seen.insert(&key.resolved) {
             return refuse(format!("two bindings reach {key:?}"));
         }
         match (&binding.mode, binding.policy_ids.is_empty()) {
