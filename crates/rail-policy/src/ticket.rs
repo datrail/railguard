@@ -88,8 +88,11 @@ pub struct Baseline {
 pub struct TicketVerifier {
     /// By `kid`.
     pub keys: HashMap<String, VerifyingKey>,
-    pub issuer: String,
-    pub audience: String,
+    /// `None` where not configured, which accepts no signed ticket. Never `Some("")`: it would
+    /// match a ticket carrying `iss: ""`.
+    pub issuer: Option<String>,
+    /// As `issuer`.
+    pub audience: Option<String>,
 }
 
 /// Reads an unsigned ticket.
@@ -166,9 +169,13 @@ pub fn parse_jwt_ticket(
         return TicketState::Malformed;
     };
 
+    // Genuine, so not `BadSignature`, but with nothing to compare against it isn't for us either.
+    let (Some(issuer), Some(audience)) = (&verifier.issuer, &verifier.audience) else {
+        return TicketState::WrongAudience;
+    };
     if now_in_seconds < nbf_in_seconds.saturating_sub(NBF_ALLOWANCE_IN_SECONDS)
-        || payload["iss"].as_str() != Some(&verifier.issuer)
-        || payload["aud"].as_str() != Some(&verifier.audience)
+        || payload["iss"].as_str() != Some(issuer)
+        || payload["aud"].as_str() != Some(audience)
     {
         return TicketState::WrongAudience;
     }

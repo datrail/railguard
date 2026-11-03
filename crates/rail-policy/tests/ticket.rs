@@ -29,6 +29,15 @@ struct Case {
     /// The expected ticket, where it is valid.
     token: Option<TicketClaims>,
     exp_in_seconds: Option<i64>,
+    /// Replaces the file's reader, for a JWT case.
+    reader: Option<Reader>,
+}
+
+#[derive(Deserialize)]
+struct Reader {
+    holds_keys: bool,
+    issuer: Option<String>,
+    audience: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -89,16 +98,29 @@ fn test_jwt_vectors() {
         .unwrap()
         .try_into()
         .unwrap();
-    let verifier = TicketVerifier {
-        keys: HashMap::from([(vectors.kid, VerifyingKey::from_bytes(&key).unwrap())]),
-        issuer: vectors.issuer,
-        audience: vectors.audience,
+    let keys = HashMap::from([(vectors.kid, VerifyingKey::from_bytes(&key).unwrap())]);
+    let get_verifier = |reader: Option<&Reader>| match reader {
+        None => TicketVerifier {
+            keys: keys.clone(),
+            issuer: Some(vectors.issuer.clone()),
+            audience: Some(vectors.audience.clone()),
+        },
+        Some(reader) => TicketVerifier {
+            keys: if reader.holds_keys {
+                keys.clone()
+            } else {
+                HashMap::new()
+            },
+            issuer: reader.issuer.clone(),
+            audience: reader.audience.clone(),
+        },
     };
 
     let failures: Vec<String> = vectors
         .cases
         .iter()
         .filter_map(|case| {
+            let verifier = get_verifier(case.reader.as_ref());
             let state = parse_jwt_ticket(&case.header, &verifier, case.now_in_seconds);
             check_case(case, &state)
         })
