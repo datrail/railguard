@@ -1,13 +1,14 @@
 use std::collections::BTreeMap;
 
+use serde_json::{Map, Value};
+
 use crate::endpoint::Endpoint;
-use crate::ticket::TicketClaims;
 
 /// What a condition reads about one call.
 #[derive(Clone, Copy, Debug)]
 pub struct Environment<'a> {
-    /// `None` without a usable ticket: every `ticket` path then reads as absent.
-    pub ticket: Option<&'a TicketClaims>,
+    /// A usable ticket's claims. `None` without one: every `ticket` path then reads as absent.
+    pub ticket: Option<&'a Map<String, Value>>,
     pub endpoint: &'a Endpoint,
     pub headers: &'a Headers,
 }

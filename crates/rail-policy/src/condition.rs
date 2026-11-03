@@ -130,7 +130,9 @@ impl TryFrom<String> for Path {
         let source = parts.next();
         let keys: Vec<&str> = parts.collect();
         let path = match source {
-            Some("ticket") => TicketPath::parse(&keys).map(Self::Ticket),
+            Some("ticket") => Some(Self::Ticket(TicketPath(
+                keys.into_iter().map(str::to_string).collect(),
+            ))),
             Some("request") => RequestPath::parse(&keys).map(Self::Request),
             _ => None,
         };

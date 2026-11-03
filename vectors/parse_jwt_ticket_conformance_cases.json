@@ -1,5 +1,5 @@
 {
-  "_comment": "Conformance cases for parse_jwt_ticket, taken from rail-center's api/tests/vectors/signed_tickets.json at 0485959. Payloads are filled in to the claims Rail Center mints and re-signed with the key that signed them there, whose seed that file publishes. A case's reader, where given, replaces the file's: holds_keys false is an empty key set, and a null issuer or audience is one not configured. Cases about requiring signatures, which the runtime decides, are removed. The keys sign nothing but these cases.",
+  "_comment": "Conformance cases for parse_jwt_ticket, taken from rail-center's api/tests/vectors/signed_tickets.json at 0485959. Payloads are filled in to the claims Rail Center mints and re-signed with the key that signed them there, whose seed that file publishes. A valid case's token is the payload as sent. A case's reader, where given, replaces the file's: holds_keys false is an empty key set, and a null issuer or audience is one not configured. Cases about requiring signatures, which the runtime decides, are removed. The keys sign nothing but these cases.",
   "kid": "vector-key-1",
   "public_key": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg",
   "issuer": "https://rail-center.example/tenants/00000000-0000-4000-8000-0000000000aa",
@@ -500,10 +500,48 @@
       "state": "malformed"
     },
     {
-      "name": "a missing claim is malformed",
+      "name": "a ticket missing a claim other than exp and nbf is still valid",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJza2lsbHMiOlsiZmlucmV0YWlsLm9yZGVycyJdLCJleHAiOjE3ODUzMjY0MDAsIm5iZiI6MTc4NTI0MDAwMCwianRpIjoiZjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiaXNzIjoiaHR0cHM6Ly9yYWlsLWNlbnRlci5leGFtcGxlL3RlbmFudHMvMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMGFhIiwiYXVkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMGFhIiwiaWQiOiIxMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJzYW5kYm94X2lkIjoic2FuZGJveC0xIiwic2FuZGJveF90eXBlIjoia3ViZXJuZXRlcyIsImVudmlyb25tZW50X2ZpbmdlcnByaW50IjoiZmluZ2VycHJpbnQtMSIsImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjMwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbXX0sInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifSwiY2F0ZWdvcmllcyI6eyJpZGVudGl0eSI6eyJzY29yZSI6OS41LCJjYXBwZWQiOmZhbHNlfSwiZGF0YV9yZWFjaCI6eyJzY29yZSI6bnVsbCwiY2FwcGVkIjpmYWxzZX19fX0.RAZgYCgrCjDhBD_F6jMDi9BYc2pQiCeNI0u_mA5jGhS8suz_LFU1NZteFxo9v2yCeT5m0ImtlotxqVysqeYaDw",
       "now_in_seconds": 1785240000,
-      "state": "malformed"
+      "state": "valid",
+      "token": {
+        "skills": [
+          "finretail.orders"
+        ],
+        "exp": 1785326400,
+        "nbf": 1785240000,
+        "jti": "f0000000-0000-4000-8000-000000000001",
+        "iss": "https://rail-center.example/tenants/00000000-0000-4000-8000-0000000000aa",
+        "aud": "00000000-0000-4000-8000-0000000000aa",
+        "id": "10000000-0000-4000-8000-000000000001",
+        "sandbox_id": "sandbox-1",
+        "sandbox_type": "kubernetes",
+        "environment_fingerprint": "fingerprint-1",
+        "alignment": {
+          "baseline": {
+            "id": "30000000-0000-4000-8000-000000000003",
+            "label": "prod"
+          },
+          "drifted": []
+        },
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "low"
+          },
+          "categories": {
+            "identity": {
+              "score": 9.5,
+              "capped": false
+            },
+            "data_reach": {
+              "score": null,
+              "capped": false
+            }
+          }
+        }
+      },
+      "exp_in_seconds": 1785326400
     },
     {
       "name": "a ticket with no iss is wrong_audience",

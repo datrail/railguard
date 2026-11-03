@@ -23,7 +23,4 @@ pub use judge::{
     ChainVerdict, Decision, FallbackDenial, Judge, JudgingMode, Outcome, compile_bundle, judge,
 };
 pub use schema::{RequestPath, TicketPath};
-pub use ticket::{
-    Alignment, Baseline, CategoryPosture, OverallPosture, Posture, PostureLevel, Ticket,
-    TicketClaims, TicketState, TicketVerifier, parse_base64_ticket, parse_jwt_ticket,
-};
+pub use ticket::{Ticket, TicketState, TicketVerifier, parse_base64_ticket, parse_jwt_ticket};

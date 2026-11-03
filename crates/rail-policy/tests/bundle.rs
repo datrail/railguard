@@ -96,7 +96,8 @@ fn test_reads_every_field_rail_center_publishes() {
     let Condition::Valid(Predicate::Lt { path, value }) = &policy.condition else {
         panic!("{:?}", policy.condition);
     };
-    assert_eq!(*path, Path::Ticket(TicketPath::OverallScore));
+    let keys = ["posture", "overall", "score"].map(str::to_string).to_vec();
+    assert_eq!(*path, Path::Ticket(TicketPath(keys)));
     assert_eq!(*value, 40.0);
 
     let binding = &bundle.bindings[0];

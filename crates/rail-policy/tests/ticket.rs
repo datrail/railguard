@@ -1,15 +1,11 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 use base64::Engine;
-use base64::engine::general_purpose::{URL_SAFE, URL_SAFE_NO_PAD};
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use ed25519_dalek::VerifyingKey;
-use rail_policy::{
-    Alignment, Baseline, CategoryPosture, OverallPosture, Posture, PostureLevel, TicketClaims,
-    TicketState, TicketVerifier, parse_base64_ticket, parse_jwt_ticket,
-};
+use rail_policy::{TicketState, TicketVerifier, parse_base64_ticket, parse_jwt_ticket};
 use serde::Deserialize;
 use serde_json::{Value, json};
-use uuid::Uuid;
 
 const BASE64_VECTORS: &str =
     include_str!("../../../vectors/parse_base64_ticket_conformance_cases.json");
@@ -26,8 +22,8 @@ struct Case {
     header: String,
     now_in_seconds: i64,
     state: String,
-    /// The expected ticket, where it is valid.
-    token: Option<TicketClaims>,
+    /// The expected payload, where it is valid.
+    token: Option<Value>,
     exp_in_seconds: Option<i64>,
     /// Replaces the file's reader, for a JWT case.
     reader: Option<Reader>,
@@ -67,12 +63,27 @@ fn check_case(case: &Case, state: &TicketState) -> Option<String> {
         return Some(format!("{}: want {}, got {name}", case.name, case.state));
     }
     if let TicketState::Valid(ticket) = state
-        && (Some(&ticket.claims) != case.token.as_ref()
+        && (Some(_read_numbers_as_doubles(Value::Object(
+            ticket.claims.clone(),
+        ))) != case.token.clone().map(_read_numbers_as_doubles)
             || Some(ticket.exp_in_seconds) != case.exp_in_seconds)
     {
         return Some(format!("{}: wrong ticket", case.name));
     }
     None
+}
+
+/// As rules compare them, so `60` and `60.0` are one value.
+fn _read_numbers_as_doubles(value: Value) -> Value {
+    match value {
+        Value::Number(number) => json!(number.as_f64().unwrap()),
+        Value::Array(values) => values.into_iter().map(_read_numbers_as_doubles).collect(),
+        Value::Object(object) => object
+            .into_iter()
+            .map(|(key, value)| (key, _read_numbers_as_doubles(value)))
+            .collect(),
+        value => value,
+    }
 }
 
 #[test]
@@ -126,116 +137,4 @@ fn test_jwt_vectors() {
         })
         .collect();
     assert!(failures.is_empty(), "\n{}", failures.join("\n"));
-}
-
-fn parse_claims(claims: &Value) -> TicketState {
-    parse_base64_ticket(&URL_SAFE.encode(claims.to_string()), 0)
-}
-
-#[test]
-fn test_reads_every_claim() {
-    let claims = json!({
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "20000000-0000-4000-8000-000000000002",
-        "sandbox_id": "sandbox-1",
-        "sandbox_type": "kubernetes",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": ["a#/mcp#tools/call#b"],
-        "exp": 60,
-        "posture": {
-            "overall": {"score": 92.5, "level": "medium"},
-            "categories": {"identity": {"score": 9, "capped": true}},
-        },
-        "alignment": {
-            "baseline": {"id": "30000000-0000-4000-8000-000000000003", "label": "prod"},
-            "drifted": ["llm_model"],
-        },
-    });
-    let TicketState::Valid(ticket) = parse_claims(&claims) else {
-        panic!();
-    };
-
-    assert_eq!(ticket.exp_in_seconds, 60);
-    assert_eq!(
-        ticket.claims,
-        TicketClaims {
-            id: Uuid::from_u128(0x10000000_0000_4000_8000_000000000001),
-            agent_id: Uuid::from_u128(0x20000000_0000_4000_8000_000000000002),
-            sandbox_id: "sandbox-1".to_string(),
-            sandbox_type: Some("kubernetes".to_string()),
-            environment_fingerprint: "fingerprint-1".to_string(),
-            skills: vec!["a#/mcp#tools/call#b".to_string()],
-            posture: Posture {
-                overall: OverallPosture {
-                    score: 92.5,
-                    level: PostureLevel::Medium,
-                },
-                categories: BTreeMap::from([(
-                    "identity".to_string(),
-                    CategoryPosture {
-                        score: Some(9.0),
-                        capped: true,
-                    },
-                )]),
-            },
-            alignment: Alignment {
-                baseline: Some(Baseline {
-                    id: Uuid::from_u128(0x30000000_0000_4000_8000_000000000003),
-                    label: "prod".to_string(),
-                }),
-                drifted: vec!["llm_model".to_string()],
-            },
-        }
-    );
-}
-
-#[test]
-fn test_reads_the_claims_rail_center_can_leave_out() {
-    let claims = json!({
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "20000000-0000-4000-8000-000000000002",
-        "sandbox_id": "sandbox-1",
-        "sandbox_type": null,
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "exp": 60,
-        "posture": {
-            "overall": {"score": 0.0, "level": "critical"},
-            "categories": {"identity": {"score": null, "capped": false}},
-        },
-        "alignment": {"drifted": []},
-    });
-    let TicketState::Valid(ticket) = parse_claims(&claims) else {
-        panic!();
-    };
-
-    assert_eq!(ticket.claims.sandbox_type, None);
-    assert_eq!(ticket.claims.alignment.baseline, None);
-    assert_eq!(ticket.claims.posture.categories["identity"].score, None);
-}
-
-#[test]
-fn test_reads_a_non_canonical_uuid_as_malformed() {
-    let claims = json!({
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "20000000-0000-4000-8000-000000000002",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "exp": 60,
-        "posture": {"overall": {"score": 0.0, "level": "low"}, "categories": {}},
-        "alignment": {"drifted": []},
-    });
-    assert!(matches!(parse_claims(&claims), TicketState::Valid(_)));
-
-    for id in [
-        "ABCDEF00-0000-4000-8000-000000000001",
-        "{abcdef00-0000-4000-8000-000000000001}",
-        "urn:uuid:abcdef00-0000-4000-8000-000000000001",
-        "abcdef00000040008000000000000001",
-    ] {
-        let mut claims = claims.clone();
-        claims["agent_id"] = json!(id);
-        assert_eq!(parse_claims(&claims), TicketState::Malformed, "{id}");
-    }
 }

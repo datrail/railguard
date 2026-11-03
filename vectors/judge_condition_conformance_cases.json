@@ -1,5 +1,5 @@
 {
-  "_comment": "Conformance cases for evaluate_condition, taken from datrail/gateway's gateway-core/tests/vectors/v2/decide.json at 6758b77; its whole-bundle cases are the walk's. A ticket is the claims a condition reads, filled in to the typed claims Rail Center mints, or null without a usable ticket. Headers are the lines as sent. Endpoint keys are slugless, as the gateway reads them. Removed: 19 cases that test a required claim being absent or a claim shape the typed claims can't hold; our ticket reader reads such a ticket as malformed, before any condition. A case marked `retargeted` tests its rule on a claim, header or key of the shape our reader holds, as the field says. Six cases the gateway evaluates are refused here: the three paths outside the typed claims, and the three operands past what a double holds (the contract compares them as infinity).",
+  "_comment": "Conformance cases for evaluate_condition, taken from datrail/gateway's gateway-core/tests/vectors/v2/decide.json at 6758b77; its whole-bundle cases are the walk's. A ticket is the payload as the gateway's case gives it, or null without a usable ticket. Headers are the lines as sent. Endpoint keys are slugless, as the gateway reads them; a case marked `retargeted` moves a key that isn't one onto one that is, as the field says. A case marked `differs` is answered otherwise by the gateway: the three operands past what a double holds, which the contract compares as infinity and this reader refuses.",
   "cases": [
     {
       "name": "uninterpretable — a field outside the table",
@@ -9,23 +9,17 @@
         "value": "x"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -40,23 +34,17 @@
         "value": "x"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -69,23 +57,17 @@
         "op": "not_existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -99,23 +81,17 @@
         "op": "existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -129,23 +105,17 @@
         "value": "x"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -162,23 +132,17 @@
         ]
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -192,23 +156,17 @@
         "value": "low*"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -217,30 +175,23 @@
     },
     {
       "name": "contains does not hold on a string claim",
-      "retargeted": "agent ids written as UUIDs",
       "condition": {
         "path": "ticket.agent_id",
         "op": "contains",
         "value": "x"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-000000000002",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -255,23 +206,17 @@
         "value": "4*"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -285,23 +230,17 @@
         "value": "40"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -318,23 +257,17 @@
         ]
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -348,23 +281,17 @@
         "value": true
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -379,23 +306,17 @@
         "value": null
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -411,23 +332,17 @@
         ]
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -441,23 +356,17 @@
         "value": true
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -471,23 +380,17 @@
         "value": null
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -501,23 +404,17 @@
         "value": "low"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -533,23 +430,17 @@
         ]
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -563,23 +454,17 @@
         "value": 40
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -590,23 +475,17 @@
       "name": "uninterpretable — a condition that is not an object",
       "condition": "not an object",
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -620,23 +499,17 @@
         }
       ],
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -649,23 +522,17 @@
         "op": "existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -678,23 +545,17 @@
         "op": null
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -707,23 +568,17 @@
         "value": 1
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -736,23 +591,17 @@
         "value": 1
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "delivery#/mcp#tools/call#track_package"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
             "score": 95,
             "level": "low"
-          },
-          "categories": {}
+          }
         },
-        "alignment": {
-          "drifted": []
-        }
+        "skills": [
+          "delivery#/mcp#tools/call#track_package"
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -825,21 +674,8 @@
         "op": "existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -852,21 +688,8 @@
         "op": "not_existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -880,21 +703,8 @@
         "value": 40
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -909,21 +719,8 @@
         "value": 200
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -936,21 +733,8 @@
         "op": "existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -964,21 +748,8 @@
         "value": "x"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -993,21 +764,8 @@
         "value": "acme"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [
@@ -1026,21 +784,8 @@
         "value": "acme"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [
@@ -1059,21 +804,8 @@
         "op": "existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [
@@ -1092,21 +824,8 @@
         "value": "acme"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [
@@ -1129,21 +848,8 @@
         "value": "other"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [
@@ -1165,21 +871,8 @@
         "op": "not_existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -1193,21 +886,8 @@
         "value": "claude-*"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [
@@ -1225,21 +905,8 @@
         "op": "existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [
@@ -1259,18 +926,8 @@
         "value": "llm_model"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
           "drifted": [
             "llm_model",
@@ -1290,18 +947,8 @@
         "value": "llm_model"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
           "drifted": [
             "llm_model",
@@ -1321,18 +968,8 @@
         "value": "llm_model"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
           "drifted": [
             "llm_model",
@@ -1353,18 +990,8 @@
         "value": "llm_model"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
           "drifted": [
             "llm_model",
@@ -1384,18 +1011,8 @@
         "value": "llm_model"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
           "drifted": []
         }
@@ -1412,18 +1029,8 @@
         "value": "llm_model"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
           "drifted": []
         }
@@ -1440,18 +1047,8 @@
         "value": 40
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
           "drifted": [
             "40"
@@ -1463,6 +1060,93 @@
       "expect": "holds"
     },
     {
+      "name": "ne on a list counts a boolean value as differing",
+      "condition": {
+        "path": "ticket.alignment.drifted",
+        "op": "ne",
+        "value": "llm_model"
+      },
+      "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "alignment": {
+          "drifted": [
+            true
+          ]
+        }
+      },
+      "endpoint_key": "/mcp#tools/call#track_package",
+      "headers": [],
+      "expect": "holds",
+      "note": "On a list, a value that is not a scalar never equals the operand, so it is a value that differs; on a scalar claim the same boolean satisfies neither eq nor ne."
+    },
+    {
+      "name": "ne on a list counts an object value as differing",
+      "condition": {
+        "path": "ticket.alignment.drifted",
+        "op": "ne",
+        "value": "llm_model"
+      },
+      "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "alignment": {
+          "drifted": [
+            {
+              "a": 1
+            }
+          ]
+        }
+      },
+      "endpoint_key": "/mcp#tools/call#track_package",
+      "headers": [],
+      "expect": "holds"
+    },
+    {
+      "name": "eq on a list does not hold beside a boolean value",
+      "condition": {
+        "path": "ticket.alignment.drifted",
+        "op": "eq",
+        "value": "llm_model"
+      },
+      "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "alignment": {
+          "drifted": [
+            "llm_model",
+            true
+          ]
+        }
+      },
+      "endpoint_key": "/mcp#tools/call#track_package",
+      "headers": [],
+      "expect": "does_not_hold"
+    },
+    {
+      "name": "eq on a list does not hold beside an object value",
+      "condition": {
+        "path": "ticket.alignment.drifted",
+        "op": "eq",
+        "value": "llm_model"
+      },
+      "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "alignment": {
+          "drifted": [
+            "llm_model",
+            {
+              "a": 1
+            }
+          ]
+        }
+      },
+      "endpoint_key": "/mcp#tools/call#track_package",
+      "headers": [],
+      "expect": "does_not_hold"
+    },
+    {
       "name": "not_contains holds when no value equals",
       "condition": {
         "path": "ticket.alignment.drifted",
@@ -1470,18 +1154,8 @@
         "value": "sandbox_type"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
           "drifted": [
             "llm_model"
@@ -1500,18 +1174,8 @@
         "value": "llm_model"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
           "drifted": [
             "llm_model",
@@ -1531,18 +1195,8 @@
         "value": "llm_model"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
           "drifted": []
         }
@@ -1553,28 +1207,14 @@
     },
     {
       "name": "not_contains does not hold on an absent value",
-      "retargeted": "onto a missing header",
       "condition": {
-        "path": "request.headers.x-tenant",
+        "path": "ticket.alignment.drifted",
         "op": "not_contains",
         "value": "llm_model"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -1583,28 +1223,14 @@
     },
     {
       "name": "not_contains does not hold on a string claim",
-      "retargeted": "agent ids written as UUIDs",
       "condition": {
         "path": "ticket.agent_id",
         "op": "not_contains",
         "value": "x"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-000000000002",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -1620,18 +1246,8 @@
         ]
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
           "drifted": [
             "llm_model"
@@ -1644,29 +1260,18 @@
     },
     {
       "name": "not_contains takes a number operand — holds when no value equals",
-      "retargeted": "the list holds the numbers as strings",
       "condition": {
         "path": "ticket.alignment.drifted",
         "op": "not_contains",
-        "value": 40
+        "value": 39
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
           "drifted": [
-            "40",
-            "41"
+            40,
+            41
           ]
         }
       },
@@ -1676,6 +1281,27 @@
       "note": "A number is a scalar operand, as for contains; refusing it would answer every request reaching the rule with an error."
     },
     {
+      "name": "not_contains takes a number operand — does not hold when a value equals",
+      "condition": {
+        "path": "ticket.alignment.drifted",
+        "op": "not_contains",
+        "value": 40
+      },
+      "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "alignment": {
+          "drifted": [
+            40,
+            41
+          ]
+        }
+      },
+      "endpoint_key": "/mcp#tools/call#track_package",
+      "headers": [],
+      "expect": "does_not_hold"
+    },
+    {
       "name": "request.headers — a comma-separated value is a list",
       "condition": {
         "path": "request.headers.x-tenant",
@@ -1683,21 +1309,8 @@
         "value": "evil"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [
@@ -1717,21 +1330,8 @@
         "value": "evil"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [
@@ -1751,21 +1351,8 @@
         "value": "acme"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [
@@ -1784,21 +1371,8 @@
         "value": "application/json, text/event-stream"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [
@@ -1817,21 +1391,8 @@
         "value": "acme"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [
@@ -1854,21 +1415,8 @@
         "value": "acme"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [
@@ -1891,21 +1439,8 @@
         "value": "acme"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [
@@ -1924,21 +1459,8 @@
         "value": "acme"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [
@@ -1961,21 +1483,8 @@
         "value": "acme"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [
@@ -2000,20 +1509,32 @@
         ]
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
           "drifted": []
+        }
+      },
+      "endpoint_key": "/mcp#tools/call#track_package",
+      "headers": [],
+      "expect": "does_not_hold"
+    },
+    {
+      "name": "in on a list: a non-scalar value is a member of nothing",
+      "condition": {
+        "path": "ticket.alignment.drifted",
+        "op": "in",
+        "value": [
+          true
+        ]
+      },
+      "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "alignment": {
+          "drifted": [
+            true
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -2028,18 +1549,8 @@
         "value": "llm_*"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
           "drifted": [
             "skills_hash",
@@ -2059,21 +1570,32 @@
         "value": "llm_*"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
           "drifted": [
             "skills_hash"
+          ]
+        }
+      },
+      "endpoint_key": "/mcp#tools/call#track_package",
+      "headers": [],
+      "expect": "does_not_hold"
+    },
+    {
+      "name": "matches on a list: a value that is not a string never matches",
+      "condition": {
+        "path": "ticket.alignment.drifted",
+        "op": "matches",
+        "value": "4*"
+      },
+      "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "alignment": {
+          "drifted": [
+            40,
+            41
           ]
         }
       },
@@ -2089,18 +1611,8 @@
         "value": "*"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
           "drifted": []
         }
@@ -2117,21 +1629,8 @@
         "value": "*sqlmap*"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [
@@ -2151,21 +1650,8 @@
         "value": "*Chrome*"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [
@@ -2187,21 +1673,8 @@
         ]
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [
@@ -2238,31 +1711,13 @@
     },
     {
       "name": "a claim whose key is absent from the payload resolves to absent",
-      "retargeted": "onto a category's omitted score",
       "condition": {
-        "path": "ticket.posture.categories.identity.score",
+        "path": "ticket.posture.overall.score",
         "op": "not_existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {
-            "identity": {
-              "capped": false
-            }
-          }
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -2271,31 +1726,17 @@
     },
     {
       "name": "a claim that is present and null resolves to absent",
-      "retargeted": "onto a category's null score",
       "condition": {
-        "path": "ticket.posture.categories.identity.score",
+        "path": "ticket.posture.overall.score",
         "op": "not_existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {
-            "identity": {
-              "score": null,
-              "capped": false
-            }
+            "score": null
           }
-        },
-        "alignment": {
-          "drifted": []
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -2305,31 +1746,17 @@
     },
     {
       "name": "a claim that is present and null is not present",
-      "retargeted": "onto a category's null score",
       "condition": {
-        "path": "ticket.posture.categories.identity.score",
+        "path": "ticket.posture.overall.score",
         "op": "existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {
-            "identity": {
-              "score": null,
-              "capped": false
-            }
+            "score": null
           }
-        },
-        "alignment": {
-          "drifted": []
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -2343,20 +1770,12 @@
         "op": "existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+            "score": 0
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -2371,20 +1790,12 @@
         "op": "not_existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+            "score": 0
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -2393,28 +1804,18 @@
     },
     {
       "name": "a claim of an empty string is present",
-      "retargeted": "onto sandbox_type",
       "condition": {
-        "path": "ticket.sandbox_type",
+        "path": "ticket.posture.overall.level",
         "op": "existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        },
-        "sandbox_type": ""
+            "level": ""
+          }
+        }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -2423,28 +1824,18 @@
     },
     {
       "name": "a claim of an empty string is not missing",
-      "retargeted": "onto sandbox_type",
       "condition": {
-        "path": "ticket.sandbox_type",
+        "path": "ticket.posture.overall.level",
         "op": "not_existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        },
-        "sandbox_type": ""
+            "level": ""
+          }
+        }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -2452,32 +1843,19 @@
     },
     {
       "name": "a flat posture_score is read like any other key",
-      "differs": "the gateway evaluates it; this reader refuses it, as Rail Center does on publish",
       "condition": {
         "path": "ticket.posture_score",
         "op": "lt",
         "value": 40
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "posture_score": 10
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
-      "expect": "refused",
+      "expect": "holds",
       "note": "The gateway knows no claim names, so `ticket.posture_score` reads whatever the ticket carries there; Rail Center refuses to publish a path its ticket does not have."
     },
     {
@@ -2488,21 +1866,9 @@
         "value": "critical"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "tier": "critical"
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -2515,21 +1881,9 @@
         "op": "existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "scored_at": "2026-07-31T18:04:23+00:00"
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -2543,11 +1897,9 @@
         "value": 40
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -2561,14 +1913,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -2582,11 +1934,9 @@
         "op": "existing"
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -2600,14 +1950,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -2622,11 +1972,9 @@
         "op": "not_existing"
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -2640,14 +1988,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -2661,11 +2009,9 @@
         "op": "existing"
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -2679,14 +2025,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -2701,11 +2047,9 @@
         "op": "existing"
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -2719,14 +2063,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -2740,11 +2084,9 @@
         "op": "not_existing"
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -2758,14 +2100,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -2780,11 +2122,9 @@
         "value": 40
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -2798,14 +2138,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -2820,11 +2160,9 @@
         "value": "5c8f1e42-0000-4000-8000-00000000b001"
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -2838,14 +2176,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -2860,11 +2198,9 @@
         "value": "llm_model"
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -2878,14 +2214,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -2902,11 +2238,9 @@
         ]
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -2920,14 +2254,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -2942,11 +2276,9 @@
         "op": "existing"
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -2960,14 +2292,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -2982,11 +2314,9 @@
         "value": 72.5
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -3000,14 +2330,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -3022,11 +2352,9 @@
         "value": 40
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -3040,14 +2368,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -3065,11 +2393,9 @@
         ]
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -3083,14 +2409,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -3105,11 +2431,9 @@
         "value": 60
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -3123,14 +2447,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -3145,11 +2469,9 @@
         "value": "medium"
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -3163,14 +2485,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -3189,11 +2511,9 @@
         ]
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -3207,14 +2527,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -3229,11 +2549,9 @@
         "value": "critical"
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -3247,14 +2565,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -3269,11 +2587,9 @@
         "value": "trusted"
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -3287,14 +2603,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -3303,17 +2619,34 @@
       "note": "The operand is not checked against the bands, as `sandbox_type`'s is not: a rule naming a band that does not exist is one that never fires, not one that is refused."
     },
     {
+      "name": "posture.overall.level — missing holds when the overall object carries only a score",
+      "condition": {
+        "path": "ticket.posture.overall.level",
+        "op": "not_existing"
+      },
+      "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "posture": {
+          "overall": {
+            "score": 72.5
+          }
+        }
+      },
+      "endpoint_key": "/mcp#tools/call#track_package",
+      "headers": [],
+      "expect": "holds"
+    },
+    {
       "name": "alignment.baseline.id — present holds when the agent has a baseline",
       "condition": {
         "path": "ticket.alignment.baseline.id",
         "op": "existing"
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -3327,14 +2660,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -3349,11 +2682,9 @@
         "value": "5c8f1e42-0000-4000-8000-00000000b001"
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -3367,14 +2698,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -3389,11 +2720,9 @@
         "value": "5c8f1e42-0000-4000-8000-00000000b002"
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -3407,14 +2736,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -3432,11 +2761,9 @@
         ]
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -3450,14 +2777,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -3471,18 +2798,8 @@
         "op": "not_existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
           "drifted": []
         }
@@ -3500,18 +2817,8 @@
         "value": "5c8f1e42-0000-4000-8000-00000000b001"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
           "drifted": []
         }
@@ -3529,11 +2836,9 @@
         "value": "prod"
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -3547,14 +2852,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -3569,11 +2874,9 @@
         "value": "Prod"
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -3587,14 +2890,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -3609,11 +2912,9 @@
         "value": "staging"
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -3627,14 +2928,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -3652,11 +2953,9 @@
         ]
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -3670,14 +2969,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -3691,11 +2990,9 @@
         "op": "existing"
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -3709,14 +3006,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -3730,18 +3027,8 @@
         "op": "not_existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
           "drifted": []
         }
@@ -3757,19 +3044,10 @@
         "op": "not_existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
+          "baseline": null,
           "drifted": []
         }
       },
@@ -3785,11 +3063,9 @@
         "value": "llm_model"
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -3803,14 +3079,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -3825,11 +3101,9 @@
         "value": "sandbox_type"
       },
       "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "id": "5c8f1e42-0000-4000-8000-00000000c001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
         "posture": {
           "overall": {
             "score": 72.5,
@@ -3843,14 +3117,14 @@
           }
         },
         "alignment": {
-          "drifted": [
-            "llm_model",
-            "skills_hash"
-          ],
           "baseline": {
             "id": "5c8f1e42-0000-4000-8000-00000000b001",
             "label": "prod"
-          }
+          },
+          "drifted": [
+            "llm_model",
+            "skills_hash"
+          ]
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -3859,29 +3133,17 @@
     },
     {
       "name": "alignment.drifted — contains does not substring-match a string claim",
-      "retargeted": "onto sandbox_type",
       "condition": {
-        "path": "ticket.sandbox_type",
+        "path": "ticket.alignment.drifted",
         "op": "contains",
         "value": "llm_model"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
-          "drifted": []
-        },
-        "sandbox_type": "llm_model_version"
+          "drifted": "llm_model_version"
+        }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -3895,18 +3157,8 @@
         "op": "existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
           "drifted": []
         }
@@ -3923,18 +3175,8 @@
         "op": "not_existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
           "drifted": []
         }
@@ -3944,28 +3186,28 @@
       "expect": "does_not_hold"
     },
     {
-      "name": "a missing intermediate — no posture object at all",
-      "retargeted": "onto a missing category",
+      "name": "alignment.drifted — missing holds when alignment is absent",
       "condition": {
-        "path": "ticket.posture.categories.identity.score",
+        "path": "ticket.alignment.drifted",
         "op": "not_existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
+      },
+      "endpoint_key": "/mcp#tools/call#track_package",
+      "headers": [],
+      "expect": "holds"
+    },
+    {
+      "name": "a missing intermediate — no posture object at all",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "not_existing"
+      },
+      "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -3973,27 +3215,16 @@
       "note": "A ticket with nothing on the way to a claim has no claim. Deleting a whole object from an unsigned ticket is as free as deleting a key."
     },
     {
-      "name": "a missing intermediate — a null on the way is absent",
-      "retargeted": "onto a null baseline",
+      "name": "a missing intermediate — posture with no overall",
       "condition": {
-        "path": "ticket.alignment.baseline.id",
+        "path": "ticket.posture.overall.score",
         "op": "not_existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
           "categories": {}
-        },
-        "alignment": {
-          "drifted": []
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -4001,25 +3232,62 @@
       "expect": "holds"
     },
     {
+      "name": "a missing intermediate — an empty posture object",
+      "condition": {
+        "path": "ticket.posture.overall.level",
+        "op": "not_existing"
+      },
+      "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "posture": {}
+      },
+      "endpoint_key": "/mcp#tools/call#track_package",
+      "headers": [],
+      "expect": "holds"
+    },
+    {
+      "name": "a missing intermediate — a null on the way is absent",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "not_existing"
+      },
+      "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "posture": {
+          "overall": null
+        }
+      },
+      "endpoint_key": "/mcp#tools/call#track_package",
+      "headers": [],
+      "expect": "holds"
+    },
+    {
+      "name": "a missing intermediate — a number on the way is absent, not an error",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "not_existing"
+      },
+      "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "posture": 5
+      },
+      "endpoint_key": "/mcp#tools/call#track_package",
+      "headers": [],
+      "expect": "holds",
+      "note": "An intermediate that is not an object has no keys. Raising here would let a ticket's sender choose a 503."
+    },
+    {
       "name": "a list on the way is absent, even one holding the next key",
-      "differs": "the gateway evaluates it; this reader refuses it, as Rail Center does on publish",
       "condition": {
         "path": "ticket.alignment.drifted.llm_model",
         "op": "not_existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
           "drifted": [
             "llm_model"
@@ -4028,61 +3296,73 @@
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
-      "expect": "refused",
+      "expect": "holds",
       "note": "A path steps through objects only. Reading through a list would give an index or a membership test a meaning the contract never gave it, and a reader that tries raises here instead: a ticket's sender then decides whether the chain is walked."
     },
     {
       "name": "a string on the way is absent, even one containing the next key",
-      "differs": "the gateway evaluates it; this reader refuses it, as Rail Center does on publish",
       "condition": {
         "path": "ticket.agent_id.a",
         "op": "not_existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
+        "agent_id": "abc",
+        "exp": 4102444800
+      },
+      "endpoint_key": "/mcp#tools/call#track_package",
+      "headers": [],
+      "expect": "holds",
+      "note": "The same for a string, where `in` is a substring test and indexing by a key raises."
+    },
+    {
+      "name": "a missing intermediate — a list on the way is absent",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "not_existing"
+      },
+      "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "posture": [
+          {
+            "overall": {
+              "score": 10
+            }
+          }
+        ]
+      },
+      "endpoint_key": "/mcp#tools/call#track_package",
+      "headers": [],
+      "expect": "holds",
+      "note": "No segment is a list index."
+    },
+    {
+      "name": "a missing intermediate — a string on the way is absent",
+      "condition": {
+        "path": "ticket.alignment.baseline.id",
+        "op": "not_existing"
+      },
+      "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "alignment": {
-          "drifted": []
+          "baseline": "5c8f1e42-0000-4000-8000-00000000b001"
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
-      "expect": "refused",
-      "note": "The same for a string, where `in` is a substring test and indexing by a key raises."
+      "expect": "holds"
     },
     {
       "name": "a missing intermediate is not present",
-      "retargeted": "onto a missing category",
       "condition": {
-        "path": "ticket.posture.categories.identity.score",
+        "path": "ticket.posture.overall.score",
         "op": "existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "posture": {}
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -4090,28 +3370,15 @@
     },
     {
       "name": "an ordered operator does not hold across a missing intermediate",
-      "retargeted": "onto a missing category",
       "condition": {
-        "path": "ticket.posture.categories.identity.score",
+        "path": "ticket.posture.overall.score",
         "op": "lt",
         "value": 40
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "posture": {}
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -4120,57 +3387,46 @@
     },
     {
       "name": "a missing intermediate does not satisfy contains",
-      "retargeted": "onto a missing header",
       "condition": {
-        "path": "request.headers.x-tenant",
+        "path": "ticket.alignment.drifted",
         "op": "contains",
         "value": "llm_model"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "alignment": null
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
       "expect": "does_not_hold"
     },
     {
+      "name": "a dotted top-level key is not the nested claim",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "not_existing"
+      },
+      "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "posture.overall.score": 10
+      },
+      "endpoint_key": "/mcp#tools/call#track_package",
+      "headers": [],
+      "expect": "holds",
+      "note": "The field is a path walked one key at a time, never a key looked up whole."
+    },
+    {
       "name": "a dotted top-level key does not satisfy an ordered rule",
-      "retargeted": "the real score is 90",
       "condition": {
         "path": "ticket.posture.overall.score",
         "op": "lt",
         "value": 40
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 90,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        },
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture.overall.score": 10
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -4195,21 +3451,9 @@
         "op": "existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "skills": []
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -4223,21 +3467,9 @@
         "op": "not_existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "skills": []
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -4251,21 +3483,8 @@
         "value": "/mcp#tools/call#track_package"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -4273,27 +3492,13 @@
     },
     {
       "name": "agent_id — present holds on the claim",
-      "retargeted": "agent ids written as UUIDs",
       "condition": {
         "path": "ticket.agent_id",
         "op": "existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-000000000002",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -4314,28 +3519,14 @@
     },
     {
       "name": "agent_id — eq holds against the claim",
-      "retargeted": "agent ids written as UUIDs",
       "condition": {
         "path": "ticket.agent_id",
         "op": "eq",
-        "value": "aaaaaaaa-0000-4000-8000-000000000002"
+        "value": "agent-1"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-000000000002",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -4343,28 +3534,14 @@
     },
     {
       "name": "agent_id — ne holds against a different value",
-      "retargeted": "agent ids written as UUIDs",
       "condition": {
         "path": "ticket.agent_id",
         "op": "ne",
-        "value": "aaaaaaaa-0000-4000-8000-000000000003"
+        "value": "agent-2"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-000000000002",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -4372,31 +3549,17 @@
     },
     {
       "name": "agent_id — in holds for a member",
-      "retargeted": "agent ids written as UUIDs",
       "condition": {
         "path": "ticket.agent_id",
         "op": "in",
         "value": [
-          "aaaaaaaa-0000-4000-8000-000000000001",
-          "aaaaaaaa-0000-4000-8000-000000000002"
+          "agent-0",
+          "agent-1"
         ]
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-000000000002",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -4409,25 +3572,28 @@
         "op": "existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "9f2c4b7e1a8d3056",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "sandbox_id": "9f2c4b7e1a8d3056"
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
       "expect": "holds"
+    },
+    {
+      "name": "sandbox_id — missing holds where the payload omits the key",
+      "condition": {
+        "path": "ticket.sandbox_id",
+        "op": "not_existing"
+      },
+      "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800
+      },
+      "endpoint_key": "/mcp#tools/call#track_package",
+      "headers": [],
+      "expect": "holds",
+      "note": "Reading a ticket turns on agent_id and exp alone, so a payload without this claim is a valid ticket carrying an absent claim rather than an unreadable one. The ticket is unsigned: deleting a key is free, and a rule keying on this field has to survive it."
     },
     {
       "name": "sandbox_id — eq holds against the claim",
@@ -4437,21 +3603,9 @@
         "value": "9f2c4b7e1a8d3056"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "9f2c4b7e1a8d3056",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "sandbox_id": "9f2c4b7e1a8d3056"
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -4465,21 +3619,9 @@
         "value": "0000000000000000"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "9f2c4b7e1a8d3056",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "sandbox_id": "9f2c4b7e1a8d3056"
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -4496,21 +3638,9 @@
         ]
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "9f2c4b7e1a8d3056",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "sandbox_id": "9f2c4b7e1a8d3056"
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -4523,22 +3653,9 @@
         "op": "existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "sandbox_type": "nemo_claw",
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "sandbox_type": "nemo_claw"
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -4551,21 +3668,8 @@
         "op": "not_existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -4579,22 +3683,9 @@
         "value": "nemo_claw"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "sandbox_type": "nemo_claw",
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "sandbox_type": "nemo_claw"
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -4608,22 +3699,9 @@
         "value": "kubernetes"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "sandbox_type": "nemo_claw",
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "sandbox_type": "nemo_claw"
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -4640,22 +3718,9 @@
         ]
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "sandbox_type": "nemo_claw",
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "sandbox_type": "nemo_claw"
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -4668,21 +3733,23 @@
         "op": "existing"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "c7d1e05a3b924f68",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "environment_fingerprint": "c7d1e05a3b924f68"
+      },
+      "endpoint_key": "/mcp#tools/call#track_package",
+      "headers": [],
+      "expect": "holds"
+    },
+    {
+      "name": "environment_fingerprint — missing holds where the payload omits the key",
+      "condition": {
+        "path": "ticket.environment_fingerprint",
+        "op": "not_existing"
+      },
+      "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -4696,21 +3763,9 @@
         "value": "c7d1e05a3b924f68"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "c7d1e05a3b924f68",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "environment_fingerprint": "c7d1e05a3b924f68"
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -4724,21 +3779,9 @@
         "value": "a1b2c3d4e5f60718"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "c7d1e05a3b924f68",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "environment_fingerprint": "c7d1e05a3b924f68"
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -4755,21 +3798,9 @@
         ]
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "c7d1e05a3b924f68",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "environment_fingerprint": "c7d1e05a3b924f68"
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -4783,20 +3814,12 @@
         "value": "low"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 92.0,
             "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -4805,27 +3828,18 @@
     },
     {
       "name": "a string never equals a number",
-      "retargeted": "onto sandbox_id",
       "condition": {
-        "path": "ticket.sandbox_id",
+        "path": "ticket.posture.overall.level",
         "op": "eq",
         "value": 40
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "40",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+            "level": "40"
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -4835,27 +3849,18 @@
     },
     {
       "name": "an empty string never equals zero",
-      "retargeted": "onto sandbox_id",
       "condition": {
-        "path": "ticket.sandbox_id",
+        "path": "ticket.posture.overall.score",
         "op": "eq",
         "value": 0
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+            "score": ""
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -4864,32 +3869,18 @@
     },
     {
       "name": "a boolean claim never equals one",
-      "retargeted": "onto capped",
       "condition": {
-        "path": "ticket.posture.categories.identity.capped",
+        "path": "ticket.posture.overall.level",
         "op": "eq",
         "value": 1
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {
-            "identity": {
-              "score": 5,
-              "capped": true
-            }
+            "level": true
           }
-        },
-        "alignment": {
-          "drifted": []
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -4899,32 +3890,18 @@
     },
     {
       "name": "a boolean claim never equals zero",
-      "retargeted": "onto capped",
       "condition": {
-        "path": "ticket.posture.categories.identity.capped",
+        "path": "ticket.posture.overall.level",
         "op": "eq",
         "value": 0
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {
-            "identity": {
-              "score": 5,
-              "capped": false
-            }
+            "level": false
           }
-        },
-        "alignment": {
-          "drifted": []
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -4933,35 +3910,47 @@
     },
     {
       "name": "eq on a one-value list holds when that value equals",
-      "retargeted": "onto drifted",
       "condition": {
-        "path": "ticket.alignment.drifted",
+        "path": "ticket.posture.overall.level",
         "op": "eq",
         "value": "low"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": [
-            "low"
-          ]
+            "level": [
+              "low"
+            ]
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
       "expect": "holds",
       "note": "On a list, eq holds when every value equals the operand."
+    },
+    {
+      "name": "a string score is catchable by eq against the same string",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "eq",
+        "value": "100"
+      },
+      "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "posture": {
+          "overall": {
+            "score": "100"
+          }
+        }
+      },
+      "endpoint_key": "/mcp#tools/call#track_package",
+      "headers": [],
+      "expect": "holds",
+      "note": "An allow-list of forgeries rather than a type check, and the difference between 'hard to express' and 'not expressible'."
     },
     {
       "name": "and does not hold against a numeric claim of the same value",
@@ -4971,20 +3960,12 @@
         "value": "100"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 100,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+            "score": 100
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -4999,20 +3980,12 @@
         "value": "low"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 92.0,
             "level": "medium"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -5021,28 +3994,14 @@
     },
     {
       "name": "ne does not hold for an absent field",
-      "retargeted": "onto an omitted sandbox_type",
       "condition": {
-        "path": "ticket.sandbox_type",
+        "path": "ticket.posture.overall.level",
         "op": "ne",
         "value": "low"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -5051,32 +4010,18 @@
     },
     {
       "name": "a boolean claim does not satisfy ne",
-      "retargeted": "onto capped",
       "condition": {
-        "path": "ticket.posture.categories.identity.capped",
+        "path": "ticket.posture.overall.level",
         "op": "ne",
         "value": "low"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {
-            "identity": {
-              "score": 5,
-              "capped": true
-            }
+            "level": true
           }
-        },
-        "alignment": {
-          "drifted": []
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -5086,29 +4031,20 @@
     },
     {
       "name": "ne on a list holds when a value differs",
-      "retargeted": "onto drifted",
       "condition": {
-        "path": "ticket.alignment.drifted",
+        "path": "ticket.posture.overall.level",
         "op": "ne",
         "value": "low"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": [
-            "medium"
-          ]
+            "level": [
+              "medium"
+            ]
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -5118,27 +4054,20 @@
     },
     {
       "name": "an object claim does not satisfy ne",
-      "retargeted": "onto posture.overall",
       "condition": {
-        "path": "ticket.posture.overall",
+        "path": "ticket.posture.overall.level",
         "op": "ne",
         "value": "low"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+            "level": {
+              "name": "medium"
+            }
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -5153,20 +4082,12 @@
         "value": 40
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 30,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+            "score": 30
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -5175,27 +4096,18 @@
     },
     {
       "name": "a numeric string does not satisfy lt",
-      "retargeted": "onto sandbox_id",
       "condition": {
-        "path": "ticket.sandbox_id",
+        "path": "ticket.posture.overall.score",
         "op": "lt",
         "value": 40
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "30",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+            "score": "30"
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -5205,32 +4117,18 @@
     },
     {
       "name": "a boolean claim does not satisfy lt",
-      "retargeted": "onto capped",
       "condition": {
-        "path": "ticket.posture.categories.identity.capped",
+        "path": "ticket.posture.overall.score",
         "op": "lt",
         "value": 40
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {
-            "identity": {
-              "score": 5,
-              "capped": true
-            }
+            "score": true
           }
-        },
-        "alignment": {
-          "drifted": []
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -5239,29 +4137,20 @@
     },
     {
       "name": "a list claim does not satisfy lt",
-      "retargeted": "onto skills",
       "condition": {
-        "path": "ticket.skills",
+        "path": "ticket.posture.overall.score",
         "op": "lt",
         "value": 40
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [
-          "30"
-        ],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+            "score": [
+              30
+            ]
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -5276,20 +4165,12 @@
         "value": 40
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 40,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+            "score": 40
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -5304,20 +4185,12 @@
         "value": 40
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 40,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+            "score": 40
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -5332,20 +4205,12 @@
         "value": 40
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 40,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+            "score": 40
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -5360,20 +4225,12 @@
         "value": 40
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 41,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+            "score": 41
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -5388,20 +4245,12 @@
         "value": 40
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 39.5,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+            "score": 39.5
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -5416,20 +4265,12 @@
         "value": 9007199254740993
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 9007199254740992,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+            "score": 9007199254740992
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -5445,20 +4286,12 @@
         "value": 9007199254740993
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 9007199254740992,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+            "score": 9007199254740992
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -5468,91 +4301,51 @@
     },
     {
       "name": "an integer past the double range saturates rather than raising",
-      "differs": "the gateway evaluates it; this reader refuses it, as Rail Center does on publish",
       "condition": {
         "path": "ticket.posture.overall.score",
         "op": "eq",
         "value": 100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
       },
-      "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
-      },
+      "ticket": null,
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
       "expect": "refused",
+      "differs": "the gateway compares it as infinity; this reader refuses it, as rail-center/task.md proposes Rail Center do on publish; its ticket, scored past a double too, is undecodable here, so none is usable",
       "note": "Both saturate to the same infinity and compare equal. float() raises where JavaScript saturates, and an exception where a comparison belongs is neither an allow nor a deny."
     },
     {
       "name": "and so does one past the negative end",
-      "differs": "the gateway evaluates it; this reader refuses it, as Rail Center does on publish",
       "condition": {
         "path": "ticket.posture.overall.score",
         "op": "eq",
         "value": -100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
       },
-      "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
-      },
+      "ticket": null,
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
-      "expect": "refused"
+      "expect": "refused",
+      "differs": "the gateway compares it as infinity; this reader refuses it, as rail-center/task.md proposes Rail Center do on publish; its ticket, scored past a double too, is undecodable here, so none is usable"
     },
     {
       "name": "an operand overflowing to infinity is compared, not refused",
-      "differs": "the gateway evaluates it; this reader refuses it, as Rail Center does on publish",
       "condition": {
         "path": "ticket.posture.overall.score",
         "op": "lt",
         "value": 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 95,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+            "score": 95
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
-      "expect": "refused"
+      "expect": "refused",
+      "differs": "the gateway compares it as infinity; this reader refuses it, as rail-center/task.md proposes Rail Center do on publish"
     },
     {
       "name": "in holds for a member",
@@ -5565,20 +4358,12 @@
         ]
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 92.0,
             "level": "medium"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -5587,9 +4372,8 @@
     },
     {
       "name": "in does not coerce its elements",
-      "retargeted": "onto sandbox_id",
       "condition": {
-        "path": "ticket.sandbox_id",
+        "path": "ticket.posture.overall.score",
         "op": "in",
         "value": [
           40,
@@ -5597,20 +4381,12 @@
         ]
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "40",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+            "score": "40"
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -5628,20 +4404,12 @@
         ]
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 40,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+            "score": 40
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -5650,31 +4418,22 @@
     },
     {
       "name": "in on a one-value list holds for that value",
-      "retargeted": "onto drifted",
       "condition": {
-        "path": "ticket.alignment.drifted",
+        "path": "ticket.posture.overall.level",
         "op": "in",
         "value": [
           "low"
         ]
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": [
-            "low"
-          ]
+            "level": [
+              "low"
+            ]
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -5694,20 +4453,12 @@
         ]
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 95,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+            "score": 95
+          }
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -5717,34 +4468,20 @@
     },
     {
       "name": "a boolean element of an in operand never matches a boolean claim",
-      "retargeted": "onto capped",
       "condition": {
-        "path": "ticket.posture.categories.identity.capped",
+        "path": "ticket.posture.overall.level",
         "op": "in",
         "value": [
           true
         ]
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "posture": {
           "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {
-            "identity": {
-              "score": 5,
-              "capped": true
-            }
+            "level": true
           }
-        },
-        "alignment": {
-          "drifted": []
         }
       },
       "endpoint_key": "/mcp#tools/call#track_package",
@@ -5759,24 +4496,12 @@
         "value": "delivery#/mcp#tools/call#track_package"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "skills": [
           "delivery#/mcp#tools/call#other",
           "delivery#/mcp#tools/call#track_package"
-        ],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -5784,28 +4509,15 @@
     },
     {
       "name": "contains does not substring-match a string claim",
-      "retargeted": "onto sandbox_id",
       "condition": {
-        "path": "ticket.sandbox_id",
+        "path": "ticket.skills",
         "op": "contains",
         "value": "delivery.admin"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "delivery.administrator",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "skills": "delivery.administrator"
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -5820,23 +4532,11 @@
         "value": "delivery.admin"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
+        "agent_id": "agent-1",
+        "exp": 4102444800,
         "skills": [
           "delivery#/mcp#tools/call#administrator"
-        ],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -5844,28 +4544,35 @@
     },
     {
       "name": "contains requires the claim to be a list",
-      "retargeted": "onto posture, an object",
       "condition": {
-        "path": "ticket.posture",
+        "path": "ticket.skills",
         "op": "contains",
         "value": "delivery#/mcp#tools/call#track_package"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "skills": {
+          "delivery#/mcp#tools/call#track_package": true
         }
+      },
+      "endpoint_key": "/mcp#tools/call#track_package",
+      "headers": [],
+      "expect": "does_not_hold"
+    },
+    {
+      "name": "a boolean element of a list claim does not satisfy contains",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "contains",
+        "value": 1
+      },
+      "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "skills": [
+          true
+        ]
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -5879,21 +4586,8 @@
         "value": "/mcp#tools/call#*"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -5907,21 +4601,8 @@
         "value": "/mcp#tools/call#*"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#orders.v2",
       "headers": [],
@@ -5930,32 +4611,19 @@
     },
     {
       "name": "matches — a star stands for an empty run",
-      "retargeted": "a star after a non-empty call",
       "condition": {
         "path": "request.endpoint_key",
         "op": "matches",
         "value": "/mcp#tools/call#x*"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#x",
       "headers": [],
-      "expect": "holds"
+      "expect": "holds",
+      "retargeted": "a star after a non-empty call"
     },
     {
       "name": "matches — a pattern is anchored at the start",
@@ -5965,21 +4633,8 @@
         "value": "tools/call#*"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#delivery.orders",
       "headers": [],
@@ -5994,21 +4649,8 @@
         "value": "*#delivery.orders"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#delivery.orders",
       "headers": [],
@@ -6022,21 +4664,8 @@
         "value": "*#delivery.orders"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#delivery.orders.v2",
       "headers": [],
@@ -6050,21 +4679,8 @@
         "value": "*"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -6078,21 +4694,8 @@
         "value": "/mcp#tools/call#orders"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#orders",
       "headers": [],
@@ -6107,21 +4710,8 @@
         "value": "/mcp#tools/call#order"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#orders.v2",
       "headers": [],
@@ -6136,21 +4726,8 @@
         "value": "/mcp#tools/call#orders"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#orders.v2",
       "headers": [],
@@ -6158,268 +4735,151 @@
     },
     {
       "name": "matches — the two ends may abut",
-      "retargeted": "'/mcp#tools/call#' put before key and pattern",
       "condition": {
         "path": "request.endpoint_key",
         "op": "matches",
         "value": "/mcp#tools/call#ab*ab"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#abab",
       "headers": [],
       "expect": "holds",
+      "retargeted": "'/mcp#tools/call#' put before key and pattern",
       "note": "Pinned from both sides, because startswith-and-endswith is the natural shape to write."
     },
     {
       "name": "matches — the two ends must not overlap",
-      "retargeted": "'/mcp#tools/call#' put before key and pattern",
       "condition": {
         "path": "request.endpoint_key",
         "op": "matches",
         "value": "/mcp#tools/call#ab*ab"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#ab",
       "headers": [],
       "expect": "does_not_hold",
+      "retargeted": "'/mcp#tools/call#' put before key and pattern",
       "note": "`ab*ab` does not match `ab`, though the key both starts and ends with `ab`. `*` stands for a run of characters, possibly empty, but never for characters counted twice."
     },
     {
       "name": "matches — the two ends with a run between them",
-      "retargeted": "'/mcp#tools/call#' put before key and pattern",
       "condition": {
         "path": "request.endpoint_key",
         "op": "matches",
         "value": "/mcp#tools/call#ab*ab"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#abXab",
       "headers": [],
-      "expect": "holds"
+      "expect": "holds",
+      "retargeted": "'/mcp#tools/call#' put before key and pattern"
     },
     {
       "name": "matches — a key too short for both ends",
-      "retargeted": "'/mcp#tools/call#' put before key and pattern",
       "condition": {
         "path": "request.endpoint_key",
         "op": "matches",
         "value": "/mcp#tools/call#ab*ab"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#aba",
       "headers": [],
-      "expect": "does_not_hold"
+      "expect": "does_not_hold",
+      "retargeted": "'/mcp#tools/call#' put before key and pattern"
     },
     {
       "name": "matches — an interior segment must fit before the suffix",
-      "retargeted": "'/mcp#tools/call#' put before key and pattern",
       "condition": {
         "path": "request.endpoint_key",
         "op": "matches",
         "value": "/mcp#tools/call#a*bc*bc"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#abc",
       "headers": [],
       "expect": "does_not_hold",
+      "retargeted": "'/mcp#tools/call#' put before key and pattern",
       "note": "A reader that checks only that the segment was found lets it match the suffix's own characters a second time."
     },
     {
       "name": "matches — and does fit where the key carries it twice",
-      "retargeted": "'/mcp#tools/call#' put before key and pattern",
       "condition": {
         "path": "request.endpoint_key",
         "op": "matches",
         "value": "/mcp#tools/call#a*bc*bc"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#abcbc",
       "headers": [],
-      "expect": "holds"
+      "expect": "holds",
+      "retargeted": "'/mcp#tools/call#' put before key and pattern"
     },
     {
       "name": "matches — an interior segment matched at its earliest position",
-      "retargeted": "'/mcp#tools/call#' put before key and pattern",
       "condition": {
         "path": "request.endpoint_key",
         "op": "matches",
         "value": "/mcp#tools/call#a*bc*bc"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#aXbcYbc",
       "headers": [],
       "expect": "holds",
+      "retargeted": "'/mcp#tools/call#' put before key and pattern",
       "note": "With `*` the only metacharacter every interior segment is a fixed literal, so taking one early never rules out a match a fuller search would find — which is why no backtracking is needed to be correct."
     },
     {
       "name": "matches — two stars are one",
-      "retargeted": "'/mcp#tools/call#' put before key and pattern",
       "condition": {
         "path": "request.endpoint_key",
         "op": "matches",
         "value": "/mcp#tools/call#a**b"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#ab",
       "headers": [],
-      "expect": "holds"
+      "expect": "holds",
+      "retargeted": "'/mcp#tools/call#' put before key and pattern"
     },
     {
       "name": "matches — two stars are one, over a run",
-      "retargeted": "'/mcp#tools/call#' put before key and pattern",
       "condition": {
         "path": "request.endpoint_key",
         "op": "matches",
         "value": "/mcp#tools/call#a**b"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#aXYZb",
       "headers": [],
-      "expect": "holds"
+      "expect": "holds",
+      "retargeted": "'/mcp#tools/call#' put before key and pattern"
     },
     {
       "name": "matches — an embedded newline is an ordinary character in a pattern",
@@ -6429,21 +4889,8 @@
         "value": "/mcp#tools/call#track\n*"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track\npackage",
       "headers": [],
@@ -6457,21 +4904,8 @@
         "value": "/mcp#tools/call#*"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track\npackage",
       "headers": [],
@@ -6486,21 +4920,8 @@
         "value": "/mcp#tools/call#orders"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#orders\n",
       "headers": [],
@@ -6515,21 +4936,8 @@
         "value": "/mcp#tools/call#*"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/MCP#tools/call#track_package",
       "headers": [],
@@ -6544,21 +4952,8 @@
         "value": "/MCP#tools/call#*"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
@@ -6572,21 +4967,8 @@
         "value": "/mcp#tools/call#café.*"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#café.orders",
       "headers": [],
@@ -6601,21 +4983,8 @@
         "value": "/mcp#tools/call#café.*"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#café.orders",
       "headers": [],
@@ -6630,21 +4999,8 @@
         "value": "/mcp#tools/call#?rders"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#orders",
       "headers": [],
@@ -6659,21 +5015,8 @@
         "value": "/mcp#tools/call#?rders"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#?rders",
       "headers": [],
@@ -6687,21 +5030,8 @@
         "value": "/mcp#tools/call#[ab]"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#a",
       "headers": [],
@@ -6716,21 +5046,8 @@
         "value": "/mcp#tools/call#[ab]"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#[ab]",
       "headers": [],
@@ -6744,21 +5061,8 @@
         "value": "/mcp#tools/call#a\\b"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#a\\b",
       "headers": [],
@@ -6772,21 +5076,8 @@
         "value": "/mcp#tools/call#a\\*"
       },
       "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
+        "agent_id": "agent-1",
+        "exp": 4102444800
       },
       "endpoint_key": "/mcp#tools/call#aX",
       "headers": [],

@@ -6,7 +6,7 @@ fn read(condition: Value) -> Condition {
 }
 
 fn ticket_path() -> Path {
-    Path::Ticket(TicketPath::SandboxType)
+    Path::Ticket(TicketPath(vec!["sandbox_type".to_string()]))
 }
 
 #[test]
@@ -71,33 +71,17 @@ fn test_reads_a_bare_source() {
     let Condition::Valid(Predicate::NotExisting { path }) = condition else {
         panic!("{condition:?}");
     };
-    assert_eq!(path, Path::Ticket(TicketPath::Whole));
+    assert_eq!(path, Path::Ticket(TicketPath(vec![])));
 }
 
 #[test]
-fn test_reads_a_category_path_of_any_name() {
-    let condition = read(json!({"path": "ticket.posture.categories.new.score", "op": "existing"}));
-    assert!(matches!(
-        condition,
-        Condition::Valid(Predicate::Existing { .. })
-    ));
-}
-
-// The gateway's `v2/decide.json` reads these as absent or as an untyped claim. Rail Center
-// refuses to publish them.
-#[test]
-fn test_reads_a_path_past_the_typed_claims_as_invalid() {
-    let cases = [
-        json!({"path": "ticket.posture_score", "op": "lt", "value": 40}),
-        json!({"path": "ticket.alignment.drifted.llm_model", "op": "not_existing"}),
-        json!({"path": "ticket.agent_id.a", "op": "not_existing"}),
-    ];
-    for condition in cases {
-        assert_eq!(
-            read(condition.clone()),
-            Condition::Invalid(condition.to_string())
-        );
-    }
+fn test_reads_any_path_under_ticket_as_its_keys() {
+    let condition = read(json!({"path": "ticket.posture_score.a", "op": "existing"}));
+    let Condition::Valid(Predicate::Existing { path }) = condition else {
+        panic!("{condition:?}");
+    };
+    let keys = vec!["posture_score".to_string(), "a".to_string()];
+    assert_eq!(path, Path::Ticket(TicketPath(keys)));
 }
 
 #[test]
@@ -153,8 +137,6 @@ fn test_reads_anything_else_as_invalid() {
         json!({"path": "ticket.sandbox_type", "op": 1}),
         json!({"path": "ticket.sandbox_type", "op": true}),
         json!({"path": "session.a", "op": "existing"}),
-        json!({"path": "ticket.iat", "op": "existing"}),
-        json!({"path": "ticket.posture.overall.unknown", "op": "existing"}),
         json!({"path": "ticket.sandbox_type", "op": "lt", "value": "1"}),
         json!({"path": "ticket.sandbox_type", "op": "lt"}),
         json!({"path": "ticket.sandbox_type", "op": "eq", "value": true}),

@@ -1,10 +1,10 @@
 use rail_policy::{
-    Budget, Condition, Endpoint, Environment, Headers, Refusal, ResolvedKey, TicketClaims,
-    compile_condition, evaluate_condition,
+    Budget, Condition, Endpoint, Environment, Headers, Refusal, ResolvedKey, compile_condition,
+    evaluate_condition,
 };
 use serde::Deserialize;
 use serde_json::value::RawValue;
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 const VECTORS: &str = include_str!("../../../vectors/judge_condition_conformance_cases.json");
 
@@ -18,7 +18,7 @@ struct Case {
     name: String,
     // Raw, since some operands are past what a `Value` holds.
     condition: Box<RawValue>,
-    ticket: Option<TicketClaims>,
+    ticket: Option<Map<String, Value>>,
     endpoint_key: Option<String>,
     headers: Vec<(String, String)>,
     expect: String,
@@ -159,7 +159,9 @@ fn test_reads_a_resolved_key() {
 
 fn evaluate_on_claims(condition: Value, claims: Value) -> Result<bool, Refusal> {
     let condition: Condition = serde_json::from_value(condition).unwrap();
-    let claims: TicketClaims = serde_json::from_value(claims).unwrap();
+    let Value::Object(claims) = claims else {
+        panic!();
+    };
     let headers = Headers::default();
     let environment = Environment {
         ticket: Some(&claims),
@@ -234,4 +236,18 @@ fn test_reads_what_a_ticket_leaves_out_as_absent() {
     assert!(read("ticket.posture.categories.identity"));
     assert!(read("ticket.posture.categories.identity.capped"));
     assert!(!read("ticket.posture.categories.identity.score"));
+}
+
+#[test]
+fn test_reads_a_list_item_that_is_not_a_scalar_as_matching_nothing() {
+    let read = |op: &str, value: Value, skills: Value| {
+        let condition = json!({"path": "ticket.skills", "op": op, "value": value});
+        evaluate_on_claims(condition, json!({"exp": 60, "skills": skills})).unwrap()
+    };
+    assert!(!read("eq", json!("acme"), json!(["acme", null])));
+    assert!(read("ne", json!("acme"), json!(["acme", null])));
+    assert!(read("ne", json!("acme"), json!(["acme", {}])));
+    assert!(!read("in", json!(["acme"]), json!([null, true])));
+    assert!(!read("matches", json!("*"), json!([true, null, 1])));
+    assert!(read("matches", json!("*"), json!([true, "a"])));
 }

@@ -1,9 +1,9 @@
 use rail_policy::{
     Budget, Decision, Endpoint, EnforcementMode, Environment, FallbackDenial, Headers, JudgingMode,
-    Outcome, Refusal, TicketClaims, compile_bundle, judge, parse_bundle,
+    Outcome, Refusal, compile_bundle, judge, parse_bundle,
 };
 use serde::Deserialize;
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 const VECTORS: &str = include_str!("../../../vectors/judge_walk_conformance_cases.json");
 
@@ -18,7 +18,7 @@ struct Case {
     bundle: Value,
     mode: JudgingMode,
     endpoint: Value,
-    ticket: Option<TicketClaims>,
+    ticket: Option<Map<String, Value>>,
     headers: Vec<(String, String)>,
     expect: Value,
 }
