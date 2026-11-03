@@ -46,8 +46,7 @@ pub struct Ticket {
 pub struct TicketVerifier {
     /// By `kid`.
     pub keys: HashMap<String, VerifyingKey>,
-    /// `None` where not configured, which accepts no signed ticket. Never `Some("")`: it would
-    /// match a ticket carrying `iss: ""`.
+    /// `None` or empty where not configured, which accepts no signed ticket.
     pub issuer: Option<String>,
     /// As `issuer`.
     pub audience: Option<String>,
@@ -133,7 +132,16 @@ pub fn parse_jwt_ticket(
     };
 
     // Genuine, so not `BadSignature`, but with nothing to compare against it isn't for us either.
-    let (Some(issuer), Some(audience)) = (&verifier.issuer, &verifier.audience) else {
+    // An empty one would match a ticket carrying `iss: ""`.
+    let issuer = verifier
+        .issuer
+        .as_deref()
+        .filter(|issuer| !issuer.is_empty());
+    let audience = verifier
+        .audience
+        .as_deref()
+        .filter(|audience| !audience.is_empty());
+    let (Some(issuer), Some(audience)) = (issuer, audience) else {
         return TicketState::WrongAudience;
     };
     if now_in_seconds < nbf_in_seconds.saturating_sub(NBF_ALLOWANCE_IN_SECONDS)

@@ -3,7 +3,7 @@ use rail_policy::{
     SchemaVersion, TicketPath, parse_bundle,
 };
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::value::RawValue;
 use uuid::Uuid;
 
 const VECTORS: &str = include_str!("../../../vectors/parse_bundle_conformance_cases.json");
@@ -42,7 +42,8 @@ struct Vectors {
 #[derive(Deserialize)]
 struct Case {
     name: String,
-    bundle: Value,
+    // Raw, since a priority may be past what a `Value` holds.
+    bundle: Box<RawValue>,
     usable: bool,
     /// Usable cases only: the enabled policy ids, in evaluation order.
     chain: Option<Vec<Uuid>>,
@@ -58,7 +59,7 @@ fn test_vectors() {
     let mut failures = Vec::new();
     for case in vectors.cases {
         let name = case.name;
-        let result = parse_bundle(&case.bundle.to_string());
+        let result = parse_bundle(case.bundle.get());
         if case.usable == result.is_err() {
             failures.push(format!("{name}: {result:?}"));
         } else if let Ok(bundle) = result {
@@ -174,14 +175,9 @@ fn test_reads_an_endpoint_key_with_a_separator_in_its_call() {
 }
 
 #[test]
-fn test_refuses_an_endpoint_key_with_too_few_parts() {
-    let bundle = EXAMPLE.replace("#refund_order", "");
-    assert!(parse_bundle(&bundle).is_err());
-}
-
-#[test]
-fn test_refuses_an_endpoint_key_with_an_empty_part() {
+fn test_refuses_an_endpoint_key_with_a_part_missing_or_empty() {
     let keys = [
+        "finretail#/mcp#tools/call",
         "#/mcp#tools/call#refund_order",
         "finretail##tools/call#refund_order",
         "finretail#/mcp##refund_order",
@@ -224,4 +220,14 @@ fn test_keeps_a_bundle_whose_condition_is_nested_past_any_limit() {
         bundle.policies[0].condition,
         Condition::Invalid(_)
     ));
+}
+
+#[test]
+fn test_names_an_endpoint_key_as_sent_when_refusing() {
+    let bundle = EXAMPLE.replace(r#""gated""#, r#""open""#);
+    let refusal = parse_bundle(&bundle).unwrap_err().to_string();
+    assert_eq!(
+        refusal,
+        "unusable policy bundle: open binding finretail#/mcp#tools/call#refund_order names policies"
+    );
 }

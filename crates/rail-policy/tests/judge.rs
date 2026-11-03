@@ -16,7 +16,7 @@ struct Vectors {
 struct Case {
     name: String,
     bundle: Value,
-    mode: JudgingMode,
+    mode: EnforcementMode,
     endpoint: Value,
     ticket: Option<Map<String, Value>>,
     headers: Vec<(String, String)>,
@@ -64,7 +64,7 @@ fn judge_case(case: &Case) -> Outcome {
     judge(
         &compile_bundle(&bundle),
         &environment,
-        case.mode,
+        case.mode.judging_mode().unwrap(),
         &mut Budget::default(),
     )
 }

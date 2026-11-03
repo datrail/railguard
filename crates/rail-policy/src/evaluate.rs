@@ -1,9 +1,8 @@
 use serde_json::Value;
 
-use crate::condition::{Condition, Path, Predicate, Scalar};
+use crate::condition::{Condition, Path, Predicate, RequestPath, Scalar, TicketPath};
 use crate::endpoint::Endpoint;
 use crate::environment::Environment;
-use crate::schema::{RequestPath, TicketPath};
 
 /// The steps one judgement may take, unless the caller sets its own.
 pub const DEFAULT_STEP_LIMIT: u64 = 100_000;
@@ -107,6 +106,7 @@ impl<'a> List<'a> {
     }
 
     fn items(self) -> impl Iterator<Item = Lookup<'a>> {
+        // Both kinds as one iterator type, without boxing.
         let (header, ticket) = match self {
             Self::Header(values) => (values, &[][..]),
             Self::Ticket(values) => (&[][..], values),
@@ -146,8 +146,7 @@ pub fn evaluate_condition(
     let Node::Test(path, test) = &condition.0 else {
         return Err(Refusal::Uninterpretable);
     };
-    let value = resolve(path, environment);
-    apply(test, &value, budget)
+    apply(test, resolve(path, environment), budget)
 }
 
 fn read_scalars(items: &[Value]) -> Vec<Scalar> {
@@ -212,51 +211,49 @@ fn resolve_request<'a>(path: &RequestPath, environment: &Environment<'a>) -> Loo
     }
 }
 
-fn apply(test: &Test, value: &Lookup, budget: &mut Budget) -> Result<bool, Refusal> {
+fn apply(test: &Test, value: Lookup, budget: &mut Budget) -> Result<bool, Refusal> {
     if let Lookup::List(items) = value {
         budget.charge(items.len() as u64)?;
     }
-    Ok(match (test, *value) {
+    Ok(match (test, value) {
         (Test::Existing, value) => !matches!(value, Lookup::Absent),
         (Test::NotExisting, value) => matches!(value, Lookup::Absent),
         // On a list, `eq` needs every value to equal, and `ne` any value to differ.
         (Test::Eq(operand), Lookup::List(items)) => {
-            !items.is_empty() && items.items().all(|item| equals(&item, operand))
+            !items.is_empty() && items.items().all(|item| equals(item, operand))
         }
-        (Test::Eq(operand), value) => equals(&value, operand),
+        (Test::Eq(operand), value) => equals(value, operand),
         (Test::Ne(operand), Lookup::List(items)) => {
-            !items.is_empty() && items.items().any(|item| !equals(&item, operand))
+            !items.is_empty() && items.items().any(|item| !equals(item, operand))
         }
-        (Test::Ne(operand), value) => is_scalar(&value) && !equals(&value, operand),
+        (Test::Ne(operand), value) => is_scalar(value) && !equals(value, operand),
         (Test::Lt(operand), Lookup::Number(number)) => number < *operand,
         (Test::Lte(operand), Lookup::Number(number)) => number <= *operand,
         (Test::Gt(operand), Lookup::Number(number)) => number > *operand,
         (Test::Gte(operand), Lookup::Number(number)) => number >= *operand,
         (Test::In(operand), Lookup::List(items)) => {
             budget.charge((items.len() as u64).saturating_mul(operand.len() as u64))?;
-            items.items().any(|item| is_member(&item, operand))
+            items.items().any(|item| is_member(item, operand))
         }
         (Test::In(operand), value) => {
             budget.charge(operand.len() as u64)?;
-            is_member(&value, operand)
+            is_member(value, operand)
         }
         (Test::Contains(operand), Lookup::List(items)) => {
-            items.items().any(|item| equals(&item, operand))
+            items.items().any(|item| equals(item, operand))
         }
         (Test::NotContains(operand), Lookup::List(items)) => {
-            !items.items().any(|item| equals(&item, operand))
+            !items.items().any(|item| equals(item, operand))
         }
         (Test::Matches(glob), Lookup::List(items)) => {
-            let mut matched = false;
             for item in items.items() {
                 if let Lookup::Str(text) = item
                     && glob.matches(text, budget)?
                 {
-                    matched = true;
-                    break;
+                    return Ok(true);
                 }
             }
-            matched
+            false
         }
         (Test::Matches(glob), Lookup::Str(text)) => glob.matches(text, budget)?,
         _ => false,
@@ -264,19 +261,19 @@ fn apply(test: &Test, value: &Lookup, budget: &mut Budget) -> Result<bool, Refus
 }
 
 /// A string or a number: the only kinds that compare, and only with their own kind.
-fn is_scalar(value: &Lookup) -> bool {
+fn is_scalar(value: Lookup) -> bool {
     matches!(value, Lookup::Str(_) | Lookup::Number(_))
 }
 
-fn equals(value: &Lookup, operand: &Scalar) -> bool {
+fn equals(value: Lookup, operand: &Scalar) -> bool {
     match (value, operand) {
-        (Lookup::Number(number), Scalar::Number(operand)) => number == operand,
+        (Lookup::Number(number), Scalar::Number(operand)) => number == *operand,
         (Lookup::Str(text), Scalar::String(operand)) => text == operand,
         _ => false,
     }
 }
 
-fn is_member(value: &Lookup, operand: &[Scalar]) -> bool {
+fn is_member(value: Lookup, operand: &[Scalar]) -> bool {
     operand.iter().any(|item| equals(value, item))
 }
 

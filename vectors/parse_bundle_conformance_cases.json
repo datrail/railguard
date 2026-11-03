@@ -1,5 +1,5 @@
 {
-  "_comment": "Conformance cases for parse_bundle, taken from datrail/gateway's tests/vectors/bundle.json at 6758b77. Bundles are filled in to the shape Rail Center publishes. Cases this parser answers differently from the gateway are removed: they are input Rail Center does not publish, or version policy, which is checked after parsing. A usable case carries the chain it resolves to, in evaluation order.",
+  "_comment": "Conformance cases for parse_bundle, taken from datrail/gateway's gateway-core/tests/vectors/bundle.json at 6758b77. Bundles are filled in to the shape Rail Center publishes. A usable case carries the chain it resolves to, in evaluation order, and its priorities; the gateway's other expectations (names, conditions, actions, bindings, ticket_fallback) aren't asserted. Removed: 24 cases this parser answers differently from the gateway, all input Rail Center doesn't publish or a check made elsewhere: an enabled missing or not a boolean; a priority written as a float; a name missing or not a string; an id Python's uuid reads and the uuid crate doesn't (odd hyphens, a leading minus, a braced URN, an upper-case URN prefix on an undashed id); a duplicate id beside a disabled twin, or a bad id or priority on a disabled policy; a binding naming an unknown policy; an endpoint key not of the form <slug>#<path>#<method>#<call>; a content_hash the gateway checks, where this parser reads it opaque; and a major version other than 2, which the caller checks, a 1.x bundle among them. A case marked `added` is this reader's own.",
   "cases": [
     {
       "name": "the contract's worked example",
@@ -184,6 +184,48 @@
       ]
     },
     {
+      "name": "a tie breaks by the canonical id, not by the spelling that arrived",
+      "note": "Three orderings come apart here: canonical puts a9 first, the raw spelling puts b1 first, and the names put alpha first. An order that depends on how a bundle happened to spell an id, or on what an operator called a rule, is one two implementations will disagree about.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "condition": {},
+            "action": "block",
+            "enabled": true,
+            "id": "{5C8F1E42-0000-4000-8000-0000000000A9}",
+            "name": "zeta",
+            "priority": 1
+          },
+          {
+            "condition": {},
+            "action": "block",
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000b1",
+            "name": "alpha",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": true,
+      "chain": [
+        "5c8f1e42-0000-4000-8000-0000000000a9",
+        "5c8f1e42-0000-4000-8000-0000000000b1"
+      ],
+      "chain_priorities": [
+        1,
+        1
+      ]
+    },
+    {
       "name": "a tie breaks by canonical id, not by position",
       "note": "Two policies at one priority are never ordered by however the bundle happened to list them.",
       "bundle": {
@@ -277,8 +319,8 @@
       ]
     },
     {
-      "name": "a bound id naming no policy is refused",
-      "note": "Stricter than the contract, which says it binds nothing. Rail Center only binds policies it publishes.",
+      "name": "every accepted id spelling normalises to the same policy",
+      "note": "Braced, URN and undashed on the policy side; uppercase, URN and braced on the binding side. A raw comparison matches none of them, and an endpoint matching no policy is gated by nothing.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [
@@ -286,7 +328,9 @@
             "endpoint_key": "finretail#/mcp#tools/call#e",
             "mode": "gated",
             "policy_ids": [
-              "5c8f1e42-0000-4000-8000-0000000000a2"
+              "5C8F1E42-0000-4000-8000-0000000000A1",
+              "urn:uuid:5c8f1e42-0000-4000-8000-0000000000a2",
+              "{5c8f1e42-0000-4000-8000-0000000000a3}"
             ]
           }
         ],
@@ -297,18 +341,64 @@
         "generated_at": "2026-07-28T20:41:07.512247Z",
         "policies": [
           {
-            "action": "block",
             "condition": {},
+            "action": "block",
             "enabled": true,
-            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
-            "name": "P-a1",
+            "id": "{5C8F1E42-0000-4000-8000-0000000000A1}",
+            "name": "P-1}",
             "priority": 1
+          },
+          {
+            "condition": {},
+            "action": "block",
+            "enabled": true,
+            "id": "urn:uuid:5c8f1e42-0000-4000-8000-0000000000A2",
+            "name": "P-A2",
+            "priority": 2
+          },
+          {
+            "condition": {},
+            "action": "block",
+            "enabled": true,
+            "id": "5c8f1e420000400080000000000000a3",
+            "name": "P-a3",
+            "priority": 3
+          },
+          {
+            "condition": {},
+            "action": "block",
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a4",
+            "name": "P-a4",
+            "priority": 4
+          },
+          {
+            "condition": {},
+            "action": "block",
+            "enabled": true,
+            "id": "5C8F1E42-0000-4000-8000-0000000000A5",
+            "name": "P-A5",
+            "priority": 5
           }
         ],
         "schema_version": "2.0",
         "ticket_fallback": "block"
       },
-      "usable": false
+      "usable": true,
+      "chain": [
+        "5c8f1e42-0000-4000-8000-0000000000a1",
+        "5c8f1e42-0000-4000-8000-0000000000a2",
+        "5c8f1e42-0000-4000-8000-0000000000a3",
+        "5c8f1e42-0000-4000-8000-0000000000a4",
+        "5c8f1e42-0000-4000-8000-0000000000a5"
+      ],
+      "chain_priorities": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
     },
     {
       "name": "a bound id naming a disabled policy binds nothing either",
@@ -555,6 +645,38 @@
             "condition": {},
             "enabled": true,
             "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": true,
+      "chain": [
+        "5c8f1e42-0000-4000-8000-0000000000a1"
+      ],
+      "chain_priorities": [
+        1
+      ]
+    },
+    {
+      "name": "the URN prefix is matched whatever its case",
+      "note": "Rail Center refuses this one: uuid.UUID strips its `urn:` prefix case-sensitively. The contract says all five spellings parse in any mixture of case, so this file follows the contract.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "condition": {},
+            "action": "block",
+            "enabled": true,
+            "id": "URN:UUID:5c8f1e42-0000-4000-8000-0000000000a1",
             "name": "P-a1",
             "priority": 1
           }
@@ -1621,6 +1743,32 @@
       "usable": false
     },
     {
+      "name": "a refusal naming a priority four thousand digits long",
+      "note": "Python's integers are unbounded, so without a cap the refusal carries all four thousand digits into the log on every failed refresh. The reference got this for nothing: every JSON number there is a double.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "condition": {},
+            "action": "block",
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
       "name": "a policy id that cannot be compared",
       "bundle": {
         "binding_fallback": "block",
@@ -1735,7 +1883,7 @@
             "action": "block",
             "condition": {},
             "enabled": true,
-            "id": 1.2345678901234567e+31,
+            "id": 12345678901234567890123456789012,
             "name": "P-??",
             "priority": 1
           }
@@ -2521,6 +2669,57 @@
       "usable": false
     },
     {
+      "name": "a priority past what a double separates",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "condition": {},
+            "action": "block",
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 9007199254740992
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a priority past the negative end of what a double separates",
+      "note": "Bounded on both sides. Comparing without an absolute value leaves the negative end unbounded, and Rail Center pins this case too.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "condition": {},
+            "action": "block",
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": -9007199254740992
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
       "name": "a priority written as a string",
       "bundle": {
         "binding_fallback": "block",
@@ -3252,8 +3451,80 @@
       "usable": false
     },
     {
+      "name": "a higher minor of the supported major is read",
+      "note": "The whole of why only the major is compared. A minor bump adds a field a reader may not know, and this reader already treats an unrecognised root field as a responder of a different age rather than a broken one — so refusing the number while accepting the field it announces would be two rules for one situation, and would make adding an optional field a breaking change after all.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "policies": [],
+        "schema_version": "2.1",
+        "ticket_fallback": "block"
+      },
+      "usable": true,
+      "chain": [],
+      "chain_priorities": []
+    },
+    {
+      "name": "a minor far ahead of this reader is still read",
+      "note": "There is no ceiling on the minor. A reader that accepted 1.1 and refused 1.99 would be asserting a limit nobody wrote down, and a producer has no way to discover where it sits.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "policies": [],
+        "schema_version": "2.99",
+        "ticket_fallback": "block"
+      },
+      "usable": true,
+      "chain": [],
+      "chain_priorities": []
+    },
+    {
+      "name": "a minor behind this reader is read",
+      "note": "The other direction, and it is the ordinary case during a staged rollout: a component upgraded before its control plane meets the shape it was built on. An older minor is a subset this reader already understands.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "policies": [],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": true,
+      "chain": [],
+      "chain_priorities": []
+    },
+    {
+      "name": "a leading zero in the major is read",
+      "note": "`01` is 1 to every integer parser a reimplementation would reach for. Stated as a case so it is a decision rather than an accident of whichever one is used.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "policies": [],
+        "schema_version": "02.0",
+        "ticket_fallback": "block"
+      },
+      "usable": true,
+      "chain": [],
+      "chain_priorities": []
+    },
+    {
       "name": "a version with no minor is refused",
-      "note": "A version has two or three parts. Reading a lone major as `2.0` would be guessing.",
+      "note": "`MAJOR.MINOR` is the whole grammar. A bare major is a producer saying something this reader has no rule for, and reading it as `1.0` would be inventing the missing half.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -3263,6 +3534,22 @@
         },
         "policies": [],
         "schema_version": "2",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a three-part version is refused",
+      "note": "Not read as `1.0` with a patch ignored. The contract has two parts, and tolerating a third would mean tolerating whatever the next responder puts in that position.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "policies": [],
+        "schema_version": "2.0.0",
         "ticket_fallback": "block"
       },
       "usable": false
@@ -3362,6 +3649,41 @@
         "ticket_fallback": "allow"
       },
       "usable": false
+    },
+    {
+      "name": "a bound id naming no policy is refused",
+      "note": "Stricter than the contract, which says it binds nothing. Rail Center only binds policies it publishes.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a2"
+            ]
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false,
+      "added": true
     }
   ]
 }

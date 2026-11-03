@@ -6,14 +6,13 @@ mod endpoint;
 mod environment;
 mod evaluate;
 mod judge;
-mod schema;
 mod ticket;
 
 pub use bundle::{
     Action, Binding, BindingMode, Bundle, EndpointKey, Enforcement, EnforcementMode, Fallback,
     Policy, SchemaVersion, UnusableBundle, parse_bundle,
 };
-pub use condition::{Condition, Path, Predicate, Scalar};
+pub use condition::{Condition, Path, Predicate, RequestPath, Scalar, TicketPath};
 pub use endpoint::{Endpoint, Resolution, ResolvedKey, resolve_endpoint};
 pub use environment::{Environment, Headers};
 pub use evaluate::{
@@ -22,5 +21,4 @@ pub use evaluate::{
 pub use judge::{
     ChainVerdict, Decision, FallbackDenial, Judge, JudgingMode, Outcome, compile_bundle, judge,
 };
-pub use schema::{RequestPath, TicketPath};
 pub use ticket::{Ticket, TicketState, TicketVerifier, parse_base64_ticket, parse_jwt_ticket};

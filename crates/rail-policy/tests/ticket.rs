@@ -204,3 +204,20 @@ fn test_refuses_a_signature_for_a_weak_key() {
         TicketState::BadSignature
     );
 }
+
+#[test]
+fn test_reads_an_empty_issuer_or_audience_as_not_configured() {
+    let key = SigningKey::from_bytes(&[7; 32]);
+    let header = URL_SAFE_NO_PAD.encode(json!({"alg": "EdDSA", "kid": "k"}).to_string());
+    let payload = json!({"exp": 60, "nbf": 0, "iss": "", "aud": ""}).to_string();
+    let ticket = _sign_ticket(&key, &header, &URL_SAFE_NO_PAD.encode(payload));
+    let verifier = TicketVerifier {
+        keys: HashMap::from([("k".to_string(), key.verifying_key())]),
+        issuer: Some(String::new()),
+        audience: Some(String::new()),
+    };
+    assert_eq!(
+        parse_jwt_ticket(&ticket, &verifier, 0),
+        TicketState::WrongAudience
+    );
+}

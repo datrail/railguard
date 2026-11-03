@@ -1,7 +1,8 @@
 use std::collections::HashSet;
 use std::fmt;
 
-use serde::Deserialize;
+use serde::de::Error as _;
+use serde::{Deserialize, Deserializer};
 use uuid::Uuid;
 
 use crate::condition::Condition;
@@ -15,7 +16,8 @@ pub struct Bundle {
     pub content_hash: String,
     // `generated_at` goes here: nothing reads it yet, and it needs a date type.
     pub enforcement: Enforcement,
-    /// In evaluation order, including the disabled ones Rail Center publishes.
+    /// In evaluation order, as `parse_bundle` leaves it, including the disabled ones Rail Center
+    /// publishes.
     pub policies: Vec<Policy>,
     pub bindings: Vec<Binding>,
     /// For an endpoint with no binding: `block` denies, `pass` walks the whole chain.
@@ -78,11 +80,26 @@ pub enum Fallback {
 pub struct Policy {
     pub id: Uuid,
     pub name: String,
-    /// Lowest first, ties broken by id.
+    /// Lowest first, ties broken by id. Within ±(2^53 − 1), so a double holds it exactly.
+    #[serde(deserialize_with = "read_priority")]
     pub priority: i64,
     pub condition: Condition,
     pub action: Action,
     pub enabled: bool,
+}
+
+/// The largest whole number a double holds exactly.
+const MAX_SAFE_INTEGER: i64 = (1 << 53) - 1;
+
+// Past the bound, two priorities a double can't tell apart would order differently here.
+fn read_priority<'de, D: Deserializer<'de>>(deserializer: D) -> Result<i64, D::Error> {
+    let priority = i64::deserialize(deserializer)?;
+    if !(-MAX_SAFE_INTEGER..=MAX_SAFE_INTEGER).contains(&priority) {
+        return Err(D::Error::custom(format!(
+            "priority {priority} past ±(2^53 − 1)"
+        )));
+    }
+    Ok(priority)
 }
 
 /// `alert` records a match and never denies.
@@ -123,6 +140,12 @@ impl TryFrom<String> for EndpointKey {
     }
 }
 
+impl fmt::Display for EndpointKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}#{}", self.slug, self.resolved.as_str())
+    }
+}
+
 /// `gated` applies only `policy_ids`; `open` applies no policy.
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -147,44 +170,47 @@ pub fn parse_bundle(json: &str) -> Result<Bundle, UnusableBundle> {
     let mut bundle: Bundle =
         serde_json::from_str(json).map_err(|e| UnusableBundle(e.to_string()))?;
 
-    check_policies(&bundle.policies)?;
-    check_bindings(&bundle.bindings, &bundle.policies)?;
+    let known_policies = check_policies(&bundle.policies)?;
+    check_bindings(&bundle.bindings, &known_policies)?;
     bundle
         .policies
         .sort_by_key(|policy| (policy.priority, policy.id));
     Ok(bundle)
 }
 
-fn refuse(reason: String) -> Result<(), UnusableBundle> {
-    Err(UnusableBundle(reason))
-}
-
-fn check_policies(policies: &[Policy]) -> Result<(), UnusableBundle> {
-    let mut seen = HashSet::new();
+/// Returns the policy ids, each once.
+fn check_policies(policies: &[Policy]) -> Result<HashSet<Uuid>, UnusableBundle> {
+    let mut ids = HashSet::new();
     for policy in policies {
-        if !seen.insert(policy.id) {
-            return refuse(format!("policy {} appears twice", policy.id));
+        if !ids.insert(policy.id) {
+            return Err(UnusableBundle(format!(
+                "policy {} appears twice",
+                policy.id
+            )));
         }
     }
-    Ok(())
+    Ok(ids)
 }
 
-fn check_bindings(bindings: &[Binding], policies: &[Policy]) -> Result<(), UnusableBundle> {
-    let known_policies: HashSet<Uuid> = policies.iter().map(|policy| policy.id).collect();
+fn check_bindings(
+    bindings: &[Binding],
+    known_policies: &HashSet<Uuid>,
+) -> Result<(), UnusableBundle> {
+    let refuse = |reason: String| Err(UnusableBundle(reason));
     let mut seen = HashSet::new();
     for binding in bindings {
         let key = &binding.endpoint_key;
         // The gateway matches keys without the slug, so these reach one endpoint.
         if !seen.insert(&key.resolved) {
-            return refuse(format!("two bindings reach {key:?}"));
+            return refuse(format!("two bindings reach {key}"));
         }
         match (&binding.mode, binding.policy_ids.is_empty()) {
             (BindingMode::Open, false) => {
-                return refuse(format!("open binding {key:?} names policies"));
+                return refuse(format!("open binding {key} names policies"));
             }
             // Read literally, this would disarm the endpoint.
             (BindingMode::Gated, true) => {
-                return refuse(format!("gated binding {key:?} names no policy"));
+                return refuse(format!("gated binding {key} names no policy"));
             }
             _ => {}
         }
@@ -194,7 +220,7 @@ fn check_bindings(bindings: &[Binding], policies: &[Policy]) -> Result<(), Unusa
             .iter()
             .find(|id| !known_policies.contains(id))
         {
-            return refuse(format!("binding {key:?} names unknown policy {id}"));
+            return refuse(format!("binding {key} names unknown policy {id}"));
         }
     }
     Ok(())

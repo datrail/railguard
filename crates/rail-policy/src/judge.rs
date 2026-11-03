@@ -2,8 +2,6 @@ use std::collections::HashMap;
 
 use uuid::Uuid;
 
-use serde::Deserialize;
-
 use crate::bundle::{Action, BindingMode, Bundle, EnforcementMode, Fallback};
 use crate::endpoint::{Endpoint, ResolvedKey};
 use crate::environment::Environment;
@@ -14,7 +12,7 @@ use crate::evaluate::{Budget, CompiledCondition, Refusal, compile_condition, eva
 pub struct Judge {
     /// The enabled policies, in the order they're evaluated.
     chain: Vec<ChainPolicy>,
-    /// For each bound endpoint, the index in `chain` of the policies that apply to it.
+    /// For each bound endpoint, the indices in `chain` of the policies that apply to it.
     bindings: HashMap<ResolvedKey, Vec<usize>>,
     binding_fallback: Fallback,
     ticket_fallback: Fallback,
@@ -29,8 +27,7 @@ struct ChainPolicy {
 
 /// How the caller acts on an outcome: `observe` only logs it, `enforce` acts on it. There's no
 /// `none`, since at `none` the judge isn't called.
-#[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum JudgingMode {
     Observe,
     Enforce,
@@ -191,25 +188,25 @@ fn walk<'a>(
 ) -> ChainVerdict {
     let mut alerts = Vec::new();
     for policy in policies {
-        let decision = match evaluate_condition(&policy.condition, environment, budget) {
+        match evaluate_condition(&policy.condition, environment, budget) {
             // A refused call reports nothing, its alerts included.
             Err(refusal) => {
+                let decision = Decision::Refused {
+                    policy: policy.id,
+                    refusal,
+                };
                 return ChainVerdict {
-                    decision: Decision::Refused {
-                        policy: policy.id,
-                        refusal,
-                    },
+                    decision,
                     alerts: Vec::new(),
                 };
             }
-            Ok(false) => continue,
-            Ok(true) if policy.action == Action::Alert => {
-                alerts.push(policy.id);
-                continue;
+            Ok(false) => {}
+            Ok(true) if policy.action == Action::Alert => alerts.push(policy.id),
+            Ok(true) => {
+                let decision = Decision::Denied(policy.id);
+                return ChainVerdict { decision, alerts };
             }
-            Ok(true) => Decision::Denied(policy.id),
-        };
-        return ChainVerdict { decision, alerts };
+        }
     }
     ChainVerdict {
         decision: Decision::Allowed,
