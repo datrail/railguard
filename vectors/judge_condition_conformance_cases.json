@@ -1,5 +1,5 @@
 {
-  "_comment": "Conformance cases for evaluate_condition, taken from datrail/gateway's gateway-core/tests/vectors/v2/decide.json at 6758b77; its whole-bundle cases are the walk's. A ticket is the payload as the gateway's case gives it, or null without a usable ticket. Headers are the lines as sent. Endpoint keys are slugless, as the gateway reads them; a case marked `retargeted` moves a key that isn't one onto one that is, as the field says. A case marked `differs` is answered otherwise by the gateway: the three operands past what a double holds, which the contract compares as infinity and this reader refuses.",
+  "_comment": "Conformance cases for evaluate_condition, taken from datrail/gateway's gateway-core/tests/vectors/v2/decide.json at 041c92f (master); its whole-bundle cases are the walk's. A ticket is the payload as the gateway's case gives it, or null without a usable ticket. Headers are the lines as sent. Endpoint keys are slugless, as the gateway reads them; a case marked `retargeted` moves a key that isn't one onto one that is, as the field says. A case marked `differs` is answered otherwise by the gateway: the three operands past what a double holds, which the contract compares as infinity and this reader refuses.",
   "cases": [
     {
       "name": "uninterpretable — a field outside the table",

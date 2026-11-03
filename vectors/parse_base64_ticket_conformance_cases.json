@@ -1,5 +1,5 @@
 {
-  "_comment": "Conformance cases for parse_base64_ticket, taken verbatim from datrail/gateway's gateway-core/tests/vectors/ticket.json at 6758b77. A valid case's token is the payload as sent. Removed: 8 about how the header arrives (none, a list, or not text), which the runtime handles, and 4 about the gateway's nesting cap of 64, where serde_json's is 128; the contract leaves the cap to each reader. A case marked `differs` is answered otherwise by the gateway, and one marked `added` is this reader's own.",
+  "_comment": "Conformance cases for parse_base64_ticket, taken verbatim from datrail/gateway's gateway-core/tests/vectors/ticket.json at 041c92f (master). A valid case's token is the payload as sent. Removed: 8 about how the header arrives (none, a list, or not text), which the runtime handles, and 4 about the gateway's nesting cap of 64, where serde_json's is 128; the contract leaves the cap to each reader. A case marked `differs` is answered otherwise by the gateway, and one marked `added` is this reader's own.",
   "cases": [
     {
       "name": "an empty header",
