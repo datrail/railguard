@@ -117,6 +117,8 @@ pub fn compile_bundle(bundle: &Bundle) -> Judge {
                     .filter_map(|id| positions.get(id).copied())
                     .collect(),
             };
+            // A binding picks which policies apply, not their order, and may name one twice:
+            // walk them in evaluation order, each once.
             allowed.sort_unstable();
             allowed.dedup();
             (binding.endpoint_key.resolved.clone(), allowed)
