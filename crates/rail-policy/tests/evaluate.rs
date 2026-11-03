@@ -1,6 +1,6 @@
 use rail_policy::{
-    Budget, Condition, Environment, Headers, Refusal, ResolvedKey, TicketClaims, compile_condition,
-    evaluate_condition,
+    Budget, Condition, Endpoint, Environment, Headers, Refusal, ResolvedKey, TicketClaims,
+    compile_condition, evaluate_condition,
 };
 use serde::Deserialize;
 use serde_json::value::RawValue;
@@ -26,14 +26,14 @@ struct Case {
 
 fn evaluate_case(case: &Case) -> Result<bool, Refusal> {
     let condition: Condition = serde_json::from_str(case.condition.get()).unwrap();
-    let key = case
-        .endpoint_key
-        .as_ref()
-        .map(|key| key.parse::<ResolvedKey>().unwrap());
+    let endpoint = match &case.endpoint_key {
+        Some(key) => Endpoint::Resolved(key.parse().unwrap()),
+        None => Endpoint::Keyless,
+    };
     let headers = Headers::from_lines(case.headers.iter().map(|(n, v)| (n, v)));
     let environment = Environment {
         ticket: case.ticket.as_ref(),
-        endpoint_key: key.as_ref(),
+        endpoint: &endpoint,
         headers: &headers,
     };
     evaluate_condition(
@@ -73,7 +73,7 @@ fn evaluate_on_header(condition: Value, value: &str, budget: &mut Budget) -> Res
     let headers = Headers::from_lines([("x-a", value)]);
     let environment = Environment {
         ticket: None,
-        endpoint_key: None,
+        endpoint: &Endpoint::Keyless,
         headers: &headers,
     };
     evaluate_condition(&compile_condition(&condition), &environment, budget)
@@ -163,7 +163,7 @@ fn evaluate_on_claims(condition: Value, claims: Value) -> Result<bool, Refusal> 
     let headers = Headers::default();
     let environment = Environment {
         ticket: Some(&claims),
-        endpoint_key: None,
+        endpoint: &Endpoint::Keyless,
         headers: &headers,
     };
     evaluate_condition(

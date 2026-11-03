@@ -8,9 +8,60 @@ use crate::ticket::TicketClaims;
 pub struct Environment<'a> {
     /// `None` without a usable ticket: every `ticket` path then reads as absent.
     pub ticket: Option<&'a TicketClaims>,
-    /// `None` for a call naming no endpoint.
-    pub endpoint_key: Option<&'a ResolvedKey>,
+    pub endpoint: &'a Endpoint,
     pub headers: &'a Headers,
+}
+
+/// Rail Center caps a key at 255 characters, so a longer one is never bound.
+const MAX_KEY_CHARS: usize = 255;
+
+/// Messages that open a session or describe it, besides `notifications/…`.
+const DISCOVERY_METHODS: [&str; 6] = [
+    "initialize",
+    "ping",
+    "tools/list",
+    "prompts/list",
+    "resources/list",
+    "resources/templates/list",
+];
+
+/// Whether an MCP message is judged, and what it names.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Resolution {
+    /// Forwarded unjudged: judging it would let a rule bound to one tool close the session.
+    Discovery,
+    Judged(Endpoint),
+}
+
+/// What a judged message names.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Endpoint {
+    /// A method naming no tool, such as `resources/read`. No binding fallback applies.
+    Keyless,
+    /// A `tools/call` naming no tool this reader can key. The binding fallback applies.
+    Unrecognised,
+    Resolved(ResolvedKey),
+}
+
+/// From a message's method and tool name, and the path the upstream serves it at.
+pub fn resolve_endpoint(method: &str, tool_name: Option<&str>, path: &str) -> Resolution {
+    if DISCOVERY_METHODS.contains(&method) || method.starts_with("notifications/") {
+        return Resolution::Discovery;
+    }
+    if method != "tools/call" {
+        return Resolution::Judged(Endpoint::Keyless);
+    }
+    let Some(tool_name) = tool_name.filter(|name| !name.is_empty()) else {
+        return Resolution::Judged(Endpoint::Unrecognised);
+    };
+    let text = format!("{path}#{method}#{tool_name}");
+    if text.chars().count() > MAX_KEY_CHARS {
+        return Resolution::Judged(Endpoint::Unrecognised);
+    }
+    match text.parse() {
+        Ok(key) => Resolution::Judged(Endpoint::Resolved(key)),
+        Err(_) => Resolution::Judged(Endpoint::Unrecognised),
+    }
 }
 
 /// An endpoint key as a host resolves it from a call: `<path>#<method>#<call>`, without the slug.

@@ -12,7 +12,7 @@ pub use bundle::{
     Policy, SchemaVersion, UnusableBundle, parse_bundle,
 };
 pub use condition::{Condition, Path, Predicate, Scalar};
-pub use environment::{Environment, Headers, ResolvedKey};
+pub use environment::{Endpoint, Environment, Headers, Resolution, ResolvedKey, resolve_endpoint};
 pub use evaluate::{
     Budget, CompiledCondition, DEFAULT_STEP_LIMIT, Refusal, compile_condition, evaluate_condition,
 };

@@ -2,7 +2,7 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use crate::condition::{Condition, Path, Predicate, Scalar};
-use crate::environment::Environment;
+use crate::environment::{Endpoint, Environment};
 use crate::schema::{RequestPath, TicketPath};
 
 /// The steps one judgement may take, unless the caller sets its own.
@@ -188,9 +188,10 @@ fn resolve_ticket<'a>(path: &TicketPath, environment: &Environment<'a>) -> Looku
 fn resolve_request<'a>(path: &RequestPath, environment: &Environment<'a>) -> Lookup<'a> {
     match path {
         RequestPath::Whole | RequestPath::Headers => Lookup::Object,
-        RequestPath::EndpointKey => environment
-            .endpoint_key
-            .map_or(Lookup::Absent, |key| Lookup::Str(key.as_str())),
+        RequestPath::EndpointKey => match environment.endpoint {
+            Endpoint::Resolved(key) => Lookup::Str(key.as_str()),
+            Endpoint::Keyless | Endpoint::Unrecognised => Lookup::Absent,
+        },
         RequestPath::Header(name) => match environment.headers.get(name) {
             None => Lookup::Absent,
             Some([value]) => Lookup::Str(value),
