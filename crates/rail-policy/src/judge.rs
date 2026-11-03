@@ -9,10 +9,10 @@ use crate::endpoint::{Endpoint, ResolvedKey};
 use crate::environment::Environment;
 use crate::evaluate::{Budget, CompiledCondition, Refusal, compile_condition, evaluate_condition};
 
-/// A bundle in the form calls are judged against.
+/// A bundle compiled for judging: built once per bundle, then used for every call.
 #[derive(Debug)]
 pub struct Judge {
-    /// Enabled policies only, in evaluation order.
+    /// The enabled policies, in the order they're evaluated.
     chain: Vec<ChainPolicy>,
     /// For each bound endpoint, the index in `chain` of the policies that apply to it.
     bindings: HashMap<ResolvedKey, Vec<usize>>,
@@ -27,7 +27,8 @@ struct ChainPolicy {
     condition: CompiledCondition,
 }
 
-/// The modes that judge a call: at `none` a call is forwarded without one.
+/// How the caller acts on an outcome: `observe` only logs it, `enforce` acts on it. There's no
+/// `none`, since at `none` the judge isn't called.
 #[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum JudgingMode {
@@ -36,7 +37,7 @@ pub enum JudgingMode {
 }
 
 impl EnforcementMode {
-    /// `None` at `none`, where the judge isn't called.
+    /// The judging mode, or `None` at `none`, where calls are forwarded without judging.
     pub fn judging_mode(self) -> Option<JudgingMode> {
         match self {
             Self::None => None,
@@ -46,40 +47,44 @@ impl EnforcementMode {
     }
 }
 
-/// What the judge answers for one call. The caller acts on it per its mode.
+/// What the rules concluded for one call. The caller decides what to do with it.
 #[derive(Debug, PartialEq)]
 pub struct Outcome {
-    /// The fallbacks that deny the call, in the order asked. At `enforce`, only the first is asked.
+    /// The fallbacks that deny the call, ticket first. At `enforce` the first one ends the
+    /// judgement, so there's at most one.
     pub fallbacks: Vec<FallbackDenial>,
-    /// The chain's verdict: `None` where a fallback denies at `enforce`, which skips the chain.
+    /// What the policies concluded, or `None` if they weren't consulted: at `enforce`, after a
+    /// fallback denied.
     pub chain: Option<ChainVerdict>,
 }
 
+/// A fallback that denies a call. No policy is named.
 #[derive(Debug, PartialEq)]
 pub enum FallbackDenial {
-    /// No usable ticket, under `ticket_fallback: block`.
+    /// The call has no usable ticket, and `ticket_fallback` is `block`.
     Ticket,
-    /// No binding for the endpoint, under `binding_fallback: block`.
+    /// The endpoint has no binding, and `binding_fallback` is `block`.
     Binding,
 }
 
+/// What the policies concluded.
 #[derive(Debug, PartialEq)]
 pub struct ChainVerdict {
     pub decision: Decision,
-    /// The `alert` policies that matched, in evaluation order. None when the call is refused.
+    /// The `alert` policies whose conditions held, in evaluation order. Empty when the call is
+    /// refused.
     pub alerts: Vec<Uuid>,
 }
 
+/// How the walk through the policies ended.
 #[derive(Debug, PartialEq)]
 pub enum Decision {
+    /// No `block` policy's condition held.
     Allowed,
-    /// By the first `block` policy that matched.
+    /// The first `block` policy whose condition held.
     Denied(Uuid),
-    /// At this policy, whose condition can't be read or which the budget ran out at.
-    Refused {
-        policy: Uuid,
-        refusal: Refusal,
-    },
+    /// The walk stopped at this policy: its condition can't be read, or the step budget ran out.
+    Refused { policy: Uuid, refusal: Refusal },
 }
 
 pub fn compile_bundle(bundle: &Bundle) -> Judge {
