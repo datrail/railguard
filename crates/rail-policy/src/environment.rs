@@ -43,9 +43,9 @@ pub enum Endpoint {
     Resolved(ResolvedKey),
 }
 
-/// From a message's method and tool name, and the path the upstream serves it at. A message
-/// whose method is missing or not a string is passed as `""`.
-pub fn resolve_endpoint(method: &str, tool_name: Option<&str>, path: &str) -> Resolution {
+/// From the path the upstream serves a message at, and its method and tool name, in the key's
+/// order. A message whose method is missing or not a string is passed as `""`.
+pub fn resolve_endpoint(path: &str, method: &str, tool_name: Option<&str>) -> Resolution {
     // Drift or garbage, not a message naming no tool, so it doesn't escape the binding fallback.
     if method.is_empty() {
         return Resolution::Judged(Endpoint::Unrecognised);

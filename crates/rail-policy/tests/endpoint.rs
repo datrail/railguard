@@ -3,7 +3,7 @@ use rail_policy::{Endpoint, Resolution, resolve_endpoint};
 const MOUNT: &str = "/mcp";
 
 fn resolve(method: &str, tool_name: Option<&str>) -> Resolution {
-    resolve_endpoint(method, tool_name, MOUNT)
+    resolve_endpoint(MOUNT, method, tool_name)
 }
 
 fn get_resolved(text: &str) -> Resolution {
@@ -111,7 +111,7 @@ fn test_counts_the_cap_in_characters() {
 #[test]
 fn test_reads_a_key_on_an_empty_path_as_unrecognised() {
     assert_eq!(
-        resolve_endpoint("tools/call", Some("track_package"), ""),
+        resolve_endpoint("", "tools/call", Some("track_package")),
         Resolution::Judged(Endpoint::Unrecognised)
     );
 }
