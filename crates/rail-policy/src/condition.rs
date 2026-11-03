@@ -115,17 +115,11 @@ pub enum Scalar {
 }
 
 /// `<source>.<key>.<key>` on the wire.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(try_from = "String")]
-pub struct Path {
-    pub source: Source,
-    pub keys: Vec<String>,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Source {
-    Ticket,
-    Request,
+pub enum Path {
+    Ticket(TicketPath),
+    Request(RequestPath),
 }
 
 impl TryFrom<String> for Path {
@@ -133,20 +127,13 @@ impl TryFrom<String> for Path {
 
     fn try_from(text: String) -> Result<Self, String> {
         let mut parts = text.split('.');
-        let source = match parts.next() {
-            Some("ticket") => Source::Ticket,
-            Some("request") => Source::Request,
-            _ => return Err(format!("path {text:?}")),
-        };
+        let source = parts.next();
         let keys: Vec<&str> = parts.collect();
-        let known = match source {
-            Source::Ticket => TicketPath::parse(&keys).is_some(),
-            Source::Request => RequestPath::parse(&keys).is_some(),
+        let path = match source {
+            Some("ticket") => TicketPath::parse(&keys).map(Self::Ticket),
+            Some("request") => RequestPath::parse(&keys).map(Self::Request),
+            _ => None,
         };
-        if !known {
-            return Err(format!("path {text:?}"));
-        }
-        let keys = keys.into_iter().map(str::to_string).collect();
-        Ok(Self { source, keys })
+        path.ok_or_else(|| format!("path {text:?}"))
     }
 }

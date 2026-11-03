@@ -1,7 +1,7 @@
 use serde_json::Value;
 use uuid::Uuid;
 
-use crate::condition::{Condition, Path, Predicate, Scalar, Source};
+use crate::condition::{Condition, Path, Predicate, Scalar};
 use crate::environment::Environment;
 use crate::schema::{RequestPath, TicketPath};
 
@@ -54,13 +54,7 @@ pub struct CompiledCondition(Node);
 #[derive(Debug)]
 enum Node {
     Refuse,
-    Test(Accessor, Test),
-}
-
-#[derive(Debug)]
-enum Accessor {
-    Ticket(TicketPath),
-    Request(RequestPath),
+    Test(Path, Test),
 }
 
 #[derive(Debug)]
@@ -111,10 +105,7 @@ pub fn compile_condition(condition: &Condition) -> CompiledCondition {
         Predicate::NotContains { path, value } => (path, Test::NotContains(value.clone())),
         Predicate::Matches { path, value } => (path, Test::Matches(Glob::new(value))),
     };
-    match compile_path(path) {
-        Some(accessor) => CompiledCondition(Node::Test(accessor, test)),
-        None => CompiledCondition(Node::Refuse),
-    }
+    CompiledCondition(Node::Test(path.clone(), test))
 }
 
 pub fn evaluate_condition(
@@ -123,10 +114,10 @@ pub fn evaluate_condition(
     budget: &mut Budget,
 ) -> Result<bool, Refusal> {
     budget.charge(1)?;
-    let Node::Test(accessor, test) = &condition.0 else {
+    let Node::Test(path, test) = &condition.0 else {
         return Err(Refusal::Uninterpretable);
     };
-    let value = resolve(accessor, environment);
+    let value = resolve(path, environment);
     apply(test, &value, budget)
 }
 
@@ -141,18 +132,10 @@ fn read_scalars(items: &[Value]) -> Vec<Scalar> {
         .collect()
 }
 
-fn compile_path(path: &Path) -> Option<Accessor> {
-    let keys: Vec<&str> = path.keys.iter().map(String::as_str).collect();
-    match path.source {
-        Source::Ticket => TicketPath::parse(&keys).map(Accessor::Ticket),
-        Source::Request => RequestPath::parse(&keys).map(Accessor::Request),
-    }
-}
-
-fn resolve<'a>(accessor: &Accessor, environment: &Environment<'a>) -> Lookup<'a> {
-    match accessor {
-        Accessor::Ticket(path) => resolve_ticket(path, environment),
-        Accessor::Request(path) => resolve_request(path, environment),
+fn resolve<'a>(path: &Path, environment: &Environment<'a>) -> Lookup<'a> {
+    match path {
+        Path::Ticket(path) => resolve_ticket(path, environment),
+        Path::Request(path) => resolve_request(path, environment),
     }
 }
 

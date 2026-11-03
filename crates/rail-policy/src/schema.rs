@@ -1,8 +1,8 @@
 //! The paths a condition may name, by source.
 
 /// A path under `ticket`, one per typed claim.
-#[derive(Debug, PartialEq)]
-pub(crate) enum TicketPath {
+#[derive(Clone, Debug, PartialEq)]
+pub enum TicketPath {
     Whole,
     Id,
     AgentId,
@@ -55,8 +55,8 @@ impl TicketPath {
 }
 
 /// A path under `request`.
-#[derive(Debug, PartialEq)]
-pub(crate) enum RequestPath {
+#[derive(Clone, Debug, PartialEq)]
+pub enum RequestPath {
     Whole,
     EndpointKey,
     Headers,
