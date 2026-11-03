@@ -88,6 +88,7 @@ pub enum Decision {
 }
 
 pub fn compile_bundle(bundle: &Bundle) -> Judge {
+    // `policies` is expected already in evaluation order, as `parse_bundle` leaves it.
     let chain: Vec<ChainPolicy> = bundle
         .policies
         .iter()
