@@ -14,8 +14,7 @@ use crate::evaluate::{Budget, CompiledCondition, Refusal, compile_condition, eva
 pub struct Judge {
     /// Enabled policies only, in evaluation order.
     chain: Vec<ChainPolicy>,
-    /// For each bound endpoint, the policies that judge it, as indexes into `chain` in evaluation
-    /// order: empty for `open`. An endpoint missing here goes to `binding_fallback`.
+    /// For each bound endpoint, the index in `chain` of the policies that apply to it.
     bindings: HashMap<ResolvedKey, Vec<usize>>,
     binding_fallback: Fallback,
     ticket_fallback: Fallback,
