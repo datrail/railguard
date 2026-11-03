@@ -4,6 +4,7 @@ mod bundle;
 mod condition;
 mod environment;
 mod evaluate;
+mod judge;
 mod schema;
 mod ticket;
 
@@ -16,6 +17,7 @@ pub use environment::{Endpoint, Environment, Headers, Resolution, ResolvedKey, r
 pub use evaluate::{
     Budget, CompiledCondition, DEFAULT_STEP_LIMIT, Refusal, compile_condition, evaluate_condition,
 };
+pub use judge::{ChainVerdict, Decision, FallbackDenial, Judge, Outcome, compile_bundle, judge};
 pub use schema::{RequestPath, TicketPath};
 pub use ticket::{
     Alignment, Baseline, CategoryPosture, OverallPosture, Posture, PostureLevel, Ticket,

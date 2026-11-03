@@ -57,7 +57,7 @@ pub struct Enforcement {
 }
 
 /// How much of a verdict is acted on: `observe` judges and reports but refuses nothing.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum EnforcementMode {
     None,
@@ -65,7 +65,7 @@ pub enum EnforcementMode {
     Enforce,
 }
 
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Fallback {
     Pass,
@@ -84,7 +84,7 @@ pub struct Policy {
 }
 
 /// `alert` records a match and never denies.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Action {
     Block,
