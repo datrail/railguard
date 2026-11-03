@@ -3,7 +3,8 @@ use std::collections::{BTreeMap, HashMap};
 use base64::Engine;
 use base64::engine::general_purpose::{URL_SAFE, URL_SAFE_NO_PAD};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
-use serde::Deserialize;
+use serde::de::Error as _;
+use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -32,7 +33,9 @@ pub struct Ticket {
 /// The claims rules can read. A signed ticket's extra claims are only used to verify it.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct TicketClaims {
+    #[serde(deserialize_with = "read_canonical_uuid")]
     pub id: Uuid,
+    #[serde(deserialize_with = "read_canonical_uuid")]
     pub agent_id: Uuid,
     pub sandbox_id: String,
     pub sandbox_type: Option<String>,
@@ -63,6 +66,18 @@ pub enum PostureLevel {
     Low,
 }
 
+impl PostureLevel {
+    /// As on the wire.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Critical => "critical",
+            Self::High => "high",
+            Self::Medium => "medium",
+            Self::Low => "low",
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct CategoryPosture {
     /// `None` where the category wasn't scored.
@@ -79,6 +94,7 @@ pub struct Alignment {
 
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Baseline {
+    #[serde(deserialize_with = "read_canonical_uuid")]
     pub id: Uuid,
     pub label: String,
 }
@@ -190,4 +206,15 @@ fn check_expiry(claims: TicketClaims, exp_in_seconds: i64, now_in_seconds: i64) 
         exp_in_seconds,
         claims,
     }))
+}
+
+/// Only the lowercase hyphenated form Rail Center mints, so a claim compares as the string it was sent as.
+fn read_canonical_uuid<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Uuid, D::Error> {
+    let text = String::deserialize(deserializer)?;
+    let id = Uuid::try_parse(&text).map_err(D::Error::custom)?;
+    let mut buffer = [0; uuid::fmt::Hyphenated::LENGTH];
+    if *id.hyphenated().encode_lower(&mut buffer) != *text {
+        return Err(D::Error::custom(format!("uuid {text:?} is not canonical")));
+    }
+    Ok(id)
 }

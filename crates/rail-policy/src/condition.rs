@@ -2,6 +2,8 @@ use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 use serde_json::value::RawValue;
 
+use crate::schema::{RequestPath, TicketPath};
+
 const OPS: [&str; 12] = [
     "existing",
     "not_existing",
@@ -105,7 +107,7 @@ pub enum Predicate {
     },
 }
 
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum Scalar {
     Number(f64),
@@ -137,33 +139,14 @@ impl TryFrom<String> for Path {
             _ => return Err(format!("path {text:?}")),
         };
         let keys: Vec<&str> = parts.collect();
-        // A claim this reader doesn't know would read as absent, so a rule on it wouldn't fire.
-        if source == Source::Ticket && !is_ticket_path(&keys) {
+        let known = match source {
+            Source::Ticket => TicketPath::parse(&keys).is_some(),
+            Source::Request => RequestPath::parse(&keys).is_some(),
+        };
+        if !known {
             return Err(format!("path {text:?}"));
         }
         let keys = keys.into_iter().map(str::to_string).collect();
         Ok(Self { source, keys })
     }
-}
-
-fn is_ticket_path(keys: &[&str]) -> bool {
-    matches!(
-        keys,
-        [] | ["id"]
-            | ["agent_id"]
-            | ["sandbox_id"]
-            | ["sandbox_type"]
-            | ["environment_fingerprint"]
-            | ["skills"]
-            | ["posture"]
-            | ["posture", "overall"]
-            | ["posture", "overall", "score" | "level"]
-            | ["posture", "categories"]
-            | ["posture", "categories", _]
-            | ["posture", "categories", _, "score" | "capped"]
-            | ["alignment"]
-            | ["alignment", "drifted"]
-            | ["alignment", "baseline"]
-            | ["alignment", "baseline", "id" | "label"]
-    )
 }
