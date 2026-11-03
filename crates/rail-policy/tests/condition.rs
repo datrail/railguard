@@ -2,7 +2,7 @@ use rail_policy::{Condition, Path, Predicate, Scalar, Source};
 use serde_json::{Value, json};
 
 fn read(condition: Value) -> Condition {
-    serde_json::from_value(condition).unwrap()
+    serde_json::from_str(&condition.to_string()).unwrap()
 }
 
 fn ticket_path() -> Path {
@@ -86,6 +86,41 @@ fn test_reads_a_category_path_of_any_name() {
     ));
 }
 
+// The gateway's `v2/decide.json` reads these as absent or as an untyped claim. Rail Center
+// refuses to publish them.
+#[test]
+fn test_reads_a_path_past_the_typed_claims_as_invalid() {
+    let cases = [
+        json!({"path": "ticket.posture_score", "op": "lt", "value": 40}),
+        json!({"path": "ticket.alignment.drifted.llm_model", "op": "not_existing"}),
+        json!({"path": "ticket.agent_id.a", "op": "not_existing"}),
+    ];
+    for condition in cases {
+        assert_eq!(
+            read(condition.clone()),
+            Condition::Invalid(condition.to_string())
+        );
+    }
+}
+
+#[test]
+fn test_reads_what_serde_json_cannot_hold_as_invalid() {
+    let big = format!("1{}", "0".repeat(400));
+    let deep = format!("{}1{}", "[".repeat(200), "]".repeat(200));
+    let cases = [
+        format!(r#"{{"path": "ticket.posture.overall.score", "op": "lt", "value": {big}}}"#),
+        format!(r#"{{"path": "ticket.posture.overall.score", "op": "lt", "value": -{big}}}"#),
+        r#"{"path": "ticket.posture.overall.score", "op": "lt", "value": 1e400}"#.to_string(),
+        format!(r#"{{"path": "ticket.skills", "op": "in", "value": [1, {big}]}}"#),
+        format!(r#"{{"path": "ticket.skills", "op": "in", "value": {deep}}}"#),
+        r#"{"path": "ticket.sandbox_type", "op": "eq", "value": "\ud800"}"#.to_string(),
+    ];
+    for text in cases {
+        let condition: Condition = serde_json::from_str(&text).unwrap();
+        assert_eq!(condition, Condition::Invalid(text));
+    }
+}
+
 #[test]
 fn test_ignores_extra_keys() {
     let condition =
@@ -131,6 +166,9 @@ fn test_reads_anything_else_as_invalid() {
         json!({"path": "ticket.sandbox_type", "op": "matches", "value": 1}),
     ];
     for condition in cases {
-        assert_eq!(read(condition.clone()), Condition::Invalid(condition));
+        assert_eq!(
+            read(condition.clone()),
+            Condition::Invalid(condition.to_string())
+        );
     }
 }

@@ -182,3 +182,26 @@ fn test_keeps_a_bundle_whose_condition_is_unknown() {
         Condition::Unknown(_)
     ));
 }
+
+#[test]
+fn test_keeps_a_bundle_whose_condition_has_an_operand_past_a_double() {
+    let big = format!("1{}", "0".repeat(400));
+    let bundle = EXAMPLE.replace(r#""value": 40"#, &format!(r#""value": {big}"#));
+    let bundle = parse_bundle(&bundle).unwrap();
+    let Condition::Invalid(text) = &bundle.policies[0].condition else {
+        panic!("{:?}", bundle.policies[0].condition);
+    };
+    // As sent, whitespace included.
+    assert!(text.contains(&format!(r#""value": {big}"#)), "{text}");
+}
+
+#[test]
+fn test_keeps_a_bundle_whose_condition_is_nested_past_any_limit() {
+    let deep = format!("{}1{}", "[".repeat(100_000), "]".repeat(100_000));
+    let bundle = EXAMPLE.replace(r#""value": 40"#, &format!(r#""value": {deep}"#));
+    let bundle = parse_bundle(&bundle).unwrap();
+    assert!(matches!(
+        bundle.policies[0].condition,
+        Condition::Invalid(_)
+    ));
+}

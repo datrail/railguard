@@ -1,5 +1,6 @@
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use serde_json::Value;
+use serde_json::value::RawValue;
 
 const OPS: [&str; 12] = [
     "existing",
@@ -17,28 +18,37 @@ const OPS: [&str; 12] = [
 ];
 
 /// A policy's condition. The last two refuse the request that reaches them, not the bundle.
-#[derive(Debug, PartialEq, Deserialize)]
-#[serde(from = "Value")]
+#[derive(Debug, PartialEq)]
 pub enum Condition {
     Valid(Predicate),
     /// Its `op` isn't one this reader knows, which a newer Rail Center can publish.
     Unknown(Value),
-    Invalid(Value),
+    /// As sent, since it may not read as a `Value` at all: a number past a double, or deep nesting.
+    Invalid(String),
 }
 
-impl From<Value> for Condition {
-    fn from(value: Value) -> Self {
-        // Not only for `op`: `Predicate` alone would accept a positional array.
-        let Some(op) = value["op"].as_str() else {
-            return Self::Invalid(value);
+impl<'de> Deserialize<'de> for Condition {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        // Kept raw, so what serde_json can't hold fails this condition and not the bundle.
+        let raw = Box::<RawValue>::deserialize(deserializer)?;
+        let Ok(value) = serde_json::from_str::<Value>(raw.get()) else {
+            return Ok(Self::Invalid(raw.get().to_string()));
         };
-        if !OPS.contains(&op) {
-            return Self::Unknown(value);
-        }
-        match Predicate::deserialize(&value) {
-            Ok(predicate) => Self::Valid(predicate),
-            Err(_) => Self::Invalid(value),
-        }
+        Ok(read_condition(value, raw.get()))
+    }
+}
+
+fn read_condition(value: Value, raw: &str) -> Condition {
+    // Not only for `op`: `Predicate` alone would accept a positional array.
+    let Some(op) = value["op"].as_str() else {
+        return Condition::Invalid(raw.to_string());
+    };
+    if !OPS.contains(&op) {
+        return Condition::Unknown(value);
+    }
+    match Predicate::deserialize(&value) {
+        Ok(predicate) => Condition::Valid(predicate),
+        Err(_) => Condition::Invalid(raw.to_string()),
     }
 }
 
