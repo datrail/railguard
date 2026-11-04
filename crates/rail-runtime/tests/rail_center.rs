@@ -192,13 +192,6 @@ fn a_token_written_to_a_file_keeps_its_meaning() {
 }
 
 #[test]
-fn gcp_is_refused_under_its_own_name() {
-    assert!(refusal(&[URL, ("RAIL_AUTH_MODE", "gcp")]).starts_with(
-        "RAIL_AUTH_MODE=gcp is a mode Rail Center defines and this build doesn't implement"
-    ));
-}
-
-#[test]
 fn an_unknown_mode_names_what_is_accepted() {
     assert_eq!(
         refusal(&[URL, ("RAIL_AUTH_MODE", "basic\u{1b}[2J")]),

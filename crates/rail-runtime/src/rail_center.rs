@@ -137,13 +137,6 @@ fn read_token(settings: &mut Settings) -> Option<Option<Secret>> {
                 }
             }
         }
-        "gcp" => {
-            settings.refuse(format!(
-                "{AUTH_MODE}=gcp is a mode Rail Center defines and this build doesn't implement; \
-                 it accepts none and bearer"
-            ));
-            None
-        }
         _ => {
             settings.refuse(format!(
                 "{AUTH_MODE} must be none or bearer, got: {}",
