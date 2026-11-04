@@ -26,7 +26,7 @@ pub use evaluate::{
     compile_condition, evaluate_condition,
 };
 pub use judge::{
-    ChainOutcome, CompiledBundle, Decision, FallbackDenial, JudgingMode, NoTrace, Outcome, Trace,
+    ChainOutcome, CompiledBundle, Decision, FallbackDenial, JudgingMode, NoTracer, Outcome, Tracer,
     compile_bundle, judge, judge_traced,
 };
 pub use sanitize::sanitize;

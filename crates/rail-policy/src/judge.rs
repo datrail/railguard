@@ -135,15 +135,15 @@ pub fn compile_bundle(bundle: &Bundle) -> CompiledBundle {
 }
 
 /// Told of each policy the walk evaluates, in order, to explain an outcome.
-pub trait Trace {
-    fn visit(&mut self, policy: Uuid, evaluation: &Evaluation);
+pub trait Tracer {
+    fn record(&mut self, policy: Uuid, evaluation: &Evaluation);
 }
 
 /// Records nothing, so judging with it costs nothing.
-pub struct NoTrace;
+pub struct NoTracer;
 
-impl Trace for NoTrace {
-    fn visit(&mut self, _: Uuid, _: &Evaluation) {}
+impl Tracer for NoTracer {
+    fn record(&mut self, _: Uuid, _: &Evaluation) {}
 }
 
 /// The ticket fallback, then the binding fallback, then the chain. At `enforce` a fallback's
@@ -154,16 +154,16 @@ pub fn judge(
     mode: JudgingMode,
     budget: &mut Budget,
 ) -> Outcome {
-    judge_traced(bundle, environment, mode, budget, &mut NoTrace)
+    judge_traced(bundle, environment, mode, budget, &mut NoTracer)
 }
 
-/// `judge`, telling `trace` of each policy evaluated.
+/// `judge`, telling `tracer` of each policy evaluated.
 pub fn judge_traced(
     bundle: &CompiledBundle,
     environment: &Environment,
     mode: JudgingMode,
     budget: &mut Budget,
-    trace: &mut impl Trace,
+    tracer: &mut impl Tracer,
 ) -> Outcome {
     let enforcing = mode == JudgingMode::Enforce;
     let mut fallback_denials = Vec::new();
@@ -199,9 +199,9 @@ pub fn judge_traced(
             positions.iter().map(|&position| &bundle.chain[position]),
             environment,
             budget,
-            trace,
+            tracer,
         ),
-        None => walk(bundle.chain.iter(), environment, budget, trace),
+        None => walk(bundle.chain.iter(), environment, budget, tracer),
     };
     Outcome {
         fallback_denials,
@@ -214,12 +214,12 @@ fn walk<'a>(
     policies: impl Iterator<Item = &'a ChainPolicy>,
     environment: &Environment,
     budget: &mut Budget,
-    trace: &mut impl Trace,
+    tracer: &mut impl Tracer,
 ) -> ChainOutcome {
     let mut alerts = Vec::new();
     for policy in policies {
         let evaluation = evaluate_condition(&policy.condition, environment, budget);
-        trace.visit(policy.id, &evaluation);
+        tracer.record(policy.id, &evaluation);
         match evaluation.verdict {
             // A refused call reports nothing, its alerts included.
             Verdict::Refused(refusal) => {
