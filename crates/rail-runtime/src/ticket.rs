@@ -1,8 +1,10 @@
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime};
 
 use rail_policy::sanitize;
 use reqwest::StatusCode;
 use serde::Deserialize;
+use time::PrimitiveDateTime;
+use time::macros::format_description;
 
 use crate::client::{Limits, RailCenterClient};
 use crate::config::{Secret, Settings};
@@ -212,64 +214,8 @@ fn check_token(token: &str) -> Result<(), String> {
 /// Reads Rail Center's `expires_at`: whole seconds in UTC, `2026-07-28T10:15:00Z`, and nothing
 /// else.
 fn parse_expires_at(text: &str) -> Result<SystemTime, String> {
-    let refused = || format!("expires_at isn't YYYY-MM-DDTHH:MM:SSZ: {}", sanitize(text));
-    let bytes = text.as_bytes();
-    if bytes.len() != 20 || [4, 7, 10, 13, 16, 19].map(|at| bytes[at]) != *b"--T::Z" {
-        return Err(refused());
-    }
-    let number = |from: usize, to: usize| {
-        let digits = &bytes[from..to];
-        digits.iter().all(u8::is_ascii_digit).then(|| {
-            digits
-                .iter()
-                .fold(0, |value, digit| value * 10 + u64::from(digit - b'0'))
-        })
-    };
-    let fields =
-        [(0, 4), (5, 7), (8, 10), (11, 13), (14, 16), (17, 19)].map(|(from, to)| number(from, to));
-    let [
-        Some(year),
-        Some(month),
-        Some(day),
-        Some(hour),
-        Some(minute),
-        Some(second),
-    ] = fields
-    else {
-        return Err(refused());
-    };
-    if year < 1970
-        || !(1..=12).contains(&month)
-        || day == 0
-        || day > days_in_month(year, month)
-        || hour > 23
-        || minute > 59
-        || second > 59
-    {
-        return Err(refused());
-    }
-    let days = days_since_epoch(year, month, day);
-    Ok(UNIX_EPOCH + Duration::from_secs(days * 86_400 + hour * 3_600 + minute * 60 + second))
-}
-
-fn days_in_month(year: u64, month: u64) -> u64 {
-    match month {
-        2 if year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400)) => {
-            29
-        }
-        2 => 28,
-        4 | 6 | 9 | 11 => 30,
-        _ => 31,
-    }
-}
-
-// Howard Hinnant's days_from_civil, for years from 1970.
-fn days_since_epoch(year: u64, month: u64, day: u64) -> u64 {
-    let year = if month <= 2 { year - 1 } else { year };
-    let era = year / 400;
-    let year_of_era = year - era * 400;
-    let month_from_march = (month + 9) % 12;
-    let day_of_year = (153 * month_from_march + 2) / 5 + day - 1;
-    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
-    era * 146_097 + day_of_era - 719_468
+    let format = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
+    PrimitiveDateTime::parse(text, &format)
+        .map(|at| at.assume_utc().into())
+        .map_err(|_| format!("expires_at isn't YYYY-MM-DDTHH:MM:SSZ: {}", sanitize(text)))
 }

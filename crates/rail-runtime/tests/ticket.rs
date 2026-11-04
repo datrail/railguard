@@ -179,7 +179,7 @@ async fn an_expiry_not_in_rail_centers_form_is_refused() {
         "2026-07-28T24:00:00Z",
         "2026-07-28T10:60:00Z",
         "2026-07-28T10:15:60Z",
-        "1969-12-31T23:59:59Z",
+        "2100-02-29T10:15:00Z",
         "+026-07-28T10:15:00Z",
     ] {
         let error = refusal(answer("200 OK", one("a.b.c", stamp)).await);
