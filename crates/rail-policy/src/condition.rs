@@ -2,7 +2,7 @@ use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 use serde_json::value::RawValue;
 
-const OPS: [&str; 12] = [
+pub(crate) const OPS: [&str; 12] = [
     "existing",
     "not_existing",
     "eq",

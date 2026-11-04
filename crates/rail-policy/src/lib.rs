@@ -1,6 +1,7 @@
 //! The rules language and the judge.
 
 mod bundle;
+mod check;
 mod condition;
 mod endpoint;
 mod environment;
@@ -13,6 +14,7 @@ pub use bundle::{
     Action, Binding, BindingMode, Bundle, EndpointKey, Enforcement, EnforcementMode, Fallback,
     Policy, SchemaVersion, UnusableBundle, parse_bundle,
 };
+pub use check::{Kind, OperandShape, Problem, ProblemCode, Scope, TicketSchema, check_condition};
 pub use condition::{Condition, Path, Predicate, RequestPath, Scalar, TicketPath};
 pub use endpoint::{Endpoint, Resolution, ResolvedKey, resolve_endpoint};
 pub use environment::{Environment, Headers};
