@@ -233,3 +233,117 @@ fn test_refuses_a_malformed_schema() {
     assert!(TicketSchema::from_value(&json!({"a": "header"})).is_err());
     assert!(TicketSchema::from_value(&json!({"a": 1})).is_err());
 }
+
+#[test]
+fn test_allows_each_op_only_where_it_can_hold() {
+    // Rail Center's `_OPS_FOR`, beside `existing` and `not_existing`, which every kind takes.
+    let cases = [
+        ("ticket.posture", &[][..]),
+        ("ticket.posture.admin", &[]),
+        ("ticket.agent_id", &["eq", "ne", "in", "matches"]),
+        (
+            "ticket.posture.overall.score",
+            &["eq", "ne", "lt", "lte", "gt", "gte", "in"],
+        ),
+        (
+            "ticket.skills",
+            &["eq", "ne", "in", "matches", "contains", "not_contains"],
+        ),
+        (
+            "request.headers.x-a",
+            &["eq", "ne", "in", "matches", "contains", "not_contains"],
+        ),
+        ("request.endpoint_key", &["eq", "ne", "in", "matches"]),
+        ("request.headers", &[]),
+    ];
+    let ops = [
+        "existing",
+        "not_existing",
+        "eq",
+        "ne",
+        "lt",
+        "lte",
+        "gt",
+        "gte",
+        "in",
+        "contains",
+        "not_contains",
+        "matches",
+    ];
+    for (path, allowed) in cases {
+        for op in ops {
+            let found = check(json!({"path": path, "op": op}))
+                .iter()
+                .any(|(_, code, _)| *code == ProblemCode::OpNotForPath);
+            let held = op.ends_with("existing") || allowed.contains(&op);
+            assert_eq!(found, !held, "{path} {op}");
+        }
+    }
+}
+
+#[test]
+fn test_reads_the_ticket_root_as_an_object() {
+    assert_eq!(
+        check(json!({"path": "ticket", "op": "eq", "value": "x"})),
+        [("/op", ProblemCode::OpNotForPath, Scope::Authoring)]
+    );
+}
+
+#[test]
+fn test_reads_nothing_past_a_leaf() {
+    assert_eq!(
+        check(json!({"path": "ticket.skills.agent_id", "op": "existing"})),
+        [("/path", ProblemCode::UnknownPath, Scope::Authoring)]
+    );
+}
+
+#[test]
+fn test_lowercases_a_header_name_as_unicode() {
+    assert_eq!(
+        check(json!({"path": "request.headers.É", "op": "existing"})),
+        [("/path", ProblemCode::UnknownPath, Scope::Authoring)]
+    );
+}
+
+#[test]
+fn test_reads_any_path_problem_as_authoring_beside_an_unknown_op() {
+    use ProblemCode::{UnknownOp, UnknownPath, UnknownSource};
+    use Scope::Authoring;
+    assert_eq!(
+        check(json!({"path": "request.method", "op": "near"})),
+        [
+            ("/path", UnknownPath, Authoring),
+            ("/op", UnknownOp, Authoring)
+        ]
+    );
+    assert_eq!(
+        check(json!({"path": 1, "op": "near"})),
+        [
+            ("/path", UnknownSource, Authoring),
+            ("/op", UnknownOp, Authoring)
+        ]
+    );
+}
+
+#[test]
+fn test_reports_the_op_before_the_value() {
+    assert_eq!(
+        check(json!({"path": "ticket.agent_id", "op": "lt", "value": "x"})),
+        [
+            ("/op", ProblemCode::OpNotForPath, Scope::Authoring),
+            ("/value", ProblemCode::OperandShape, Scope::Enforcement)
+        ]
+    );
+}
+
+#[test]
+fn test_accepts_a_condition_32_levels_deep() {
+    let mut deep = json!(1);
+    for _ in 0..30 {
+        deep = json!([deep]);
+    }
+    assert_eq!(
+        check(json!({"path": "ticket.skills", "op": "in", "value": deep})),
+        []
+    );
+}

@@ -59,7 +59,7 @@ pub enum OperandShape {
 
 /// What a path holds, which decides the ops that can hold for it.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Kind {
+enum Kind {
     String,
     Number,
     Boolean,
@@ -199,7 +199,7 @@ fn check_path(
     let root = parts.next();
     let keys: Vec<&str> = parts.collect();
     let shown = sanitize(path);
-    let (code, scope, message) = match root {
+    let (code, problem_scope, message) = match root {
         Some("ticket") => match ticket_schema.get_kind(&keys) {
             Some(kind) => return Some(kind),
             None => (
@@ -230,7 +230,7 @@ fn check_path(
             format!("\"{shown}\": not under ticket or request"),
         ),
     };
-    problems.push(problem("/path", code, scope, message));
+    problems.push(problem("/path", code, problem_scope, message));
     None
 }
 
@@ -240,6 +240,16 @@ fn check_operand(
     kind: Option<Kind>,
     problems: &mut Vec<Problem>,
 ) {
+    if let Some(kind) = kind
+        && !is_op_for(kind, op)
+    {
+        problems.push(problem(
+            "/op",
+            ProblemCode::OpNotForPath,
+            Scope::Authoring,
+            format!("{op} can't hold for {}", format_kind(kind)),
+        ));
+    }
     if let Some(expected) = get_operand_shape(op)
         && !is_shaped(fields.get("value"), expected)
     {
@@ -252,16 +262,6 @@ fn check_operand(
                 format!("{op} takes a {}", format_shape(expected)),
             )
         });
-    }
-    if let Some(kind) = kind
-        && !is_op_for(kind, op)
-    {
-        problems.push(problem(
-            "/op",
-            ProblemCode::OpNotForPath,
-            Scope::Authoring,
-            format!("{op} can't hold for {}", format_kind(kind)),
-        ));
     }
 }
 

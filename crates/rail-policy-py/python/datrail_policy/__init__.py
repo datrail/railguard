@@ -10,6 +10,8 @@ from datrail_policy import _native
 from datrail_policy._native import DEFAULT_STEP_LIMIT, CompiledBundle
 
 _EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
+# Past what `rail-policy` reads (128), and short of `json.dumps`'s recursion limit.
+_MAX_WALK_DEPTH = 200
 
 __all__ = [
     "DEFAULT_STEP_LIMIT",
@@ -34,8 +36,7 @@ __all__ = [
 ]
 
 
-# What Rail Center's tickets carry, from its evaluator's `_TICKET_SCHEMA`. `check_condition` reads
-# it at call time, so a library can replace it, or pass its own.
+# Rail Center's `_TICKET_SCHEMA`; read at call time, so a library can replace it.
 TICKET_SCHEMA: dict[str, Any] = {
     "id": "string",
     "agent_id": "string",
@@ -181,13 +182,17 @@ def check_condition(
 
     `ticket_schema` defaults to `TICKET_SCHEMA`. A malformed one raises `ValueError`.
     """
+    schema_text = _write_schema(TICKET_SCHEMA if ticket_schema is None else ticket_schema)
     # JSON can't carry them to Rust, so a stand-in keeps the other checks running.
     non_finite: list[str] = []
-    finite = _replace_non_finite(condition, "", non_finite)
-    native = _native.check_condition(
-        json.dumps(finite),
-        ticket_schema=json.dumps(TICKET_SCHEMA if ticket_schema is None else ticket_schema),
-    )
+    try:
+        text = json.dumps(_replace_non_finite(condition, non_finite))
+    except _TooDeep:
+        return ConditionCheck(problems=(_build_unreadable("nested too deep"),))
+    except ValueError as error:
+        # Such as an int past Python's digit limit.
+        return ConditionCheck(problems=(_build_unreadable(str(error)),))
+    native = _native.check_condition(text, ticket_schema=schema_text)
     problems = [ConditionProblem(**problem) for problem in json.loads(native)]
     problems += [
         ConditionProblem(
@@ -202,18 +207,62 @@ def check_condition(
     return ConditionCheck(problems=tuple(problems))
 
 
-def _replace_non_finite(value: Any, pointer: str, found: list[str]) -> Any:
-    if isinstance(value, float) and not math.isfinite(value):
-        found.append(pointer)
-        return 0.0
+class _TooDeep(Exception):
+    pass
+
+
+def _replace_non_finite(condition: Any, found: list[str]) -> Any:
+    """A copy of plain dicts and lists, with each non-finite float's pointer in `found`."""
+    root = [condition]
+    stack: list[tuple[Any, Any, str, int]] = [(root, 0, "", 1)]
+    # Iterative, since depth is one of the things checked; children pushed in reverse, so pointers
+    # come in document order.
+    while stack:
+        parent, key, pointer, level = stack.pop()
+        value = parent[key]
+        if level > _MAX_WALK_DEPTH:
+            raise _TooDeep
+        if isinstance(value, float) and not math.isfinite(value):
+            found.append(pointer)
+            parent[key] = 0.0
+        elif isinstance(value, Mapping):
+            copy = {}
+            for item_key, item in value.items():
+                if not isinstance(item_key, str):
+                    raise TypeError(f"condition keys must be str, not {type(item_key).__name__}")
+                copy[item_key] = item
+            parent[key] = copy
+            pointers = [(k, f"{pointer}/{_escape_pointer(k)}") for k in copy]
+            stack.extend((copy, k, child, level + 1) for k, child in reversed(pointers))
+        elif isinstance(value, list | tuple):
+            copy = list(value)
+            parent[key] = copy
+            indices = reversed(range(len(copy)))
+            stack.extend((copy, i, f"{pointer}/{i}", level + 1) for i in indices)
+    return root[0]
+
+
+def _build_unreadable(reason: str) -> ConditionProblem:
+    return ConditionProblem(
+        pointer="",
+        code="unreadable",
+        scope="enforcement",
+        expected=None,
+        message=f"not JSON this reader can hold: {reason}",
+    )
+
+
+def _write_schema(schema: Mapping[str, Any]) -> str:
+    try:
+        return json.dumps(schema, default=_read_mapping)
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"ticket schema: {error}") from None
+
+
+def _read_mapping(value: Any) -> dict[str, Any]:
     if isinstance(value, Mapping):
-        return {
-            key: _replace_non_finite(item, f"{pointer}/{_escape_pointer(str(key))}", found)
-            for key, item in value.items()
-        }
-    if isinstance(value, list | tuple):
-        return [_replace_non_finite(item, f"{pointer}/{i}", found) for i, item in enumerate(value)]
-    return value
+        return dict(value)
+    raise TypeError(f"{type(value).__name__} is not a kind")
 
 
 def _escape_pointer(key: str) -> str:
