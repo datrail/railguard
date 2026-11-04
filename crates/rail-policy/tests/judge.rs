@@ -1,9 +1,11 @@
 use rail_policy::{
-    Budget, Decision, Endpoint, EnforcementMode, Environment, FallbackDenial, Headers, JudgingMode,
-    Outcome, Refusal, compile_bundle, judge, parse_bundle,
+    Budget, Decision, Endpoint, EnforcementMode, Environment, Evaluation, FallbackDenial, Headers,
+    JudgingMode, Outcome, Refusal, Trace, Verdict, compile_bundle, judge, judge_traced,
+    parse_bundle,
 };
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
+use uuid::Uuid;
 
 const VECTORS: &str = include_str!("../../../vectors/judge_walk_conformance_cases.json");
 
@@ -147,5 +149,179 @@ fn test_judges_nothing_at_mode_none() {
     assert_eq!(
         EnforcementMode::Enforce.judging_mode(),
         Some(JudgingMode::Enforce)
+    );
+}
+
+/// Each step as `(policy's last two digits, what was resolved, result)`.
+#[derive(Default)]
+struct Recorder(Vec<(String, Option<String>, Verdict)>);
+
+impl Trace for Recorder {
+    fn visit(&mut self, policy: Uuid, evaluation: &Evaluation) {
+        let id = policy.to_string();
+        let resolved = evaluation.resolved.map(|lookup| format!("{lookup:?}"));
+        self.0
+            .push((id[id.len() - 2..].to_string(), resolved, evaluation.verdict));
+    }
+}
+
+fn traced_policy(n: u32, condition: Value, action: &str) -> Value {
+    json!({
+        "id": format!("5c8f1e42-0000-4000-8000-0000000000{n:02}"),
+        "name": format!("P-{n}"),
+        "priority": n,
+        "condition": condition,
+        "action": action,
+        "enabled": true,
+    })
+}
+
+fn trace_bundle(policies: Value, bindings: Value, limit: u64) -> (Outcome, Recorder) {
+    let bundle = json!({
+        "schema_version": "2.0",
+        "content_hash": "trace",
+        "enforcement": {"mode": "enforce"},
+        "policies": policies,
+        "bindings": bindings,
+        "binding_fallback": "pass",
+        "ticket_fallback": "pass",
+    });
+    let claims = json!({"admin": true, "score": 10})
+        .as_object()
+        .unwrap()
+        .clone();
+    let headers = Headers::from_lines([("x-a", "b, c")]);
+    let endpoint = Endpoint::Resolved("/mcp#tools/call#t".parse().unwrap());
+    let environment = Environment {
+        ticket: Some(&claims),
+        endpoint: &endpoint,
+        headers: &headers,
+    };
+    let mut recorder = Recorder::default();
+    let outcome = judge_traced(
+        &compile_bundle(&parse_bundle(&bundle.to_string()).unwrap()),
+        &environment,
+        JudgingMode::Enforce,
+        &mut Budget::new(limit),
+        &mut recorder,
+    );
+    (outcome, recorder)
+}
+
+#[test]
+fn test_traces_each_policy_evaluated_until_one_decides() {
+    let policies = json!([
+        traced_policy(
+            1,
+            json!({"path": "ticket.admin", "op": "existing"}),
+            "alert"
+        ),
+        traced_policy(
+            2,
+            json!({"path": "ticket.missing", "op": "existing"}),
+            "block"
+        ),
+        traced_policy(
+            3,
+            json!({"path": "request.headers.x-a", "op": "contains", "value": "c"}),
+            "block"
+        ),
+        traced_policy(
+            4,
+            json!({"path": "ticket.score", "op": "lt", "value": 40}),
+            "block"
+        ),
+    ]);
+
+    let (outcome, recorder) = trace_bundle(policies, json!([]), 100);
+
+    assert_eq!(
+        outcome.chain.unwrap().decision,
+        Decision::Denied("5c8f1e42-0000-4000-8000-000000000003".parse().unwrap())
+    );
+    assert_eq!(
+        recorder.0,
+        [
+            ("01".into(), Some("Bool(true)".into()), Verdict::Holds),
+            ("02".into(), Some("Absent".into()), Verdict::DoesNotHold),
+            (
+                "03".into(),
+                Some(r#"List([String("b"), String("c")])"#.into()),
+                Verdict::Holds
+            ),
+        ]
+    );
+}
+
+#[test]
+fn test_traces_a_refusal_with_nothing_resolved() {
+    let policies = json!([
+        traced_policy(
+            1,
+            json!({"path": "ticket.score", "op": "lt", "value": 40}),
+            "alert"
+        ),
+        traced_policy(
+            2,
+            json!({"path": "ticket.score", "op": "lt", "value": "x"}),
+            "block"
+        ),
+        traced_policy(
+            3,
+            json!({"path": "ticket.score", "op": "lt", "value": 40}),
+            "block"
+        ),
+    ]);
+
+    let (_, recorder) = trace_bundle(policies.clone(), json!([]), 100);
+    assert_eq!(
+        recorder.0,
+        [
+            ("01".into(), Some("Number(10.0)".into()), Verdict::Holds),
+            (
+                "02".into(),
+                None,
+                Verdict::Refused(Refusal::Uninterpretable)
+            ),
+        ]
+    );
+
+    // The first step is past the limit, so no path is resolved.
+    let (_, recorder) = trace_bundle(policies, json!([]), 0);
+    assert_eq!(
+        recorder.0,
+        [("01".into(), None, Verdict::Refused(Refusal::BudgetExceeded))]
+    );
+}
+
+#[test]
+fn test_traces_only_the_policies_a_binding_allows() {
+    let policies = json!([
+        traced_policy(
+            1,
+            json!({"path": "ticket.score", "op": "gt", "value": 40}),
+            "block"
+        ),
+        traced_policy(
+            2,
+            json!({"path": "ticket.score", "op": "gt", "value": 40}),
+            "block"
+        ),
+    ]);
+    let bindings = json!([{
+        "endpoint_key": "slug#/mcp#tools/call#t",
+        "mode": "gated",
+        "policy_ids": ["5c8f1e42-0000-4000-8000-000000000002"],
+    }]);
+
+    let (_, recorder) = trace_bundle(policies, bindings, 100);
+
+    assert_eq!(
+        recorder.0,
+        [(
+            "02".into(),
+            Some("Number(10.0)".into()),
+            Verdict::DoesNotHold
+        )]
     );
 }

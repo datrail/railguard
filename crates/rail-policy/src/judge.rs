@@ -1,11 +1,14 @@
 use std::collections::HashMap;
 
+use serde::Serialize;
 use uuid::Uuid;
 
 use crate::bundle::{Action, BindingMode, Bundle, EnforcementMode, Fallback};
 use crate::endpoint::{Endpoint, ResolvedKey};
 use crate::environment::Environment;
-use crate::evaluate::{Budget, CompiledCondition, Refusal, compile_condition, evaluate_condition};
+use crate::evaluate::{
+    Budget, CompiledCondition, Evaluation, Refusal, Verdict, compile_condition, evaluate_condition,
+};
 
 /// A bundle compiled for judging: built once per bundle, then used for every call.
 #[derive(Debug)]
@@ -27,7 +30,8 @@ struct ChainPolicy {
 
 /// How the caller acts on an outcome: `observe` only logs it, `enforce` acts on it. There's no
 /// `none`, since at `none` the judge isn't called.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum JudgingMode {
     Observe,
     Enforce,
@@ -56,7 +60,8 @@ pub struct Outcome {
 }
 
 /// A fallback that denies a call. No policy is named.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum FallbackDenial {
     /// The call has no usable ticket, and `ticket_fallback` is `block`.
     Ticket,
@@ -129,6 +134,18 @@ pub fn compile_bundle(bundle: &Bundle) -> Judge {
     }
 }
 
+/// Told of each policy the walk evaluates, in order, to explain an outcome.
+pub trait Trace {
+    fn visit(&mut self, policy: Uuid, evaluation: &Evaluation);
+}
+
+/// Records nothing, so judging with it costs nothing.
+pub struct NoTrace;
+
+impl Trace for NoTrace {
+    fn visit(&mut self, _: Uuid, _: &Evaluation) {}
+}
+
 /// The ticket fallback, then the binding fallback, then the chain. At `enforce` a fallback's
 /// denial ends the judgement; at `observe` the chain is walked anyway, to preview it.
 pub fn judge(
@@ -136,6 +153,17 @@ pub fn judge(
     environment: &Environment,
     mode: JudgingMode,
     budget: &mut Budget,
+) -> Outcome {
+    judge_traced(compiled, environment, mode, budget, &mut NoTrace)
+}
+
+/// `judge`, telling `trace` of each policy evaluated.
+pub fn judge_traced(
+    compiled: &Judge,
+    environment: &Environment,
+    mode: JudgingMode,
+    budget: &mut Budget,
+    trace: &mut impl Trace,
 ) -> Outcome {
     let enforcing = mode == JudgingMode::Enforce;
     let mut fallbacks = Vec::new();
@@ -171,8 +199,9 @@ pub fn judge(
             positions.iter().map(|&position| &compiled.chain[position]),
             environment,
             budget,
+            trace,
         ),
-        None => walk(compiled.chain.iter(), environment, budget),
+        None => walk(compiled.chain.iter(), environment, budget, trace),
     };
     Outcome {
         fallbacks,
@@ -185,12 +214,15 @@ fn walk<'a>(
     policies: impl Iterator<Item = &'a ChainPolicy>,
     environment: &Environment,
     budget: &mut Budget,
+    trace: &mut impl Trace,
 ) -> ChainVerdict {
     let mut alerts = Vec::new();
     for policy in policies {
-        match evaluate_condition(&policy.condition, environment, budget) {
+        let evaluation = evaluate_condition(&policy.condition, environment, budget);
+        trace.visit(policy.id, &evaluation);
+        match evaluation.verdict {
             // A refused call reports nothing, its alerts included.
-            Err(refusal) => {
+            Verdict::Refused(refusal) => {
                 let decision = Decision::Refused {
                     policy: policy.id,
                     refusal,
@@ -200,9 +232,9 @@ fn walk<'a>(
                     alerts: Vec::new(),
                 };
             }
-            Ok(false) => {}
-            Ok(true) if policy.action == Action::Alert => alerts.push(policy.id),
-            Ok(true) => {
+            Verdict::DoesNotHold => {}
+            Verdict::Holds if policy.action == Action::Alert => alerts.push(policy.id),
+            Verdict::Holds => {
                 let decision = Decision::Denied(policy.id);
                 return ChainVerdict { decision, alerts };
             }

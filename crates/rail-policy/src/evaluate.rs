@@ -1,3 +1,4 @@
+use serde::Serialize;
 use serde_json::Value;
 
 use crate::condition::{Condition, Path, Predicate, RequestPath, Scalar, TicketPath};
@@ -39,7 +40,8 @@ impl Default for Budget {
 }
 
 /// Why a judgement couldn't be reached. Never a deny, and never a condition that didn't hold.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Refusal {
     /// An `Unknown` or `Invalid` condition was reached.
     Uninterpretable,
@@ -74,14 +76,14 @@ enum Test {
 }
 
 /// What a path resolves to, borrowed from the environment.
-#[derive(Clone, Copy)]
-enum Lookup<'a> {
+#[derive(Clone, Copy, Debug)]
+pub enum Lookup<'a> {
     /// Also a `null`, which a producer may write for a missing claim.
     Absent,
     Str(&'a str),
     Number(f64),
     /// Never compared: `true == 1` in some languages and not in others.
-    Bool,
+    Bool(bool),
     /// A header with several values, or a list in the ticket, which may hold anything.
     List(&'a [Value]),
     Object,
@@ -108,16 +110,53 @@ pub fn compile_condition(condition: &Condition) -> CompiledCondition {
     CompiledCondition(Node::Test(path.clone(), test))
 }
 
-pub fn evaluate_condition(
+/// What evaluating a condition found.
+#[derive(Debug)]
+pub struct Evaluation<'a> {
+    /// What the condition's path resolved to, or `None` if none was: the condition can't be read,
+    /// or the budget ran out first.
+    pub resolved: Option<Lookup<'a>>,
+    pub verdict: Verdict,
+}
+
+/// Whether a condition held. A refusal is neither.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Verdict {
+    Holds,
+    DoesNotHold,
+    Refused(Refusal),
+}
+
+impl From<Result<bool, Refusal>> for Verdict {
+    fn from(result: Result<bool, Refusal>) -> Self {
+        match result {
+            Ok(true) => Self::Holds,
+            Ok(false) => Self::DoesNotHold,
+            Err(refusal) => Self::Refused(refusal),
+        }
+    }
+}
+
+pub fn evaluate_condition<'a>(
     condition: &CompiledCondition,
-    environment: &Environment,
+    environment: &Environment<'a>,
     budget: &mut Budget,
-) -> Result<bool, Refusal> {
-    budget.charge(1)?;
-    let Node::Test(path, test) = &condition.0 else {
-        return Err(Refusal::Uninterpretable);
+) -> Evaluation<'a> {
+    let refuse = |refusal| Evaluation {
+        resolved: None,
+        verdict: Verdict::Refused(refusal),
     };
-    apply(test, resolve(path, environment), budget)
+    if let Err(refusal) = budget.charge(1) {
+        return refuse(refusal);
+    }
+    let Node::Test(path, test) = &condition.0 else {
+        return refuse(Refusal::Uninterpretable);
+    };
+    let value = resolve(path, environment);
+    Evaluation {
+        resolved: Some(value),
+        verdict: apply(test, value, budget).into(),
+    }
 }
 
 fn read_scalars(items: &[Value]) -> Vec<Scalar> {
@@ -158,7 +197,7 @@ fn resolve_ticket<'a>(path: &TicketPath, environment: &Environment<'a>) -> Looku
 fn read_value(value: &Value) -> Lookup<'_> {
     match value {
         Value::Null => Lookup::Absent,
-        Value::Bool(_) => Lookup::Bool,
+        Value::Bool(value) => Lookup::Bool(*value),
         // Always some double, since serde_json reads no number past one.
         Value::Number(number) => number.as_f64().map_or(Lookup::Absent, Lookup::Number),
         Value::String(text) => Lookup::Str(text),

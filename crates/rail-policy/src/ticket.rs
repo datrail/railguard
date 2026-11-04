@@ -52,6 +52,15 @@ pub struct TicketVerifier {
     pub audience: Option<String>,
 }
 
+/// Reads either kind of ticket. A `.` is outside both base64 alphabets, so only a signed ticket
+/// holds one. The caller handles the header as for `parse_base64_ticket`.
+pub fn parse_ticket(value: &str, verifier: &TicketVerifier, now_in_seconds: i64) -> TicketState {
+    if value.contains('.') {
+        return parse_jwt_ticket(value, verifier, now_in_seconds);
+    }
+    parse_base64_ticket(value, now_in_seconds)
+}
+
 /// Reads an unsigned ticket. The caller reads a missing header as `Absent`, and a repeated one
 /// as `Undecodable`.
 pub fn parse_base64_ticket(value: &str, now_in_seconds: i64) -> TicketState {

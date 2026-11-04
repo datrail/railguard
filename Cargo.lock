@@ -240,8 +240,12 @@ dependencies = [
 name = "rail-policy-py"
 version = "0.0.0"
 dependencies = [
+ "ed25519-dalek",
  "pyo3",
  "rail-policy",
+ "serde",
+ "serde_json",
+ "uuid",
 ]
 
 [[package]]
