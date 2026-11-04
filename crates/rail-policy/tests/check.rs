@@ -172,8 +172,8 @@ fn test_reports_what_only_the_writer_refuses() {
     assert_eq!(
         check(json!({"path": "body.x", "op": "near", "value": 1})),
         [
-            (loc!["path"], ProblemCode::UnknownSource, Authoring),
-            (loc!["op"], UnknownOp, Authoring)
+            (loc!["op"], UnknownOp, Authoring),
+            (loc!["path"], ProblemCode::UnknownSource, Authoring)
         ]
     );
 }
@@ -184,14 +184,14 @@ fn test_reports_every_problem_in_order() {
         check(json!({"path": "ticket.nope", "op": "lt", "value": "x"})),
         [
             (
-                loc!["path"],
-                ProblemCode::UnknownPath,
-                ProblemScope::Authoring
-            ),
-            (
                 loc!["value"],
                 ProblemCode::OperandShape,
                 ProblemScope::Enforcement
+            ),
+            (
+                loc!["path"],
+                ProblemCode::UnknownPath,
+                ProblemScope::Authoring
             )
         ]
     );
@@ -335,35 +335,47 @@ fn test_reads_any_path_problem_as_authoring_beside_an_unknown_op() {
     assert_eq!(
         check(json!({"path": "request.method", "op": "near"})),
         [
-            (loc!["path"], UnknownPath, Authoring),
-            (loc!["op"], UnknownOp, Authoring)
+            (loc!["op"], UnknownOp, Authoring),
+            (loc!["path"], UnknownPath, Authoring)
         ]
     );
     assert_eq!(
         check(json!({"path": 1, "op": "near"})),
         [
-            (loc!["path"], UnknownSource, Authoring),
-            (loc!["op"], UnknownOp, Authoring)
+            (loc!["op"], UnknownOp, Authoring),
+            (loc!["path"], UnknownSource, Authoring)
         ]
     );
 }
 
 #[test]
-fn test_reports_the_op_before_the_value() {
+fn test_reports_what_a_reader_parses_before_what_only_rail_center_checks() {
     assert_eq!(
         check(json!({"path": "ticket.agent_id", "op": "lt", "value": "x"})),
         [
             (
-                loc!["op"],
-                ProblemCode::OpNotForPath,
-                ProblemScope::Authoring
-            ),
-            (
                 loc!["value"],
                 ProblemCode::OperandShape,
                 ProblemScope::Enforcement
+            ),
+            (
+                loc!["op"],
+                ProblemCode::OpNotForPath,
+                ProblemScope::Authoring
             )
         ]
+    );
+}
+
+#[test]
+fn test_refuses_a_ticket_claims_schema_that_isnt_an_object() {
+    assert_eq!(
+        TicketClaimsSchema::from_value(&json!(["string"])).unwrap_err(),
+        "a ticket claims schema is an object"
+    );
+    assert_eq!(
+        TicketClaimsSchema::from_value(&json!({"a": ["string"]})).unwrap_err(),
+        "a ticket claims schema's leaves are kinds"
     );
 }
 

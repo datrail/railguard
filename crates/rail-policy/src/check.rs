@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use serde::Serialize;
 use serde_json::{Map, Value};
 
-use crate::condition::{OPS, RequestPath};
+use crate::condition::{OPS, Path, RequestPath, TicketPath};
 use crate::sanitize::sanitize;
 
 /// Rail Center nests a condition no deeper than this, so it can render it back out.
@@ -110,18 +110,18 @@ enum SchemaNode {
 impl TicketClaimsSchema {
     /// From an object whose leaves are `"string"`, `"number"`, `"bool"` or `"list"`.
     pub fn from_value(value: &Value) -> Result<Self, String> {
-        match read_node(value)? {
-            SchemaNode::Branch(nodes) => Ok(Self(nodes)),
-            SchemaNode::Leaf(_) => Err("a ticket claims schema is an object".to_string()),
-        }
+        let Value::Object(fields) = value else {
+            return Err("a ticket claims schema is an object".to_string());
+        };
+        read_branch(fields).map(Self)
     }
 
     /// `None` where the schema has nothing at `keys`.
-    fn get_kind(&self, keys: &[&str]) -> Option<Kind> {
+    fn get_kind(&self, keys: &[String]) -> Option<Kind> {
         let mut nodes = &self.0;
         let mut kind = Kind::Object;
         for (i, key) in keys.iter().enumerate() {
-            match nodes.get(*key)? {
+            match nodes.get(key)? {
                 SchemaNode::Branch(next) => nodes = next,
                 SchemaNode::Leaf(leaf) if i == keys.len() - 1 => kind = *leaf,
                 SchemaNode::Leaf(_) => return None,
@@ -131,13 +131,16 @@ impl TicketClaimsSchema {
     }
 }
 
+fn read_branch(fields: &Map<String, Value>) -> Result<BTreeMap<String, SchemaNode>, String> {
+    fields
+        .iter()
+        .map(|(key, value)| Ok((key.clone(), read_node(value)?)))
+        .collect()
+}
+
 fn read_node(value: &Value) -> Result<SchemaNode, String> {
     match value {
-        Value::Object(fields) => fields
-            .iter()
-            .map(|(key, value)| Ok((key.clone(), read_node(value)?)))
-            .collect::<Result<_, String>>()
-            .map(SchemaNode::Branch),
+        Value::Object(fields) => read_branch(fields).map(SchemaNode::Branch),
         Value::String(kind) => match kind.as_str() {
             "string" => Ok(SchemaNode::Leaf(Kind::String)),
             "number" => Ok(SchemaNode::Leaf(Kind::Number)),
@@ -152,8 +155,9 @@ fn read_node(value: &Value) -> Result<SchemaNode, String> {
     }
 }
 
-/// Every problem with a condition given as JSON text, in the order path, op, value. None means
-/// every reader reads it, and Rail Center would publish it.
+/// Every problem with a condition given as JSON text, in the order found: first as every reader
+/// parses it, then as only Rail Center checks it. None means every reader reads it, and Rail
+/// Center would publish it.
 pub fn check_condition(
     text: &str,
     ticket_claims_schema: &TicketClaimsSchema,
@@ -182,121 +186,56 @@ pub fn check_condition(
             message,
         )];
     };
+    let mut problems = Vec::new();
+    let parsed = check_grammar(fields, &mut problems);
+    check_authoring(&condition, parsed, ticket_claims_schema, &mut problems);
+    problems
+}
+
+/// What a reader parsed, for the checks only Rail Center makes.
+struct Parsed<'a> {
+    /// `None` where the op is missing or unknown.
+    op: Option<&'a str>,
+    /// With its text as sent, or `None` where it doesn't parse.
+    path: Option<(&'a str, Path)>,
+}
+
+/// As a reader parses a condition: the op, then the path and the operand.
+fn check_grammar<'a>(
+    fields: &'a Map<String, Value>,
+    problems: &mut Vec<ConditionProblem>,
+) -> Parsed<'a> {
     let op = fields.get("op").and_then(Value::as_str);
+    let known_op = match op {
+        None => {
+            problems.push(build_problem(
+                loc!["op"],
+                ProblemCode::UnknownOp,
+                ProblemScope::Enforcement,
+                "not a string".to_string(),
+            ));
+            None
+        }
+        Some(op) if !OPS.contains(&op) => {
+            problems.push(build_problem(
+                loc!["op"],
+                ProblemCode::UnknownOp,
+                ProblemScope::Authoring,
+                format!("\"{}\": not an op this reader knows", sanitize(op)),
+            ));
+            None
+        }
+        Some(op) => Some(op),
+    };
     // A reader reads an op it doesn't know as `Unknown`, whatever the rest holds.
-    let op_unknown = op.is_some_and(|op| !OPS.contains(&op));
-    let scope = if op_unknown {
+    let scope = if op.is_some() && known_op.is_none() {
         ProblemScope::Authoring
     } else {
         ProblemScope::Enforcement
     };
-    let mut problems = Vec::new();
-    let kind = check_path(
-        fields.get("path"),
-        ticket_claims_schema,
-        scope,
-        &mut problems,
-    );
-    match op {
-        None => problems.push(build_problem(
-            loc!["op"],
-            ProblemCode::UnknownOp,
-            ProblemScope::Enforcement,
-            "not a string".to_string(),
-        )),
-        Some(op) if op_unknown => problems.push(build_problem(
-            loc!["op"],
-            ProblemCode::UnknownOp,
-            ProblemScope::Authoring,
-            format!("\"{}\": not an op this reader knows", sanitize(op)),
-        )),
-        Some(op) => check_operand(op, fields, kind, &mut problems),
-    }
-    if get_depth(&condition) > MAX_AUTHORING_DEPTH {
-        let message = format!("nested deeper than {MAX_AUTHORING_DEPTH} levels");
-        problems.push(build_problem(
-            loc![],
-            ProblemCode::TooDeep,
-            ProblemScope::Authoring,
-            message,
-        ));
-    }
-    problems
-}
-
-/// The path's kind, or `None` where the path has a problem.
-fn check_path(
-    path: Option<&Value>,
-    ticket_claims_schema: &TicketClaimsSchema,
-    scope: ProblemScope,
-    problems: &mut Vec<ConditionProblem>,
-) -> Option<Kind> {
-    let Some(path) = path.and_then(Value::as_str) else {
-        let message = "not a string".to_string();
-        problems.push(build_problem(
-            loc!["path"],
-            ProblemCode::UnknownSource,
-            scope,
-            message,
-        ));
-        return None;
-    };
-    let mut parts = path.split('.');
-    let root = parts.next();
-    let keys: Vec<&str> = parts.collect();
-    let shown = sanitize(path);
-    let (code, problem_scope, message) = match root {
-        Some("ticket") => match ticket_claims_schema.get_kind(&keys) {
-            Some(kind) => return Some(kind),
-            None => (
-                ProblemCode::UnknownPath,
-                ProblemScope::Authoring,
-                format!("\"{shown}\": names nothing a ticket carries"),
-            ),
-        },
-        Some("request") => match RequestPath::parse(&keys) {
-            // A reader reads any such name, and it never exists.
-            Some(RequestPath::Header(name)) if name.is_empty() || name.to_lowercase() != name => (
-                ProblemCode::UnknownPath,
-                ProblemScope::Authoring,
-                format!("\"{shown}\": a header name is lowercase and not empty"),
-            ),
-            Some(RequestPath::Whole | RequestPath::Headers) => return Some(Kind::Object),
-            Some(RequestPath::EndpointKey) => return Some(Kind::String),
-            Some(RequestPath::Header(_)) => return Some(Kind::Header),
-            None => (
-                ProblemCode::UnknownPath,
-                scope,
-                format!("\"{shown}\": names nothing a request carries"),
-            ),
-        },
-        _ => (
-            ProblemCode::UnknownSource,
-            scope,
-            format!("\"{shown}\": not under ticket or request"),
-        ),
-    };
-    problems.push(build_problem(loc!["path"], code, problem_scope, message));
-    None
-}
-
-fn check_operand(
-    op: &str,
-    fields: &Map<String, Value>,
-    kind: Option<Kind>,
-    problems: &mut Vec<ConditionProblem>,
-) {
-    if let Some(kind) = kind
-        && !is_op_for(kind, op)
-    {
-        problems.push(build_problem(
-            loc!["op"],
-            ProblemCode::OpNotForPath,
-            ProblemScope::Authoring,
-            format!("{op} can't hold for {}", format_kind(kind)),
-        ));
-    }
-    if let Some(expected) = get_operand_shape(op)
+    let path = check_path(fields.get("path"), scope, problems);
+    if let Some(op) = known_op
+        && let Some(expected) = get_operand_shape(op)
         && !is_shaped(fields.get("value"), expected)
     {
         problems.push(ConditionProblem {
@@ -308,6 +247,108 @@ fn check_operand(
                 format!("{op} takes a {}", format_shape(expected)),
             )
         });
+    }
+    Parsed { op: known_op, path }
+}
+
+fn check_path<'a>(
+    path: Option<&'a Value>,
+    scope: ProblemScope,
+    problems: &mut Vec<ConditionProblem>,
+) -> Option<(&'a str, Path)> {
+    let Some(text) = path.and_then(Value::as_str) else {
+        let message = "not a string".to_string();
+        problems.push(build_problem(
+            loc!["path"],
+            ProblemCode::UnknownSource,
+            scope,
+            message,
+        ));
+        return None;
+    };
+    let shown = sanitize(text);
+    let (code, message) = if !matches!(text.split('.').next(), Some("ticket" | "request")) {
+        (
+            ProblemCode::UnknownSource,
+            format!("\"{shown}\": not under ticket or request"),
+        )
+    } else {
+        match Path::try_from(text.to_string()) {
+            Ok(path) => return Some((text, path)),
+            // Only a `request` path can fail: any `ticket` path parses.
+            Err(_) => (
+                ProblemCode::UnknownPath,
+                format!("\"{shown}\": names nothing a request carries"),
+            ),
+        }
+    };
+    problems.push(build_problem(loc!["path"], code, scope, message));
+    None
+}
+
+/// What only Rail Center refuses: a path its schema doesn't hold, an op that can't hold for the
+/// path, and deep nesting.
+fn check_authoring(
+    condition: &Value,
+    parsed: Parsed,
+    ticket_claims_schema: &TicketClaimsSchema,
+    problems: &mut Vec<ConditionProblem>,
+) {
+    if let Some((text, path)) = &parsed.path {
+        match get_path_kind(text, path, ticket_claims_schema) {
+            Ok(kind) => {
+                if let Some(op) = parsed.op
+                    && !is_op_for(kind, op)
+                {
+                    problems.push(build_problem(
+                        loc!["op"],
+                        ProblemCode::OpNotForPath,
+                        ProblemScope::Authoring,
+                        format!("{op} can't hold for {}", format_kind(kind)),
+                    ));
+                }
+            }
+            Err(message) => problems.push(build_problem(
+                loc!["path"],
+                ProblemCode::UnknownPath,
+                ProblemScope::Authoring,
+                message,
+            )),
+        }
+    }
+    if get_depth(condition) > MAX_AUTHORING_DEPTH {
+        let message = format!("nested deeper than {MAX_AUTHORING_DEPTH} levels");
+        problems.push(build_problem(
+            loc![],
+            ProblemCode::TooDeep,
+            ProblemScope::Authoring,
+            message,
+        ));
+    }
+}
+
+/// The path's kind, or why Rail Center refuses the path.
+fn get_path_kind(
+    text: &str,
+    path: &Path,
+    ticket_claims_schema: &TicketClaimsSchema,
+) -> Result<Kind, String> {
+    let shown = sanitize(text);
+    match path {
+        Path::Ticket(TicketPath(keys)) => ticket_claims_schema
+            .get_kind(keys)
+            .ok_or_else(|| format!("\"{shown}\": names nothing a ticket carries")),
+        // A reader reads any such name, and it never exists.
+        Path::Request(RequestPath::Header(name))
+            if name.is_empty() || name.to_lowercase() != *name =>
+        {
+            Err(format!(
+                "\"{shown}\": a header name is lowercase and not empty"
+            ))
+        }
+        Path::Request(RequestPath::Whole | RequestPath::Headers) => Ok(Kind::Object),
+        Path::Request(RequestPath::EndpointKey) => Ok(Kind::String),
+        Path::Request(RequestPath::Header(_)) => Ok(Kind::Header),
     }
 }
 
