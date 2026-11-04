@@ -2,6 +2,7 @@ import json
 import math
 from decimal import Decimal
 from pathlib import Path
+from uuid import UUID
 
 import pytest
 
@@ -67,7 +68,7 @@ def _compile_bundle(policies, *, mode="enforce", bindings=(), ticket_fallback="p
 
 
 def _get_policy_id(n):
-    return f"5c8f1e42-0000-4000-8000-0000000000{n:02}"
+    return UUID(f"5c8f1e42-0000-4000-8000-0000000000{n:02}")
 
 
 def _format_outcome(judgement):
@@ -75,8 +76,10 @@ def _format_outcome(judgement):
     assert isinstance(judgement, Judgement), judgement
     chain = judgement.chain
     if chain is not None:
-        decision = chain.decision if chain.decision == "allowed" else {chain.decision: chain.policy}
-        chain = {"decision": decision, "alerts": list(chain.alerts)}
+        decision = (
+            chain.decision if chain.decision == "allowed" else {chain.decision: str(chain.policy)}
+        )
+        chain = {"decision": decision, "alerts": [str(alert) for alert in chain.alerts]}
     return {"fallbacks": list(judgement.fallbacks), "chain": chain}
 
 
@@ -138,15 +141,22 @@ def test_traces_each_policy_evaluated_until_one_decides():
         ),
         trace=(
             TraceStep(
-                policy=_get_policy_id(1), resolved=Resolved(kind="bool", value=True), result="holds"
+                policy=_get_policy_id(1),
+                resolved=Resolved(kind="bool", value=True),
+                verdict="holds",
+                refusal=None,
             ),
             TraceStep(
-                policy=_get_policy_id(2), resolved=Resolved(kind="absent"), result="does_not_hold"
+                policy=_get_policy_id(2),
+                resolved=Resolved(kind="absent"),
+                verdict="does_not_hold",
+                refusal=None,
             ),
             TraceStep(
                 policy=_get_policy_id(3),
                 resolved=Resolved(kind="list", value=["b", "c"]),
-                result="holds",
+                verdict="holds",
+                refusal=None,
             ),
         ),
     )
@@ -193,7 +203,12 @@ def test_traces_a_refusal_with_nothing_resolved():
         decision="refused", policy=_get_policy_id(1), refusal="uninterpretable", alerts=()
     )
     assert judgement.trace == (
-        TraceStep(policy=_get_policy_id(1), resolved=None, result="refused"),
+        TraceStep(
+            policy=_get_policy_id(1),
+            resolved=None,
+            verdict="refused",
+            refusal="uninterpretable",
+        ),
     )
 
 
@@ -207,7 +222,7 @@ def test_leaves_out_of_the_trace_what_a_binding_excludes():
             {
                 "endpoint_key": "slug#/mcp#tools/call#t",
                 "mode": "gated",
-                "policy_ids": [_get_policy_id(2)],
+                "policy_ids": [str(_get_policy_id(2))],
             }
         ],
     )
@@ -228,7 +243,7 @@ def test_refuses_past_the_step_limit():
         decision="refused", policy=_get_policy_id(2), refusal="budget_exceeded", alerts=()
     )
     assert judgement.trace[-1] == TraceStep(
-        policy=_get_policy_id(2), resolved=None, result="refused"
+        policy=_get_policy_id(2), resolved=None, verdict="refused", refusal="budget_exceeded"
     )
 
 
@@ -246,7 +261,8 @@ def test_traces_a_path_resolved_before_the_budget_ran_out():
         TraceStep(
             policy=_get_policy_id(1),
             resolved=Resolved(kind="list", value=["a", "b", "c"]),
-            result="refused",
+            verdict="refused",
+            refusal="budget_exceeded",
         ),
     )
     assert judgement.chain.refusal == "budget_exceeded"

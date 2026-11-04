@@ -11,11 +11,13 @@ mod _native {
     use pyo3::types::{PyBytes, PyBytesMethods};
     use pyo3::{Bound, IntoPyObject, PyResult, pyclass, pyfunction};
     use rail_policy::{
-        Budget, Decision, Endpoint, EnforcementMode, Environment, Evaluation, FallbackDenial,
-        Headers, Judge, JudgingMode, Lookup, Refusal, TicketState, TicketVerifier, Trace, Verdict,
-        compile_bundle as compile, judge_traced, parse_bundle, parse_ticket, sanitize,
+        Budget, ChainVerdict, Decision, Endpoint, EnforcementMode, Environment, Evaluation,
+        FallbackDenial, Headers, Judge, JudgingMode, Lookup, Refusal, TicketState, TicketVerifier,
+        Trace, Verdict, compile_bundle as compile, judge_traced, parse_bundle, parse_ticket,
+        sanitize,
     };
-    use serde_json::{Map, Value, json};
+    use serde::Serialize;
+    use serde_json::{Map, Value};
     use uuid::Uuid;
 
     #[pymodule_export]
@@ -77,61 +79,35 @@ mod _native {
             }
         };
         // An unreadable sample is reported first, whatever the mode.
-        let result = read_sample(endpoint_key, claims).map(|(endpoint, claims)| {
-            let Some(mode) = mode else {
-                return json!({"kind": "not_judged", "reason": "mode_none"});
-            };
-            let headers = Headers::from_lines(headers);
-            let environment = Environment {
-                ticket: claims.as_ref(),
-                endpoint: &endpoint,
-                headers: &headers,
-            };
-            let mut recorder = Recorder(Vec::new());
-            let outcome = judge_traced(
-                &bundle.judge,
-                &environment,
-                mode,
-                &mut Budget::new(step_limit),
-                &mut recorder,
-            );
-            let fallbacks: Vec<&str> = outcome
-                .fallbacks
-                .iter()
-                .map(|fallback| match fallback {
-                    FallbackDenial::Ticket => "ticket",
-                    FallbackDenial::Binding => "binding",
-                })
-                .collect();
-            let chain = outcome.chain.map(|chain| {
-                let (decision, policy, refusal) = match chain.decision {
-                    Decision::Allowed => ("allowed", None, None),
-                    Decision::Denied(policy) => ("denied", Some(policy), None),
-                    Decision::Refused { policy, refusal } => {
-                        ("refused", Some(policy), Some(format_refusal(refusal)))
-                    }
+        let result = match (read_sample(endpoint_key, claims), mode) {
+            (Err(problem), _) => SampleResult::UnreadableSample { problem },
+            (Ok(_), None) => SampleResult::NotJudged {
+                reason: "mode_none",
+            },
+            (Ok((endpoint, claims)), Some(mode)) => {
+                let headers = Headers::from_lines(headers);
+                let environment = Environment {
+                    ticket: claims.as_ref(),
+                    endpoint: &endpoint,
+                    headers: &headers,
                 };
-                json!({
-                    "decision": decision,
-                    "policy": policy,
-                    "refusal": refusal,
-                    "alerts": chain.alerts,
-                })
-            });
-            json!({
-                "kind": "judged",
-                "mode": match mode {
-                    JudgingMode::Observe => "observe",
-                    JudgingMode::Enforce => "enforce",
-                },
-                "fallbacks": fallbacks,
-                "chain": chain,
-                "trace": recorder.0,
-            })
-        });
-        let result = result
-            .unwrap_or_else(|problem| json!({"kind": "unreadable_sample", "problem": problem}));
-        Ok(result.to_string())
+                let mut recorder = Recorder(Vec::new());
+                let outcome = judge_traced(
+                    &bundle.judge,
+                    &environment,
+                    mode,
+                    &mut Budget::new(step_limit),
+                    &mut recorder,
+                );
+                SampleResult::Judged {
+                    mode,
+                    fallbacks: outcome.fallbacks,
+                    chain: outcome.chain.map(Chain::from),
+                    trace: recorder.0,
+                }
+            }
+        };
+        Ok(write_json(&result))
     }
 
     /// How an `x-rail` value classifies, as JSON text, with the claims when it's valid.
@@ -170,7 +146,7 @@ mod _native {
             TicketState::Expired => ("expired", None),
             TicketState::Valid(ticket) => ("valid", Some(ticket.claims)),
         };
-        Ok(json!({"kind": "ticket_reading", "state": state, "claims": claims}).to_string())
+        Ok(write_json(&TicketReading { state, claims }))
     }
 
     /// The endpoint, and the claims of a usable ticket, or why the sample can't be read.
@@ -195,36 +171,108 @@ mod _native {
         Ok((endpoint, claims))
     }
 
-    fn format_refusal(refusal: Refusal) -> &'static str {
-        match refusal {
-            Refusal::Uninterpretable => "uninterpretable",
-            Refusal::BudgetExceeded => "budget_exceeded",
+    fn write_json(value: &impl Serialize) -> String {
+        serde_json::to_string(value).expect("nothing here fails to serialize")
+    }
+
+    // The types below are the Python classes' shapes, which flatten Rust's enums into a tag field
+    // and optional fields.
+
+    #[derive(Serialize)]
+    #[serde(tag = "kind", rename_all = "snake_case")]
+    enum SampleResult {
+        Judged {
+            mode: JudgingMode,
+            fallbacks: Vec<FallbackDenial>,
+            chain: Option<Chain>,
+            trace: Vec<Step>,
+        },
+        NotJudged {
+            reason: &'static str,
+        },
+        UnreadableSample {
+            problem: String,
+        },
+    }
+
+    #[derive(Serialize)]
+    struct Chain {
+        decision: &'static str,
+        policy: Option<Uuid>,
+        refusal: Option<Refusal>,
+        alerts: Vec<Uuid>,
+    }
+
+    impl From<ChainVerdict> for Chain {
+        fn from(chain: ChainVerdict) -> Self {
+            let (decision, policy, refusal) = match chain.decision {
+                Decision::Allowed => ("allowed", None, None),
+                Decision::Denied(policy) => ("denied", Some(policy), None),
+                Decision::Refused { policy, refusal } => ("refused", Some(policy), Some(refusal)),
+            };
+            Self {
+                decision,
+                policy,
+                refusal,
+                alerts: chain.alerts,
+            }
         }
     }
 
-    /// Each policy evaluated, as the trace's JSON.
-    struct Recorder(Vec<Value>);
+    #[derive(Serialize)]
+    struct Step {
+        policy: Uuid,
+        resolved: Option<Resolved>,
+        verdict: &'static str,
+        refusal: Option<Refusal>,
+    }
+
+    /// Owned, since a trace outlives the call's environment.
+    #[derive(Serialize)]
+    #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
+    enum Resolved {
+        Absent,
+        String(String),
+        Number(f64),
+        Bool(bool),
+        List(Vec<Value>),
+        Object,
+    }
+
+    impl From<Lookup<'_>> for Resolved {
+        fn from(lookup: Lookup) -> Self {
+            match lookup {
+                Lookup::Absent => Self::Absent,
+                Lookup::Str(text) => Self::String(text.to_string()),
+                Lookup::Number(number) => Self::Number(number),
+                Lookup::Bool(value) => Self::Bool(value),
+                Lookup::List(items) => Self::List(items.to_vec()),
+                Lookup::Object => Self::Object,
+            }
+        }
+    }
+
+    #[derive(Serialize)]
+    struct TicketReading {
+        state: &'static str,
+        claims: Option<Map<String, Value>>,
+    }
+
+    struct Recorder(Vec<Step>);
 
     impl Trace for Recorder {
         fn visit(&mut self, policy: Uuid, evaluation: &Evaluation) {
-            let resolved = evaluation.resolved.map(|lookup| match lookup {
-                Lookup::Absent => json!({"kind": "absent"}),
-                Lookup::Str(text) => json!({"kind": "string", "value": text}),
-                Lookup::Number(number) => json!({"kind": "number", "value": number}),
-                Lookup::Bool(value) => json!({"kind": "bool", "value": value}),
-                Lookup::List(items) => json!({"kind": "list", "value": items}),
-                Lookup::Object => json!({"kind": "object"}),
-            });
-            let result = match evaluation.verdict {
-                Verdict::Holds => "holds",
-                Verdict::DoesNotHold => "does_not_hold",
-                Verdict::Refused(_) => "refused",
+            let (verdict, refusal) = match evaluation.verdict {
+                Verdict::Holds => ("holds", None),
+                Verdict::DoesNotHold => ("does_not_hold", None),
+                Verdict::Refused(refusal) => ("refused", Some(refusal)),
             };
-            self.0.push(json!({
-                "policy": policy,
-                "resolved": resolved,
-                "result": result,
-            }));
+            self.0.push(Step {
+                policy,
+                resolved: evaluation.resolved.map(Resolved::from),
+                verdict,
+                refusal,
+            });
         }
     }
 }

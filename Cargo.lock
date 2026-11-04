@@ -243,6 +243,7 @@ dependencies = [
  "ed25519-dalek",
  "pyo3",
  "rail-policy",
+ "serde",
  "serde_json",
  "uuid",
 ]

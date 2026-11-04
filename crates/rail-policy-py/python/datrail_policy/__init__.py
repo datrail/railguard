@@ -3,6 +3,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
+from uuid import UUID
 
 from datrail_policy import _native
 from datrail_policy._native import DEFAULT_STEP_LIMIT, CompiledBundle
@@ -49,19 +50,21 @@ class Resolved:
 
 @dataclass(frozen=True)
 class TraceStep:
-    policy: str
+    policy: UUID
     # `None` when no path was resolved: the condition can't be read, or the budget ran out first.
     resolved: Resolved | None
-    result: Literal["holds", "does_not_hold", "refused"]
+    verdict: Literal["holds", "does_not_hold", "refused"]
+    # Why the condition refused; `None` unless `refused`.
+    refusal: Literal["uninterpretable", "budget_exceeded"] | None
 
 
 @dataclass(frozen=True)
 class ChainVerdict:
     decision: Literal["allowed", "denied", "refused"]
     # The deciding policy; `None` when allowed.
-    policy: str | None
+    policy: UUID | None
     refusal: Literal["uninterpretable", "budget_exceeded"] | None
-    alerts: tuple[str, ...]
+    alerts: tuple[UUID, ...]
 
 
 @dataclass(frozen=True)
@@ -94,7 +97,6 @@ class TicketReading:
     ]
     # The payload as sent, for `judge_sample`; `None` unless `valid`.
     claims: dict[str, Any] | None
-    kind: Literal["ticket_reading"] = "ticket_reading"
 
 
 def validate_bundle(json: str) -> BundleCheck:
@@ -156,19 +158,28 @@ def _read_result(result: dict[str, Any]) -> Judgement | NotJudged | UnreadableSa
     return Judgement(
         mode=result["mode"],
         fallbacks=tuple(result["fallbacks"]),
-        chain=None
-        if chain is None
-        else ChainVerdict(**{**chain, "alerts": tuple(chain["alerts"])}),
+        chain=None if chain is None else _read_chain(chain),
         trace=tuple(_read_step(step) for step in result["trace"]),
+    )
+
+
+def _read_chain(chain: dict[str, Any]) -> ChainVerdict:
+    policy = chain["policy"]
+    return ChainVerdict(
+        decision=chain["decision"],
+        policy=None if policy is None else UUID(policy),
+        refusal=chain["refusal"],
+        alerts=tuple(UUID(alert) for alert in chain["alerts"]),
     )
 
 
 def _read_step(step: dict[str, Any]) -> TraceStep:
     resolved = step["resolved"]
     return TraceStep(
-        policy=step["policy"],
+        policy=UUID(step["policy"]),
         resolved=None if resolved is None else Resolved(**resolved),
-        result=step["result"],
+        verdict=step["verdict"],
+        refusal=step["refusal"],
     )
 
 
