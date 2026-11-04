@@ -7,7 +7,7 @@ name = "_native"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.30", features = ["abi3-py310"] }
+pyo3 = { version = "0.30", features = ["abi3-py312"] }
 # The major version rail-policy uses, since its TicketVerifier holds these keys.
 ed25519-dalek = { version = "3", default-features = false }
 rail-policy = { path = "../rail-policy" }

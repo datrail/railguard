@@ -125,9 +125,11 @@ mod _native {
             .map(|(kid, key)| {
                 let key = <[u8; 32]>::try_from(key.as_bytes())
                     .ok()
-                    .and_then(|key| VerifyingKey::from_bytes(&key).ok());
-                let problem = || format!("key \"{}\": not an Ed25519 public key", sanitize(&kid));
-                let key = key.ok_or_else(|| PyValueError::new_err(problem()))?;
+                    .and_then(|key| VerifyingKey::from_bytes(&key).ok())
+                    .ok_or_else(|| {
+                        let kid = sanitize(&kid);
+                        PyValueError::new_err(format!("key \"{kid}\": not an Ed25519 public key"))
+                    })?;
                 Ok((kid, key))
             })
             .collect::<PyResult<_>>()?;

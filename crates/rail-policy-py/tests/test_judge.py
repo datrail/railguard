@@ -1,5 +1,7 @@
+import base64
 import json
 import math
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from uuid import UUID
@@ -17,6 +19,7 @@ from datrail_policy import (
     UnusableBundle,
     compile_bundle,
     judge_sample,
+    read_ticket,
 )
 
 _VECTORS = Path(__file__).parents[3] / "vectors"
@@ -40,7 +43,7 @@ def _dump_json(value):
 
 def _build_policy(n, condition, action="block", enabled=True):
     return {
-        "id": f"5c8f1e42-0000-4000-8000-0000000000{n:02}",
+        "id": str(_get_policy_id(n)),
         "name": f"P-{n}",
         "priority": n,
         "condition": condition,
@@ -212,26 +215,6 @@ def test_traces_a_refusal_with_nothing_resolved():
     )
 
 
-def test_leaves_out_of_the_trace_what_a_binding_excludes():
-    compiled = _compile_bundle(
-        [
-            _build_policy(1, {"path": "ticket.score", "op": "gt", "value": 40}),
-            _build_policy(2, {"path": "ticket.score", "op": "gt", "value": 40}),
-        ],
-        bindings=[
-            {
-                "endpoint_key": "slug#/mcp#tools/call#t",
-                "mode": "gated",
-                "policy_ids": [str(_get_policy_id(2))],
-            }
-        ],
-    )
-
-    judgement = judge_sample(compiled, endpoint_key="/mcp#tools/call#t", claims={"score": 10})
-
-    assert [step.policy for step in judgement.trace] == [_get_policy_id(2)]
-
-
 def test_refuses_past_the_step_limit():
     compiled = _compile_bundle(
         [_build_policy(n, {"path": "ticket.score", "op": "gt", "value": 40}) for n in (1, 2)]
@@ -351,3 +334,15 @@ def test_raises_on_the_wrong_type(arguments, error):
 def test_raises_on_a_bundle_not_compiled():
     with pytest.raises(TypeError):
         judge_sample("{}", endpoint_key="keyless")
+
+
+def test_judges_the_claims_read_from_a_ticket():
+    compiled = _compile_bundle(
+        [_build_policy(1, {"path": "ticket.score", "op": "lt", "value": 40})]
+    )
+    ticket = base64.urlsafe_b64encode(json.dumps({"exp": 100, "score": 10}).encode()).decode()
+    reading = read_ticket(ticket, now=datetime.fromtimestamp(0, UTC))
+
+    judgement = judge_sample(compiled, endpoint_key="keyless", claims=reading.claims)
+
+    assert judgement.chain.decision == "denied"

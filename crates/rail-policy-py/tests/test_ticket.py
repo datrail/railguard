@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from datrail_policy import Judgement, TicketReading, compile_bundle, judge_sample, read_ticket
+from datrail_policy import TicketReading, read_ticket
 
 _VECTORS = Path(__file__).parents[3] / "vectors"
 _BASE64 = json.loads((_VECTORS / "parse_base64_ticket_conformance_cases.json").read_text())
@@ -72,37 +72,6 @@ def test_reads_now_floored_to_whole_seconds():
     # The same instant, in another zone.
     east = timezone(timedelta(hours=5))
     assert read_ticket(ticket, now=_get_time(100).astimezone(east)).state == "expired"
-
-
-def test_feeds_its_claims_to_judge_sample():
-    compiled = compile_bundle(
-        json.dumps(
-            {
-                "schema_version": "2.0",
-                "content_hash": "ticket",
-                "enforcement": {"mode": "enforce"},
-                "policies": [
-                    {
-                        "id": "5c8f1e42-0000-4000-8000-000000000001",
-                        "name": "P-1",
-                        "priority": 1,
-                        "condition": {"path": "ticket.score", "op": "lt", "value": 40},
-                        "action": "block",
-                        "enabled": True,
-                    }
-                ],
-                "bindings": [],
-                "binding_fallback": "pass",
-                "ticket_fallback": "pass",
-            }
-        )
-    )
-    reading = read_ticket(_encode_ticket({"exp": 100, "score": 10}), now=_get_time(0))
-
-    judgement = judge_sample(compiled, endpoint_key="keyless", claims=reading.claims)
-
-    assert isinstance(judgement, Judgement)
-    assert judgement.chain.decision == "denied"
 
 
 def test_raises_on_a_naive_now():

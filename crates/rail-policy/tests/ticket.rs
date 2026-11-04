@@ -93,16 +93,16 @@ fn test_base64_vectors() {
     let vectors: Vectors = serde_json::from_str(BASE64_VECTORS).unwrap();
     assert!(!vectors.cases.is_empty());
 
+    let verifier = TicketVerifier {
+        keys: HashMap::new(),
+        issuer: None,
+        audience: None,
+    };
     let failures: Vec<String> = vectors
         .cases
         .iter()
         .filter_map(|case| {
             let state = parse_base64_ticket(&case.header, case.now_in_seconds);
-            let verifier = TicketVerifier {
-                keys: HashMap::new(),
-                issuer: None,
-                audience: None,
-            };
             // No vector's header holds a `.`.
             assert_eq!(
                 parse_ticket(&case.header, &verifier, case.now_in_seconds),

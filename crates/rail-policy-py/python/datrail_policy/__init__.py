@@ -128,10 +128,10 @@ def judge_sample(
     # Before the claims are read, so a wrong mode raises whatever the claims hold.
     if mode not in (None, "observe", "enforce"):
         raise ValueError(f"mode {mode!r}: not observe or enforce")
-    if claims is not None and not isinstance(claims, Mapping):
-        raise TypeError(f"claims must be a mapping, not {type(claims).__name__}")
     claims_text = None
     if claims is not None:
+        if not isinstance(claims, Mapping):
+            raise TypeError(f"claims must be a mapping, not {type(claims).__name__}")
         try:
             claims_text = json.dumps(dict(claims), allow_nan=False)
         except ValueError as error:
@@ -140,7 +140,7 @@ def judge_sample(
         _native.judge_sample(
             bundle,
             endpoint_key=endpoint_key,
-            headers=list(headers),
+            headers=headers,
             claims=claims_text,
             mode=mode,
             step_limit=step_limit,
@@ -212,4 +212,4 @@ def read_ticket(
             audience=audience,
         )
     )
-    return TicketReading(state=reading["state"], claims=reading["claims"])
+    return TicketReading(**reading)

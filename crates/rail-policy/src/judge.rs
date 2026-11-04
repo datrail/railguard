@@ -143,7 +143,6 @@ pub trait Trace {
 pub struct NoTrace;
 
 impl Trace for NoTrace {
-    #[inline(always)]
     fn visit(&mut self, _: Uuid, _: &Evaluation) {}
 }
 
@@ -159,12 +158,12 @@ pub fn judge(
 }
 
 /// `judge`, telling `trace` of each policy evaluated.
-pub fn judge_traced<T: Trace>(
+pub fn judge_traced(
     compiled: &Judge,
     environment: &Environment,
     mode: JudgingMode,
     budget: &mut Budget,
-    trace: &mut T,
+    trace: &mut impl Trace,
 ) -> Outcome {
     let enforcing = mode == JudgingMode::Enforce;
     let mut fallbacks = Vec::new();
