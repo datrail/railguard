@@ -144,7 +144,7 @@ impl ConfigErrors {
 
 impl fmt::Display for ConfigErrors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("the configuration is refused:")?;
+        f.write_str("Invalid configuration detected:")?;
         for error in &self.0 {
             write!(f, "\n  {error}")?;
         }

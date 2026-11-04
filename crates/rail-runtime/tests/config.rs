@@ -56,7 +56,7 @@ fn parse_refusals_follow_the_name_and_are_all_kept() {
     );
     assert_eq!(
         errors.to_string(),
-        "the configuration is refused:\n  N is not a port, got: x\n  M is not a port, got: y"
+        "Invalid configuration detected:\n  N is not a port, got: x\n  M is not a port, got: y"
     );
 }
 
