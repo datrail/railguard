@@ -1,4 +1,5 @@
 import json
+import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -12,8 +13,11 @@ _EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 
 __all__ = [
     "DEFAULT_STEP_LIMIT",
+    "TICKET_SCHEMA",
     "BundleCheck",
     "ChainVerdict",
+    "ConditionCheck",
+    "ConditionProblem",
     "CompiledBundle",
     "Judgement",
     "NotJudged",
@@ -22,11 +26,41 @@ __all__ = [
     "TraceStep",
     "UnreadableSample",
     "UnusableBundle",
+    "check_condition",
     "compile_bundle",
     "judge_sample",
     "read_ticket",
     "validate_bundle",
 ]
+
+
+# What Rail Center's tickets carry, from its evaluator's `_TICKET_SCHEMA`. `check_condition` reads
+# it at call time, so a library can replace it, or pass its own.
+TICKET_SCHEMA: dict[str, Any] = {
+    "id": "string",
+    "agent_id": "string",
+    "sandbox_id": "string",
+    "sandbox_type": "string",
+    "environment_fingerprint": "string",
+    "skills": "list",
+    "posture": {
+        "overall": {"score": "number", "level": "string"},
+        "categories": {
+            name: {"score": "number", "capped": "boolean"}
+            for name in (
+                "identity",
+                "api_access",
+                "data_reach",
+                "containment",
+                "data_flow",
+                "injection_exposure",
+                "grant_exercise_gap",
+                "text_signals",
+            )
+        },
+    },
+    "alignment": {"baseline": {"id": "string", "label": "string"}, "drifted": "list"},
+}
 
 
 @dataclass(frozen=True)
@@ -91,6 +125,35 @@ class UnreadableSample:
 
 
 @dataclass(frozen=True)
+class ConditionProblem:
+    # A JSON pointer into the condition.
+    pointer: str
+    code: Literal[
+        "not_an_object",
+        "unknown_source",
+        "unknown_op",
+        "operand_shape",
+        "unknown_path",
+        "op_not_for_path",
+        "unwritable_number",
+        "too_deep",
+        "unreadable",
+    ]
+    # `enforcement`: every reader refuses it. `authoring`: only the writer, since a reader may be
+    # on another version.
+    scope: Literal["enforcement", "authoring"]
+    # The operand shape the op takes; `None` unless `operand_shape`.
+    expected: Literal["number", "list", "scalar", "string"] | None
+    message: str
+
+
+@dataclass(frozen=True)
+class ConditionCheck:
+    # Empty when every reader reads the condition and Rail Center would publish it.
+    problems: tuple[ConditionProblem, ...]
+
+
+@dataclass(frozen=True)
 class TicketReading:
     state: Literal[
         "absent", "undecodable", "bad_signature", "malformed", "wrong_audience", "expired", "valid"
@@ -109,6 +172,52 @@ def compile_bundle(json: str) -> CompiledBundle | UnusableBundle:
     if isinstance(compiled, str):
         return UnusableBundle(problem=compiled)
     return compiled
+
+
+def check_condition(
+    condition: Any, *, ticket_schema: Mapping[str, Any] | None = None
+) -> ConditionCheck:
+    """Every problem with a condition, path first, then op, then value.
+
+    `ticket_schema` defaults to `TICKET_SCHEMA`. A malformed one raises `ValueError`.
+    """
+    # JSON can't carry them to Rust, so a stand-in keeps the other checks running.
+    non_finite: list[str] = []
+    finite = _replace_non_finite(condition, "", non_finite)
+    native = _native.check_condition(
+        json.dumps(finite),
+        ticket_schema=json.dumps(TICKET_SCHEMA if ticket_schema is None else ticket_schema),
+    )
+    problems = [ConditionProblem(**problem) for problem in json.loads(native)]
+    problems += [
+        ConditionProblem(
+            pointer=pointer,
+            code="unwritable_number",
+            scope="authoring",
+            expected=None,
+            message="infinity or NaN can't be written back as the JSON it came from",
+        )
+        for pointer in non_finite
+    ]
+    return ConditionCheck(problems=tuple(problems))
+
+
+def _replace_non_finite(value: Any, pointer: str, found: list[str]) -> Any:
+    if isinstance(value, float) and not math.isfinite(value):
+        found.append(pointer)
+        return 0.0
+    if isinstance(value, Mapping):
+        return {
+            key: _replace_non_finite(item, f"{pointer}/{_escape_pointer(str(key))}", found)
+            for key, item in value.items()
+        }
+    if isinstance(value, list | tuple):
+        return [_replace_non_finite(item, f"{pointer}/{i}", found) for i, item in enumerate(value)]
+    return value
+
+
+def _escape_pointer(key: str) -> str:
+    return key.replace("~", "~0").replace("/", "~1")
 
 
 def judge_sample(

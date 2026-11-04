@@ -1,0 +1,106 @@
+import json
+import math
+from pathlib import Path
+
+import pytest
+
+import datrail_policy
+from datrail_policy import ConditionCheck, ConditionProblem, check_condition
+
+_VECTORS = Path(__file__).parents[3] / "vectors"
+_CASES = json.loads((_VECTORS / "judge_condition_conformance_cases.json").read_text())["cases"]
+# What makes a reader refuse the request that reaches the condition, or Rail Center refuse it.
+_REFUSING_CODES = {"unknown_op", "unwritable_number"}
+
+
+def _get_codes(check):
+    return [(problem.pointer, problem.code, problem.scope) for problem in check.problems]
+
+
+def test_has_cases():
+    assert _CASES
+
+
+@pytest.mark.parametrize("case", _CASES, ids=lambda case: case["name"])
+def test_condition_vectors(case):
+    check = check_condition(case["condition"])
+
+    refused = any(
+        problem.scope == "enforcement" or problem.code in _REFUSING_CODES
+        for problem in check.problems
+    )
+    assert refused is (case["expect"] == "refused"), check
+
+
+def test_accepts_a_condition_rail_center_publishes():
+    condition = {"path": "ticket.posture.categories.identity.score", "op": "lt", "value": 40}
+
+    assert check_condition(condition) == ConditionCheck(problems=())
+
+
+def test_reports_a_problem_as_data():
+    check = check_condition({"path": "ticket.skills", "op": "in", "value": "x"})
+
+    assert check == ConditionCheck(
+        problems=(
+            ConditionProblem(
+                pointer="/value",
+                code="operand_shape",
+                scope="enforcement",
+                expected="list",
+                message="in takes a list",
+            ),
+        )
+    )
+
+
+def test_reports_what_only_rail_center_refuses():
+    check = check_condition({"path": "ticket.posture.score", "op": "lt", "value": 1})
+
+    assert _get_codes(check) == [("/path", "unknown_path", "authoring")]
+
+
+def test_reports_a_non_object():
+    assert _get_codes(check_condition(["path"])) == [("", "not_an_object", "enforcement")]
+
+
+@pytest.mark.parametrize("number", [math.nan, math.inf, -math.inf])
+def test_reports_each_number_that_cannot_be_written_back(number):
+    condition = {"path": "ticket.skills", "op": "in", "value": ["a", number], "x/~": number}
+
+    check = check_condition(condition)
+
+    assert _get_codes(check) == [
+        ("/value/1", "unwritable_number", "authoring"),
+        ("/x~1~0", "unwritable_number", "authoring"),
+    ]
+
+
+def test_reports_a_number_past_a_double():
+    check = check_condition({"path": "ticket.posture.overall.score", "op": "lt", "value": 10**400})
+
+    assert _get_codes(check) == [("", "unreadable", "enforcement")]
+
+
+def test_takes_a_custom_ticket_schema():
+    condition = {"path": "ticket.tenant", "op": "eq", "value": "a"}
+
+    assert check_condition(condition, ticket_schema={"tenant": "string"}).problems == ()
+    assert _get_codes(check_condition(condition)) == [("/path", "unknown_path", "authoring")]
+
+
+def test_reads_the_default_schema_at_call_time(monkeypatch):
+    monkeypatch.setattr(datrail_policy, "TICKET_SCHEMA", {"tenant": "string"})
+
+    assert check_condition({"path": "ticket.tenant", "op": "existing"}).problems == ()
+
+
+@pytest.mark.parametrize("schema", [{"a": "header"}, {"a": 1}, {"a": {"b": None}}])
+def test_raises_on_a_malformed_schema(schema):
+    with pytest.raises(ValueError, match="ticket schema"):
+        check_condition({"path": "ticket.a", "op": "existing"}, ticket_schema=schema)
+
+
+def test_raises_on_a_condition_that_is_not_json():
+    with pytest.raises(TypeError):
+        check_condition({"path": "ticket.a", "op": "in", "value": {1, 2}})

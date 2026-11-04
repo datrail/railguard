@@ -12,9 +12,9 @@ mod _native {
     use pyo3::{Bound, IntoPyObject, PyResult, pyclass, pyfunction};
     use rail_policy::{
         Budget, ChainVerdict, Decision, Endpoint, EnforcementMode, Environment, Evaluation,
-        FallbackDenial, Headers, Judge, JudgingMode, Lookup, Refusal, TicketState, TicketVerifier,
-        Trace, Verdict, compile_bundle as compile, judge_traced, parse_bundle, parse_ticket,
-        sanitize,
+        FallbackDenial, Headers, Judge, JudgingMode, Lookup, Refusal, TicketSchema, TicketState,
+        TicketVerifier, Trace, Verdict, check_condition as check, compile_bundle as compile,
+        judge_traced, parse_bundle, parse_ticket, sanitize,
     };
     use serde::Serialize;
     use serde_json::{Map, Value};
@@ -149,6 +149,18 @@ mod _native {
             TicketState::Valid(ticket) => ("valid", Some(ticket.claims)),
         };
         Ok(write_json(&TicketReading { state, claims }))
+    }
+
+    /// Every problem with the condition, as JSON text. The schema is the caller's, so a malformed
+    /// one raises.
+    #[pyfunction]
+    #[pyo3(signature = (condition, *, ticket_schema))]
+    fn check_condition(condition: &str, ticket_schema: &str) -> PyResult<String> {
+        let schema = serde_json::from_str(ticket_schema)
+            .map_err(|e| e.to_string())
+            .and_then(|schema| TicketSchema::from_value(&schema))
+            .map_err(|problem| PyValueError::new_err(format!("ticket schema: {problem}")))?;
+        Ok(write_json(&check(condition, &schema)))
     }
 
     /// The endpoint, and the claims of a usable ticket, or why the sample can't be read.
