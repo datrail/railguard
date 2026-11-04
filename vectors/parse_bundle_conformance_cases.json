@@ -1,0 +1,3367 @@
+{
+  "_comment": "Conformance cases for parse_bundle, taken from datrail/gateway's tests/vectors/bundle.json at 6758b77. Bundles are filled in to the shape Rail Center publishes. Cases this parser answers differently from the gateway are removed: they are input Rail Center does not publish, or version policy, which is checked after parsing. A usable case carries the chain it resolves to, in evaluation order.",
+  "cases": [
+    {
+      "name": "the contract's worked example",
+      "note": "Shaped after the worked example in policy-evaluation-contract.md.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#refund_order",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "lt",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": true,
+      "chain": [
+        "5c8f1e42-0000-4000-8000-0000000000a1"
+      ],
+      "chain_priorities": [
+        1
+      ]
+    },
+    {
+      "name": "an empty bindings list narrows nothing, so the whole chain applies",
+      "note": "The rule read the other way round is a total loss of enforcement, which is why the contract states it twice.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          },
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a2",
+            "name": "P-a2",
+            "priority": 2
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": true,
+      "chain": [
+        "5c8f1e42-0000-4000-8000-0000000000a1",
+        "5c8f1e42-0000-4000-8000-0000000000a2"
+      ],
+      "chain_priorities": [
+        1,
+        2
+      ]
+    },
+    {
+      "name": "a disabled policy is not in the chain",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": false,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          },
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a2",
+            "name": "P-a2",
+            "priority": 2
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": true,
+      "chain": [
+        "5c8f1e42-0000-4000-8000-0000000000a2"
+      ],
+      "chain_priorities": [
+        2
+      ]
+    },
+    {
+      "name": "the chain orders by priority ascending, not as listed",
+      "note": "Numerically. A string comparison puts 10 before 2.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a3",
+            "name": "P-a3",
+            "priority": 10
+          },
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 2
+          },
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a2",
+            "name": "P-a2",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": true,
+      "chain": [
+        "5c8f1e42-0000-4000-8000-0000000000a2",
+        "5c8f1e42-0000-4000-8000-0000000000a1",
+        "5c8f1e42-0000-4000-8000-0000000000a3"
+      ],
+      "chain_priorities": [
+        1,
+        2,
+        10
+      ]
+    },
+    {
+      "name": "a tie breaks by canonical id, not by position",
+      "note": "Two policies at one priority are never ordered by however the bundle happened to list them.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a3",
+            "name": "P-a3",
+            "priority": 5
+          },
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 5
+          },
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a2",
+            "name": "P-a2",
+            "priority": 5
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": true,
+      "chain": [
+        "5c8f1e42-0000-4000-8000-0000000000a1",
+        "5c8f1e42-0000-4000-8000-0000000000a2",
+        "5c8f1e42-0000-4000-8000-0000000000a3"
+      ],
+      "chain_priorities": [
+        5,
+        5,
+        5
+      ]
+    },
+    {
+      "name": "a negative priority orders ahead of a positive one",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          },
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a2",
+            "name": "P-a2",
+            "priority": -5
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": true,
+      "chain": [
+        "5c8f1e42-0000-4000-8000-0000000000a2",
+        "5c8f1e42-0000-4000-8000-0000000000a1"
+      ],
+      "chain_priorities": [
+        -5,
+        1
+      ]
+    },
+    {
+      "name": "a bound id naming no policy is refused",
+      "note": "Stricter than the contract, which says it binds nothing. Rail Center only binds policies it publishes.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a2"
+            ]
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a bound id naming a disabled policy binds nothing either",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": false,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          },
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a2",
+            "name": "P-a2",
+            "priority": 2
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": true,
+      "chain": [
+        "5c8f1e42-0000-4000-8000-0000000000a2"
+      ],
+      "chain_priorities": [
+        2
+      ]
+    },
+    {
+      "name": "a policy named with the empty string keeps that name",
+      "note": "The boundary between the rule this file states -- a name is used when it is a string -- and the falsy test that reads the same on every other input. An operator who names a rule nothing gets nothing, not the id.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": true,
+      "chain": [
+        "5c8f1e42-0000-4000-8000-0000000000a1"
+      ],
+      "chain_priorities": [
+        1
+      ]
+    },
+    {
+      "name": "a priority at the largest value a double separates",
+      "note": "The bound itself is admitted; one past it is not. Both ends, because an absolute value is easy to leave out.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 9007199254740991
+          },
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a2",
+            "name": "P-a2",
+            "priority": -9007199254740991
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": true,
+      "chain": [
+        "5c8f1e42-0000-4000-8000-0000000000a2",
+        "5c8f1e42-0000-4000-8000-0000000000a1"
+      ],
+      "chain_priorities": [
+        -9007199254740991,
+        9007199254740991
+      ]
+    },
+    {
+      "name": "an endpoint key is carried exactly as it arrived",
+      "note": "Matched exactly: no case folding and no trimming. Folding it would let a bundle binding FinRetail.Orders as open disarm a request resolving to finretail.orders, which is the dangerous direction.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#  FinRetail.Orders  ",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": true,
+      "chain": [
+        "5c8f1e42-0000-4000-8000-0000000000a1"
+      ],
+      "chain_priorities": [
+        1
+      ]
+    },
+    {
+      "name": "an endpoint key is not normalised either",
+      "note": "Decomposed, and carried decomposed. The contract calls normalising both sides to NFC the more tempting of the two mistakes and says to compare the code points as they arrive: an endpoint registers under one form, and a rule written against the other must not match it.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#café.orders",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": true,
+      "chain": [
+        "5c8f1e42-0000-4000-8000-0000000000a1"
+      ],
+      "chain_priorities": [
+        1
+      ]
+    },
+    {
+      "name": "a content hash is carried exactly as it arrived",
+      "note": "A reader re-fetches on a timer and re-parses only when this changes, so a content hash normalised on the way through would either re-parse on every fetch or never notice a change at all. Mixed case because folding it is the normalisation most easily reached for.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": " A3F1c09E⁵b2D4485 ",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": true,
+      "chain": [
+        "5c8f1e42-0000-4000-8000-0000000000a1"
+      ],
+      "chain_priorities": [
+        1
+      ]
+    },
+    {
+      "name": "a content hash of exactly the length an endpoint key may be",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": true,
+      "chain": [
+        "5c8f1e42-0000-4000-8000-0000000000a1"
+      ],
+      "chain_priorities": [
+        1
+      ]
+    },
+    {
+      "name": "unrecognised keys are accepted rather than refused",
+      "note": "Dropped rather than carried — nothing downstream reads them, and this validator returns a fixed shape. What matters is that they do not refuse the bundle: refusing would make adding a field to the grammar a flag day across two independently released implementations.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e",
+            "future": true,
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "future_top_level": "x",
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "future_field": 1,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": true,
+      "chain": [
+        "5c8f1e42-0000-4000-8000-0000000000a1"
+      ],
+      "chain_priorities": [
+        1
+      ]
+    },
+    {
+      "name": "a bundle with no policies at all is usable and allows",
+      "note": "Distinct from a fetch that failed, which is not an empty bundle.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": true,
+      "chain": [],
+      "chain_priorities": []
+    },
+    {
+      "name": "a response that is not an object",
+      "bundle": [],
+      "usable": false
+    },
+    {
+      "name": "no policies key at all",
+      "note": "Absent, not merely wrong-shaped. Read as an empty list it is a bundle that allows everything.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "no bindings key at all",
+      "note": "Always present, so a reader can tell 'no endpoint is narrowed' from 'this bundle does not describe bindings' without a special case. Defaulting it to empty erases that distinction.",
+      "bundle": {
+        "binding_fallback": "block",
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a response that is a JSON scalar",
+      "bundle": "nope",
+      "usable": false
+    },
+    {
+      "name": "no content hash to cache on",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [],
+        "ticket_fallback": "block",
+        "schema_version": "2.0"
+      },
+      "usable": false
+    },
+    {
+      "name": "a content hash that is not a string",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": 17,
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "two bindings for one endpoint whose key carries a newline",
+      "note": "The duplicate refusal names the key, and this one is chosen by whoever produced the bundle.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e\nforged: line",
+            "mode": "open",
+            "policy_ids": []
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e\nforged: line",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a binding whose key carries a newline and whose id cannot be compared",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e\nforged: line",
+            "mode": "gated",
+            "policy_ids": [
+              "nope"
+            ]
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "an endpoint_key that is a long list",
+      "note": "Reported by its kind, never by its content. Interpolating it puts the whole array in the log, and its length is whoever produced the bundle's to choose.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": [
+              "k0",
+              "k1",
+              "k2",
+              "k3",
+              "k4",
+              "k5",
+              "k6",
+              "k7",
+              "k8",
+              "k9",
+              "k10",
+              "k11",
+              "k12",
+              "k13",
+              "k14",
+              "k15",
+              "k16",
+              "k17",
+              "k18",
+              "k19",
+              "k20",
+              "k21",
+              "k22",
+              "k23",
+              "k24",
+              "k25",
+              "k26",
+              "k27",
+              "k28",
+              "k29",
+              "k30",
+              "k31",
+              "k32",
+              "k33",
+              "k34",
+              "k35",
+              "k36",
+              "k37",
+              "k38",
+              "k39",
+              "k40",
+              "k41",
+              "k42",
+              "k43",
+              "k44",
+              "k45",
+              "k46",
+              "k47",
+              "k48",
+              "k49",
+              "k50",
+              "k51",
+              "k52",
+              "k53",
+              "k54",
+              "k55",
+              "k56",
+              "k57",
+              "k58",
+              "k59",
+              "k60",
+              "k61",
+              "k62",
+              "k63",
+              "k64",
+              "k65",
+              "k66",
+              "k67",
+              "k68",
+              "k69",
+              "k70",
+              "k71",
+              "k72",
+              "k73",
+              "k74",
+              "k75",
+              "k76",
+              "k77",
+              "k78",
+              "k79",
+              "k80",
+              "k81",
+              "k82",
+              "k83",
+              "k84",
+              "k85",
+              "k86",
+              "k87",
+              "k88",
+              "k89",
+              "k90",
+              "k91",
+              "k92",
+              "k93",
+              "k94",
+              "k95",
+              "k96",
+              "k97",
+              "k98",
+              "k99",
+              "k100",
+              "k101",
+              "k102",
+              "k103",
+              "k104",
+              "k105",
+              "k106",
+              "k107",
+              "k108",
+              "k109",
+              "k110",
+              "k111",
+              "k112",
+              "k113",
+              "k114",
+              "k115",
+              "k116",
+              "k117",
+              "k118",
+              "k119",
+              "k120",
+              "k121",
+              "k122",
+              "k123",
+              "k124",
+              "k125",
+              "k126",
+              "k127",
+              "k128",
+              "k129",
+              "k130",
+              "k131",
+              "k132",
+              "k133",
+              "k134",
+              "k135",
+              "k136",
+              "k137",
+              "k138",
+              "k139",
+              "k140",
+              "k141",
+              "k142",
+              "k143",
+              "k144",
+              "k145",
+              "k146",
+              "k147",
+              "k148",
+              "k149",
+              "k150",
+              "k151",
+              "k152",
+              "k153",
+              "k154",
+              "k155",
+              "k156",
+              "k157",
+              "k158",
+              "k159",
+              "k160",
+              "k161",
+              "k162",
+              "k163",
+              "k164",
+              "k165",
+              "k166",
+              "k167",
+              "k168",
+              "k169",
+              "k170",
+              "k171",
+              "k172",
+              "k173",
+              "k174",
+              "k175",
+              "k176",
+              "k177",
+              "k178",
+              "k179",
+              "k180",
+              "k181",
+              "k182",
+              "k183",
+              "k184",
+              "k185",
+              "k186",
+              "k187",
+              "k188",
+              "k189",
+              "k190",
+              "k191",
+              "k192",
+              "k193",
+              "k194",
+              "k195",
+              "k196",
+              "k197",
+              "k198",
+              "k199",
+              "k200",
+              "k201",
+              "k202",
+              "k203",
+              "k204",
+              "k205",
+              "k206",
+              "k207",
+              "k208",
+              "k209",
+              "k210",
+              "k211",
+              "k212",
+              "k213",
+              "k214",
+              "k215",
+              "k216",
+              "k217",
+              "k218",
+              "k219",
+              "k220",
+              "k221",
+              "k222",
+              "k223",
+              "k224",
+              "k225",
+              "k226",
+              "k227",
+              "k228",
+              "k229",
+              "k230",
+              "k231",
+              "k232",
+              "k233",
+              "k234",
+              "k235",
+              "k236",
+              "k237",
+              "k238",
+              "k239",
+              "k240",
+              "k241",
+              "k242",
+              "k243",
+              "k244",
+              "k245",
+              "k246",
+              "k247",
+              "k248",
+              "k249",
+              "k250",
+              "k251",
+              "k252",
+              "k253",
+              "k254",
+              "k255",
+              "k256",
+              "k257",
+              "k258",
+              "k259",
+              "k260",
+              "k261",
+              "k262",
+              "k263",
+              "k264",
+              "k265",
+              "k266",
+              "k267",
+              "k268",
+              "k269",
+              "k270",
+              "k271",
+              "k272",
+              "k273",
+              "k274",
+              "k275",
+              "k276",
+              "k277",
+              "k278",
+              "k279",
+              "k280",
+              "k281",
+              "k282",
+              "k283",
+              "k284",
+              "k285",
+              "k286",
+              "k287",
+              "k288",
+              "k289",
+              "k290",
+              "k291",
+              "k292",
+              "k293",
+              "k294",
+              "k295",
+              "k296",
+              "k297",
+              "k298",
+              "k299",
+              "k300",
+              "k301",
+              "k302",
+              "k303",
+              "k304",
+              "k305",
+              "k306",
+              "k307",
+              "k308",
+              "k309",
+              "k310",
+              "k311",
+              "k312",
+              "k313",
+              "k314",
+              "k315",
+              "k316",
+              "k317",
+              "k318",
+              "k319",
+              "k320",
+              "k321",
+              "k322",
+              "k323",
+              "k324",
+              "k325",
+              "k326",
+              "k327",
+              "k328",
+              "k329",
+              "k330",
+              "k331",
+              "k332",
+              "k333",
+              "k334",
+              "k335",
+              "k336",
+              "k337",
+              "k338",
+              "k339",
+              "k340",
+              "k341",
+              "k342",
+              "k343",
+              "k344",
+              "k345",
+              "k346",
+              "k347",
+              "k348",
+              "k349",
+              "k350",
+              "k351",
+              "k352",
+              "k353",
+              "k354",
+              "k355",
+              "k356",
+              "k357",
+              "k358",
+              "k359",
+              "k360",
+              "k361",
+              "k362",
+              "k363",
+              "k364",
+              "k365",
+              "k366",
+              "k367",
+              "k368",
+              "k369",
+              "k370",
+              "k371",
+              "k372",
+              "k373",
+              "k374",
+              "k375",
+              "k376",
+              "k377",
+              "k378",
+              "k379",
+              "k380",
+              "k381",
+              "k382",
+              "k383",
+              "k384",
+              "k385",
+              "k386",
+              "k387",
+              "k388",
+              "k389",
+              "k390",
+              "k391",
+              "k392",
+              "k393",
+              "k394",
+              "k395",
+              "k396",
+              "k397",
+              "k398",
+              "k399",
+              "k400",
+              "k401",
+              "k402",
+              "k403",
+              "k404",
+              "k405",
+              "k406",
+              "k407",
+              "k408",
+              "k409",
+              "k410",
+              "k411",
+              "k412",
+              "k413",
+              "k414",
+              "k415",
+              "k416",
+              "k417",
+              "k418",
+              "k419",
+              "k420",
+              "k421",
+              "k422",
+              "k423",
+              "k424",
+              "k425",
+              "k426",
+              "k427",
+              "k428",
+              "k429",
+              "k430",
+              "k431",
+              "k432",
+              "k433",
+              "k434",
+              "k435",
+              "k436",
+              "k437",
+              "k438",
+              "k439",
+              "k440",
+              "k441",
+              "k442",
+              "k443",
+              "k444",
+              "k445",
+              "k446",
+              "k447",
+              "k448",
+              "k449",
+              "k450",
+              "k451",
+              "k452",
+              "k453",
+              "k454",
+              "k455",
+              "k456",
+              "k457",
+              "k458",
+              "k459",
+              "k460",
+              "k461",
+              "k462",
+              "k463",
+              "k464",
+              "k465",
+              "k466",
+              "k467",
+              "k468",
+              "k469",
+              "k470",
+              "k471",
+              "k472",
+              "k473",
+              "k474",
+              "k475",
+              "k476",
+              "k477",
+              "k478",
+              "k479",
+              "k480",
+              "k481",
+              "k482",
+              "k483",
+              "k484",
+              "k485",
+              "k486",
+              "k487",
+              "k488",
+              "k489",
+              "k490",
+              "k491",
+              "k492",
+              "k493",
+              "k494",
+              "k495",
+              "k496",
+              "k497",
+              "k498",
+              "k499"
+            ],
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "an endpoint_key that is a list carrying a newline",
+      "note": "Not a string, so it is reported by its kind — which is the point: interpolating it directly would put its contents in the log.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": [
+              "real\nforged: line"
+            ],
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a refusal naming an endpoint_key that carries an escape sequence",
+      "note": "Refused for its empty gated ids, not for the escape sequence.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e\u001b[31m",
+            "mode": "gated",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a refusal naming an endpoint_key that carries a newline",
+      "note": "Refused for its empty gated ids. The mode is deliberately valid here, so the mode guard is not what answers and the message is reached with the newline in the key.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#real\nforged: line",
+            "mode": "gated",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a refusal naming both an unreadable mode and an unreadable key",
+      "note": "One message interpolates two wire values, and each needs its own guard — pinning the mode leaves the key beside it unpinned.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#real\u001b[31mforged",
+            "mode": "clo\u001b[31msed",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a binding whose mode carries a bidi override",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e",
+            "mode": "gated‮open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a binding naming an id that carries a null byte",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e",
+            "mode": "gated",
+            "policy_ids": [
+              "a\u0000b"
+            ]
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a policy id carrying an escape sequence",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "\u001b[31mnope",
+            "name": "P-pe",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "policies is not a list",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": {},
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "bindings is not a list",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": {},
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a policy that is not an object",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          "not a policy"
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a refusal naming a policy entry that is a string with a newline",
+      "note": "The entry itself is interpolated, and here it is whoever produced the bundle's text rather than a shape.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          "real\nforged: line"
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a refusal naming a priority that carries a newline",
+      "note": "A priority that is not a number is named in the refusal, and a string is what the wire can put there.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": "one\nforged: line"
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a policy id that cannot be compared",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "not-a-uuid",
+            "name": "P-id",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a policy with no id at all",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "name": "P",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a policy whose id is null",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": null,
+            "name": "P-??",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a policy id that is not a string",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": 12345,
+            "name": "P-??",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a policy id that is thirty-two digits and not a string",
+      "note": "The length and alphabet checks both pass once it is stringified, so only the type check refuses it. A shorter number is refused by its length and pins nothing.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": 1.2345678901234567e+31,
+            "name": "P-??",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a policy id one hex digit short",
+      "note": "Thirty-one digits. The count is checked after hyphens are stripped, so a spelling cannot make it up.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a",
+            "name": "P-0a",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a policy id one hex digit long",
+      "note": "Thirty-three. Refused for the same reason, and by Rail Center too.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1a",
+            "name": "P-1a",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a policy id padded with spaces",
+      "note": "Whitespace is not stripped before the count and alphabet are checked, so the spaces are two characters that are not hex. Rail Center's uuid.UUID raises on it too; the TypeScript gateway being replaced trimmed first and read it, which is the divergence.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "  5c8f1e42-0000-4000-8000-0000000000a1  ",
+            "name": "P-  ",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a policy id padded with a tab and a newline",
+      "note": "Whitespace is not trimmed here. The TypeScript gateway trims and would read this; Rail Center does not and refuses it.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "\t5c8f1e42-0000-4000-8000-0000000000a1\n",
+            "name": "P-1\n",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a policy id padded on the left only",
+      "note": "One side, because a partial trim is the reimplementation to catch and every other padded case pads both.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "  5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a policy id padded on the right only",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1  ",
+            "name": "P-  ",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a braced id padded inside its braces",
+      "note": "Stripping after the braces come off is the other half of the same reimplementation.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "{ 5c8f1e42-0000-4000-8000-0000000000a1 }",
+            "name": "P- }",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a binding naming an id padded with spaces",
+      "note": "The rule holds on a bound id as well as on a policy's own.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e",
+            "mode": "gated",
+            "policy_ids": [
+              "  5c8f1e42-0000-4000-8000-0000000000a1  "
+            ]
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "an id opened with a brace and not closed",
+      "note": "Both ends or neither: one brace alone leaves the other end unstripped and a brace among the digits.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "{5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "an id closed with a brace and not opened",
+      "note": "The same from the other side. Rail Center reads both, its strip taking any number from either end.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1}",
+            "name": "P-1}",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "doubled braces around an id",
+      "note": "Exactly one pair is stripped here, so the inner pair is still there and the count is 34 rather than 32 — it is the length check that answers, before the alphabet is looked at. uuid.UUID strips braces from both ends however many there are, so Rail Center reads this.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "{{5c8f1e42-0000-4000-8000-0000000000a1}}",
+            "name": "P-}}",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "an id carrying an interior urn:uuid: prefix",
+      "note": "The whole prefix, in the middle. Replacing it wherever it appears rather than stripping it from the front reads a policy id out of this; the shorter interior `uuid:` case below does not reach that.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42urn:uuid:0000400080000000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "an id carrying an interior uuid: prefix",
+      "note": "uuid.UUID replaces `uuid:` anywhere in the string, not only at the front, so Rail Center reads a policy id out of this.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42uuid:0000400080000000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "an id of thirty-three characters carrying an underscore",
+      "note": "Only hyphens are stripped. Stripping underscores too would leave thirty-two hex digits here and read a policy id out of it — and Rail Center refuses this one for its length, so the two would then disagree in the other direction as well.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42_0000400080000000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "an id carrying an underscore in place of a digit",
+      "note": "Thirty-two characters, so uuid.UUID's length check passes and int(x, 16) then reads the underscore as a digit separator. A thirty-three-character form with an underscore added rather than substituted is refused there for its length and would demonstrate nothing.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e4_0000400080000000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "an id carrying a leading plus",
+      "note": "int(x, 16) accepts a leading sign.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "name": "P-aa",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "an id written in Arabic-Indic digits",
+      "note": "int(x, 16) accepts any Unicode decimal digit, so Rail Center reads an id here. The contract says hex, and hex is ASCII.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "٠٠٠٠٠٠٠٠٠٠٠٠٠٠٠٠٠٠٠٠٠٠٠٠٠٠٠٠٠٠٠٠",
+            "name": "P-٠٠",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "an id padded after its URN prefix",
+      "note": "The headline rule is that whitespace is not trimmed, and the padding that tests it has to sit where a prefix strip would otherwise absorb it.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "urn:uuid:  5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a leading minus in place of a digit",
+      "note": "Refused in Rail Center too — uuid.UUID strips hyphens, leaving 31 digits — which is what separates it from the leading plus above, where int(x, 16) reads the sign.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "name": "P-aa",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "an opening brace in front of thirty-three hex digits",
+      "note": "Stripping a leading brace without requiring its closer takes a character off the far end too, and thirty-three digits leaves thirty-two behind — a policy id read out of a value that is not one.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "{aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "name": "P-aa",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "thirty-three hex digits with a closing brace behind them",
+      "note": "The same shape from the other side, for a reader that strips on either brace rather than on both.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}",
+            "name": "P-a}",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "an undashed id closed with a brace but not opened",
+      "note": "Thirty-two hex digits and a stray brace. Stripping a closing brace without requiring its opener reads a policy id out of this.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e420000400080000000000000a1}",
+            "name": "P-1}",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a policy id of the right length that is not hex",
+      "note": "Thirty-two characters and none of them a hex digit, so only the alphabet check answers.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+            "name": "P-zz",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a policy id whose last digit is not hex",
+      "note": "Thirty-two characters, hex up to the last one. A prefix match accepts it and reads a policy id out of a value that is not one.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "0000000000000000000000000000000z",
+            "name": "P-0z",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "one policy id appearing twice",
+      "note": "Two entries sharing an id are two claims about the same rule, and nothing in a bundle says which is current. Refused at any priorities, not only equal ones.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          },
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 2
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "one policy id appearing twice in different spellings",
+      "note": "Canonicalised before the duplicate check, so two spellings of one id are one id.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          },
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5C8F1E42-0000-4000-8000-0000000000A1",
+            "name": "P-A1",
+            "priority": 2
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a policy with no priority",
+      "note": "Indistinguishable from an explicit null once read — `get` returns None for both — so there is one case rather than two.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P"
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a fractional priority",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1.5
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a boolean priority",
+      "note": "isinstance(True, int) is true in Python and typeof true is 'boolean' in TypeScript. Unsaid, the two sides disagree.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": true
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a priority written as a string",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": "1"
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a binding that is not an object",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          "nope"
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a binding that is a list",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          []
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a refusal naming a binding entry that is a string with a newline",
+      "note": "The binding half of the policy case above. Both interpolate the entry, so both need the escaping.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          "real\nforged: line"
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a binding whose endpoint_key is not a string",
+      "note": "A language that coerces it narrows a request whose resolved key is the string \"123\".",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": 123,
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "two bindings for one endpoint",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e",
+            "mode": "open",
+            "policy_ids": []
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a mode in the wrong case",
+      "note": "Exact, not folded. Folding turns an unreadable mode into a live narrowing; Rail Center refuses this too.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e",
+            "mode": "GATED",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a mode with surrounding whitespace",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e",
+            "mode": " gated ",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a mode outside gated and open",
+      "note": "The two guesses are 'the listed policies apply' and 'none do', which is the widest disagreement available.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e",
+            "mode": "closed",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a missing mode",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a refusal naming a key with a newline whose policy_ids is not a list",
+      "note": "One of two branches where the key is interpolated and no case paired it with an unsafe key.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#real\nforged: line",
+            "mode": "gated",
+            "policy_ids": "abc"
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a refusal naming a key with a newline on an open binding that names policies",
+      "note": "The other.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#real\nforged: line",
+            "mode": "open",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "an open binding whose policy_ids is an empty string",
+      "note": "Empty and falsy, so the open branch's check passes and nothing else looks at it. Only the type test refuses this.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e",
+            "mode": "open",
+            "policy_ids": ""
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "policy_ids given as an object",
+      "note": "An object iterates as its keys, so a reader that does not check the type binds the endpoint to whatever those happen to be.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e",
+            "mode": "gated",
+            "policy_ids": {
+              "5c8f1e42-0000-4000-8000-0000000000a1": true
+            }
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "policy_ids given as a string",
+      "note": "Refused by its type. Under `gated` the bound-id check would refuse it anyway, one character at a time; the case pinning the type check itself is the open one above, where nothing else looks at it.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e",
+            "mode": "gated",
+            "policy_ids": "5c8f1e42-0000-4000-8000-0000000000a1"
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "an open binding that still names policies",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e",
+            "mode": "open",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a gated binding naming no policy",
+      "note": "Read literally it disarms the endpoint completely — no threshold, and not even the rule denying a request that presents no ticket — without anyone having written open.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e",
+            "mode": "gated",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a binding naming an id that cannot be compared",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e",
+            "mode": "gated",
+            "policy_ids": [
+              "nope"
+            ]
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a binding naming a null id",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#e",
+            "mode": "gated",
+            "policy_ids": [
+              null
+            ]
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a bad binding is refused even when an earlier one is fine",
+      "note": "The whole set is checked, not only the entry a request needs. A lazy check surfaces the fault on whichever endpoint is called first.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#ok",
+            "mode": "open",
+            "policy_ids": []
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#bad",
+            "mode": "gated",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a bundle whose ninth policy cannot be ordered is refused whole",
+      "note": "Refused eagerly, whatever the walk would have answered: a block at priority 1 would have denied first and the bundle is still unusable.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "existing",
+              "path": "ticket"
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P-a1",
+            "priority": 1
+          },
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-000000000002",
+            "name": "P-02",
+            "priority": 2
+          },
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-000000000003",
+            "name": "P-03",
+            "priority": 3
+          },
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-000000000004",
+            "name": "P-04",
+            "priority": 4
+          },
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-000000000005",
+            "name": "P-05",
+            "priority": 5
+          },
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-000000000006",
+            "name": "P-06",
+            "priority": 6
+          },
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-000000000007",
+            "name": "P-07",
+            "priority": 7
+          },
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-000000000008",
+            "name": "P-08",
+            "priority": 8
+          },
+          {
+            "action": "block",
+            "condition": {},
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a2",
+            "name": "P-a2",
+            "priority": "nine"
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a version with no minor is refused",
+      "note": "A version has two or three parts. Reading a lone major as `2.0` would be guessing.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "policies": [],
+        "schema_version": "2",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a pre-release suffix is refused",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "policies": [],
+        "schema_version": "2.0-rc1",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "non-ASCII digits are refused",
+      "note": "Arabic-Indic `١٠`. The grammar is ASCII digits, and this case exists because the obvious implementation does not enforce that: Python's `str.isdigit` is true here and `int` parses it, so a reader written that way accepts a version a Go or TypeScript reimplementation refuses. The two must agree.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "policies": [],
+        "schema_version": "٢.٠",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "fullwidth digits are refused",
+      "note": "The same hazard in a different block. `１` is also `isdigit`, and `int` parses it too.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "policies": [],
+        "schema_version": "２.０",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a version whose parts are not digits is refused",
+      "note": "The grammar is the whole of what leaves a run of digits for the reader to convert, so a part made of something else is refused by the grammar rather than by the conversion.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "policies": [],
+        "schema_version": "x.y",
+        "ticket_fallback": "block"
+      },
+      "usable": false
+    },
+    {
+      "name": "a ticket fallback in the wrong case refuses the bundle",
+      "note": "The vocabulary is `block` and `pass`, exactly. A reader that tests only for `block` reads this as `pass` and admits every unticketed call Rail Center meant to refuse.",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [],
+        "schema_version": "2.0",
+        "ticket_fallback": "BLOCK"
+      },
+      "usable": false
+    },
+    {
+      "name": "a ticket fallback outside the vocabulary refuses the bundle",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [],
+        "schema_version": "2.0",
+        "ticket_fallback": "allow"
+      },
+      "usable": false
+    }
+  ]
+}

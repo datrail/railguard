@@ -1,0 +1,12 @@
+[package]
+name = "rail-policy"
+edition = "2024"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+# The default parser misreads some doubles by a bit, and operands are compared as doubles.
+serde_json = { version = "1", features = ["float_roundtrip"] }
+uuid = { version = "1", default-features = false, features = ["serde"] }
+
+[lints.rust]
+unsafe_code = "forbid"
