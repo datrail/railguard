@@ -49,8 +49,7 @@ impl TicketSettings {
     }
 }
 
-/// Reads the ticket's settings: every one set is judged, and the host and sandbox are refused
-/// unset only when `required`. `None` when any is refused or either is unset.
+/// The ticket's settings, every one set judged; the host and sandbox are required if `required`.
 pub fn read_ticket_settings(settings: &mut Settings, required: bool) -> Option<TicketSettings> {
     let mut read = |name, max_chars| {
         let check = |text: &str| at_most(text, max_chars);
@@ -102,12 +101,12 @@ pub struct TicketQuery {
 
 /// A ticket to present, opaque, and the instant it stops being valid.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Ticket {
+pub struct OpaqueTicket {
     pub token: Secret,
     pub expires_at: SystemTime,
 }
 
-impl Ticket {
+impl OpaqueTicket {
     pub fn is_valid(&self, now: SystemTime) -> bool {
         now < self.expires_at
     }
@@ -116,7 +115,7 @@ impl Ticket {
 /// What Rail Center answered: a ticket, or that none exists for this host and sandbox.
 #[derive(Debug, PartialEq, Eq)]
 pub enum TicketAnswer {
-    Ticket(Ticket),
+    Ticket(OpaqueTicket),
     NoTicket,
 }
 
@@ -133,8 +132,7 @@ struct Entry {
     expires_at: String,
 }
 
-/// Fetches this host's ticket. `sent_at` is the wall-clock time read before the call, so the
-/// lifetime isn't credited with the round trip. An error is a failed fetch, never "no ticket".
+/// Fetches this host's ticket; `sent_at`, read before the call, keeps the round trip off its life.
 pub async fn fetch_ticket(
     client: &RailCenterClient,
     ticket: &TicketSettings,
@@ -197,7 +195,7 @@ pub async fn fetch_ticket(
             ticket.max_lifetime.as_secs()
         ));
     }
-    Ok(TicketAnswer::Ticket(Ticket {
+    Ok(TicketAnswer::Ticket(OpaqueTicket {
         token: Secret::new(entry.token),
         expires_at,
     }))
@@ -216,8 +214,7 @@ fn check_token(token: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Reads Rail Center's `expires_at`: whole seconds in UTC, `2026-07-28T10:15:00Z`, and nothing
-/// else.
+/// Reads `expires_at` as Rail Center writes it, `2026-07-28T10:15:00Z`, and nothing else.
 fn parse_expires_at(text: &str) -> Result<SystemTime, String> {
     let format = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
     PrimitiveDateTime::parse(text, &format)
