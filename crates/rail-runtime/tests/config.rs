@@ -102,8 +102,30 @@ fn a_secret_is_trimmed_and_never_debugs() {
 }
 
 #[test]
+#[ignore = "run by a_refused_configuration_exits_2"]
+fn refused_configuration_child() {
+    ConfigErrors(vec!["X must be true or false, got: 1".to_owned()]).exit();
+}
+
+#[test]
 fn a_refused_configuration_exits_2() {
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "refused_configuration_child",
+            "--ignored",
+            "--nocapture",
+        ])
+        .output()
+        .unwrap();
+
+    assert_eq!(output.status.code(), Some(EXIT_CODE));
     assert_eq!(EXIT_CODE, 2);
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(
+        stderr.contains("Invalid configuration detected:\n  X must be true or false, got: 1\n"),
+        "{stderr}"
+    );
 }
 
 #[test]
