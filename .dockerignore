@@ -1,0 +1,8 @@
+# Only what the build reads: cargo loads every workspace member, so each one's manifest and sources.
+*
+!Cargo.toml
+!Cargo.lock
+!rust-toolchain.toml
+!LICENSE
+!crates/*/Cargo.toml
+!crates/*/src
