@@ -18,10 +18,14 @@ fn read(pairs: &[(&str, &str)]) -> Result<Read, Vec<String>> {
     let disabled = read_disabled(&mut settings);
     let rail_center = disabled.and_then(|disabled| read_rail_center(&mut settings, !disabled));
     settings.finish().map_err(|errors| errors.0)?;
-    Ok(match disabled.expect("no refusal, so readable") {
-        true => Read::Disabled(rail_center),
-        false => Read::Enabled(rail_center.expect("no refusal, so settings")),
-    })
+    Ok(
+        match disabled.expect("read_disabled returns the flag when it refuses nothing") {
+            true => Read::Disabled(rail_center),
+            false => Read::Enabled(
+                rail_center.expect("read_rail_center returns the settings when it refuses nothing"),
+            ),
+        },
+    )
 }
 
 fn refusals(pairs: &[(&str, &str)]) -> Vec<String> {

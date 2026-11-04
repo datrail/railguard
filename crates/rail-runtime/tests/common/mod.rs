@@ -86,7 +86,7 @@ pub fn settings(url: &str, token: Option<&str>) -> RailCenterSettings {
     let mut reader = Settings::new(&variables);
     let read = read_rail_center(&mut reader, true);
     reader.finish().unwrap();
-    read.expect("no refusal, so settings")
+    read.expect("read_rail_center returns the settings when it refuses nothing")
 }
 
 pub fn client(url: &str) -> RailCenterClient {

@@ -35,7 +35,7 @@ impl Config {
             ticket: enabled.then(|| {
                 rail_center
                     .zip(ticket)
-                    .expect("required, so read when nothing is refused")
+                    .expect("the readers return what they require when nothing is refused")
             }),
         })
     }

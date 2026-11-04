@@ -7,7 +7,9 @@ fn read(pairs: &[(&str, &str)]) -> Result<TicketSettings, Vec<String>> {
     let mut settings = Settings::new(&variables);
     let read = read_ticket_settings(&mut settings, true);
     match settings.finish() {
-        Ok(()) => Ok(read.expect("read when nothing is refused")),
+        Ok(()) => {
+            Ok(read.expect("read_ticket_settings returns the settings when it refuses nothing"))
+        }
         Err(errors) => {
             assert!(read.is_none(), "nothing is read when anything is refused");
             Err(errors.0)
