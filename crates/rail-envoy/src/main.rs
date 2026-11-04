@@ -1,32 +1,24 @@
 //! The Envoy host, in the proxy role: ext_authz and ext_proc on a unix socket Envoy shares. For
-//! now it allows every request unchanged.
+//! now it allows every request, keeping the agent's x-rail headers from the upstream.
 //!
 //! `rail-envoy` serves; `rail-envoy probe` exits 0 if the server accepts a connection, for a
 //! container health check in an image with no shell.
 
+mod services;
+mod xrail;
+
 use std::fs;
 use std::os::unix::fs::{FileTypeExt, PermissionsExt};
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
 use std::process::ExitCode;
 
-use envoy_types::ext_authz::v3::CheckResponseExt;
-use envoy_types::ext_authz::v3::pb::{
-    Authorization, AuthorizationServer, CheckRequest, CheckResponse,
-};
-use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::{
-    ExternalProcessor, ExternalProcessorServer,
-};
-use envoy_types::pb::envoy::service::ext_proc::v3::processing_request::Request;
-use envoy_types::pb::envoy::service::ext_proc::v3::processing_response::Response;
-use envoy_types::pb::envoy::service::ext_proc::v3::{
-    BodyResponse, HeadersResponse, ProcessingRequest, ProcessingResponse, TrailersResponse,
-};
+use envoy_types::ext_authz::v3::pb::AuthorizationServer;
+use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
 use tokio::net::{UnixListener, UnixStream};
 use tokio::signal::unix::{Signal, SignalKind, signal};
 use tokio_stream::wrappers::UnixListenerStream;
-use tokio_stream::{Stream, StreamExt};
-use tonic::{Status, Streaming};
+
+use crate::services::{Allow, Continue};
 
 const DEFAULT_SOCKET: &str = "/run/rail/ext.sock";
 
@@ -45,6 +37,9 @@ impl Config {
 
 #[tokio::main]
 async fn main() -> ExitCode {
+    tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
+        .init();
     // The probe reads the same configuration, so it checks the socket where it's served.
     let config = Config::read();
     match std::env::args().nth(1).as_deref() {
@@ -73,6 +68,7 @@ async fn serve(socket: &Path) -> ExitCode {
             return ExitCode::from(2);
         }
     };
+    tracing::info!(socket = %socket.display(), "serving Envoy");
     let served = tonic::transport::Server::builder()
         .add_service(AuthorizationServer::new(Allow))
         .add_service(ExternalProcessorServer::new(Continue))
@@ -129,56 +125,5 @@ async fn probe(socket: &Path) -> ExitCode {
             eprintln!("no server on {}: {error}", socket.display());
             ExitCode::FAILURE
         }
-    }
-}
-
-struct Allow;
-
-#[tonic::async_trait]
-impl Authorization for Allow {
-    async fn check(
-        &self,
-        _request: tonic::Request<CheckRequest>,
-    ) -> Result<tonic::Response<CheckResponse>, Status> {
-        Ok(tonic::Response::new(CheckResponse::with_status(
-            Status::ok(""),
-        )))
-    }
-}
-
-struct Continue;
-
-type ProcessStream = Pin<Box<dyn Stream<Item = Result<ProcessingResponse, Status>> + Send>>;
-
-#[tonic::async_trait]
-impl ExternalProcessor for Continue {
-    type ProcessStream = ProcessStream;
-
-    async fn process(
-        &self,
-        request: tonic::Request<Streaming<ProcessingRequest>>,
-    ) -> Result<tonic::Response<ProcessStream>, Status> {
-        let replies = request.into_inner().map(|message| {
-            let request = message?
-                .request
-                .ok_or_else(|| Status::invalid_argument("the message names no phase"))?;
-            Ok(ProcessingResponse {
-                response: Some(continue_after(request)),
-                ..Default::default()
-            })
-        });
-        Ok(tonic::Response::new(Box::pin(replies)))
-    }
-}
-
-// Each phase Envoy sends must be answered with its own kind of response.
-fn continue_after(request: Request) -> Response {
-    match request {
-        Request::RequestHeaders(_) => Response::RequestHeaders(HeadersResponse::default()),
-        Request::ResponseHeaders(_) => Response::ResponseHeaders(HeadersResponse::default()),
-        Request::RequestBody(_) => Response::RequestBody(BodyResponse::default()),
-        Request::ResponseBody(_) => Response::ResponseBody(BodyResponse::default()),
-        Request::RequestTrailers(_) => Response::RequestTrailers(TrailersResponse::default()),
-        Request::ResponseTrailers(_) => Response::ResponseTrailers(TrailersResponse::default()),
     }
 }
