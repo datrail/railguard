@@ -10,12 +10,12 @@ fn text_is_trimmed_and_blank_is_unset() {
         .collect();
     let mut settings = Settings::new(&variables);
 
-    assert_eq!(settings.text("A"), Some("a"));
-    assert_eq!(settings.text("B"), None);
-    assert_eq!(settings.text("C"), None);
-    assert_eq!(settings.text("D"), None);
-    assert!(settings.is_set("A"));
-    assert!(!settings.is_set("B"));
+    assert_eq!(settings.get("A").text(), Some("a"));
+    assert_eq!(settings.get("B").text(), None);
+    assert_eq!(settings.get("C").text(), None);
+    assert_eq!(settings.get("D").text(), None);
+    assert!(settings.get("A").is_set());
+    assert!(!settings.get("B").is_set());
     assert_eq!(settings.finish(), Ok(()));
 }
 
@@ -26,9 +26,9 @@ fn a_value_that_is_not_utf8_is_refused_once() {
         .collect();
     let mut settings = Settings::new(&variables);
 
-    assert!(settings.is_set("A"));
-    assert_eq!(settings.required("A"), None);
-    assert_eq!(settings.secret("A"), None);
+    assert!(settings.get("A").is_set());
+    assert_eq!(settings.get("A").required(true).text(), None);
+    assert_eq!(settings.get("A").secret(), None);
 
     assert_eq!(
         settings.finish(),
@@ -45,9 +45,9 @@ fn parse_refusals_follow_the_name_and_are_all_kept() {
         text.parse::<u16>()
             .map_err(|_| format!("is not a port, got: {text}"))
     };
-    assert_eq!(settings.parse("N", number), None);
-    assert_eq!(settings.parse("M", number), None);
-    assert_eq!(settings.parse("UNSET", number), None);
+    assert_eq!(settings.get("N").parsed(number), None);
+    assert_eq!(settings.get("M").parsed(number), None);
+    assert_eq!(settings.get("UNSET").parsed(number), None);
     let errors = settings.finish().unwrap_err();
 
     assert_eq!(
@@ -67,10 +67,10 @@ fn a_boolean_is_true_or_false_case_folded() {
         .collect();
     let mut settings = Settings::new(&variables);
 
-    assert!(settings.boolean("T", false));
-    assert!(!settings.boolean("F", true));
-    assert!(settings.boolean("UNSET", true));
-    assert!(!settings.boolean("X", false));
+    assert!(settings.get("T").boolean().unwrap_or(false));
+    assert!(!settings.get("F").boolean().unwrap_or(true));
+    assert!(settings.get("UNSET").boolean().unwrap_or(true));
+    assert!(!settings.get("X").boolean().unwrap_or(false));
     assert_eq!(
         settings.finish().unwrap_err().0,
         ["X must be true or false, got: 1"]
@@ -82,7 +82,7 @@ fn a_refused_value_is_quoted_safely() {
     let variables: Variables = [("X", "a\u{1b}[31mb")].into_iter().collect();
     let mut settings = Settings::new(&variables);
 
-    settings.boolean("X", false);
+    settings.get("X").boolean().unwrap_or(false);
 
     assert_eq!(
         settings.finish().unwrap_err().0,
@@ -95,7 +95,7 @@ fn a_secret_is_trimmed_and_never_debugs() {
     let variables: Variables = [("S", "hunter2\n")].into_iter().collect();
     let mut settings = Settings::new(&variables);
 
-    let secret = settings.secret("S").unwrap();
+    let secret = settings.get("S").secret().unwrap();
 
     assert_eq!(secret.expose(), "hunter2");
     assert_eq!(format!("{secret:?}"), "Secret(***)");
@@ -137,9 +137,9 @@ fn a_required_parse_refuses_unset_and_what_it_rejects() {
             .map_err(|_| format!("is not a port, got: {text}"))
     };
 
-    assert_eq!(settings.required_parse("P", port), Some(8080));
-    assert_eq!(settings.required_parse("N", port), None);
-    assert_eq!(settings.required_parse("UNSET", port), None);
+    assert_eq!(settings.get("P").required(true).parsed(port), Some(8080));
+    assert_eq!(settings.get("N").required(true).parsed(port), None);
+    assert_eq!(settings.get("UNSET").required(true).parsed(port), None);
     assert_eq!(
         settings.finish().unwrap_err().0,
         [
@@ -156,10 +156,44 @@ fn a_repeated_refusal_is_listed_once_and_counted_each_time() {
         .collect();
     let mut settings = Settings::new(&variables);
 
-    settings.text("A");
+    settings.get("A").text();
     let before = settings.refusals();
-    settings.text("A");
+    settings.get("A").text();
 
     assert!(settings.refusals() > before);
     assert_eq!(settings.finish().unwrap_err().0, ["A is not valid UTF-8"]);
+}
+
+#[test]
+fn a_value_past_its_length_is_refused_with_the_reason_for_the_bound() {
+    let variables: Variables = [("H", "abcdé"), ("S", "abcd")].into_iter().collect();
+    let mut settings = Settings::new(&variables);
+
+    assert_eq!(
+        settings.get("S").max_chars(4, "a host reads").text(),
+        Some("abcd")
+    );
+    assert_eq!(settings.get("H").max_chars(4, "a host reads").text(), None);
+    assert_eq!(
+        settings.finish().unwrap_err().0,
+        ["H has 5 characters, past the 4 a host reads"]
+    );
+}
+
+#[test]
+fn a_refusal_and_a_retired_name_follow_the_name() {
+    let variables: Variables = [("OLD", "1")].into_iter().collect();
+    let mut settings = Settings::new(&variables);
+
+    settings.get("OLD").retired("NEW replaces it");
+    settings.get("GONE").retired("nothing reads it");
+    settings.get("X").refuse("is wrong for a reason");
+
+    assert_eq!(
+        settings.finish().unwrap_err().0,
+        [
+            "OLD is no longer read; NEW replaces it",
+            "X is wrong for a reason"
+        ]
+    );
 }

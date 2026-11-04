@@ -51,45 +51,37 @@ impl TicketSettings {
 
 /// The ticket's settings, every one set judged; the host and sandbox are required if `required`.
 pub fn read_ticket_settings(settings: &mut Settings, required: bool) -> Option<TicketSettings> {
-    let mut read = |name, max_chars| {
-        let check = |text: &str| at_most(text, max_chars);
-        if required {
-            settings.required_parse(name, check)
-        } else {
-            settings.parse(name, check)
-        }
-    };
-    let host_id = read(HOST_ID, MAX_HOST_ID_CHARS);
-    let sandbox_name = read(SANDBOX_NAME, MAX_SANDBOX_NAME_CHARS);
-    let refresh = settings.parse(TICKET_REFRESH_SECONDS, |text| match text.parse::<u64>() {
-        // The holder never refreshes faster, so a lower interval would be silently raised.
-        Ok(seconds) if Duration::from_secs(seconds) >= MIN_REFRESH_INTERVAL => {
-            Ok(Duration::from_secs(seconds))
-        }
-        _ => Err(format!(
-            "must be a whole number of seconds, at least {}, got: {}",
-            MIN_REFRESH_INTERVAL.as_secs(),
-            sanitize(text)
-        )),
-    });
+    let host_id = settings
+        .get(HOST_ID)
+        .required(required)
+        .max_chars(MAX_HOST_ID_CHARS, "Rail Center reads")
+        .text();
+    let sandbox_name = settings
+        .get(SANDBOX_NAME)
+        .required(required)
+        .max_chars(MAX_SANDBOX_NAME_CHARS, "Rail Center reads")
+        .text();
+    let refresh = settings
+        .get(TICKET_REFRESH_SECONDS)
+        .parsed(|text| match text.parse::<u64>() {
+            // The holder never refreshes faster, so a lower interval would be silently raised.
+            Ok(seconds) if Duration::from_secs(seconds) >= MIN_REFRESH_INTERVAL => {
+                Ok(Duration::from_secs(seconds))
+            }
+            _ => Err(format!(
+                "must be a whole number of seconds, at least {}, got: {}",
+                MIN_REFRESH_INTERVAL.as_secs(),
+                sanitize(text)
+            )),
+        });
     let mut ticket = TicketSettings::new(TicketQuery {
-        host_id: host_id?,
-        sandbox_name: sandbox_name?,
+        host_id: host_id?.to_owned(),
+        sandbox_name: sandbox_name?.to_owned(),
     });
-    if settings.is_set(TICKET_REFRESH_SECONDS) {
+    if settings.get(TICKET_REFRESH_SECONDS).is_set() {
         ticket.refresh_interval = refresh?;
     }
     Some(ticket)
-}
-
-fn at_most(text: &str, max_chars: usize) -> Result<String, String> {
-    let chars = text.chars().count();
-    if chars > max_chars {
-        return Err(format!(
-            "has {chars} characters, past the {max_chars} Rail Center reads"
-        ));
-    }
-    Ok(text.to_owned())
 }
 
 /// Whose ticket to fetch: this host, and the one sandbox it serves.

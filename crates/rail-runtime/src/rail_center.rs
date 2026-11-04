@@ -24,34 +24,31 @@ pub struct RailCenterSettings {
 /// Whether `RAIL_DISABLED` is true, `None` if unreadable; refuses the retired names too.
 pub fn read_disabled(settings: &mut Settings) -> Option<bool> {
     let disable = format!("Rail Center is used unless {DISABLED}=true");
-    settings.retired("RAIL_PLUGIN_ENABLED", &disable);
-    settings.retired("RAIL_TICKET_MODE", &disable);
-    settings.retired(
-        "RAIL_PROXY_ALLOW_INSECURE_CREDENTIAL",
-        &format!("{ALLOW_HTTP}=true allows an http:// {CENTER_URL}"),
-    );
+    settings.get("RAIL_PLUGIN_ENABLED").retired(&disable);
+    settings.get("RAIL_TICKET_MODE").retired(&disable);
+    settings
+        .get("RAIL_PROXY_ALLOW_INSECURE_CREDENTIAL")
+        .retired(&format!("{ALLOW_HTTP}=true allows an http:// {CENTER_URL}"));
     let before = settings.refusals();
-    let disabled = settings.boolean(DISABLED, false);
+    let disabled = settings.get(DISABLED).boolean().unwrap_or(false);
     (settings.refusals() == before).then_some(disabled)
 }
 
 /// The Rail Center settings, every one set judged; the URL and token are required if `required`.
 pub fn read_rail_center(settings: &mut Settings, required: bool) -> Option<RailCenterSettings> {
     let before = settings.refusals();
-    let parse_url = |text: &str| CenterUrl::parse(text);
-    let url = if required {
-        settings.required_parse(CENTER_URL, parse_url)
-    } else {
-        settings.parse(CENTER_URL, parse_url)
-    };
-    let allow_http = settings.boolean(ALLOW_HTTP, false);
+    let url = settings
+        .get(CENTER_URL)
+        .required(required)
+        .parsed(CenterUrl::parse);
+    let allow_http = settings.get(ALLOW_HTTP).boolean().unwrap_or(false);
     if let Some(url) = &url
         && !url.is_https()
         && !allow_http
     {
-        settings.refuse(format!(
-            "{CENTER_URL} is http://, which sends the credential and what Rail Center returns in \
-             the clear; use https://, or set {ALLOW_HTTP}=true"
+        settings.get(CENTER_URL).refuse(format_args!(
+            "is http://, which sends the credential and what Rail Center returns in the clear; \
+             use https://, or set {ALLOW_HTTP}=true"
         ));
     }
     let token = read_token(settings, required);
@@ -66,9 +63,9 @@ pub fn read_rail_center(settings: &mut Settings, required: bool) -> Option<RailC
 
 // `Some(None)` is no credential; `None` is a refusal.
 fn read_token(settings: &mut Settings, required: bool) -> Option<Option<Secret>> {
-    let mode = settings.text(AUTH_MODE);
+    let mode = settings.get(AUTH_MODE).text();
     // Unreadable: which credential is meant is unknown, so the token isn't judged.
-    if mode.is_none() && settings.is_set(AUTH_MODE) {
+    if mode.is_none() && settings.get(AUTH_MODE).is_set() {
         return None;
     }
     match mode
@@ -77,41 +74,32 @@ fn read_token(settings: &mut Settings, required: bool) -> Option<Option<Secret>>
         .unwrap_or("none")
     {
         "none" => {
-            if settings.is_set(AUTH_TOKEN) {
+            if settings.get(AUTH_TOKEN).is_set() {
                 let configured = if mode.is_some() {
                     "none"
                 } else {
                     "unset, which is none"
                 };
-                settings.refuse(format!(
-                    "{AUTH_MODE} is {configured} and sends no credential, but {AUTH_TOKEN} is set; \
-                     set {AUTH_MODE}=bearer to use it, or unset {AUTH_TOKEN}"
+                settings.get(AUTH_MODE).refuse(format_args!(
+                    "is {configured} and sends no credential, but {AUTH_TOKEN} is set; set \
+                     {AUTH_MODE}=bearer to use it, or unset {AUTH_TOKEN}"
                 ));
                 return None;
             }
             Some(None)
         }
         "bearer" => {
-            let Some(token) = settings.secret(AUTH_TOKEN) else {
-                if required && !settings.is_set(AUTH_TOKEN) {
-                    settings.refuse(format!(
-                        "{AUTH_TOKEN} is required when {AUTH_MODE} is bearer"
-                    ));
-                }
-                return None;
-            };
-            match check_token(token.expose()) {
-                Ok(()) => Some(Some(token)),
-                Err(reason) => {
-                    settings.refuse(format!("{AUTH_TOKEN} {reason}"));
-                    None
-                }
-            }
+            let bearer = format!("{AUTH_MODE} is bearer");
+            let token = settings
+                .get(AUTH_TOKEN)
+                .required_when(required, &bearer)
+                .parsed(read_service_token)?;
+            Some(Some(token))
         }
         // Not quoted: a token pasted into the wrong variable would reach the log.
         _ => {
-            settings.refuse(format!(
-                "{AUTH_MODE} must be none or bearer, and is something else ({} characters)",
+            settings.get(AUTH_MODE).refuse(format_args!(
+                "must be none or bearer, and is something else ({} characters)",
                 mode.unwrap_or_default().chars().count()
             ));
             None
@@ -119,7 +107,11 @@ fn read_token(settings: &mut Settings, required: bool) -> Option<Option<Secret>>
     }
 }
 
-// Says where the token is wrong without quoting any of it.
+// Never quotes the token: only where it's wrong.
+fn read_service_token(token: &str) -> Result<Secret, String> {
+    check_token(token).map(|()| Secret::new(token.to_owned()))
+}
+
 fn check_token(token: &str) -> Result<(), String> {
     let expected = format!(
         "a Rail Center service token is {TOKEN_PREFIX} and {TOKEN_SECRET_CHARS} URL-safe base64 \
