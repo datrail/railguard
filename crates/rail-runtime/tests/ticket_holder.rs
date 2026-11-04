@@ -4,6 +4,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use rail_runtime::{
     Secret, Ticket, TicketAnswer, TicketHolder, TicketSource, Unavailable, WallClock,
 };
+use tokio::runtime::Handle;
 use tokio::time::{Instant, sleep};
 
 const HOUR: Duration = Duration::from_secs(3600);
@@ -75,7 +76,12 @@ fn failed() -> Answer {
 }
 
 fn start(clock: &Clock, script: &Script, refresh_interval: Duration) -> TicketHolder {
-    TicketHolder::start(script.clone(), refresh_interval, clock.wall())
+    TicketHolder::start(
+        &Handle::current(),
+        script.clone(),
+        refresh_interval,
+        clock.wall(),
+    )
 }
 
 fn token(holder: &TicketHolder) -> Result<String, Unavailable> {

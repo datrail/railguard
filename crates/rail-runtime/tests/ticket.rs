@@ -1,6 +1,6 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use rail_runtime::{Ticket, TicketAnswer, TicketQuery, fetch_ticket};
+use rail_runtime::{Ticket, TicketAnswer, TicketQuery, TicketSettings, fetch_ticket};
 
 mod common;
 
@@ -49,7 +49,7 @@ async fn answer_at(
 ) -> Result<TicketAnswer, String> {
     let status = status.to_owned();
     let server = serve(move |_| Reply::Raw(response(&status, &[], body.as_bytes()))).await;
-    fetch_ticket(&client(&server.url), &query(), sent_at).await
+    fetch_ticket(&client(&server.url), &TicketSettings::new(query()), sent_at).await
 }
 
 fn refusal(result: Result<TicketAnswer, String>) -> String {
@@ -72,9 +72,13 @@ async fn the_query_names_the_host_and_the_sandbox() {
     let body = one("a.b.c", "2026-07-28T10:15:00Z");
     let server = serve(move |_| Reply::Raw(response("200 OK", &[], body.as_bytes()))).await;
 
-    fetch_ticket(&client(&server.url), &query(), at(SENT_AT))
-        .await
-        .unwrap();
+    fetch_ticket(
+        &client(&server.url),
+        &TicketSettings::new(query()),
+        at(SENT_AT),
+    )
+    .await
+    .unwrap();
 
     let requests = server.requests.lock().unwrap();
     assert!(
@@ -155,7 +159,7 @@ async fn a_response_off_the_contract_is_refused() {
         let error = refusal(answer("200 OK", body.clone()).await);
 
         assert!(
-            error.starts_with("the response is off the contract: "),
+            error.starts_with("the response is off the contract ("),
             "{body}: {error}"
         );
     }
@@ -274,4 +278,16 @@ async fn a_body_past_the_cap_is_refused() {
     let error = refusal(answer("200 OK", body).await);
 
     assert_eq!(error, "the response is past the 262144 bytes read");
+}
+
+#[tokio::test]
+async fn a_response_off_the_contract_is_described_without_its_values() {
+    let body = r#"{"host_id":"host-1","tickets":"eyJ0aGUiOiJ0aWNrZXQifQ"}"#.to_owned();
+
+    let error = refusal(answer("200 OK", body).await);
+
+    assert_eq!(
+        error,
+        "the response is off the contract (Data error at line 1, column 54)"
+    );
 }
