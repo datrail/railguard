@@ -13,8 +13,12 @@ impl XRailHeaders {
     pub fn of<'a>(sent: impl IntoIterator<Item = &'a str>) -> Self {
         let mut remove: Vec<String> = [XRAIL, XRAIL_STATUS]
             .into_iter()
-            .chain(sent.into_iter().filter(|name| is_xrail(name)))
-            .map(str::to_ascii_lowercase)
+            .map(str::to_owned)
+            .chain(
+                sent.into_iter()
+                    .map(str::to_ascii_lowercase)
+                    .filter(|name| is_xrail(name)),
+            )
             .collect();
         remove.sort();
         remove.dedup();
@@ -22,9 +26,8 @@ impl XRailHeaders {
     }
 }
 
-// The agent's own x-rail headers never reach the upstream.
+// The agent's own x-rail headers never reach the upstream. Takes a lowercased name.
 fn is_xrail(name: &str) -> bool {
-    let name = name.to_ascii_lowercase();
     name == XRAIL || name.starts_with("x-rail-")
 }
 
