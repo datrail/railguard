@@ -7,3 +7,5 @@ cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test
 ```
+
+`crates/rail-policy-py` builds the `datrail-policy` wheel. `make test-py` needs [uv](https://docs.astral.sh/uv/).

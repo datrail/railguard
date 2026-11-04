@@ -1,3 +1,5 @@
 [workspace]
 resolver = "3"
-members = ["crates/rail-policy"]
+members = ["crates/rail-policy", "crates/rail-policy-py"]
+# Keeps pyo3 out of everyday builds.
+default-members = ["crates/rail-policy"]
