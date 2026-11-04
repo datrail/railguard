@@ -178,7 +178,8 @@ def compile_bundle(json: str) -> CompiledBundle | UnusableBundle:
 def check_condition(
     condition: Any, *, ticket_claims_schema: Mapping[str, Any] | None = None
 ) -> ConditionCheck:
-    """Every problem with a condition, path first, then op, then value.
+    """Every problem with a condition, as found: first as a reader parses it, then as Rail Center
+    alone checks it.
 
     `ticket_claims_schema` defaults to `TICKET_CLAIMS_SCHEMA`. A malformed one raises `ValueError`.
     """
