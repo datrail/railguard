@@ -97,9 +97,9 @@ enum Kind {
     Object,
 }
 
-/// What a ticket carries: nested objects whose leaves are kinds.
+/// The claims a ticket carries, which rules read: nested objects whose leaves are kinds.
 #[derive(Debug)]
-pub struct TicketSchema(BTreeMap<String, SchemaNode>);
+pub struct TicketClaimsSchema(BTreeMap<String, SchemaNode>);
 
 #[derive(Debug)]
 enum SchemaNode {
@@ -107,12 +107,12 @@ enum SchemaNode {
     Branch(BTreeMap<String, SchemaNode>),
 }
 
-impl TicketSchema {
+impl TicketClaimsSchema {
     /// From an object whose leaves are `"string"`, `"number"`, `"boolean"` or `"list"`.
     pub fn from_value(value: &Value) -> Result<Self, String> {
         match read_node(value)? {
             SchemaNode::Branch(nodes) => Ok(Self(nodes)),
-            SchemaNode::Leaf(_) => Err("a ticket schema is an object".to_string()),
+            SchemaNode::Leaf(_) => Err("a ticket claims schema is an object".to_string()),
         }
     }
 
@@ -148,13 +148,13 @@ fn read_node(value: &Value) -> Result<SchemaNode, String> {
                 sanitize(kind)
             )),
         },
-        _ => Err("a ticket schema's leaves are kinds".to_string()),
+        _ => Err("a ticket claims schema's leaves are kinds".to_string()),
     }
 }
 
 /// Every problem with a condition given as JSON text, in the order path, op, value. None means
 /// every reader reads it, and Rail Center would publish it.
-pub fn check_condition(text: &str, ticket_schema: &TicketSchema) -> Vec<Problem> {
+pub fn check_condition(text: &str, ticket_claims_schema: &TicketClaimsSchema) -> Vec<Problem> {
     let condition: Value = match serde_json::from_str(text) {
         Ok(condition) => condition,
         Err(e) => {
@@ -188,7 +188,12 @@ pub fn check_condition(text: &str, ticket_schema: &TicketSchema) -> Vec<Problem>
         Scope::Enforcement
     };
     let mut problems = Vec::new();
-    let kind = check_path(fields.get("path"), ticket_schema, scope, &mut problems);
+    let kind = check_path(
+        fields.get("path"),
+        ticket_claims_schema,
+        scope,
+        &mut problems,
+    );
     match op {
         None => problems.push(problem(
             loc!["op"],
@@ -219,7 +224,7 @@ pub fn check_condition(text: &str, ticket_schema: &TicketSchema) -> Vec<Problem>
 /// The path's kind, or `None` where the path has a problem.
 fn check_path(
     path: Option<&Value>,
-    ticket_schema: &TicketSchema,
+    ticket_claims_schema: &TicketClaimsSchema,
     scope: Scope,
     problems: &mut Vec<Problem>,
 ) -> Option<Kind> {
@@ -238,7 +243,7 @@ fn check_path(
     let keys: Vec<&str> = parts.collect();
     let shown = sanitize(path);
     let (code, problem_scope, message) = match root {
-        Some("ticket") => match ticket_schema.get_kind(&keys) {
+        Some("ticket") => match ticket_claims_schema.get_kind(&keys) {
             Some(kind) => return Some(kind),
             None => (
                 ProblemCode::UnknownPath,

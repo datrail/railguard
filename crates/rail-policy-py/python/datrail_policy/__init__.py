@@ -15,7 +15,7 @@ _MAX_WALK_DEPTH = 200
 
 __all__ = [
     "DEFAULT_STEP_LIMIT",
-    "TICKET_SCHEMA",
+    "TICKET_CLAIMS_SCHEMA",
     "BundleCheck",
     "ChainVerdict",
     "ConditionCheck",
@@ -37,7 +37,7 @@ __all__ = [
 
 
 # Rail Center's `_TICKET_SCHEMA`; read at call time, so a library can replace it.
-TICKET_SCHEMA: dict[str, Any] = {
+TICKET_CLAIMS_SCHEMA: dict[str, Any] = {
     "id": "string",
     "agent_id": "string",
     "sandbox_id": "string",
@@ -176,13 +176,15 @@ def compile_bundle(json: str) -> CompiledBundle | UnusableBundle:
 
 
 def check_condition(
-    condition: Any, *, ticket_schema: Mapping[str, Any] | None = None
+    condition: Any, *, ticket_claims_schema: Mapping[str, Any] | None = None
 ) -> ConditionCheck:
     """Every problem with a condition, path first, then op, then value.
 
-    `ticket_schema` defaults to `TICKET_SCHEMA`. A malformed one raises `ValueError`.
+    `ticket_claims_schema` defaults to `TICKET_CLAIMS_SCHEMA`. A malformed one raises `ValueError`.
     """
-    schema_text = _write_schema(TICKET_SCHEMA if ticket_schema is None else ticket_schema)
+    schema_text = _write_schema(
+        TICKET_CLAIMS_SCHEMA if ticket_claims_schema is None else ticket_claims_schema
+    )
     # JSON can't carry them to Rust, so a stand-in keeps the other checks running.
     non_finite: list[tuple[str | int, ...]] = []
     try:
@@ -192,7 +194,7 @@ def check_condition(
     except ValueError as error:
         # Such as an int past Python's digit limit.
         return ConditionCheck(problems=(_build_unreadable(str(error)),))
-    native = _native.check_condition(text, ticket_schema=schema_text)
+    native = _native.check_condition(text, ticket_claims_schema=schema_text)
     problems = [
         ConditionProblem(**{**problem, "location": tuple(problem["location"])})
         for problem in json.loads(native)
@@ -257,7 +259,7 @@ def _write_schema(schema: Mapping[str, Any]) -> str:
     try:
         return json.dumps(schema, default=_read_mapping)
     except (TypeError, ValueError) as error:
-        raise ValueError(f"ticket schema: {error}") from None
+        raise ValueError(f"ticket claims schema: {error}") from None
 
 
 def _read_mapping(value: Any) -> dict[str, Any]:

@@ -15,7 +15,7 @@ pub use bundle::{
     Policy, SchemaVersion, UnusableBundle, parse_bundle,
 };
 pub use check::{
-    OperandShape, Problem, ProblemCode, Scope, Segment, TicketSchema, check_condition,
+    OperandShape, Problem, ProblemCode, Scope, Segment, TicketClaimsSchema, check_condition,
 };
 pub use condition::{Condition, Path, Predicate, RequestPath, Scalar, TicketPath};
 pub use endpoint::{Endpoint, Resolution, ResolvedKey, resolve_endpoint};

@@ -83,23 +83,23 @@ def test_reports_a_number_past_a_double():
     assert _get_codes(check) == [((), "unreadable", "enforcement")]
 
 
-def test_takes_a_custom_ticket_schema():
+def test_takes_a_custom_ticket_claims_schema():
     condition = {"path": "ticket.tenant", "op": "eq", "value": "a"}
 
-    assert check_condition(condition, ticket_schema={"tenant": "string"}).problems == ()
+    assert check_condition(condition, ticket_claims_schema={"tenant": "string"}).problems == ()
     assert _get_codes(check_condition(condition)) == [(("path",), "unknown_path", "authoring")]
 
 
 def test_reads_the_default_schema_at_call_time(monkeypatch):
-    monkeypatch.setattr(datrail_policy, "TICKET_SCHEMA", {"tenant": "string"})
+    monkeypatch.setattr(datrail_policy, "TICKET_CLAIMS_SCHEMA", {"tenant": "string"})
 
     assert check_condition({"path": "ticket.tenant", "op": "existing"}).problems == ()
 
 
 @pytest.mark.parametrize("schema", [{"a": "header"}, {"a": 1}, {"a": {"b": None}}, {"a": str}])
 def test_raises_on_a_malformed_schema(schema):
-    with pytest.raises(ValueError, match="ticket schema"):
-        check_condition({"path": "ticket.a", "op": "existing"}, ticket_schema=schema)
+    with pytest.raises(ValueError, match="ticket claims schema"):
+        check_condition({"path": "ticket.a", "op": "existing"}, ticket_claims_schema=schema)
 
 
 def test_raises_on_a_condition_that_is_not_json():
@@ -110,7 +110,9 @@ def test_raises_on_a_condition_that_is_not_json():
 def test_reads_any_mapping_and_sequence():
     condition = MappingProxyType({"path": "ticket.skills", "op": "in", "value": ("a", math.nan)})
 
-    check = check_condition(condition, ticket_schema=MappingProxyType(datrail_policy.TICKET_SCHEMA))
+    check = check_condition(
+        condition, ticket_claims_schema=MappingProxyType(datrail_policy.TICKET_CLAIMS_SCHEMA)
+    )
 
     assert _get_codes(check) == [(("value", 1), "unwritable_number", "authoring")]
 

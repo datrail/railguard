@@ -1,6 +1,6 @@
 use rail_policy::{
-    Condition, OperandShape, Problem, ProblemCode, Scope, Segment, TicketSchema, check_condition,
-    loc,
+    Condition, OperandShape, Problem, ProblemCode, Scope, Segment, TicketClaimsSchema,
+    check_condition, loc,
 };
 use serde::Deserialize;
 use serde_json::value::RawValue;
@@ -49,8 +49,8 @@ fn get_vector_conditions() -> Vec<String> {
     conditions
 }
 
-fn get_schema() -> TicketSchema {
-    TicketSchema::from_value(&json!({
+fn get_schema() -> TicketClaimsSchema {
+    TicketClaimsSchema::from_value(&json!({
         "agent_id": "string",
         "skills": "list",
         "posture": {"overall": {"score": "number"}, "admin": "boolean"},
@@ -70,7 +70,7 @@ fn test_scopes_match_how_the_parser_reads_each_vector_condition() {
     let conditions = get_vector_conditions();
     assert!(conditions.len() > 300, "{}", conditions.len());
     // Every ticket path is authoring scope, so an empty schema changes no enforcement problem.
-    let schema = TicketSchema::from_value(&json!({})).unwrap();
+    let schema = TicketClaimsSchema::from_value(&json!({})).unwrap();
 
     for text in conditions {
         let problems = check_condition(&text, &schema);
@@ -230,9 +230,9 @@ fn test_quotes_input_safely() {
 
 #[test]
 fn test_refuses_a_malformed_schema() {
-    assert!(TicketSchema::from_value(&json!("string")).is_err());
-    assert!(TicketSchema::from_value(&json!({"a": "header"})).is_err());
-    assert!(TicketSchema::from_value(&json!({"a": 1})).is_err());
+    assert!(TicketClaimsSchema::from_value(&json!("string")).is_err());
+    assert!(TicketClaimsSchema::from_value(&json!({"a": "header"})).is_err());
+    assert!(TicketClaimsSchema::from_value(&json!({"a": 1})).is_err());
 }
 
 #[test]
