@@ -109,8 +109,12 @@ impl<'a> Settings<'a> {
         self.errors.len()
     }
 
+    /// Records a refusal, once however often the same value is read.
     pub fn refuse(&mut self, message: impl Into<String>) {
-        self.errors.push(message.into());
+        let message = message.into();
+        if !self.errors.contains(&message) {
+            self.errors.push(message);
+        }
     }
 
     /// Every refusal recorded, if any.

@@ -359,3 +359,11 @@ fn query_values_are_encoded() {
 
     assert_eq!(endpoint.query(), Some("sandbox_name=a%26b%3Dc+%23d"));
 }
+
+#[test]
+fn an_unreadable_disabled_flag_is_the_only_refusal() {
+    assert_eq!(
+        refusals(&[("RAIL_DISABLED", "yes")]),
+        ["RAIL_DISABLED must be true or false, got: yes"]
+    );
+}

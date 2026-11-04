@@ -40,7 +40,13 @@ pub fn read_rail_center(settings: &mut Settings) -> Option<RailCenter> {
         "RAIL_PROXY_ALLOW_INSECURE_CREDENTIAL",
         &format!("{ALLOW_HTTP}=true allows an http:// {CENTER_URL}"),
     );
-    if settings.boolean(DISABLED, false) {
+    let before_disabled = settings.refusals();
+    let disabled = settings.boolean(DISABLED, false);
+    // Unreadable: whether Rail Center is meant is unknown, so nothing else is judged.
+    if settings.refusals() > before_disabled {
+        return None;
+    }
+    if disabled {
         refuse_beside_disabled(settings);
         return (settings.refusals() == before).then_some(RailCenter::Disabled);
     }
