@@ -3,15 +3,16 @@ name = "rail-runtime"
 edition = "2024"
 
 [dependencies]
+flate2 = "1"
 rail-policy = { path = "../rail-policy" }
-# No system proxy, no platform verifier: the roots are compiled in, and the provider is ours.
-reqwest = { version = "0.13", default-features = false, features = ["gzip", "rustls-no-provider"] }
+# No system proxy, no platform verifier, no decoding: the roots are compiled in, the provider is
+# ours, and gzip is decoded here, capped.
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 tokio = { version = "1", features = ["time"] }
 webpki-roots = "1"
 
 [dev-dependencies]
-flate2 = "1"
 tokio = { version = "1", features = ["io-util", "macros", "net", "rt-multi-thread"] }
 
 [lints.rust]

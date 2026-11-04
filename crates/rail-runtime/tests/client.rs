@@ -148,7 +148,7 @@ async fn a_get_reaches_the_route_under_the_base_with_the_credential() {
         TOKEN.to_ascii_lowercase()
     )));
     assert!(request.contains("\r\naccept: application/json\r\n"));
-    assert!(request.contains("\r\naccept-encoding: gzip\r\n"));
+    assert!(request.contains("\r\naccept-encoding: gzip, identity\r\n"));
 }
 
 #[tokio::test]
@@ -270,7 +270,7 @@ async fn an_encoding_not_offered_is_refused() {
         .unwrap_err();
 
     assert!(
-        matches!(&error, FetchError::Encoding(encoding) if encoding == "br"),
+        matches!(&error, FetchError::Encoding(encoding) if encoding.contains("br")),
         "{error:?}"
     );
 }
@@ -292,9 +292,49 @@ async fn every_encoding_listed_is_checked() {
         .unwrap_err();
 
     assert!(
-        matches!(&error, FetchError::Encoding(encoding) if encoding == "br"),
+        matches!(&error, FetchError::Encoding(encoding) if encoding.contains("br")),
         "{error:?}"
     );
+}
+
+#[tokio::test]
+async fn an_encoding_behind_gzip_is_refused() {
+    let cases: [&[&str]; 4] = [
+        &["content-encoding: gzip", "content-encoding: br"],
+        &["content-encoding: gzip, br"],
+        &["content-encoding: gzip", "content-encoding: gzip"],
+        &["content-encoding: gzip, gzip"],
+    ];
+    for headers in cases {
+        let server = serve(move |_| Reply::Raw(response("200 OK", headers, &gzip(b"{}")))).await;
+
+        let error = client(&server.url)
+            .get("/v1/x", &[], LIMITS)
+            .await
+            .unwrap_err();
+
+        assert!(
+            matches!(&error, FetchError::Encoding(_)),
+            "{headers:?}: {error:?}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn gzip_that_does_not_decode_is_refused() {
+    let whole = gzip(b"{\"a\":1}");
+    for body in [b"not gzip".to_vec(), whole[..whole.len() - 4].to_vec()] {
+        let server =
+            serve(move |_| Reply::Raw(response("200 OK", &["content-encoding: gzip"], &body)))
+                .await;
+
+        let error = client(&server.url)
+            .get("/v1/x", &[], LIMITS)
+            .await
+            .unwrap_err();
+
+        assert!(matches!(&error, FetchError::BadGzip(_)), "{error:?}");
+    }
 }
 
 #[tokio::test]

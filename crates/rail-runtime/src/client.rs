@@ -1,11 +1,13 @@
 use std::error::Error as _;
 use std::fmt;
+use std::io::{self, Write};
 use std::sync::Arc;
 use std::time::Duration;
 
+use flate2::write::GzDecoder;
 use rail_policy::sanitize;
 use reqwest::header::{
-    ACCEPT, AUTHORIZATION, CONTENT_ENCODING, HeaderMap, HeaderName, HeaderValue,
+    ACCEPT, ACCEPT_ENCODING, AUTHORIZATION, CONTENT_ENCODING, HeaderMap, HeaderName, HeaderValue,
 };
 use reqwest::{StatusCode, Url, redirect};
 use tokio::time::timeout;
@@ -37,6 +39,7 @@ pub enum FetchError {
     Timeout(Duration),
     TooLarge { max_bytes: usize },
     Encoding(String),
+    BadGzip(String),
     Transport(String),
 }
 
@@ -50,8 +53,10 @@ impl fmt::Display for FetchError {
             }
             Self::Encoding(encoding) => write!(
                 f,
-                "the response is {encoding}-encoded, and only gzip and identity are read"
+                "the response's Content-Encoding is {encoding}, and only one gzip, or identity, \
+                 is read"
             ),
+            Self::BadGzip(reason) => write!(f, "the response's gzip doesn't decode: {reason}"),
             Self::Transport(reason) => f.write_str(reason),
         }
     }
@@ -70,6 +75,11 @@ impl RailCenterClient {
     pub fn new(settings: &RailCenterSettings) -> Result<Self, String> {
         let mut headers = HeaderMap::new();
         headers.insert(ACCEPT, sendable(&ACCEPT, "application/json")?);
+        // Rail Center's frontend may compress of its own accord; gzip is decoded here, capped.
+        headers.insert(
+            ACCEPT_ENCODING,
+            sendable(&ACCEPT_ENCODING, "gzip, identity")?,
+        );
         if let Some(token) = &settings.token {
             let value = sendable(&AUTHORIZATION, &format!("Bearer {}", token.expose()))?;
             headers.insert(AUTHORIZATION, value);
@@ -122,30 +132,95 @@ impl RailCenterClient {
             }
             .into());
         }
-        // Decoding removes the header, so one left is an encoding nothing here decodes.
-        for encoding in response.headers().get_all(CONTENT_ENCODING) {
-            let encoding = String::from_utf8_lossy(encoding.as_bytes());
-            if !encoding.trim().eq_ignore_ascii_case("identity") {
-                return Err(FetchError::Encoding(sanitize(&encoding).to_string()).into());
-            }
-        }
+        let gzipped = is_gzipped(response.headers())?;
         let status = response.status();
-        let mut body = Vec::new();
-        // Each chunk is decoded, so the cap counts what's held, whatever the compression ratio.
+        let capped = Capped {
+            body: Vec::new(),
+            max_bytes: limits.max_bytes,
+        };
+        let mut body = if gzipped {
+            Body::Gzip(GzDecoder::new(capped))
+        } else {
+            Body::Identity(capped)
+        };
         while let Some(chunk) = timeout(limits.attempt_timeout, response.chunk())
             .await
             .map_err(|_| FetchError::Timeout(limits.attempt_timeout))?
             .map_err(|error| FetchError::Transport(describe(error)))?
         {
-            if body.len() + chunk.len() > limits.max_bytes {
-                return Err(FetchError::TooLarge {
-                    max_bytes: limits.max_bytes,
-                }
-                .into());
-            }
-            body.extend_from_slice(&chunk);
+            body.write_all(&chunk)
+                .map_err(|error| read_error(error, limits))?;
         }
+        let body = body.finish().map_err(|error| read_error(error, limits))?;
         Ok(Response { status, body })
+    }
+}
+
+// Every value of every `Content-Encoding` line, so a second encoding can't hide behind a first.
+fn is_gzipped(headers: &HeaderMap) -> Result<bool, Attempt> {
+    let mut gzipped = false;
+    for line in headers.get_all(CONTENT_ENCODING) {
+        let line = String::from_utf8_lossy(line.as_bytes());
+        for encoding in line.split(',').map(str::trim) {
+            if encoding.eq_ignore_ascii_case("gzip") && !gzipped {
+                gzipped = true;
+            } else if !encoding.eq_ignore_ascii_case("identity") {
+                return Err(FetchError::Encoding(sanitize(&line).to_string()).into());
+            }
+        }
+    }
+    Ok(gzipped)
+}
+
+// What's held, refusing to grow past the cap: a small gzip chunk can't decode to more than it.
+struct Capped {
+    body: Vec<u8>,
+    max_bytes: usize,
+}
+
+impl Write for Capped {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        if self.body.len() + bytes.len() > self.max_bytes {
+            return Err(io::Error::new(io::ErrorKind::FileTooLarge, "past the cap"));
+        }
+        self.body.extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+enum Body {
+    Identity(Capped),
+    Gzip(GzDecoder<Capped>),
+}
+
+impl Body {
+    fn write_all(&mut self, chunk: &[u8]) -> io::Result<()> {
+        match self {
+            Self::Identity(capped) => capped.write_all(chunk),
+            Self::Gzip(decoder) => decoder.write_all(chunk),
+        }
+    }
+
+    fn finish(self) -> io::Result<Vec<u8>> {
+        match self {
+            Self::Identity(capped) => Ok(capped.body),
+            Self::Gzip(decoder) => decoder.finish().map(|capped| capped.body),
+        }
+    }
+}
+
+fn read_error(error: io::Error, limits: Limits) -> Attempt {
+    if error.kind() == io::ErrorKind::FileTooLarge {
+        FetchError::TooLarge {
+            max_bytes: limits.max_bytes,
+        }
+        .into()
+    } else {
+        FetchError::BadGzip(error.to_string()).into()
     }
 }
 
