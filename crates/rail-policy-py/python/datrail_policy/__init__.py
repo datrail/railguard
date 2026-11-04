@@ -1,4 +1,5 @@
 import json
+import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -9,11 +10,16 @@ from datrail_policy import _native
 from datrail_policy._native import DEFAULT_STEP_LIMIT, CompiledBundle
 
 _EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
+# Past what `rail-policy` reads (128), and short of `json.dumps`'s recursion limit.
+_MAX_WALK_DEPTH = 200
 
 __all__ = [
     "DEFAULT_STEP_LIMIT",
+    "TICKET_CLAIMS_SCHEMA",
     "BundleCheck",
     "ChainVerdict",
+    "ConditionCheck",
+    "ConditionProblem",
     "CompiledBundle",
     "Judgement",
     "NotJudged",
@@ -22,11 +28,40 @@ __all__ = [
     "TraceStep",
     "UnreadableSample",
     "UnusableBundle",
+    "check_condition",
     "compile_bundle",
     "judge_sample",
     "read_ticket",
     "validate_bundle",
 ]
+
+
+# Rail Center's `_TICKET_SCHEMA`; read at call time, so a library can replace it.
+TICKET_CLAIMS_SCHEMA: dict[str, Any] = {
+    "id": "string",
+    "agent_id": "string",
+    "sandbox_id": "string",
+    "sandbox_type": "string",
+    "environment_fingerprint": "string",
+    "skills": "list",
+    "posture": {
+        "overall": {"score": "number", "level": "string"},
+        "categories": {
+            name: {"score": "number", "capped": "boolean"}
+            for name in (
+                "identity",
+                "api_access",
+                "data_reach",
+                "containment",
+                "data_flow",
+                "injection_exposure",
+                "grant_exercise_gap",
+                "text_signals",
+            )
+        },
+    },
+    "alignment": {"baseline": {"id": "string", "label": "string"}, "drifted": "list"},
+}
 
 
 @dataclass(frozen=True)
@@ -91,6 +126,35 @@ class UnreadableSample:
 
 
 @dataclass(frozen=True)
+class ConditionProblem:
+    # Where in the condition: keys and list indexes from its root; empty for the whole condition.
+    location: tuple[str | int, ...]
+    code: Literal[
+        "not_an_object",
+        "unknown_source",
+        "unknown_op",
+        "operand_shape",
+        "unknown_path",
+        "op_not_for_path",
+        "unwritable_number",
+        "too_deep",
+        "unreadable",
+    ]
+    # `enforcement`: every reader refuses it. `authoring`: only the writer, since a reader may be
+    # on another version.
+    scope: Literal["enforcement", "authoring"]
+    # The operand shape the op takes; `None` unless `operand_shape`.
+    expected: Literal["number", "list", "scalar", "string"] | None
+    message: str
+
+
+@dataclass(frozen=True)
+class ConditionCheck:
+    # Empty when every reader reads the condition and Rail Center would publish it.
+    problems: tuple[ConditionProblem, ...]
+
+
+@dataclass(frozen=True)
 class TicketReading:
     state: Literal[
         "absent", "undecodable", "bad_signature", "malformed", "wrong_audience", "expired", "valid"
@@ -109,6 +173,99 @@ def compile_bundle(json: str) -> CompiledBundle | UnusableBundle:
     if isinstance(compiled, str):
         return UnusableBundle(problem=compiled)
     return compiled
+
+
+def check_condition(
+    condition: Any, *, ticket_claims_schema: Mapping[str, Any] | None = None
+) -> ConditionCheck:
+    """Every problem with a condition, path first, then op, then value.
+
+    `ticket_claims_schema` defaults to `TICKET_CLAIMS_SCHEMA`. A malformed one raises `ValueError`.
+    """
+    schema_text = _write_schema(
+        TICKET_CLAIMS_SCHEMA if ticket_claims_schema is None else ticket_claims_schema
+    )
+    # JSON can't carry them to Rust, so a stand-in keeps the other checks running.
+    non_finite: list[tuple[str | int, ...]] = []
+    try:
+        text = json.dumps(_replace_non_finite(condition, non_finite))
+    except _TooDeep:
+        return ConditionCheck(problems=(_build_unreadable("nested too deep"),))
+    except ValueError as error:
+        # Such as an int past Python's digit limit.
+        return ConditionCheck(problems=(_build_unreadable(str(error)),))
+    native = _native.check_condition(text, ticket_claims_schema=schema_text)
+    problems = [
+        ConditionProblem(**{**problem, "location": tuple(problem["location"])})
+        for problem in json.loads(native)
+    ]
+    problems += [
+        ConditionProblem(
+            location=location,
+            code="unwritable_number",
+            scope="authoring",
+            expected=None,
+            message="infinity or NaN can't be written back as the JSON it came from",
+        )
+        for location in non_finite
+    ]
+    return ConditionCheck(problems=tuple(problems))
+
+
+class _TooDeep(Exception):
+    pass
+
+
+def _replace_non_finite(condition: Any, found: list[tuple[str | int, ...]]) -> Any:
+    """A copy of plain dicts and lists, with each non-finite float's location in `found`."""
+    root = [condition]
+    stack: list[tuple[Any, Any, tuple[str | int, ...]]] = [(root, 0, ())]
+    # Iterative, since depth is one of the things checked; children pushed in reverse, so
+    # locations come in document order.
+    while stack:
+        parent, key, location = stack.pop()
+        value = parent[key]
+        if len(location) >= _MAX_WALK_DEPTH:
+            raise _TooDeep
+        if isinstance(value, float) and not math.isfinite(value):
+            found.append(location)
+            parent[key] = 0.0
+        elif isinstance(value, Mapping):
+            copy = {}
+            for item_key, item in value.items():
+                if not isinstance(item_key, str):
+                    raise TypeError(f"condition keys must be str, not {type(item_key).__name__}")
+                copy[item_key] = item
+            parent[key] = copy
+            stack.extend((copy, k, (*location, k)) for k in reversed(list(copy)))
+        elif isinstance(value, list | tuple):
+            copy = list(value)
+            parent[key] = copy
+            stack.extend((copy, i, (*location, i)) for i in reversed(range(len(copy))))
+    return root[0]
+
+
+def _build_unreadable(reason: str) -> ConditionProblem:
+    return ConditionProblem(
+        location=(),
+        code="unreadable",
+        scope="enforcement",
+        expected=None,
+        message=f"not JSON this reader can hold: {reason}",
+    )
+
+
+def _write_schema(schema: Mapping[str, Any]) -> str:
+    try:
+        return json.dumps(schema, default=_read_mapping)
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"ticket claims schema: {error}") from None
+
+
+def _read_mapping(value: Any) -> dict[str, Any]:
+    if isinstance(value, Mapping):
+        return dict(value)
+    raise TypeError(f"{type(value).__name__} is not a kind")
 
 
 def judge_sample(
