@@ -5,6 +5,7 @@ mod config;
 mod rail_center;
 mod ticket;
 mod ticket_holder;
+mod xrail;
 
 pub use client::{FetchError, Limits, RailCenterClient, Response};
 pub use config::{ConfigErrors, EXIT_CODE, Secret, Settings, Variables};
@@ -17,3 +18,4 @@ pub use ticket::{
     TicketSettings, fetch_ticket, read_ticket_settings,
 };
 pub use ticket_holder::{RailCenterTickets, TicketHolder, TicketSource, Unavailable, WallClock};
+pub use xrail::{XRAIL, XRAIL_STATUS, XRailHeaders};

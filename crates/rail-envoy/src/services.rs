@@ -10,11 +10,11 @@ use envoy_types::pb::envoy::service::ext_proc::v3::{
     BodyResponse, CommonResponse, HeaderMutation, HeadersResponse, ProcessingRequest,
     ProcessingResponse, TrailersResponse,
 };
-use rail_runtime::TicketHolder;
+use rail_runtime::{TicketHolder, XRailHeaders};
 use tokio_stream::{Stream, StreamExt};
 use tonic::{Status, Streaming};
 
-use crate::xrail::XRailHeaders;
+use crate::xrail::{as_raw_value, as_value};
 
 /// ext_authz: allows every request, with its x-rail headers.
 pub struct Allow {
@@ -41,10 +41,14 @@ impl Authorization for Allow {
                     .flat_map(|map| map.headers.iter().map(|header| header.key.as_str())),
             )
         });
-        let headers = XRailHeaders::of(self.tickets.as_deref(), sent);
+        let current = self.tickets.as_ref().map(|tickets| tickets.current());
+        let ticket = current
+            .as_ref()
+            .map(|current| current.as_deref().map_err(|reason| *reason));
+        let headers = XRailHeaders::of(ticket, sent);
         let mut response = CheckResponse::with_status(Status::ok(""));
         response.set_http_response(OkHttpResponse {
-            headers: headers.options_as_value(),
+            headers: as_value(&headers),
             headers_to_remove: headers.remove,
             ..Default::default()
         });
@@ -81,7 +85,7 @@ impl ExternalProcessor for Continue {
     }
 }
 
-// Each phase Envoy sends must be answered with its own kind of response.
+// Each phase gets its own kind of response; full-duplex streamed bodies, never asked for, don't.
 fn continue_after(request: Request, tickets: Option<&TicketHolder>) -> Response {
     match request {
         Request::RequestHeaders(request) => {
@@ -89,11 +93,15 @@ fn continue_after(request: Request, tickets: Option<&TicketHolder>) -> Response 
                 .headers
                 .iter()
                 .flat_map(|map| map.headers.iter().map(|header| header.key.as_str()));
-            let headers = XRailHeaders::of(tickets, sent);
+            let current = tickets.map(TicketHolder::current);
+            let ticket = current
+                .as_ref()
+                .map(|current| current.as_deref().map_err(|reason| *reason));
+            let headers = XRailHeaders::of(ticket, sent);
             Response::RequestHeaders(HeadersResponse {
                 response: Some(CommonResponse {
                     header_mutation: Some(HeaderMutation {
-                        set_headers: headers.options_as_raw_value(),
+                        set_headers: as_raw_value(&headers),
                         remove_headers: headers.remove,
                     }),
                     ..Default::default()

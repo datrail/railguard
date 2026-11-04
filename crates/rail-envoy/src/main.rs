@@ -52,21 +52,21 @@ async fn serve(config: Config) -> ExitCode {
     let terminate = match signal(SignalKind::terminate()) {
         Ok(terminate) => terminate,
         Err(error) => {
-            eprintln!("can't handle SIGTERM: {error}");
+            tracing::error!("can't handle SIGTERM: {error}");
             return ExitCode::FAILURE;
         }
     };
     let listener = match bind(&config.socket) {
         Ok(listener) => listener,
         Err(error) => {
-            eprintln!("{error}");
+            tracing::error!("{error}");
             return ExitCode::from(2);
         }
     };
     let (rail_center, tickets) = match config.ticket.map(start_tickets).transpose() {
         Ok(started) => started.unzip(),
         Err(error) => {
-            eprintln!("{error}");
+            tracing::error!("{error}");
             return ExitCode::FAILURE;
         }
     };
@@ -84,7 +84,7 @@ async fn serve(config: Config) -> ExitCode {
     match served {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("the gRPC server failed: {error}");
+            tracing::error!("the gRPC server failed: {error}");
             ExitCode::FAILURE
         }
     }
@@ -94,8 +94,8 @@ async fn serve(config: Config) -> ExitCode {
 fn start_tickets(
     (rail_center, ticket): (RailCenterSettings, TicketSettings),
 ) -> Result<(RailCenterThread, Arc<TicketHolder>), String> {
-    let thread = RailCenterThread::start()?;
     let client = RailCenterClient::new(&rail_center)?;
+    let thread = RailCenterThread::start()?;
     let query = &ticket.query;
     tracing::info!(url = %rail_center.url, host_id = %query.host_id, sandbox_name = %query.sandbox_name, "fetching this proxy's ticket");
     let refresh_interval = ticket.refresh_interval;

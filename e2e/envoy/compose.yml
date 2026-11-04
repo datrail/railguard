@@ -1,9 +1,4 @@
-# The Envoy host's e2e stack: rail-envoy behind Envoy, once per ticket state, over ext_authz and
-# over ext_proc.
-#
-#   docker compose -f e2e/envoy/compose.yml up --build --force-recreate --abort-on-container-exit --exit-code-from driver
-#
-# The result is the driver container's exit code.
+# rail-envoy behind Envoy, per ticket state, over each callout; run with `make e2e-envoy`.
 
 name: railguard-e2e-envoy
 
