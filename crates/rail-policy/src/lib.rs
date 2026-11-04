@@ -25,4 +25,6 @@ pub use judge::{
     compile_bundle, judge, judge_traced,
 };
 pub use sanitize::sanitize;
-pub use ticket::{Ticket, TicketState, TicketVerifier, parse_base64_ticket, parse_jwt_ticket};
+pub use ticket::{
+    Ticket, TicketState, TicketVerifier, parse_base64_ticket, parse_jwt_ticket, parse_ticket,
+};

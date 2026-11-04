@@ -3,7 +3,9 @@ use std::collections::HashMap;
 use base64::Engine;
 use base64::engine::general_purpose::{URL_SAFE, URL_SAFE_NO_PAD};
 use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
-use rail_policy::{TicketState, TicketVerifier, parse_base64_ticket, parse_jwt_ticket};
+use rail_policy::{
+    TicketState, TicketVerifier, parse_base64_ticket, parse_jwt_ticket, parse_ticket,
+};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -96,6 +98,16 @@ fn test_base64_vectors() {
         .iter()
         .filter_map(|case| {
             let state = parse_base64_ticket(&case.header, case.now_in_seconds);
+            let verifier = TicketVerifier {
+                keys: HashMap::new(),
+                issuer: None,
+                audience: None,
+            };
+            // No vector's header holds a `.`.
+            assert_eq!(
+                parse_ticket(&case.header, &verifier, case.now_in_seconds),
+                state
+            );
             check_case(case, &state)
         })
         .collect();
@@ -135,6 +147,11 @@ fn test_jwt_vectors() {
         .filter_map(|case| {
             let verifier = get_verifier(case.reader.as_ref());
             let state = parse_jwt_ticket(&case.header, &verifier, case.now_in_seconds);
+            // Every vector's header holds a `.`.
+            assert_eq!(
+                parse_ticket(&case.header, &verifier, case.now_in_seconds),
+                state
+            );
             check_case(case, &state)
         })
         .collect();
