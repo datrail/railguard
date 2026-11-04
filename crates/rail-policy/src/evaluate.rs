@@ -39,7 +39,7 @@ impl Default for Budget {
 }
 
 /// Why a judgement couldn't be reached. Never a deny, and never a condition that didn't hold.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Refusal {
     /// An `Unknown` or `Invalid` condition was reached.
     Uninterpretable,
@@ -74,14 +74,14 @@ enum Test {
 }
 
 /// What a path resolves to, borrowed from the environment.
-#[derive(Clone, Copy)]
-enum Lookup<'a> {
+#[derive(Clone, Copy, Debug)]
+pub enum Lookup<'a> {
     /// Also a `null`, which a producer may write for a missing claim.
     Absent,
     Str(&'a str),
     Number(f64),
     /// Never compared: `true == 1` in some languages and not in others.
-    Bool,
+    Bool(bool),
     /// A header with several values, or a list in the ticket, which may hold anything.
     List(&'a [Value]),
     Object,
@@ -113,11 +113,23 @@ pub fn evaluate_condition(
     environment: &Environment,
     budget: &mut Budget,
 ) -> Result<bool, Refusal> {
-    budget.charge(1)?;
+    evaluate_resolving(condition, environment, budget).1
+}
+
+/// Also what the path resolved to, or `None` if none was resolved.
+pub(crate) fn evaluate_resolving<'a>(
+    condition: &CompiledCondition,
+    environment: &Environment<'a>,
+    budget: &mut Budget,
+) -> (Option<Lookup<'a>>, Result<bool, Refusal>) {
+    if let Err(refusal) = budget.charge(1) {
+        return (None, Err(refusal));
+    }
     let Node::Test(path, test) = &condition.0 else {
-        return Err(Refusal::Uninterpretable);
+        return (None, Err(Refusal::Uninterpretable));
     };
-    apply(test, resolve(path, environment), budget)
+    let value = resolve(path, environment);
+    (Some(value), apply(test, value, budget))
 }
 
 fn read_scalars(items: &[Value]) -> Vec<Scalar> {
@@ -158,7 +170,7 @@ fn resolve_ticket<'a>(path: &TicketPath, environment: &Environment<'a>) -> Looku
 fn read_value(value: &Value) -> Lookup<'_> {
     match value {
         Value::Null => Lookup::Absent,
-        Value::Bool(_) => Lookup::Bool,
+        Value::Bool(value) => Lookup::Bool(*value),
         // Always some double, since serde_json reads no number past one.
         Value::Number(number) => number.as_f64().map_or(Lookup::Absent, Lookup::Number),
         Value::String(text) => Lookup::Str(text),

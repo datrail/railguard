@@ -17,10 +17,12 @@ pub use condition::{Condition, Path, Predicate, RequestPath, Scalar, TicketPath}
 pub use endpoint::{Endpoint, Resolution, ResolvedKey, resolve_endpoint};
 pub use environment::{Environment, Headers};
 pub use evaluate::{
-    Budget, CompiledCondition, DEFAULT_STEP_LIMIT, Refusal, compile_condition, evaluate_condition,
+    Budget, CompiledCondition, DEFAULT_STEP_LIMIT, Lookup, Refusal, compile_condition,
+    evaluate_condition,
 };
 pub use judge::{
-    ChainVerdict, Decision, FallbackDenial, Judge, JudgingMode, Outcome, compile_bundle, judge,
+    ChainVerdict, Decision, FallbackDenial, Judge, JudgingMode, NoTrace, Outcome, Trace,
+    compile_bundle, judge, judge_traced,
 };
 pub use sanitize::sanitize;
 pub use ticket::{Ticket, TicketState, TicketVerifier, parse_base64_ticket, parse_jwt_ticket};

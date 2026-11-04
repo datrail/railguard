@@ -5,7 +5,9 @@ use uuid::Uuid;
 use crate::bundle::{Action, BindingMode, Bundle, EnforcementMode, Fallback};
 use crate::endpoint::{Endpoint, ResolvedKey};
 use crate::environment::Environment;
-use crate::evaluate::{Budget, CompiledCondition, Refusal, compile_condition, evaluate_condition};
+use crate::evaluate::{
+    Budget, CompiledCondition, Lookup, Refusal, compile_condition, evaluate_resolving,
+};
 
 /// A bundle compiled for judging: built once per bundle, then used for every call.
 #[derive(Debug)]
@@ -129,6 +131,21 @@ pub fn compile_bundle(bundle: &Bundle) -> Judge {
     }
 }
 
+/// Told of each policy the walk evaluates, in order, to explain an outcome.
+pub trait Trace {
+    /// `resolved` is what the condition's path resolved to, or `None` if none was resolved: the
+    /// condition can't be read, or the budget ran out first.
+    fn visit(&mut self, policy: Uuid, resolved: Option<Lookup<'_>>, result: &Result<bool, Refusal>);
+}
+
+/// Records nothing, so judging with it costs nothing.
+pub struct NoTrace;
+
+impl Trace for NoTrace {
+    #[inline(always)]
+    fn visit(&mut self, _: Uuid, _: Option<Lookup<'_>>, _: &Result<bool, Refusal>) {}
+}
+
 /// The ticket fallback, then the binding fallback, then the chain. At `enforce` a fallback's
 /// denial ends the judgement; at `observe` the chain is walked anyway, to preview it.
 pub fn judge(
@@ -136,6 +153,17 @@ pub fn judge(
     environment: &Environment,
     mode: JudgingMode,
     budget: &mut Budget,
+) -> Outcome {
+    judge_traced(compiled, environment, mode, budget, &mut NoTrace)
+}
+
+/// `judge`, telling `trace` of each policy evaluated.
+pub fn judge_traced<T: Trace>(
+    compiled: &Judge,
+    environment: &Environment,
+    mode: JudgingMode,
+    budget: &mut Budget,
+    trace: &mut T,
 ) -> Outcome {
     let enforcing = mode == JudgingMode::Enforce;
     let mut fallbacks = Vec::new();
@@ -171,8 +199,9 @@ pub fn judge(
             positions.iter().map(|&position| &compiled.chain[position]),
             environment,
             budget,
+            trace,
         ),
-        None => walk(compiled.chain.iter(), environment, budget),
+        None => walk(compiled.chain.iter(), environment, budget, trace),
     };
     Outcome {
         fallbacks,
@@ -185,10 +214,13 @@ fn walk<'a>(
     policies: impl Iterator<Item = &'a ChainPolicy>,
     environment: &Environment,
     budget: &mut Budget,
+    trace: &mut impl Trace,
 ) -> ChainVerdict {
     let mut alerts = Vec::new();
     for policy in policies {
-        match evaluate_condition(&policy.condition, environment, budget) {
+        let (resolved, result) = evaluate_resolving(&policy.condition, environment, budget);
+        trace.visit(policy.id, resolved, &result);
+        match result {
             // A refused call reports nothing, its alerts included.
             Err(refusal) => {
                 let decision = Decision::Refused {
