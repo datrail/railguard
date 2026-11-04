@@ -1,6 +1,6 @@
 //! The Python binding of `rail-policy`.
 
-use pyo3::prelude::*;
+use pyo3::pymodule;
 
 #[pymodule]
 mod _native {
@@ -8,8 +8,8 @@ mod _native {
 
     use ed25519_dalek::VerifyingKey;
     use pyo3::exceptions::PyValueError;
-    use pyo3::prelude::*;
-    use pyo3::types::PyBytes;
+    use pyo3::types::{PyBytes, PyBytesMethods};
+    use pyo3::{Bound, IntoPyObject, PyResult, pyclass, pyfunction};
     use rail_policy::{
         Budget, Decision, Endpoint, EnforcementMode, Environment, Evaluation, FallbackDenial,
         Headers, Judge, JudgingMode, Lookup, Refusal, TicketState, TicketVerifier, Trace,
