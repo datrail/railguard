@@ -15,8 +15,6 @@ const ROUTE: &str = "/v1/tickets";
 pub const HOST_ID: &str = "RAIL_HOST_ID";
 pub const SANDBOX_NAME: &str = "RAIL_SANDBOX_NAME";
 pub const TICKET_REFRESH_SECONDS: &str = "RAIL_TICKET_REFRESH_SECONDS";
-/// Every setting only the ticket reads.
-pub const TICKET_SETTINGS: [&str; 3] = [HOST_ID, SANDBOX_NAME, TICKET_REFRESH_SECONDS];
 
 // Rail Center's bounds on the query (`get_host_tickets`), in characters.
 const MAX_HOST_ID_CHARS: usize = 64;
@@ -51,10 +49,19 @@ impl TicketSettings {
     }
 }
 
-/// Reads the ticket's settings, or `None` when any is refused (the refusals are in `settings`).
-pub fn read_ticket_settings(settings: &mut Settings) -> Option<TicketSettings> {
-    let host_id = bounded(settings, HOST_ID, MAX_HOST_ID_CHARS);
-    let sandbox_name = bounded(settings, SANDBOX_NAME, MAX_SANDBOX_NAME_CHARS);
+/// Reads the ticket's settings: every one set is judged, and the host and sandbox are refused
+/// unset only when `required`. `None` when any is refused or either is unset.
+pub fn read_ticket_settings(settings: &mut Settings, required: bool) -> Option<TicketSettings> {
+    let mut read = |name, max_chars| {
+        let check = |text: &str| at_most(text, max_chars);
+        if required {
+            settings.required_parse(name, check)
+        } else {
+            settings.parse(name, check)
+        }
+    };
+    let host_id = read(HOST_ID, MAX_HOST_ID_CHARS);
+    let sandbox_name = read(SANDBOX_NAME, MAX_SANDBOX_NAME_CHARS);
     let refresh = settings.parse(TICKET_REFRESH_SECONDS, |text| match text.parse::<u64>() {
         // The holder never refreshes faster, so a lower interval would be silently raised.
         Ok(seconds) if Duration::from_secs(seconds) >= MIN_REFRESH_INTERVAL => {
@@ -76,16 +83,14 @@ pub fn read_ticket_settings(settings: &mut Settings) -> Option<TicketSettings> {
     Some(ticket)
 }
 
-fn bounded(settings: &mut Settings, name: &str, max_chars: usize) -> Option<String> {
-    let text = settings.required(name)?.to_owned();
+fn at_most(text: &str, max_chars: usize) -> Result<String, String> {
     let chars = text.chars().count();
     if chars > max_chars {
-        settings.refuse(format!(
-            "{name} has {chars} characters, past the {max_chars} Rail Center reads"
+        return Err(format!(
+            "has {chars} characters, past the {max_chars} Rail Center reads"
         ));
-        return None;
     }
-    Some(text)
+    Ok(text.to_owned())
 }
 
 /// Whose ticket to fetch: this host, and the one sandbox it serves.

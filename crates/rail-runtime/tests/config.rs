@@ -28,7 +28,7 @@ fn a_value_that_is_not_utf8_is_refused_once() {
 
     assert!(settings.is_set("A"));
     assert_eq!(settings.required("A"), None);
-    assert_eq!(settings.secret("B"), None);
+    assert_eq!(settings.secret("A"), None);
 
     assert_eq!(
         settings.finish(),
@@ -104,4 +104,40 @@ fn a_secret_is_trimmed_and_never_debugs() {
 #[test]
 fn a_refused_configuration_exits_2() {
     assert_eq!(EXIT_CODE, 2);
+}
+
+#[test]
+fn a_required_parse_refuses_unset_and_what_it_rejects() {
+    let variables: Variables = [("N", "x"), ("P", "8080")].into_iter().collect();
+    let mut settings = Settings::new(&variables);
+    let port = |text: &str| {
+        text.parse::<u16>()
+            .map_err(|_| format!("is not a port, got: {text}"))
+    };
+
+    assert_eq!(settings.required_parse("P", port), Some(8080));
+    assert_eq!(settings.required_parse("N", port), None);
+    assert_eq!(settings.required_parse("UNSET", port), None);
+    assert_eq!(
+        settings.finish().unwrap_err().0,
+        [
+            "N is not a port, got: x",
+            "UNSET is required and is unset or blank"
+        ]
+    );
+}
+
+#[test]
+fn a_repeated_refusal_is_listed_once_and_counted_each_time() {
+    let variables: Variables = [(OsString::from("A"), OsString::from_vec(vec![0xff]))]
+        .into_iter()
+        .collect();
+    let mut settings = Settings::new(&variables);
+
+    settings.text("A");
+    let before = settings.refusals();
+    settings.text("A");
+
+    assert!(settings.refusals() > before);
+    assert_eq!(settings.finish().unwrap_err().0, ["A is not valid UTF-8"]);
 }

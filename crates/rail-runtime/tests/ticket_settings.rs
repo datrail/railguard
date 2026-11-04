@@ -5,7 +5,7 @@ use rail_runtime::{Settings, TicketQuery, TicketSettings, Variables, read_ticket
 fn read(pairs: &[(&str, &str)]) -> Result<TicketSettings, Vec<String>> {
     let variables: Variables = pairs.iter().copied().collect();
     let mut settings = Settings::new(&variables);
-    let read = read_ticket_settings(&mut settings);
+    let read = read_ticket_settings(&mut settings, true);
     match settings.finish() {
         Ok(()) => Ok(read.expect("read when nothing is refused")),
         Err(errors) => {
@@ -92,4 +92,22 @@ fn the_refresh_interval_is_whole_seconds_from_5() {
             )]
         );
     }
+}
+
+#[test]
+fn not_required_judges_only_what_is_set() {
+    let variables: Variables = [("RAIL_SANDBOX_NAME", "s".repeat(256))]
+        .into_iter()
+        .collect();
+    let mut settings = Settings::new(&variables);
+    assert!(read_ticket_settings(&mut settings, false).is_none());
+    assert_eq!(
+        settings.finish().unwrap_err().0,
+        ["RAIL_SANDBOX_NAME has 256 characters, past the 255 Rail Center reads"]
+    );
+
+    let variables: Variables = [("RAIL_HOST_ID", "h")].into_iter().collect();
+    let mut settings = Settings::new(&variables);
+    assert!(read_ticket_settings(&mut settings, false).is_none());
+    assert_eq!(settings.finish(), Ok(()));
 }
