@@ -2,8 +2,10 @@
 
 mod bundle;
 mod condition;
+mod endpoint;
 mod environment;
 mod evaluate;
+mod judge;
 mod schema;
 mod ticket;
 
@@ -12,9 +14,13 @@ pub use bundle::{
     Policy, SchemaVersion, UnusableBundle, parse_bundle,
 };
 pub use condition::{Condition, Path, Predicate, Scalar};
-pub use environment::{Environment, Headers, ResolvedKey};
+pub use endpoint::{Endpoint, Resolution, ResolvedKey, resolve_endpoint};
+pub use environment::{Environment, Headers};
 pub use evaluate::{
     Budget, CompiledCondition, DEFAULT_STEP_LIMIT, Refusal, compile_condition, evaluate_condition,
+};
+pub use judge::{
+    ChainVerdict, Decision, FallbackDenial, Judge, JudgingMode, Outcome, compile_bundle, judge,
 };
 pub use schema::{RequestPath, TicketPath};
 pub use ticket::{
