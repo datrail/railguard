@@ -1,5 +1,5 @@
 use rail_policy::{
-    Budget, Condition, Endpoint, Environment, Headers, Refusal, compile_condition,
+    Budget, Condition, Endpoint, Environment, Headers, Refusal, Verdict, compile_condition,
     evaluate_condition,
 };
 use serde::Deserialize;
@@ -24,7 +24,7 @@ struct Case {
     expect: String,
 }
 
-fn evaluate_case(case: &Case) -> Result<bool, Refusal> {
+fn evaluate_case(case: &Case) -> Verdict {
     let condition: Condition = serde_json::from_str(case.condition.get()).unwrap();
     let endpoint = match &case.endpoint_key {
         Some(key) => Endpoint::Resolved(key.parse().unwrap()),
@@ -41,14 +41,14 @@ fn evaluate_case(case: &Case) -> Result<bool, Refusal> {
         &environment,
         &mut Budget::default(),
     )
-    .result
+    .verdict
 }
 
-fn get_outcome_name(outcome: &Result<bool, Refusal>) -> &'static str {
+fn get_outcome_name(outcome: &Verdict) -> &'static str {
     match outcome {
-        Ok(true) => "holds",
-        Ok(false) => "does_not_hold",
-        Err(_) => "refused",
+        Verdict::Holds => "holds",
+        Verdict::DoesNotHold => "does_not_hold",
+        Verdict::Refused(_) => "refused",
     }
 }
 
@@ -70,7 +70,7 @@ fn test_vectors() {
     assert!(failures.is_empty(), "\n{}", failures.join("\n"));
 }
 
-fn evaluate_on_header(condition: Value, value: &str, budget: &mut Budget) -> Result<bool, Refusal> {
+fn evaluate_on_header(condition: Value, value: &str, budget: &mut Budget) -> Verdict {
     let condition: Condition = serde_json::from_value(condition).unwrap();
     let headers = Headers::from_lines([("x-a", value)]);
     let environment = Environment {
@@ -78,7 +78,7 @@ fn evaluate_on_header(condition: Value, value: &str, budget: &mut Budget) -> Res
         endpoint: &Endpoint::Keyless,
         headers: &headers,
     };
-    evaluate_condition(&compile_condition(&condition), &environment, budget).result
+    evaluate_condition(&compile_condition(&condition), &environment, budget).verdict
 }
 
 #[test]
@@ -88,11 +88,11 @@ fn test_refuses_past_the_step_limit_and_not_before() {
     // One step for the condition, and one for each of the three values.
     assert_eq!(
         evaluate_on_header(condition.clone(), "a,a,a", &mut Budget::new(4)),
-        Ok(true)
+        Verdict::Holds
     );
     assert_eq!(
         evaluate_on_header(condition, "a,a,a", &mut Budget::new(3)),
-        Err(Refusal::BudgetExceeded)
+        Verdict::Refused(Refusal::BudgetExceeded)
     );
 }
 
@@ -107,7 +107,7 @@ fn test_matches_a_hostile_pattern_in_one_scan() {
     let started = std::time::Instant::now();
     assert_eq!(
         evaluate_on_header(condition, &value, &mut budget),
-        Ok(false)
+        Verdict::DoesNotHold
     );
     assert!(
         started.elapsed().as_millis() < 100,
@@ -121,7 +121,10 @@ fn test_charges_a_long_value_by_its_length() {
     let condition = json!({"path": "request.headers.x-a", "op": "matches", "value": "*"});
     let mut budget = Budget::default();
 
-    evaluate_on_header(condition, &"a".repeat(6_400), &mut budget).unwrap();
+    assert_eq!(
+        evaluate_on_header(condition, &"a".repeat(6_400), &mut budget),
+        Verdict::Holds
+    );
     assert_eq!(budget.steps(), 102);
 }
 
@@ -139,7 +142,7 @@ fn test_folds_header_lines() {
     assert_eq!(headers, expected);
 }
 
-fn evaluate_on_claims(condition: Value, claims: Value) -> Result<bool, Refusal> {
+fn evaluate_on_claims(condition: Value, claims: Value) -> Verdict {
     let condition: Condition = serde_json::from_value(condition).unwrap();
     let Value::Object(claims) = claims else {
         panic!();
@@ -155,14 +158,14 @@ fn evaluate_on_claims(condition: Value, claims: Value) -> Result<bool, Refusal> 
         &environment,
         &mut Budget::default(),
     )
-    .result
+    .verdict
 }
 
 #[test]
 fn test_matches_interior_literals_in_order_without_reuse() {
     let read = |pattern: &str, value: &str| {
         let condition = json!({"path": "request.headers.x-a", "op": "matches", "value": pattern});
-        evaluate_on_header(condition, value, &mut Budget::default()).unwrap()
+        evaluate_on_header(condition, value, &mut Budget::default()) == Verdict::Holds
     };
     assert!(read("x*a*b*y", "xaby"));
     assert!(!read("x*b*a*y", "xaby"));
@@ -175,13 +178,13 @@ fn test_never_reads_a_boolean_operand_as_a_member() {
     let condition = json!({"path": "request.headers.x-a", "op": "in", "value": [true]});
     assert_eq!(
         evaluate_on_header(condition, "true", &mut Budget::default()),
-        Ok(false)
+        Verdict::DoesNotHold
     );
 
     let condition = json!({"path": "ticket.posture.overall.score", "op": "in", "value": [true]});
     assert_eq!(
         evaluate_on_claims(condition, json!({"posture": {"overall": {"score": 1}}})),
-        Ok(false)
+        Verdict::DoesNotHold
     );
 }
 
@@ -190,7 +193,7 @@ fn test_reads_one_header_value_as_a_string() {
     let condition = json!({"path": "request.headers.x-a", "op": "contains", "value": "acme"});
     assert_eq!(
         evaluate_on_header(condition, "acme", &mut Budget::default()),
-        Ok(false)
+        Verdict::DoesNotHold
     );
 }
 
@@ -202,7 +205,7 @@ fn test_reads_what_a_ticket_leaves_out_as_absent() {
     });
     let read = |path: &str| {
         let condition = json!({"path": path, "op": "existing"});
-        evaluate_on_claims(condition, claims.clone()).unwrap()
+        evaluate_on_claims(condition, claims.clone()) == Verdict::Holds
     };
     assert!(!read("ticket.alignment.baseline"));
     assert!(!read("ticket.posture.categories.network"));
@@ -216,7 +219,7 @@ fn test_reads_what_a_ticket_leaves_out_as_absent() {
 fn test_reads_a_list_item_that_is_not_a_scalar_as_matching_nothing() {
     let read = |op: &str, value: Value, skills: Value| {
         let condition = json!({"path": "ticket.skills", "op": op, "value": value});
-        evaluate_on_claims(condition, json!({"skills": skills})).unwrap()
+        evaluate_on_claims(condition, json!({"skills": skills})) == Verdict::Holds
     };
     assert!(!read("eq", json!("acme"), json!(["acme", null])));
     assert!(read("ne", json!("acme"), json!(["acme", null])));

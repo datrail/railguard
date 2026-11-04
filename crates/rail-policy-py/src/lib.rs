@@ -12,7 +12,7 @@ mod _native {
     use pyo3::{Bound, IntoPyObject, PyResult, pyclass, pyfunction};
     use rail_policy::{
         Budget, Decision, Endpoint, EnforcementMode, Environment, Evaluation, FallbackDenial,
-        Headers, Judge, JudgingMode, Lookup, Refusal, TicketState, TicketVerifier, Trace,
+        Headers, Judge, JudgingMode, Lookup, Refusal, TicketState, TicketVerifier, Trace, Verdict,
         compile_bundle as compile, judge_traced, parse_bundle, parse_ticket, sanitize,
     };
     use serde_json::{Map, Value, json};
@@ -215,10 +215,10 @@ mod _native {
                 Lookup::List(items) => json!({"kind": "list", "value": items}),
                 Lookup::Object => json!({"kind": "object"}),
             });
-            let result = match evaluation.result {
-                Ok(true) => "held",
-                Ok(false) => "did_not_hold",
-                Err(_) => "refused",
+            let result = match evaluation.verdict {
+                Verdict::Holds => "holds",
+                Verdict::DoesNotHold => "does_not_hold",
+                Verdict::Refused(_) => "refused",
             };
             self.0.push(json!({
                 "policy": policy,

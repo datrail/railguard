@@ -114,7 +114,25 @@ pub struct Evaluation<'a> {
     /// What the condition's path resolved to, or `None` if none was: the condition can't be read,
     /// or the budget ran out first.
     pub resolved: Option<Lookup<'a>>,
-    pub result: Result<bool, Refusal>,
+    pub verdict: Verdict,
+}
+
+/// Whether a condition held. A refusal is neither.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Verdict {
+    Holds,
+    DoesNotHold,
+    Refused(Refusal),
+}
+
+impl From<Result<bool, Refusal>> for Verdict {
+    fn from(result: Result<bool, Refusal>) -> Self {
+        match result {
+            Ok(true) => Self::Holds,
+            Ok(false) => Self::DoesNotHold,
+            Err(refusal) => Self::Refused(refusal),
+        }
+    }
 }
 
 pub fn evaluate_condition<'a>(
@@ -124,7 +142,7 @@ pub fn evaluate_condition<'a>(
 ) -> Evaluation<'a> {
     let refuse = |refusal| Evaluation {
         resolved: None,
-        result: Err(refusal),
+        verdict: Verdict::Refused(refusal),
     };
     if let Err(refusal) = budget.charge(1) {
         return refuse(refusal);
@@ -135,7 +153,7 @@ pub fn evaluate_condition<'a>(
     let value = resolve(path, environment);
     Evaluation {
         resolved: Some(value),
-        result: apply(test, value, budget),
+        verdict: apply(test, value, budget).into(),
     }
 }
 

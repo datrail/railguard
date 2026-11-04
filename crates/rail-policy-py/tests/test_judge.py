@@ -138,15 +138,15 @@ def test_traces_each_policy_evaluated_until_one_decides():
         ),
         trace=(
             TraceStep(
-                policy=_get_policy_id(1), resolved=Resolved(kind="bool", value=True), result="held"
+                policy=_get_policy_id(1), resolved=Resolved(kind="bool", value=True), result="holds"
             ),
             TraceStep(
-                policy=_get_policy_id(2), resolved=Resolved(kind="absent"), result="did_not_hold"
+                policy=_get_policy_id(2), resolved=Resolved(kind="absent"), result="does_not_hold"
             ),
             TraceStep(
                 policy=_get_policy_id(3),
                 resolved=Resolved(kind="list", value=["b", "c"]),
-                result="held",
+                result="holds",
             ),
         ),
     )

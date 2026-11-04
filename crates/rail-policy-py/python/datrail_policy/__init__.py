@@ -52,7 +52,7 @@ class TraceStep:
     policy: str
     # `None` when no path was resolved: the condition can't be read, or the budget ran out first.
     resolved: Resolved | None
-    result: Literal["held", "did_not_hold", "refused"]
+    result: Literal["holds", "does_not_hold", "refused"]
 
 
 @dataclass(frozen=True)

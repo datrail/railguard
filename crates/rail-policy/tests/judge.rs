@@ -1,6 +1,7 @@
 use rail_policy::{
     Budget, Decision, Endpoint, EnforcementMode, Environment, Evaluation, FallbackDenial, Headers,
-    JudgingMode, Outcome, Refusal, Trace, compile_bundle, judge, judge_traced, parse_bundle,
+    JudgingMode, Outcome, Refusal, Trace, Verdict, compile_bundle, judge, judge_traced,
+    parse_bundle,
 };
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
@@ -153,14 +154,14 @@ fn test_judges_nothing_at_mode_none() {
 
 /// Each step as `(policy's last two digits, what was resolved, result)`.
 #[derive(Default)]
-struct Recorder(Vec<(String, Option<String>, Result<bool, Refusal>)>);
+struct Recorder(Vec<(String, Option<String>, Verdict)>);
 
 impl Trace for Recorder {
     fn visit(&mut self, policy: Uuid, evaluation: &Evaluation) {
         let id = policy.to_string();
         let resolved = evaluation.resolved.map(|lookup| format!("{lookup:?}"));
         self.0
-            .push((id[id.len() - 2..].to_string(), resolved, evaluation.result));
+            .push((id[id.len() - 2..].to_string(), resolved, evaluation.verdict));
     }
 }
 
@@ -241,12 +242,12 @@ fn test_traces_each_policy_evaluated_until_one_decides() {
     assert_eq!(
         recorder.0,
         [
-            ("01".into(), Some("Bool(true)".into()), Ok(true)),
-            ("02".into(), Some("Absent".into()), Ok(false)),
+            ("01".into(), Some("Bool(true)".into()), Verdict::Holds),
+            ("02".into(), Some("Absent".into()), Verdict::DoesNotHold),
             (
                 "03".into(),
                 Some(r#"List([String("b"), String("c")])"#.into()),
-                Ok(true)
+                Verdict::Holds
             ),
         ]
     );
@@ -276,8 +277,12 @@ fn test_traces_a_refusal_with_nothing_resolved() {
     assert_eq!(
         recorder.0,
         [
-            ("01".into(), Some("Number(10.0)".into()), Ok(true)),
-            ("02".into(), None, Err(Refusal::Uninterpretable)),
+            ("01".into(), Some("Number(10.0)".into()), Verdict::Holds),
+            (
+                "02".into(),
+                None,
+                Verdict::Refused(Refusal::Uninterpretable)
+            ),
         ]
     );
 
@@ -285,7 +290,7 @@ fn test_traces_a_refusal_with_nothing_resolved() {
     let (_, recorder) = trace_bundle(policies, json!([]), 0);
     assert_eq!(
         recorder.0,
-        [("01".into(), None, Err(Refusal::BudgetExceeded))]
+        [("01".into(), None, Verdict::Refused(Refusal::BudgetExceeded))]
     );
 }
 
@@ -313,6 +318,10 @@ fn test_traces_only_the_policies_a_binding_allows() {
 
     assert_eq!(
         recorder.0,
-        [("02".into(), Some("Number(10.0)".into()), Ok(false))]
+        [(
+            "02".into(),
+            Some("Number(10.0)".into()),
+            Verdict::DoesNotHold
+        )]
     );
 }

@@ -6,7 +6,7 @@ use crate::bundle::{Action, BindingMode, Bundle, EnforcementMode, Fallback};
 use crate::endpoint::{Endpoint, ResolvedKey};
 use crate::environment::Environment;
 use crate::evaluate::{
-    Budget, CompiledCondition, Evaluation, Refusal, compile_condition, evaluate_condition,
+    Budget, CompiledCondition, Evaluation, Refusal, Verdict, compile_condition, evaluate_condition,
 };
 
 /// A bundle compiled for judging: built once per bundle, then used for every call.
@@ -218,9 +218,9 @@ fn walk<'a>(
     for policy in policies {
         let evaluation = evaluate_condition(&policy.condition, environment, budget);
         trace.visit(policy.id, &evaluation);
-        match evaluation.result {
+        match evaluation.verdict {
             // A refused call reports nothing, its alerts included.
-            Err(refusal) => {
+            Verdict::Refused(refusal) => {
                 let decision = Decision::Refused {
                     policy: policy.id,
                     refusal,
@@ -230,9 +230,9 @@ fn walk<'a>(
                     alerts: Vec::new(),
                 };
             }
-            Ok(false) => {}
-            Ok(true) if policy.action == Action::Alert => alerts.push(policy.id),
-            Ok(true) => {
+            Verdict::DoesNotHold => {}
+            Verdict::Holds if policy.action == Action::Alert => alerts.push(policy.id),
+            Verdict::Holds => {
                 let decision = Decision::Denied(policy.id);
                 return ChainVerdict { decision, alerts };
             }
