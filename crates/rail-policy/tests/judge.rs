@@ -1,6 +1,6 @@
 use rail_policy::{
-    Budget, Decision, Endpoint, EnforcementMode, Environment, FallbackDenial, Headers, JudgingMode,
-    Lookup, Outcome, Refusal, Trace, compile_bundle, judge, judge_traced, parse_bundle,
+    Budget, Decision, Endpoint, EnforcementMode, Environment, Evaluation, FallbackDenial, Headers,
+    JudgingMode, Outcome, Refusal, Trace, compile_bundle, judge, judge_traced, parse_bundle,
 };
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
@@ -156,16 +156,11 @@ fn test_judges_nothing_at_mode_none() {
 struct Recorder(Vec<(String, Option<String>, Result<bool, Refusal>)>);
 
 impl Trace for Recorder {
-    fn visit(
-        &mut self,
-        policy: Uuid,
-        resolved: Option<Lookup<'_>>,
-        result: &Result<bool, Refusal>,
-    ) {
+    fn visit(&mut self, policy: Uuid, evaluation: &Evaluation) {
         let id = policy.to_string();
-        let resolved = resolved.map(|lookup| format!("{lookup:?}"));
+        let resolved = evaluation.resolved.map(|lookup| format!("{lookup:?}"));
         self.0
-            .push((id[id.len() - 2..].to_string(), resolved, *result));
+            .push((id[id.len() - 2..].to_string(), resolved, evaluation.result));
     }
 }
 

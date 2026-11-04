@@ -41,6 +41,7 @@ fn evaluate_case(case: &Case) -> Result<bool, Refusal> {
         &environment,
         &mut Budget::default(),
     )
+    .result
 }
 
 fn get_outcome_name(outcome: &Result<bool, Refusal>) -> &'static str {
@@ -77,7 +78,7 @@ fn evaluate_on_header(condition: Value, value: &str, budget: &mut Budget) -> Res
         endpoint: &Endpoint::Keyless,
         headers: &headers,
     };
-    evaluate_condition(&compile_condition(&condition), &environment, budget)
+    evaluate_condition(&compile_condition(&condition), &environment, budget).result
 }
 
 #[test]
@@ -154,6 +155,7 @@ fn evaluate_on_claims(condition: Value, claims: Value) -> Result<bool, Refusal> 
         &environment,
         &mut Budget::default(),
     )
+    .result
 }
 
 #[test]

@@ -17,7 +17,7 @@ pub use condition::{Condition, Path, Predicate, RequestPath, Scalar, TicketPath}
 pub use endpoint::{Endpoint, Resolution, ResolvedKey, resolve_endpoint};
 pub use environment::{Environment, Headers};
 pub use evaluate::{
-    Budget, CompiledCondition, DEFAULT_STEP_LIMIT, Lookup, Refusal, compile_condition,
+    Budget, CompiledCondition, DEFAULT_STEP_LIMIT, Evaluation, Lookup, Refusal, compile_condition,
     evaluate_condition,
 };
 pub use judge::{

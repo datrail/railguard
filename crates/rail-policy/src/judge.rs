@@ -6,7 +6,7 @@ use crate::bundle::{Action, BindingMode, Bundle, EnforcementMode, Fallback};
 use crate::endpoint::{Endpoint, ResolvedKey};
 use crate::environment::Environment;
 use crate::evaluate::{
-    Budget, CompiledCondition, Lookup, Refusal, compile_condition, evaluate_resolving,
+    Budget, CompiledCondition, Evaluation, Refusal, compile_condition, evaluate_condition,
 };
 
 /// A bundle compiled for judging: built once per bundle, then used for every call.
@@ -133,9 +133,7 @@ pub fn compile_bundle(bundle: &Bundle) -> Judge {
 
 /// Told of each policy the walk evaluates, in order, to explain an outcome.
 pub trait Trace {
-    /// `resolved` is what the condition's path resolved to, or `None` if none was resolved: the
-    /// condition can't be read, or the budget ran out first.
-    fn visit(&mut self, policy: Uuid, resolved: Option<Lookup<'_>>, result: &Result<bool, Refusal>);
+    fn visit(&mut self, policy: Uuid, evaluation: &Evaluation);
 }
 
 /// Records nothing, so judging with it costs nothing.
@@ -143,7 +141,7 @@ pub struct NoTrace;
 
 impl Trace for NoTrace {
     #[inline(always)]
-    fn visit(&mut self, _: Uuid, _: Option<Lookup<'_>>, _: &Result<bool, Refusal>) {}
+    fn visit(&mut self, _: Uuid, _: &Evaluation) {}
 }
 
 /// The ticket fallback, then the binding fallback, then the chain. At `enforce` a fallback's
@@ -218,9 +216,9 @@ fn walk<'a>(
 ) -> ChainVerdict {
     let mut alerts = Vec::new();
     for policy in policies {
-        let (resolved, result) = evaluate_resolving(&policy.condition, environment, budget);
-        trace.visit(policy.id, resolved, &result);
-        match result {
+        let evaluation = evaluate_condition(&policy.condition, environment, budget);
+        trace.visit(policy.id, &evaluation);
+        match evaluation.result {
             // A refused call reports nothing, its alerts included.
             Err(refusal) => {
                 let decision = Decision::Refused {

@@ -11,8 +11,8 @@ mod _native {
     use pyo3::prelude::*;
     use pyo3::types::PyBytes;
     use rail_policy::{
-        Budget, Decision, Endpoint, EnforcementMode, Environment, FallbackDenial, Headers, Judge,
-        JudgingMode, Lookup, Refusal, TicketState, TicketVerifier, Trace,
+        Budget, Decision, Endpoint, EnforcementMode, Environment, Evaluation, FallbackDenial,
+        Headers, Judge, JudgingMode, Lookup, Refusal, TicketState, TicketVerifier, Trace,
         compile_bundle as compile, judge_traced, parse_bundle, parse_ticket, sanitize,
     };
     use serde_json::{Map, Value, json};
@@ -206,13 +206,8 @@ mod _native {
     struct Recorder(Vec<Value>);
 
     impl Trace for Recorder {
-        fn visit(
-            &mut self,
-            policy: Uuid,
-            resolved: Option<Lookup<'_>>,
-            result: &Result<bool, Refusal>,
-        ) {
-            let resolved = resolved.map(|lookup| match lookup {
+        fn visit(&mut self, policy: Uuid, evaluation: &Evaluation) {
+            let resolved = evaluation.resolved.map(|lookup| match lookup {
                 Lookup::Absent => json!({"kind": "absent"}),
                 Lookup::Str(text) => json!({"kind": "string", "value": text}),
                 Lookup::Number(number) => json!({"kind": "number", "value": number}),
@@ -220,7 +215,7 @@ mod _native {
                 Lookup::List(items) => json!({"kind": "list", "value": items}),
                 Lookup::Object => json!({"kind": "object"}),
             });
-            let result = match result {
+            let result = match evaluation.result {
                 Ok(true) => "held",
                 Ok(false) => "did_not_hold",
                 Err(_) => "refused",

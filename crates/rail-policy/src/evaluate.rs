@@ -108,28 +108,35 @@ pub fn compile_condition(condition: &Condition) -> CompiledCondition {
     CompiledCondition(Node::Test(path.clone(), test))
 }
 
-pub fn evaluate_condition(
-    condition: &CompiledCondition,
-    environment: &Environment,
-    budget: &mut Budget,
-) -> Result<bool, Refusal> {
-    evaluate_resolving(condition, environment, budget).1
+/// What evaluating a condition found.
+#[derive(Debug)]
+pub struct Evaluation<'a> {
+    /// What the condition's path resolved to, or `None` if none was: the condition can't be read,
+    /// or the budget ran out first.
+    pub resolved: Option<Lookup<'a>>,
+    pub result: Result<bool, Refusal>,
 }
 
-/// Also what the path resolved to, or `None` if none was resolved.
-pub(crate) fn evaluate_resolving<'a>(
+pub fn evaluate_condition<'a>(
     condition: &CompiledCondition,
     environment: &Environment<'a>,
     budget: &mut Budget,
-) -> (Option<Lookup<'a>>, Result<bool, Refusal>) {
+) -> Evaluation<'a> {
+    let refuse = |refusal| Evaluation {
+        resolved: None,
+        result: Err(refusal),
+    };
     if let Err(refusal) = budget.charge(1) {
-        return (None, Err(refusal));
+        return refuse(refusal);
     }
     let Node::Test(path, test) = &condition.0 else {
-        return (None, Err(Refusal::Uninterpretable));
+        return refuse(Refusal::Uninterpretable);
     };
     let value = resolve(path, environment);
-    (Some(value), apply(test, value, budget))
+    Evaluation {
+        resolved: Some(value),
+        result: apply(test, value, budget),
+    }
 }
 
 fn read_scalars(items: &[Value]) -> Vec<Scalar> {
