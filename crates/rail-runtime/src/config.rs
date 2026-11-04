@@ -161,6 +161,10 @@ impl fmt::Display for ConfigErrors {
 pub struct Secret(String);
 
 impl Secret {
+    pub fn new(value: String) -> Self {
+        Self(value)
+    }
+
     pub fn expose(&self) -> &str {
         &self.0
     }

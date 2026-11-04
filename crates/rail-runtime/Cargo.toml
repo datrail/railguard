@@ -3,17 +3,20 @@ name = "rail-runtime"
 edition = "2024"
 
 [dependencies]
+arc-swap = "1"
 flate2 = "1"
 rail-policy = { path = "../rail-policy" }
 # No system proxy, no platform verifier, no decoding: the roots are compiled in, the provider is
 # ours, and gzip is decoded here, capped.
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
-tokio = { version = "1", features = ["time"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "time"] }
 webpki-roots = "1"
 
 [dev-dependencies]
-tokio = { version = "1", features = ["io-util", "macros", "net", "rt-multi-thread"] }
+tokio = { version = "1", features = ["io-util", "macros", "net", "rt-multi-thread", "test-util"] }
 
 [lints.rust]
 unsafe_code = "forbid"
