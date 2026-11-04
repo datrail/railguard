@@ -31,6 +31,26 @@ pub enum Segment {
     Index(usize),
 }
 
+impl From<&str> for Segment {
+    fn from(key: &str) -> Self {
+        Self::Key(key.to_string())
+    }
+}
+
+impl From<usize> for Segment {
+    fn from(index: usize) -> Self {
+        Self::Index(index)
+    }
+}
+
+/// A location from keys and indexes: `loc!["value", 1]`.
+#[macro_export]
+macro_rules! loc {
+    ($($segment:expr),* $(,)?) => {
+        vec![$($crate::Segment::from($segment)),*]
+    };
+}
+
 /// Rail Center's refusal codes, plus `Unreadable`.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -143,7 +163,7 @@ pub fn check_condition(text: &str, ticket_schema: &TicketSchema) -> Vec<Problem>
                 sanitize(&e.to_string())
             );
             return vec![problem(
-                &[],
+                loc![],
                 ProblemCode::Unreadable,
                 Scope::Enforcement,
                 message,
@@ -153,7 +173,7 @@ pub fn check_condition(text: &str, ticket_schema: &TicketSchema) -> Vec<Problem>
     let Value::Object(fields) = &condition else {
         let message = "not a JSON object".to_string();
         return vec![problem(
-            &[],
+            loc![],
             ProblemCode::NotAnObject,
             Scope::Enforcement,
             message,
@@ -171,13 +191,13 @@ pub fn check_condition(text: &str, ticket_schema: &TicketSchema) -> Vec<Problem>
     let kind = check_path(fields.get("path"), ticket_schema, scope, &mut problems);
     match op {
         None => problems.push(problem(
-            &["op"],
+            loc!["op"],
             ProblemCode::UnknownOp,
             Scope::Enforcement,
             "not a string".to_string(),
         )),
         Some(op) if op_unknown => problems.push(problem(
-            &["op"],
+            loc!["op"],
             ProblemCode::UnknownOp,
             Scope::Authoring,
             format!("\"{}\": not an op this reader knows", sanitize(op)),
@@ -187,7 +207,7 @@ pub fn check_condition(text: &str, ticket_schema: &TicketSchema) -> Vec<Problem>
     if get_depth(&condition) > MAX_AUTHORING_DEPTH {
         let message = format!("nested deeper than {MAX_AUTHORING_DEPTH} levels");
         problems.push(problem(
-            &[],
+            loc![],
             ProblemCode::TooDeep,
             Scope::Authoring,
             message,
@@ -206,7 +226,7 @@ fn check_path(
     let Some(path) = path.and_then(Value::as_str) else {
         let message = "not a string".to_string();
         problems.push(problem(
-            &["path"],
+            loc!["path"],
             ProblemCode::UnknownSource,
             scope,
             message,
@@ -248,7 +268,7 @@ fn check_path(
             format!("\"{shown}\": not under ticket or request"),
         ),
     };
-    problems.push(problem(&["path"], code, problem_scope, message));
+    problems.push(problem(loc!["path"], code, problem_scope, message));
     None
 }
 
@@ -262,7 +282,7 @@ fn check_operand(
         && !is_op_for(kind, op)
     {
         problems.push(problem(
-            &["op"],
+            loc!["op"],
             ProblemCode::OpNotForPath,
             Scope::Authoring,
             format!("{op} can't hold for {}", format_kind(kind)),
@@ -274,7 +294,7 @@ fn check_operand(
         problems.push(Problem {
             expected: Some(expected),
             ..problem(
-                &["value"],
+                loc!["value"],
                 ProblemCode::OperandShape,
                 Scope::Enforcement,
                 format!("{op} takes a {}", format_shape(expected)),
@@ -283,12 +303,9 @@ fn check_operand(
     }
 }
 
-fn problem(keys: &[&str], code: ProblemCode, scope: Scope, message: String) -> Problem {
+fn problem(location: Vec<Segment>, code: ProblemCode, scope: Scope, message: String) -> Problem {
     Problem {
-        location: keys
-            .iter()
-            .map(|key| Segment::Key(key.to_string()))
-            .collect(),
+        location,
         code,
         scope,
         expected: None,

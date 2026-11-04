@@ -1,5 +1,6 @@
 use rail_policy::{
     Condition, OperandShape, Problem, ProblemCode, Scope, Segment, TicketSchema, check_condition,
+    loc,
 };
 use serde::Deserialize;
 use serde_json::value::RawValue;
@@ -57,12 +58,6 @@ fn get_schema() -> TicketSchema {
     .unwrap()
 }
 
-fn at(keys: &[&str]) -> Vec<Segment> {
-    keys.iter()
-        .map(|key| Segment::Key(key.to_string()))
-        .collect()
-}
-
 fn check(condition: Value) -> Vec<(Vec<Segment>, ProblemCode, Scope)> {
     check_condition(&condition.to_string(), &get_schema())
         .into_iter()
@@ -116,26 +111,26 @@ fn test_accepts_a_condition_every_reader_reads() {
 fn test_reports_what_every_reader_refuses() {
     use ProblemCode::{NotAnObject, OperandShape, UnknownOp, UnknownPath, UnknownSource};
     use Scope::Enforcement;
-    assert_eq!(check(json!([1])), [(at(&[]), NotAnObject, Enforcement)]);
+    assert_eq!(check(json!([1])), [(loc![], NotAnObject, Enforcement)]);
     assert_eq!(
         check(json!({"path": 1, "op": "existing"})),
-        [(at(&["path"]), UnknownSource, Enforcement)]
+        [(loc!["path"], UnknownSource, Enforcement)]
     );
     assert_eq!(
         check(json!({"path": "body.x", "op": "existing"})),
-        [(at(&["path"]), UnknownSource, Enforcement)]
+        [(loc!["path"], UnknownSource, Enforcement)]
     );
     assert_eq!(
         check(json!({"path": "request.method", "op": "existing"})),
-        [(at(&["path"]), UnknownPath, Enforcement)]
+        [(loc!["path"], UnknownPath, Enforcement)]
     );
     assert_eq!(
         check(json!({"path": "ticket.agent_id"})),
-        [(at(&["op"]), UnknownOp, Enforcement)]
+        [(loc!["op"], UnknownOp, Enforcement)]
     );
     assert_eq!(
         check(json!({"path": "ticket.agent_id", "op": "eq", "value": true})),
-        [(at(&["value"]), OperandShape, Enforcement)]
+        [(loc!["value"], OperandShape, Enforcement)]
     );
 }
 
@@ -145,23 +140,23 @@ fn test_reports_what_only_the_writer_refuses() {
     use Scope::Authoring;
     assert_eq!(
         check(json!({"path": "ticket.posture.score", "op": "existing"})),
-        [(at(&["path"]), UnknownPath, Authoring)]
+        [(loc!["path"], UnknownPath, Authoring)]
     );
     assert_eq!(
         check(json!({"path": "request.headers.X-A", "op": "existing"})),
-        [(at(&["path"]), UnknownPath, Authoring)]
+        [(loc!["path"], UnknownPath, Authoring)]
     );
     assert_eq!(
         check(json!({"path": "request.headers.", "op": "existing"})),
-        [(at(&["path"]), UnknownPath, Authoring)]
+        [(loc!["path"], UnknownPath, Authoring)]
     );
     assert_eq!(
         check(json!({"path": "ticket.agent_id", "op": "lt", "value": 1})),
-        [(at(&["op"]), OpNotForPath, Authoring)]
+        [(loc!["op"], OpNotForPath, Authoring)]
     );
     assert_eq!(
         check(json!({"path": "ticket.posture.admin", "op": "eq", "value": 1})),
-        [(at(&["op"]), OpNotForPath, Authoring)]
+        [(loc!["op"], OpNotForPath, Authoring)]
     );
     let mut deep = json!(1);
     for _ in 0..31 {
@@ -169,14 +164,14 @@ fn test_reports_what_only_the_writer_refuses() {
     }
     assert_eq!(
         check(json!({"path": "ticket.skills", "op": "in", "value": deep})),
-        [(at(&[]), TooDeep, Authoring)]
+        [(loc![], TooDeep, Authoring)]
     );
     // An unknown op may be a newer reader's, with a path only it knows.
     assert_eq!(
         check(json!({"path": "body.x", "op": "near", "value": 1})),
         [
-            (at(&["path"]), ProblemCode::UnknownSource, Authoring),
-            (at(&["op"]), UnknownOp, Authoring)
+            (loc!["path"], ProblemCode::UnknownSource, Authoring),
+            (loc!["op"], UnknownOp, Authoring)
         ]
     );
 }
@@ -186,12 +181,8 @@ fn test_reports_every_problem_in_order() {
     assert_eq!(
         check(json!({"path": "ticket.nope", "op": "lt", "value": "x"})),
         [
-            (at(&["path"]), ProblemCode::UnknownPath, Scope::Authoring),
-            (
-                at(&["value"]),
-                ProblemCode::OperandShape,
-                Scope::Enforcement
-            )
+            (loc!["path"], ProblemCode::UnknownPath, Scope::Authoring),
+            (loc!["value"], ProblemCode::OperandShape, Scope::Enforcement)
         ]
     );
 }
@@ -205,7 +196,7 @@ fn test_says_which_operand_shape_an_op_takes() {
     assert_eq!(
         problems,
         [Problem {
-            location: at(&["value"]),
+            location: loc!["value"],
             code: ProblemCode::OperandShape,
             scope: Scope::Enforcement,
             expected: Some(OperandShape::List),
@@ -295,7 +286,7 @@ fn test_allows_each_op_only_where_it_can_hold() {
 fn test_reads_the_ticket_root_as_an_object() {
     assert_eq!(
         check(json!({"path": "ticket", "op": "eq", "value": "x"})),
-        [(at(&["op"]), ProblemCode::OpNotForPath, Scope::Authoring)]
+        [(loc!["op"], ProblemCode::OpNotForPath, Scope::Authoring)]
     );
 }
 
@@ -303,7 +294,7 @@ fn test_reads_the_ticket_root_as_an_object() {
 fn test_reads_nothing_past_a_leaf() {
     assert_eq!(
         check(json!({"path": "ticket.skills.agent_id", "op": "existing"})),
-        [(at(&["path"]), ProblemCode::UnknownPath, Scope::Authoring)]
+        [(loc!["path"], ProblemCode::UnknownPath, Scope::Authoring)]
     );
 }
 
@@ -311,7 +302,7 @@ fn test_reads_nothing_past_a_leaf() {
 fn test_lowercases_a_header_name_as_unicode() {
     assert_eq!(
         check(json!({"path": "request.headers.É", "op": "existing"})),
-        [(at(&["path"]), ProblemCode::UnknownPath, Scope::Authoring)]
+        [(loc!["path"], ProblemCode::UnknownPath, Scope::Authoring)]
     );
 }
 
@@ -322,15 +313,15 @@ fn test_reads_any_path_problem_as_authoring_beside_an_unknown_op() {
     assert_eq!(
         check(json!({"path": "request.method", "op": "near"})),
         [
-            (at(&["path"]), UnknownPath, Authoring),
-            (at(&["op"]), UnknownOp, Authoring)
+            (loc!["path"], UnknownPath, Authoring),
+            (loc!["op"], UnknownOp, Authoring)
         ]
     );
     assert_eq!(
         check(json!({"path": 1, "op": "near"})),
         [
-            (at(&["path"]), UnknownSource, Authoring),
-            (at(&["op"]), UnknownOp, Authoring)
+            (loc!["path"], UnknownSource, Authoring),
+            (loc!["op"], UnknownOp, Authoring)
         ]
     );
 }
@@ -340,12 +331,8 @@ fn test_reports_the_op_before_the_value() {
     assert_eq!(
         check(json!({"path": "ticket.agent_id", "op": "lt", "value": "x"})),
         [
-            (at(&["op"]), ProblemCode::OpNotForPath, Scope::Authoring),
-            (
-                at(&["value"]),
-                ProblemCode::OperandShape,
-                Scope::Enforcement
-            )
+            (loc!["op"], ProblemCode::OpNotForPath, Scope::Authoring),
+            (loc!["value"], ProblemCode::OperandShape, Scope::Enforcement)
         ]
     );
 }
@@ -359,5 +346,17 @@ fn test_accepts_a_condition_32_levels_deep() {
     assert_eq!(
         check(json!({"path": "ticket.skills", "op": "in", "value": deep})),
         []
+    );
+}
+
+#[test]
+fn test_builds_a_location_from_keys_and_indexes() {
+    assert_eq!(
+        loc!["value", 1],
+        [Segment::Key("value".to_string()), Segment::Index(1)]
+    );
+    assert_eq!(
+        serde_json::to_value(loc!["value", 1]).unwrap(),
+        json!(["value", 1])
     );
 }
