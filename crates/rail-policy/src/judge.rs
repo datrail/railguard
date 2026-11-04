@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use serde::Serialize;
 use uuid::Uuid;
 
 use crate::bundle::{Action, BindingMode, Bundle, EnforcementMode, Fallback};
@@ -29,7 +30,8 @@ struct ChainPolicy {
 
 /// How the caller acts on an outcome: `observe` only logs it, `enforce` acts on it. There's no
 /// `none`, since at `none` the judge isn't called.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum JudgingMode {
     Observe,
     Enforce,
@@ -58,7 +60,8 @@ pub struct Outcome {
 }
 
 /// A fallback that denies a call. No policy is named.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum FallbackDenial {
     /// The call has no usable ticket, and `ticket_fallback` is `block`.
     Ticket,

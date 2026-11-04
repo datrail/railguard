@@ -1,3 +1,4 @@
+use serde::Serialize;
 use serde_json::Value;
 
 use crate::condition::{Condition, Path, Predicate, RequestPath, Scalar, TicketPath};
@@ -39,7 +40,8 @@ impl Default for Budget {
 }
 
 /// Why a judgement couldn't be reached. Never a deny, and never a condition that didn't hold.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Refusal {
     /// An `Unknown` or `Invalid` condition was reached.
     Uninterpretable,
