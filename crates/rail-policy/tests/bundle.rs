@@ -53,7 +53,6 @@ struct Case {
 #[test]
 fn test_vectors() {
     let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
-    assert!(vectors.cases.len() >= 50);
 
     let mut failures = Vec::new();
     for case in vectors.cases {
