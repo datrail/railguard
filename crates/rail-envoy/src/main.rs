@@ -6,7 +6,7 @@
 
 use std::fs;
 use std::os::unix::fs::{FileTypeExt, PermissionsExt};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::process::ExitCode;
 
@@ -28,15 +28,30 @@ use tokio_stream::wrappers::UnixListenerStream;
 use tokio_stream::{Stream, StreamExt};
 use tonic::{Status, Streaming};
 
-const SOCKET: &str = "/run/rail/ext.sock";
+const DEFAULT_SOCKET: &str = "/run/rail/ext.sock";
+
+/// What this process runs with, read in one place so settings can replace the defaults.
+struct Config {
+    socket: PathBuf,
+}
+
+impl Config {
+    fn read() -> Self {
+        Self {
+            socket: PathBuf::from(DEFAULT_SOCKET),
+        }
+    }
+}
 
 #[tokio::main]
 async fn main() -> ExitCode {
+    // The probe reads the same configuration, so it checks the socket where it's served.
+    let config = Config::read();
     match std::env::args().nth(1).as_deref() {
-        None => serve(Path::new(SOCKET)).await,
-        Some("probe") => probe(Path::new(SOCKET)).await,
-        Some(_) => {
-            eprintln!("usage: rail-envoy [probe]");
+        None => serve(&config.socket).await,
+        Some("probe") => probe(&config.socket).await,
+        Some(argument) => {
+            eprintln!("unknown argument {argument:?}; usage: rail-envoy [probe]");
             ExitCode::from(2)
         }
     }
@@ -54,7 +69,7 @@ async fn serve(socket: &Path) -> ExitCode {
     let listener = match bind(socket) {
         Ok(listener) => listener,
         Err(error) => {
-            eprintln!("{}: {error}", socket.display());
+            eprintln!("{error}");
             return ExitCode::from(2);
         }
     };
@@ -66,7 +81,7 @@ async fn serve(socket: &Path) -> ExitCode {
     match served {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("the server stopped: {error}");
+            eprintln!("the gRPC server failed: {error}");
             ExitCode::FAILURE
         }
     }
@@ -76,15 +91,27 @@ async fn serve(socket: &Path) -> ExitCode {
 fn bind(socket: &Path) -> Result<UnixListener, String> {
     match fs::symlink_metadata(socket) {
         Ok(metadata) if metadata.file_type().is_socket() => {
-            fs::remove_file(socket).map_err(|error| format!("can't replace it: {error}"))?;
+            fs::remove_file(socket).map_err(|error| {
+                format!(
+                    "can't remove the stale socket {}: {error}",
+                    socket.display()
+                )
+            })?;
         }
-        Ok(_) => return Err("exists and isn't a socket".to_owned()),
+        Ok(_) => {
+            return Err(format!("{} exists and isn't a socket", socket.display()));
+        }
         Err(_) => {}
     }
-    let listener = UnixListener::bind(socket).map_err(|error| format!("can't bind: {error}"))?;
+    let listener = UnixListener::bind(socket)
+        .map_err(|error| format!("can't create the socket {}: {error}", socket.display()))?;
     // Envoy runs in this socket's group, as another user.
-    fs::set_permissions(socket, fs::Permissions::from_mode(0o660))
-        .map_err(|error| format!("can't share it: {error}"))?;
+    fs::set_permissions(socket, fs::Permissions::from_mode(0o660)).map_err(|error| {
+        format!(
+            "can't make the socket {} group-writable: {error}",
+            socket.display()
+        )
+    })?;
     Ok(listener)
 }
 
@@ -99,7 +126,7 @@ async fn probe(socket: &Path) -> ExitCode {
     match UnixStream::connect(socket).await {
         Ok(_) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("{}: {error}", socket.display());
+            eprintln!("no server on {}: {error}", socket.display());
             ExitCode::FAILURE
         }
     }
