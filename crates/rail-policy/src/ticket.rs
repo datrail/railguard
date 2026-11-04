@@ -35,7 +35,7 @@ pub enum TicketState {
 #[derive(Debug, PartialEq)]
 pub struct Ticket {
     /// The ticket is dead at this instant, since the epoch.
-    pub exp_in_seconds: i64,
+    pub exp_epoch_seconds: i64,
     /// The payload as sent, which rules read. Only `exp`, and on a signed ticket `nbf`, `iss` and
     /// `aud`, is checked, so Rail Center can add or drop any other claim.
     pub claims: Map<String, Value>,
@@ -43,7 +43,7 @@ pub struct Ticket {
 
 /// What a reader needs to accept a signed ticket.
 #[derive(Debug)]
-pub struct TicketVerifier {
+pub struct SignedTicketConfig {
     /// By `kid`.
     pub keys: HashMap<String, VerifyingKey>,
     /// `None` or empty where not configured, which accepts no signed ticket.
@@ -54,16 +54,20 @@ pub struct TicketVerifier {
 
 /// Reads either kind of ticket. A `.` is outside both base64 alphabets, so only a signed ticket
 /// holds one. The caller handles the header as for `parse_base64_ticket`.
-pub fn parse_ticket(value: &str, verifier: &TicketVerifier, now_in_seconds: i64) -> TicketState {
+pub fn parse_ticket(
+    value: &str,
+    config: &SignedTicketConfig,
+    now_epoch_seconds: i64,
+) -> TicketState {
     if value.contains('.') {
-        return parse_jwt_ticket(value, verifier, now_in_seconds);
+        return parse_jwt_ticket(value, config, now_epoch_seconds);
     }
-    parse_base64_ticket(value, now_in_seconds)
+    parse_base64_ticket(value, now_epoch_seconds)
 }
 
 /// Reads an unsigned ticket. The caller reads a missing header as `Absent`, and a repeated one
 /// as `Undecodable`.
-pub fn parse_base64_ticket(value: &str, now_in_seconds: i64) -> TicketState {
+pub fn parse_base64_ticket(value: &str, now_epoch_seconds: i64) -> TicketState {
     if value.is_empty() {
         return TicketState::Absent;
     }
@@ -73,18 +77,18 @@ pub fn parse_base64_ticket(value: &str, now_in_seconds: i64) -> TicketState {
     let Value::Object(claims) = payload else {
         return TicketState::Malformed;
     };
-    let Some(exp_in_seconds) = claims.get("exp").and_then(read_seconds) else {
+    let Some(exp_epoch_seconds) = claims.get("exp").and_then(read_seconds) else {
         return TicketState::Malformed;
     };
-    check_expiry(claims, exp_in_seconds, now_in_seconds)
+    check_expiry(claims, exp_epoch_seconds, now_epoch_seconds)
 }
 
 /// Reads a signed ticket: first failure wins, and nothing in the payload is read until the
 /// signature holds. The caller handles the header as for `parse_base64_ticket`.
 pub fn parse_jwt_ticket(
     value: &str,
-    verifier: &TicketVerifier,
-    now_in_seconds: i64,
+    config: &SignedTicketConfig,
+    now_epoch_seconds: i64,
 ) -> TicketState {
     if value.is_empty() {
         return TicketState::Absent;
@@ -113,10 +117,7 @@ pub fn parse_jwt_ticket(
     if header["alg"] != "EdDSA" || header.get("crit").is_some() {
         return TicketState::BadSignature;
     }
-    let Some(key) = header["kid"]
-        .as_str()
-        .and_then(|kid| verifier.keys.get(kid))
-    else {
+    let Some(key) = header["kid"].as_str().and_then(|kid| config.keys.get(kid)) else {
         return TicketState::BadSignature;
     };
     let Ok(signature) = Signature::from_slice(&signature) else {
@@ -133,7 +134,7 @@ pub fn parse_jwt_ticket(
     let Value::Object(claims) = payload else {
         return TicketState::Malformed;
     };
-    let (Some(exp_in_seconds), Some(nbf_in_seconds)) = (
+    let (Some(exp_epoch_seconds), Some(nbf_epoch_seconds)) = (
         claims.get("exp").and_then(read_seconds),
         claims.get("nbf").and_then(read_seconds),
     ) else {
@@ -142,24 +143,21 @@ pub fn parse_jwt_ticket(
 
     // Genuine, so not `BadSignature`, but with nothing to compare against it isn't for us either.
     // An empty one would match a ticket carrying `iss: ""`.
-    let issuer = verifier
-        .issuer
-        .as_deref()
-        .filter(|issuer| !issuer.is_empty());
-    let audience = verifier
+    let issuer = config.issuer.as_deref().filter(|issuer| !issuer.is_empty());
+    let audience = config
         .audience
         .as_deref()
         .filter(|audience| !audience.is_empty());
     let (Some(issuer), Some(audience)) = (issuer, audience) else {
         return TicketState::WrongAudience;
     };
-    if now_in_seconds < nbf_in_seconds.saturating_sub(NBF_ALLOWANCE_IN_SECONDS)
+    if now_epoch_seconds < nbf_epoch_seconds.saturating_sub(NBF_ALLOWANCE_IN_SECONDS)
         || claims.get("iss").and_then(Value::as_str) != Some(issuer)
         || claims.get("aud").and_then(Value::as_str) != Some(audience)
     {
         return TicketState::WrongAudience;
     }
-    check_expiry(claims, exp_in_seconds, now_in_seconds)
+    check_expiry(claims, exp_epoch_seconds, now_epoch_seconds)
 }
 
 /// Either alphabet, padded or not: a trailing run of `=` is dropped, and nothing else is.
@@ -195,14 +193,14 @@ fn read_seconds(value: &Value) -> Option<i64> {
 
 fn check_expiry(
     claims: Map<String, Value>,
-    exp_in_seconds: i64,
-    now_in_seconds: i64,
+    exp_epoch_seconds: i64,
+    now_epoch_seconds: i64,
 ) -> TicketState {
-    if now_in_seconds >= exp_in_seconds {
+    if now_epoch_seconds >= exp_epoch_seconds {
         return TicketState::Expired;
     }
     TicketState::Valid(Box::new(Ticket {
-        exp_in_seconds,
+        exp_epoch_seconds,
         claims,
     }))
 }

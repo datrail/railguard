@@ -36,7 +36,7 @@ fn read_endpoint(endpoint: &Value) -> Endpoint {
 /// The outcome in the vectors' own shape, so a failure shows both sides alike.
 fn format_outcome(outcome: &Outcome) -> Value {
     let fallbacks: Vec<&str> = outcome
-        .fallbacks
+        .fallback_denials
         .iter()
         .map(|fallback| match fallback {
             FallbackDenial::Ticket => "ticket",

@@ -13,31 +13,31 @@ const EXISTENCE_OPS: [&str; 2] = ["existing", "not_existing"];
 
 /// Something wrong with a condition, and who refuses it for that.
 #[derive(Clone, Debug, PartialEq, Serialize)]
-pub struct Problem {
+pub struct ConditionProblem {
     /// Where in the condition, from its root; empty for the whole condition.
-    pub location: Vec<Segment>,
+    pub location: Vec<LocationSegment>,
     pub code: ProblemCode,
-    pub scope: Scope,
-    /// The operand shape the op takes, for `OperandShape` only.
-    pub expected: Option<OperandShape>,
+    pub scope: ProblemScope,
+    /// The operand shape the op takes, for `ProblemCode::OperandShape` only.
+    pub expected_shape: Option<OperandShape>,
     pub message: String,
 }
 
 /// One step into a condition: an object's key, or a list's index.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(untagged)]
-pub enum Segment {
+pub enum LocationSegment {
     Key(String),
     Index(usize),
 }
 
-impl From<&str> for Segment {
+impl From<&str> for LocationSegment {
     fn from(key: &str) -> Self {
         Self::Key(key.to_string())
     }
 }
 
-impl From<usize> for Segment {
+impl From<usize> for LocationSegment {
     fn from(index: usize) -> Self {
         Self::Index(index)
     }
@@ -47,7 +47,7 @@ impl From<usize> for Segment {
 #[macro_export]
 macro_rules! loc {
     ($($segment:expr),* $(,)?) => {
-        vec![$($crate::Segment::from($segment)),*]
+        vec![$($crate::LocationSegment::from($segment)),*]
     };
 }
 
@@ -70,7 +70,7 @@ pub enum ProblemCode {
 /// only the writer does, since a reader may be on another version.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Scope {
+pub enum ProblemScope {
     Enforcement,
     Authoring,
 }
@@ -90,7 +90,7 @@ pub enum OperandShape {
 enum Kind {
     String,
     Number,
-    Boolean,
+    Bool,
     List,
     /// A string, or a list of strings for a header sent with several values.
     Header,
@@ -108,7 +108,7 @@ enum SchemaNode {
 }
 
 impl TicketClaimsSchema {
-    /// From an object whose leaves are `"string"`, `"number"`, `"boolean"` or `"list"`.
+    /// From an object whose leaves are `"string"`, `"number"`, `"bool"` or `"list"`.
     pub fn from_value(value: &Value) -> Result<Self, String> {
         match read_node(value)? {
             SchemaNode::Branch(nodes) => Ok(Self(nodes)),
@@ -141,10 +141,10 @@ fn read_node(value: &Value) -> Result<SchemaNode, String> {
         Value::String(kind) => match kind.as_str() {
             "string" => Ok(SchemaNode::Leaf(Kind::String)),
             "number" => Ok(SchemaNode::Leaf(Kind::Number)),
-            "boolean" => Ok(SchemaNode::Leaf(Kind::Boolean)),
+            "bool" => Ok(SchemaNode::Leaf(Kind::Bool)),
             "list" => Ok(SchemaNode::Leaf(Kind::List)),
             _ => Err(format!(
-                "kind \"{}\": not string, number, boolean or list",
+                "kind \"{}\": not string, number, bool or list",
                 sanitize(kind)
             )),
         },
@@ -154,7 +154,10 @@ fn read_node(value: &Value) -> Result<SchemaNode, String> {
 
 /// Every problem with a condition given as JSON text, in the order path, op, value. None means
 /// every reader reads it, and Rail Center would publish it.
-pub fn check_condition(text: &str, ticket_claims_schema: &TicketClaimsSchema) -> Vec<Problem> {
+pub fn check_condition(
+    text: &str,
+    ticket_claims_schema: &TicketClaimsSchema,
+) -> Vec<ConditionProblem> {
     let condition: Value = match serde_json::from_str(text) {
         Ok(condition) => condition,
         Err(e) => {
@@ -162,20 +165,20 @@ pub fn check_condition(text: &str, ticket_claims_schema: &TicketClaimsSchema) ->
                 "not JSON this reader can hold: {}",
                 sanitize(&e.to_string())
             );
-            return vec![problem(
+            return vec![build_problem(
                 loc![],
                 ProblemCode::Unreadable,
-                Scope::Enforcement,
+                ProblemScope::Enforcement,
                 message,
             )];
         }
     };
     let Value::Object(fields) = &condition else {
         let message = "not a JSON object".to_string();
-        return vec![problem(
+        return vec![build_problem(
             loc![],
             ProblemCode::NotAnObject,
-            Scope::Enforcement,
+            ProblemScope::Enforcement,
             message,
         )];
     };
@@ -183,9 +186,9 @@ pub fn check_condition(text: &str, ticket_claims_schema: &TicketClaimsSchema) ->
     // A reader reads an op it doesn't know as `Unknown`, whatever the rest holds.
     let op_unknown = op.is_some_and(|op| !OPS.contains(&op));
     let scope = if op_unknown {
-        Scope::Authoring
+        ProblemScope::Authoring
     } else {
-        Scope::Enforcement
+        ProblemScope::Enforcement
     };
     let mut problems = Vec::new();
     let kind = check_path(
@@ -195,26 +198,26 @@ pub fn check_condition(text: &str, ticket_claims_schema: &TicketClaimsSchema) ->
         &mut problems,
     );
     match op {
-        None => problems.push(problem(
+        None => problems.push(build_problem(
             loc!["op"],
             ProblemCode::UnknownOp,
-            Scope::Enforcement,
+            ProblemScope::Enforcement,
             "not a string".to_string(),
         )),
-        Some(op) if op_unknown => problems.push(problem(
+        Some(op) if op_unknown => problems.push(build_problem(
             loc!["op"],
             ProblemCode::UnknownOp,
-            Scope::Authoring,
+            ProblemScope::Authoring,
             format!("\"{}\": not an op this reader knows", sanitize(op)),
         )),
         Some(op) => check_operand(op, fields, kind, &mut problems),
     }
     if get_depth(&condition) > MAX_AUTHORING_DEPTH {
         let message = format!("nested deeper than {MAX_AUTHORING_DEPTH} levels");
-        problems.push(problem(
+        problems.push(build_problem(
             loc![],
             ProblemCode::TooDeep,
-            Scope::Authoring,
+            ProblemScope::Authoring,
             message,
         ));
     }
@@ -225,12 +228,12 @@ pub fn check_condition(text: &str, ticket_claims_schema: &TicketClaimsSchema) ->
 fn check_path(
     path: Option<&Value>,
     ticket_claims_schema: &TicketClaimsSchema,
-    scope: Scope,
-    problems: &mut Vec<Problem>,
+    scope: ProblemScope,
+    problems: &mut Vec<ConditionProblem>,
 ) -> Option<Kind> {
     let Some(path) = path.and_then(Value::as_str) else {
         let message = "not a string".to_string();
-        problems.push(problem(
+        problems.push(build_problem(
             loc!["path"],
             ProblemCode::UnknownSource,
             scope,
@@ -247,7 +250,7 @@ fn check_path(
             Some(kind) => return Some(kind),
             None => (
                 ProblemCode::UnknownPath,
-                Scope::Authoring,
+                ProblemScope::Authoring,
                 format!("\"{shown}\": names nothing a ticket carries"),
             ),
         },
@@ -255,7 +258,7 @@ fn check_path(
             // A reader reads any such name, and it never exists.
             Some(RequestPath::Header(name)) if name.is_empty() || name.to_lowercase() != name => (
                 ProblemCode::UnknownPath,
-                Scope::Authoring,
+                ProblemScope::Authoring,
                 format!("\"{shown}\": a header name is lowercase and not empty"),
             ),
             Some(RequestPath::Whole | RequestPath::Headers) => return Some(Kind::Object),
@@ -273,7 +276,7 @@ fn check_path(
             format!("\"{shown}\": not under ticket or request"),
         ),
     };
-    problems.push(problem(loc!["path"], code, problem_scope, message));
+    problems.push(build_problem(loc!["path"], code, problem_scope, message));
     None
 }
 
@@ -281,39 +284,44 @@ fn check_operand(
     op: &str,
     fields: &Map<String, Value>,
     kind: Option<Kind>,
-    problems: &mut Vec<Problem>,
+    problems: &mut Vec<ConditionProblem>,
 ) {
     if let Some(kind) = kind
         && !is_op_for(kind, op)
     {
-        problems.push(problem(
+        problems.push(build_problem(
             loc!["op"],
             ProblemCode::OpNotForPath,
-            Scope::Authoring,
+            ProblemScope::Authoring,
             format!("{op} can't hold for {}", format_kind(kind)),
         ));
     }
     if let Some(expected) = get_operand_shape(op)
         && !is_shaped(fields.get("value"), expected)
     {
-        problems.push(Problem {
-            expected: Some(expected),
-            ..problem(
+        problems.push(ConditionProblem {
+            expected_shape: Some(expected),
+            ..build_problem(
                 loc!["value"],
                 ProblemCode::OperandShape,
-                Scope::Enforcement,
+                ProblemScope::Enforcement,
                 format!("{op} takes a {}", format_shape(expected)),
             )
         });
     }
 }
 
-fn problem(location: Vec<Segment>, code: ProblemCode, scope: Scope, message: String) -> Problem {
-    Problem {
+fn build_problem(
+    location: Vec<LocationSegment>,
+    code: ProblemCode,
+    scope: ProblemScope,
+    message: String,
+) -> ConditionProblem {
+    ConditionProblem {
         location,
         code,
         scope,
-        expected: None,
+        expected_shape: None,
         message,
     }
 }
@@ -345,7 +353,7 @@ fn is_shaped(value: Option<&Value>, shape: OperandShape) -> bool {
 /// Any other op on a kind is a rule that can never hold.
 fn is_op_for(kind: Kind, op: &str) -> bool {
     let ops: &[&str] = match kind {
-        Kind::Object | Kind::Boolean => &[],
+        Kind::Object | Kind::Bool => &[],
         Kind::String => &["eq", "ne", "in", "matches"],
         Kind::Number => &["eq", "ne", "lt", "lte", "gt", "gte", "in"],
         Kind::List | Kind::Header => &["eq", "ne", "in", "matches", "contains", "not_contains"],
@@ -366,7 +374,7 @@ fn format_kind(kind: Kind) -> &'static str {
     match kind {
         Kind::String => "a string",
         Kind::Number => "a number",
-        Kind::Boolean => "a boolean",
+        Kind::Bool => "a boolean",
         Kind::List => "a list",
         Kind::Header => "a header",
         Kind::Object => "an object",

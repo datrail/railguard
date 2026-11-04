@@ -80,7 +80,7 @@ enum Test {
 pub enum Lookup<'a> {
     /// Also a `null`, which a producer may write for a missing claim.
     Absent,
-    Str(&'a str),
+    String(&'a str),
     Number(f64),
     /// Never compared: `true == 1` in some languages and not in others.
     Bool(bool),
@@ -200,7 +200,7 @@ fn read_value(value: &Value) -> Lookup<'_> {
         Value::Bool(value) => Lookup::Bool(*value),
         // Always some double, since serde_json reads no number past one.
         Value::Number(number) => number.as_f64().map_or(Lookup::Absent, Lookup::Number),
-        Value::String(text) => Lookup::Str(text),
+        Value::String(text) => Lookup::String(text),
         Value::Array(values) => Lookup::List(values),
         Value::Object(_) => Lookup::Object,
     }
@@ -210,7 +210,7 @@ fn resolve_request<'a>(path: &RequestPath, environment: &Environment<'a>) -> Loo
     match path {
         RequestPath::Whole | RequestPath::Headers => Lookup::Object,
         RequestPath::EndpointKey => match environment.endpoint {
-            Endpoint::Resolved(key) => Lookup::Str(key.as_str()),
+            Endpoint::Resolved(key) => Lookup::String(key.as_str()),
             Endpoint::Keyless | Endpoint::Unrecognised => Lookup::Absent,
         },
         RequestPath::Header(name) => match environment.headers.get(name) {
@@ -270,7 +270,7 @@ fn apply(test: &Test, value: Lookup, budget: &mut Budget) -> Result<bool, Refusa
             .any(|item| equals(item, operand)),
         (Test::Matches(glob), Lookup::List(items)) => {
             for item in items.iter().map(read_value) {
-                if let Lookup::Str(text) = item
+                if let Lookup::String(text) = item
                     && glob.matches(text, budget)?
                 {
                     return Ok(true);
@@ -278,20 +278,20 @@ fn apply(test: &Test, value: Lookup, budget: &mut Budget) -> Result<bool, Refusa
             }
             false
         }
-        (Test::Matches(glob), Lookup::Str(text)) => glob.matches(text, budget)?,
+        (Test::Matches(glob), Lookup::String(text)) => glob.matches(text, budget)?,
         _ => false,
     })
 }
 
 /// A string or a number: the only kinds that compare, and only with their own kind.
 fn is_scalar(value: Lookup) -> bool {
-    matches!(value, Lookup::Str(_) | Lookup::Number(_))
+    matches!(value, Lookup::String(_) | Lookup::Number(_))
 }
 
 fn equals(value: Lookup, operand: &Scalar) -> bool {
     match (value, operand) {
         (Lookup::Number(number), Scalar::Number(operand)) => number == *operand,
-        (Lookup::Str(text), Scalar::String(operand)) => text == operand,
+        (Lookup::String(text), Scalar::String(operand)) => text == operand,
         _ => false,
     }
 }
