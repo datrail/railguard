@@ -92,8 +92,9 @@ fn read_token(settings: &mut Settings, required: bool) -> Option<Option<Secret>>
             let bearer = format!("{AUTH_MODE} is bearer");
             let token = settings
                 .get(AUTH_TOKEN)
-                .required_when(required, &bearer)
-                .parsed(read_service_token)?;
+                .required(required)
+                .because(&bearer)
+                .parsed(check_token)?;
             Some(Some(token))
         }
         // Not quoted: a token pasted into the wrong variable would reach the log.
@@ -107,12 +108,8 @@ fn read_token(settings: &mut Settings, required: bool) -> Option<Option<Secret>>
     }
 }
 
-// Never quotes the token: only where it's wrong.
-fn read_service_token(token: &str) -> Result<Secret, String> {
-    check_token(token).map(|()| Secret::new(token.to_owned()))
-}
-
-fn check_token(token: &str) -> Result<(), String> {
+// Says where the token is wrong without quoting any of it.
+fn check_token(token: &str) -> Result<Secret, String> {
     let expected = format!(
         "a Rail Center service token is {TOKEN_PREFIX} and {TOKEN_SECRET_CHARS} URL-safe base64 \
          characters"
@@ -137,7 +134,7 @@ fn check_token(token: &str) -> Result<(), String> {
             secret.len()
         ));
     }
-    Ok(())
+    Ok(Secret::new(token.to_owned()))
 }
 
 /// Where Rail Center is: an http or https URL with a host, and nothing a route can't be appended

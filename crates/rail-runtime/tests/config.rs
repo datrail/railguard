@@ -165,27 +165,58 @@ fn a_repeated_refusal_is_listed_once_and_counted_each_time() {
 }
 
 #[test]
-fn a_value_past_its_length_is_refused_with_the_reason_for_the_bound() {
-    let variables: Variables = [("H", "abcdé"), ("S", "abcd")].into_iter().collect();
+fn a_value_past_its_length_in_characters_is_refused() {
+    let variables: Variables = [("BYTES", "abcé"), ("PADDED", " abcd \n"), ("LONG", "abcdé")]
+        .into_iter()
+        .collect();
+    let mut settings = Settings::new(&variables);
+
+    assert_eq!(settings.get("BYTES").max_chars(4).text(), Some("abcé"));
+    assert_eq!(settings.get("PADDED").max_chars(4).text(), Some("abcd"));
+    assert_eq!(settings.get("LONG").max_chars(4).text(), None);
+    assert_eq!(
+        settings.get("UNSET").required(true).max_chars(4).text(),
+        None
+    );
+    assert_eq!(
+        settings.finish().unwrap_err().0,
+        [
+            "LONG has 5 characters, past the 4 allowed",
+            "UNSET is required and is unset or blank"
+        ]
+    );
+}
+
+#[test]
+fn the_reason_a_setting_is_required_is_said_only_when_it_is() {
+    let variables = Variables::default();
     let mut settings = Settings::new(&variables);
 
     assert_eq!(
-        settings.get("S").max_chars(4, "a host reads").text(),
-        Some("abcd")
+        settings
+            .get("OFF")
+            .required(false)
+            .because("X is on")
+            .text(),
+        None
     );
-    assert_eq!(settings.get("H").max_chars(4, "a host reads").text(), None);
+    assert_eq!(
+        settings.get("ON").required(true).because("X is on").text(),
+        None
+    );
     assert_eq!(
         settings.finish().unwrap_err().0,
-        ["H has 5 characters, past the 4 a host reads"]
+        ["ON is required because X is on, and is unset or blank"]
     );
 }
 
 #[test]
 fn a_refusal_and_a_retired_name_follow_the_name() {
-    let variables: Variables = [("OLD", "1")].into_iter().collect();
+    let variables: Variables = [("OLD", "1"), ("BLANK", " \n")].into_iter().collect();
     let mut settings = Settings::new(&variables);
 
     settings.get("OLD").retired("NEW replaces it");
+    settings.get("BLANK").retired("blank is unset");
     settings.get("GONE").retired("nothing reads it");
     settings.get("X").refuse("is wrong for a reason");
 

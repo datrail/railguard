@@ -52,7 +52,8 @@ impl<'a> Settings<'a> {
         Setting {
             settings: self,
             name,
-            required: None,
+            required: false,
+            because: None,
             max_chars: None,
         }
     }
@@ -80,32 +81,35 @@ impl<'a> Settings<'a> {
     }
 }
 
-/// One setting: what it must be, then one read, which records any refusal and is `None` when
-/// the value is unset, blank or refused.
+/// One setting: what it must be, then one read (`text`, `parsed`, `boolean` or `secret`), which
+/// records any refusal and is `None` when the value is unset, blank or refused.
+///
+/// `is_set`, `retired` and `refuse` aren't reads: they look at the value, or refuse it, as is.
+#[must_use = "a setting checks nothing until it's read"]
 pub struct Setting<'s, 'a> {
     settings: &'s mut Settings<'a>,
     name: &'s str,
-    // Whether it's required, and when, if only under a condition.
-    required: Option<Option<&'s str>>,
-    max_chars: Option<(usize, &'s str)>,
+    required: bool,
+    because: Option<&'s str>,
+    max_chars: Option<usize>,
 }
 
 impl<'s, 'a> Setting<'s, 'a> {
     /// Refused when unset, if `required`.
     pub fn required(mut self, required: bool) -> Self {
-        self.required = required.then_some(None);
+        self.required = required;
         self
     }
 
-    /// Refused when unset, if `required`; `condition` says when, as in "required when `condition`".
-    pub fn required_when(mut self, required: bool, condition: &'s str) -> Self {
-        self.required = required.then_some(Some(condition));
+    /// Why it's required, said when it's refused for being unset.
+    pub fn because(mut self, reason: &'s str) -> Self {
+        self.because = Some(reason);
         self
     }
 
-    /// Refused past `max` characters; `why` ends the refusal, as in "past the 64 `why`".
-    pub fn max_chars(mut self, max: usize, why: &'s str) -> Self {
-        self.max_chars = Some((max, why));
+    /// Refused past `max` characters.
+    pub fn max_chars(mut self, max: usize) -> Self {
+        self.max_chars = Some(max);
         self
     }
 
@@ -152,7 +156,7 @@ impl<'s, 'a> Setting<'s, 'a> {
         self.read().map(|text| Secret(text.to_owned()))
     }
 
-    // The checks every read makes, in this order.
+    // The checks every read makes, in this order: unset, UTF-8, blank, length.
     fn read(&mut self) -> Option<&'a str> {
         let Some(value) = self.raw() else {
             return self.missing();
@@ -165,10 +169,12 @@ impl<'s, 'a> Setting<'s, 'a> {
         if text.is_empty() {
             return self.missing();
         }
-        if let Some((max, why)) = self.max_chars {
+        if let Some(max) = self.max_chars {
             let chars = text.chars().count();
             if chars > max {
-                self.reject(format_args!("has {chars} characters, past the {max} {why}"));
+                self.reject(format_args!(
+                    "has {chars} characters, past the {max} allowed"
+                ));
                 return None;
             }
         }
@@ -176,14 +182,14 @@ impl<'s, 'a> Setting<'s, 'a> {
     }
 
     fn missing(&mut self) -> Option<&'a str> {
-        match self.required {
-            Some(Some(condition)) => {
+        match (self.required, self.because) {
+            (true, Some(reason)) => {
                 self.reject(format_args!(
-                    "is required when {condition}, and is unset or blank"
+                    "is required because {reason}, and is unset or blank"
                 ));
             }
-            Some(None) => self.reject("is required and is unset or blank"),
-            None => {}
+            (true, None) => self.reject("is required and is unset or blank"),
+            (false, _) => {}
         }
         None
     }

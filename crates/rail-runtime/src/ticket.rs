@@ -54,12 +54,12 @@ pub fn read_ticket_settings(settings: &mut Settings, required: bool) -> Option<T
     let host_id = settings
         .get(HOST_ID)
         .required(required)
-        .max_chars(MAX_HOST_ID_CHARS, "Rail Center reads")
+        .max_chars(MAX_HOST_ID_CHARS)
         .text();
     let sandbox_name = settings
         .get(SANDBOX_NAME)
         .required(required)
-        .max_chars(MAX_SANDBOX_NAME_CHARS, "Rail Center reads")
+        .max_chars(MAX_SANDBOX_NAME_CHARS)
         .text();
     let refresh = settings
         .get(TICKET_REFRESH_SECONDS)

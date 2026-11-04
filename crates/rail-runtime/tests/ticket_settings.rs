@@ -60,8 +60,8 @@ fn a_name_past_rail_centers_bound_is_refused() {
     assert_eq!(
         errors,
         [
-            "RAIL_HOST_ID has 65 characters, past the 64 Rail Center reads",
-            "RAIL_SANDBOX_NAME has 256 characters, past the 255 Rail Center reads",
+            "RAIL_HOST_ID has 65 characters, past the 64 allowed",
+            "RAIL_SANDBOX_NAME has 256 characters, past the 255 allowed",
         ]
     );
     let at_the_bound = ("h".repeat(64), "é".repeat(255));
@@ -105,7 +105,7 @@ fn not_required_judges_only_what_is_set() {
     assert!(read_ticket_settings(&mut settings, false).is_none());
     assert_eq!(
         settings.finish().unwrap_err().0,
-        ["RAIL_SANDBOX_NAME has 256 characters, past the 255 Rail Center reads"]
+        ["RAIL_SANDBOX_NAME has 256 characters, past the 255 allowed"]
     );
 
     let variables: Variables = [("RAIL_HOST_ID", "h")].into_iter().collect();

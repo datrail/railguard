@@ -230,7 +230,7 @@ fn bearer_without_a_token_is_refused() {
         pairs.extend(token.map(|token| ("RAIL_AUTH_TOKEN", token)));
         assert_eq!(
             refusal(&pairs),
-            "RAIL_AUTH_TOKEN is required when RAIL_AUTH_MODE is bearer, and is unset or blank"
+            "RAIL_AUTH_TOKEN is required because RAIL_AUTH_MODE is bearer, and is unset or blank"
         );
     }
 }
