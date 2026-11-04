@@ -13,7 +13,7 @@ mod _native {
     use rail_policy::{
         Budget, Decision, Endpoint, EnforcementMode, Environment, Evaluation, FallbackDenial,
         Headers, JudgingMode, Lookup, Refusal, SignedTicketConfig, TicketClaimsSchema, TicketState,
-        Trace, Verdict, judge_traced, parse_bundle, parse_ticket, sanitize,
+        Tracer, Verdict, judge_traced, parse_bundle, parse_ticket, sanitize,
     };
     use serde::Serialize;
     use serde_json::{Map, Value};
@@ -275,8 +275,8 @@ mod _native {
 
     struct Recorder(Vec<TraceStep>);
 
-    impl Trace for Recorder {
-        fn visit(&mut self, policy: Uuid, evaluation: &Evaluation) {
+    impl Tracer for Recorder {
+        fn record(&mut self, policy: Uuid, evaluation: &Evaluation) {
             let (verdict, refusal) = match evaluation.verdict {
                 Verdict::Holds => ("holds", None),
                 Verdict::DoesNotHold => ("does_not_hold", None),
