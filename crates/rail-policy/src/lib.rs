@@ -2,13 +2,21 @@
 
 mod bundle;
 mod condition;
+mod environment;
+mod evaluate;
+mod schema;
 mod ticket;
 
 pub use bundle::{
     Action, Binding, BindingMode, Bundle, EndpointKey, Enforcement, EnforcementMode, Fallback,
     Policy, SchemaVersion, UnusableBundle, parse_bundle,
 };
-pub use condition::{Condition, Path, Predicate, Scalar, Source};
+pub use condition::{Condition, Path, Predicate, Scalar};
+pub use environment::{Environment, Headers, ResolvedKey};
+pub use evaluate::{
+    Budget, CompiledCondition, DEFAULT_STEP_LIMIT, Refusal, compile_condition, evaluate_condition,
+};
+pub use schema::{RequestPath, TicketPath};
 pub use ticket::{
     Alignment, Baseline, CategoryPosture, OverallPosture, Posture, PostureLevel, Ticket,
     TicketClaims, TicketState, TicketVerifier, parse_base64_ticket, parse_jwt_ticket,

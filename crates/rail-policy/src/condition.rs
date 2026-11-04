@@ -2,6 +2,8 @@ use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 use serde_json::value::RawValue;
 
+use crate::schema::{RequestPath, TicketPath};
+
 const OPS: [&str; 12] = [
     "existing",
     "not_existing",
@@ -105,7 +107,7 @@ pub enum Predicate {
     },
 }
 
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum Scalar {
     Number(f64),
@@ -113,17 +115,11 @@ pub enum Scalar {
 }
 
 /// `<source>.<key>.<key>` on the wire.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(try_from = "String")]
-pub struct Path {
-    pub source: Source,
-    pub keys: Vec<String>,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Source {
-    Ticket,
-    Request,
+pub enum Path {
+    Ticket(TicketPath),
+    Request(RequestPath),
 }
 
 impl TryFrom<String> for Path {
@@ -131,39 +127,13 @@ impl TryFrom<String> for Path {
 
     fn try_from(text: String) -> Result<Self, String> {
         let mut parts = text.split('.');
-        let source = match parts.next() {
-            Some("ticket") => Source::Ticket,
-            Some("request") => Source::Request,
-            _ => return Err(format!("path {text:?}")),
-        };
+        let source = parts.next();
         let keys: Vec<&str> = parts.collect();
-        // A claim this reader doesn't know would read as absent, so a rule on it wouldn't fire.
-        if source == Source::Ticket && !is_ticket_path(&keys) {
-            return Err(format!("path {text:?}"));
-        }
-        let keys = keys.into_iter().map(str::to_string).collect();
-        Ok(Self { source, keys })
+        let path = match source {
+            Some("ticket") => TicketPath::parse(&keys).map(Self::Ticket),
+            Some("request") => RequestPath::parse(&keys).map(Self::Request),
+            _ => None,
+        };
+        path.ok_or_else(|| format!("path {text:?}"))
     }
-}
-
-fn is_ticket_path(keys: &[&str]) -> bool {
-    matches!(
-        keys,
-        [] | ["id"]
-            | ["agent_id"]
-            | ["sandbox_id"]
-            | ["sandbox_type"]
-            | ["environment_fingerprint"]
-            | ["skills"]
-            | ["posture"]
-            | ["posture", "overall"]
-            | ["posture", "overall", "score" | "level"]
-            | ["posture", "categories"]
-            | ["posture", "categories", _]
-            | ["posture", "categories", _, "score" | "capped"]
-            | ["alignment"]
-            | ["alignment", "drifted"]
-            | ["alignment", "baseline"]
-            | ["alignment", "baseline", "id" | "label"]
-    )
 }

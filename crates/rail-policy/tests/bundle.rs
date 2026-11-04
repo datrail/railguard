@@ -1,6 +1,6 @@
 use rail_policy::{
-    Action, BindingMode, Condition, EndpointKey, EnforcementMode, Fallback, Predicate,
-    SchemaVersion, Source, parse_bundle,
+    Action, BindingMode, Condition, EndpointKey, EnforcementMode, Fallback, Path, Predicate,
+    SchemaVersion, TicketPath, parse_bundle,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -96,8 +96,7 @@ fn test_reads_every_field_rail_center_publishes() {
     let Condition::Valid(Predicate::Lt { path, value }) = &policy.condition else {
         panic!("{:?}", policy.condition);
     };
-    assert_eq!(path.source, Source::Ticket);
-    assert_eq!(path.keys, ["posture", "overall", "score"]);
+    assert_eq!(*path, Path::Ticket(TicketPath::OverallScore));
     assert_eq!(*value, 40.0);
 
     let binding = &bundle.bindings[0];

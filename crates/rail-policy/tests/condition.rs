@@ -1,4 +1,4 @@
-use rail_policy::{Condition, Path, Predicate, Scalar, Source};
+use rail_policy::{Condition, Path, Predicate, Scalar, TicketPath};
 use serde_json::{Value, json};
 
 fn read(condition: Value) -> Condition {
@@ -6,10 +6,7 @@ fn read(condition: Value) -> Condition {
 }
 
 fn ticket_path() -> Path {
-    Path {
-        source: Source::Ticket,
-        keys: vec!["sandbox_type".to_string()],
-    }
+    Path::Ticket(TicketPath::SandboxType)
 }
 
 #[test]
@@ -74,7 +71,7 @@ fn test_reads_a_bare_source() {
     let Condition::Valid(Predicate::NotExisting { path }) = condition else {
         panic!("{condition:?}");
     };
-    assert!(path.keys.is_empty());
+    assert_eq!(path, Path::Ticket(TicketPath::Whole));
 }
 
 #[test]

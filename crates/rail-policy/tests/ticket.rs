@@ -213,3 +213,29 @@ fn test_reads_the_claims_rail_center_can_leave_out() {
     assert_eq!(ticket.claims.alignment.baseline, None);
     assert_eq!(ticket.claims.posture.categories["identity"].score, None);
 }
+
+#[test]
+fn test_reads_a_non_canonical_uuid_as_malformed() {
+    let claims = json!({
+        "id": "10000000-0000-4000-8000-000000000001",
+        "agent_id": "20000000-0000-4000-8000-000000000002",
+        "sandbox_id": "sandbox-1",
+        "environment_fingerprint": "fingerprint-1",
+        "skills": [],
+        "exp": 60,
+        "posture": {"overall": {"score": 0.0, "level": "low"}, "categories": {}},
+        "alignment": {"drifted": []},
+    });
+    assert!(matches!(parse_claims(&claims), TicketState::Valid(_)));
+
+    for id in [
+        "ABCDEF00-0000-4000-8000-000000000001",
+        "{abcdef00-0000-4000-8000-000000000001}",
+        "urn:uuid:abcdef00-0000-4000-8000-000000000001",
+        "abcdef00000040008000000000000001",
+    ] {
+        let mut claims = claims.clone();
+        claims["agent_id"] = json!(id);
+        assert_eq!(parse_claims(&claims), TicketState::Malformed, "{id}");
+    }
+}
