@@ -1,10 +1,8 @@
 use serde_json::Value;
-use uuid::Uuid;
 
-use crate::condition::{Condition, Path, Predicate, Scalar};
+use crate::condition::{Condition, Path, Predicate, RequestPath, Scalar, TicketPath};
 use crate::endpoint::Endpoint;
 use crate::environment::Environment;
-use crate::schema::{RequestPath, TicketPath};
 
 /// The steps one judgement may take, unless the caller sets its own.
 pub const DEFAULT_STEP_LIMIT: u64 = 100_000;
@@ -76,15 +74,16 @@ enum Test {
 }
 
 /// What a path resolves to, borrowed from the environment.
+#[derive(Clone, Copy)]
 enum Lookup<'a> {
+    /// Also a `null`, which a producer may write for a missing claim.
     Absent,
     Str(&'a str),
-    /// A string on the wire, kept as parsed.
-    Uuid(Uuid),
     Number(f64),
     /// Never compared: `true == 1` in some languages and not in others.
     Bool,
-    List(&'a [String]),
+    /// A header with several values, or a list in the ticket, which may hold anything.
+    List(&'a [Value]),
     Object,
 }
 
@@ -118,8 +117,7 @@ pub fn evaluate_condition(
     let Node::Test(path, test) = &condition.0 else {
         return Err(Refusal::Uninterpretable);
     };
-    let value = resolve(path, environment);
-    apply(test, &value, budget)
+    apply(test, resolve(path, environment), budget)
 }
 
 fn read_scalars(items: &[Value]) -> Vec<Scalar> {
@@ -140,49 +138,32 @@ fn resolve<'a>(path: &Path, environment: &Environment<'a>) -> Lookup<'a> {
     }
 }
 
+/// One key at a time, so a step that is missing, `null` or not an object resolves to absent.
 fn resolve_ticket<'a>(path: &TicketPath, environment: &Environment<'a>) -> Lookup<'a> {
     let Some(claims) = environment.ticket else {
         return Lookup::Absent;
     };
-    let category = |name: &str| claims.posture.categories.get(name);
-    match path {
-        TicketPath::Whole
-        | TicketPath::Posture
-        | TicketPath::Overall
-        | TicketPath::Categories
-        | TicketPath::Alignment => Lookup::Object,
-        TicketPath::Id => Lookup::Uuid(claims.id),
-        TicketPath::AgentId => Lookup::Uuid(claims.agent_id),
-        TicketPath::SandboxId => Lookup::Str(&claims.sandbox_id),
-        TicketPath::SandboxType => claims
-            .sandbox_type
-            .as_deref()
-            .map_or(Lookup::Absent, Lookup::Str),
-        TicketPath::EnvironmentFingerprint => Lookup::Str(&claims.environment_fingerprint),
-        TicketPath::Skills => Lookup::List(&claims.skills),
-        TicketPath::OverallScore => Lookup::Number(claims.posture.overall.score),
-        TicketPath::OverallLevel => Lookup::Str(claims.posture.overall.level.as_str()),
-        TicketPath::Category(name) => category(name).map_or(Lookup::Absent, |_| Lookup::Object),
-        TicketPath::CategoryScore(name) => category(name)
-            .and_then(|category| category.score)
-            .map_or(Lookup::Absent, Lookup::Number),
-        TicketPath::CategoryCapped(name) => category(name).map_or(Lookup::Absent, |_| Lookup::Bool),
-        TicketPath::Drifted => Lookup::List(&claims.alignment.drifted),
-        TicketPath::Baseline => claims
-            .alignment
-            .baseline
-            .as_ref()
-            .map_or(Lookup::Absent, |_| Lookup::Object),
-        TicketPath::BaselineId => claims
-            .alignment
-            .baseline
-            .as_ref()
-            .map_or(Lookup::Absent, |baseline| Lookup::Uuid(baseline.id)),
-        TicketPath::BaselineLabel => claims
-            .alignment
-            .baseline
-            .as_ref()
-            .map_or(Lookup::Absent, |baseline| Lookup::Str(&baseline.label)),
+    let Some((first, rest)) = path.0.split_first() else {
+        return Lookup::Object;
+    };
+    let mut value = claims.get(first);
+    for key in rest {
+        value = value
+            .and_then(Value::as_object)
+            .and_then(|object| object.get(key));
+    }
+    value.map_or(Lookup::Absent, read_value)
+}
+
+fn read_value(value: &Value) -> Lookup<'_> {
+    match value {
+        Value::Null => Lookup::Absent,
+        Value::Bool(_) => Lookup::Bool,
+        // Always some double, since serde_json reads no number past one.
+        Value::Number(number) => number.as_f64().map_or(Lookup::Absent, Lookup::Number),
+        Value::String(text) => Lookup::Str(text),
+        Value::Array(values) => Lookup::List(values),
+        Value::Object(_) => Lookup::Object,
     }
 }
 
@@ -195,13 +176,13 @@ fn resolve_request<'a>(path: &RequestPath, environment: &Environment<'a>) -> Loo
         },
         RequestPath::Header(name) => match environment.headers.get(name) {
             None => Lookup::Absent,
-            Some([value]) => Lookup::Str(value),
+            Some([value]) => read_value(value),
             Some(values) => Lookup::List(values),
         },
     }
 }
 
-fn apply(test: &Test, value: &Lookup, budget: &mut Budget) -> Result<bool, Refusal> {
+fn apply(test: &Test, value: Lookup, budget: &mut Budget) -> Result<bool, Refusal> {
     if let Lookup::List(items) = value {
         budget.charge(items.len() as u64)?;
     }
@@ -210,83 +191,74 @@ fn apply(test: &Test, value: &Lookup, budget: &mut Budget) -> Result<bool, Refus
         (Test::NotExisting, value) => matches!(value, Lookup::Absent),
         // On a list, `eq` needs every value to equal, and `ne` any value to differ.
         (Test::Eq(operand), Lookup::List(items)) => {
-            !items.is_empty() && items.iter().all(|item| equals(&Lookup::Str(item), operand))
+            !items.is_empty()
+                && items
+                    .iter()
+                    .map(read_value)
+                    .all(|item| equals(item, operand))
         }
         (Test::Eq(operand), value) => equals(value, operand),
         (Test::Ne(operand), Lookup::List(items)) => {
             !items.is_empty()
                 && items
                     .iter()
-                    .any(|item| !equals(&Lookup::Str(item), operand))
+                    .map(read_value)
+                    .any(|item| !equals(item, operand))
         }
         (Test::Ne(operand), value) => is_scalar(value) && !equals(value, operand),
-        (Test::Lt(operand), Lookup::Number(number)) => number < operand,
-        (Test::Lte(operand), Lookup::Number(number)) => number <= operand,
-        (Test::Gt(operand), Lookup::Number(number)) => number > operand,
-        (Test::Gte(operand), Lookup::Number(number)) => number >= operand,
+        (Test::Lt(operand), Lookup::Number(number)) => number < *operand,
+        (Test::Lte(operand), Lookup::Number(number)) => number <= *operand,
+        (Test::Gt(operand), Lookup::Number(number)) => number > *operand,
+        (Test::Gte(operand), Lookup::Number(number)) => number >= *operand,
         (Test::In(operand), Lookup::List(items)) => {
             budget.charge((items.len() as u64).saturating_mul(operand.len() as u64))?;
             items
                 .iter()
-                .any(|item| is_member(&Lookup::Str(item), operand))
+                .map(read_value)
+                .any(|item| is_member(item, operand))
         }
         (Test::In(operand), value) => {
             budget.charge(operand.len() as u64)?;
             is_member(value, operand)
         }
-        (Test::Contains(operand), Lookup::List(items)) => {
-            items.iter().any(|item| equals(&Lookup::Str(item), operand))
-        }
-        (Test::NotContains(operand), Lookup::List(items)) => {
-            !items.iter().any(|item| equals(&Lookup::Str(item), operand))
-        }
+        (Test::Contains(operand), Lookup::List(items)) => items
+            .iter()
+            .map(read_value)
+            .any(|item| equals(item, operand)),
+        (Test::NotContains(operand), Lookup::List(items)) => !items
+            .iter()
+            .map(read_value)
+            .any(|item| equals(item, operand)),
         (Test::Matches(glob), Lookup::List(items)) => {
-            let mut matched = false;
-            for item in *items {
-                if glob.matches(item, budget)? {
-                    matched = true;
-                    break;
+            for item in items.iter().map(read_value) {
+                if let Lookup::Str(text) = item
+                    && glob.matches(text, budget)?
+                {
+                    return Ok(true);
                 }
             }
-            matched
+            false
         }
-        (Test::Matches(glob), value) => match read_text(value, |text| glob.matches(text, budget)) {
-            Some(matched) => matched?,
-            None => false,
-        },
+        (Test::Matches(glob), Lookup::Str(text)) => glob.matches(text, budget)?,
         _ => false,
     })
 }
 
 /// A string or a number: the only kinds that compare, and only with their own kind.
-fn is_scalar(value: &Lookup) -> bool {
-    matches!(value, Lookup::Str(_) | Lookup::Uuid(_) | Lookup::Number(_))
+fn is_scalar(value: Lookup) -> bool {
+    matches!(value, Lookup::Str(_) | Lookup::Number(_))
 }
 
-fn equals(value: &Lookup, operand: &Scalar) -> bool {
+fn equals(value: Lookup, operand: &Scalar) -> bool {
     match (value, operand) {
-        (Lookup::Number(number), Scalar::Number(operand)) => number == operand,
-        (value, Scalar::String(operand)) => {
-            read_text(value, |text| text == operand).unwrap_or(false)
-        }
+        (Lookup::Number(number), Scalar::Number(operand)) => number == *operand,
+        (Lookup::Str(text), Scalar::String(operand)) => text == operand,
         _ => false,
     }
 }
 
-fn is_member(value: &Lookup, operand: &[Scalar]) -> bool {
+fn is_member(value: Lookup, operand: &[Scalar]) -> bool {
     operand.iter().any(|item| equals(value, item))
-}
-
-/// The value as text, if it is a string on the wire.
-fn read_text<R>(value: &Lookup, read: impl FnOnce(&str) -> R) -> Option<R> {
-    match value {
-        Lookup::Str(text) => Some(read(text)),
-        Lookup::Uuid(id) => {
-            let mut buffer = [0; uuid::fmt::Hyphenated::LENGTH];
-            Some(read(id.hyphenated().encode_lower(&mut buffer)))
-        }
-        _ => None,
-    }
 }
 
 /// A whole-string pattern where `*` is the only metacharacter.

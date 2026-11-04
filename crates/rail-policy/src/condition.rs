@@ -2,8 +2,6 @@ use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 use serde_json::value::RawValue;
 
-use crate::schema::{RequestPath, TicketPath};
-
 const OPS: [&str; 12] = [
     "existing",
     "not_existing",
@@ -130,10 +128,40 @@ impl TryFrom<String> for Path {
         let source = parts.next();
         let keys: Vec<&str> = parts.collect();
         let path = match source {
-            Some("ticket") => TicketPath::parse(&keys).map(Self::Ticket),
+            Some("ticket") => Some(Self::Ticket(TicketPath(
+                keys.into_iter().map(str::to_string).collect(),
+            ))),
             Some("request") => RequestPath::parse(&keys).map(Self::Request),
             _ => None,
         };
         path.ok_or_else(|| format!("path {text:?}"))
+    }
+}
+
+/// A path under `ticket`, as its keys. Any path is evaluable, and resolves to absent where the
+/// payload holds nothing.
+#[derive(Clone, Debug, PartialEq)]
+pub struct TicketPath(pub Vec<String>);
+
+/// A path under `request`.
+#[derive(Clone, Debug, PartialEq)]
+pub enum RequestPath {
+    Whole,
+    EndpointKey,
+    Headers,
+    /// Matched exactly, so a name with an upper-case letter never exists.
+    Header(String),
+}
+
+impl RequestPath {
+    /// `None` for any path Rail Center doesn't publish.
+    pub(crate) fn parse(keys: &[&str]) -> Option<Self> {
+        Some(match keys {
+            [] => Self::Whole,
+            ["endpoint_key"] => Self::EndpointKey,
+            ["headers"] => Self::Headers,
+            ["headers", name] => Self::Header(name.to_string()),
+            _ => return None,
+        })
     }
 }

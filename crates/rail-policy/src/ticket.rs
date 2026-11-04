@@ -1,15 +1,24 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 use base64::Engine;
-use base64::engine::general_purpose::{URL_SAFE, URL_SAFE_NO_PAD};
-use ed25519_dalek::{Signature, Verifier, VerifyingKey};
-use serde::de::Error as _;
-use serde::{Deserialize, Deserializer};
-use serde_json::Value;
-use uuid::Uuid;
+use base64::alphabet::URL_SAFE;
+use base64::engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig};
+use ed25519_dalek::{Signature, VerifyingKey};
+use serde_json::{Map, Value};
 
 /// A reader's clock may lag Rail Center's, so a fresh ticket's `nbf` gets this much. `exp` gets none.
 const NBF_ALLOWANCE_IN_SECONDS: i64 = 60;
+
+/// The largest whole number a double holds exactly, and so the bound on `exp` and `nbf`.
+const MAX_SAFE_INTEGER: f64 = 9_007_199_254_740_991.0;
+
+/// Decodes a body already stripped of its padding and mapped to the url-safe alphabet.
+const BASE64: GeneralPurpose = GeneralPurpose::new(
+    &URL_SAFE,
+    GeneralPurposeConfig::new()
+        .with_decode_padding_mode(DecodePaddingMode::RequireNone)
+        .with_decode_allow_trailing_bits(true),
+);
 
 /// How an `x-rail` value classifies. Only `Valid` carries claims.
 #[derive(Debug, PartialEq)]
@@ -27,76 +36,9 @@ pub enum TicketState {
 pub struct Ticket {
     /// The ticket is dead at this instant, since the epoch.
     pub exp_in_seconds: i64,
-    pub claims: TicketClaims,
-}
-
-/// The claims rules can read. A signed ticket's extra claims are only used to verify it.
-#[derive(Debug, PartialEq, Deserialize)]
-pub struct TicketClaims {
-    #[serde(deserialize_with = "read_canonical_uuid")]
-    pub id: Uuid,
-    #[serde(deserialize_with = "read_canonical_uuid")]
-    pub agent_id: Uuid,
-    pub sandbox_id: String,
-    pub sandbox_type: Option<String>,
-    pub environment_fingerprint: String,
-    pub skills: Vec<String>,
-    pub posture: Posture,
-    pub alignment: Alignment,
-}
-
-#[derive(Debug, PartialEq, Deserialize)]
-pub struct Posture {
-    pub overall: OverallPosture,
-    pub categories: BTreeMap<String, CategoryPosture>,
-}
-
-#[derive(Debug, PartialEq, Deserialize)]
-pub struct OverallPosture {
-    pub score: f64,
-    pub level: PostureLevel,
-}
-
-#[derive(Debug, PartialEq, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum PostureLevel {
-    Critical,
-    High,
-    Medium,
-    Low,
-}
-
-impl PostureLevel {
-    /// As on the wire.
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Critical => "critical",
-            Self::High => "high",
-            Self::Medium => "medium",
-            Self::Low => "low",
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Deserialize)]
-pub struct CategoryPosture {
-    /// `None` where the category wasn't scored.
-    pub score: Option<f64>,
-    pub capped: bool,
-}
-
-#[derive(Debug, PartialEq, Deserialize)]
-pub struct Alignment {
-    /// `None` for an agent on no baseline.
-    pub baseline: Option<Baseline>,
-    pub drifted: Vec<String>,
-}
-
-#[derive(Debug, PartialEq, Deserialize)]
-pub struct Baseline {
-    #[serde(deserialize_with = "read_canonical_uuid")]
-    pub id: Uuid,
-    pub label: String,
+    /// The payload as sent, which rules read. Only `exp`, and on a signed ticket `nbf`, `iss` and
+    /// `aud`, is checked, so Rail Center can add or drop any other claim.
+    pub claims: Map<String, Value>,
 }
 
 /// What a reader needs to accept a signed ticket.
@@ -104,38 +46,40 @@ pub struct Baseline {
 pub struct TicketVerifier {
     /// By `kid`.
     pub keys: HashMap<String, VerifyingKey>,
-    /// `None` where not configured, which accepts no signed ticket. Never `Some("")`: it would
-    /// match a ticket carrying `iss: ""`.
+    /// `None` or empty where not configured, which accepts no signed ticket.
     pub issuer: Option<String>,
     /// As `issuer`.
     pub audience: Option<String>,
 }
 
-/// Reads an unsigned ticket.
+/// Reads an unsigned ticket. The caller reads a missing header as `Absent`, and a repeated one
+/// as `Undecodable`.
 pub fn parse_base64_ticket(value: &str, now_in_seconds: i64) -> TicketState {
-    let Ok(bytes) = URL_SAFE.decode(value) else {
+    if value.is_empty() {
+        return TicketState::Absent;
+    }
+    let Some(payload) = decode_base64(value).and_then(|bytes| read_json(&bytes)) else {
         return TicketState::Undecodable;
     };
-    let Ok(payload) = serde_json::from_slice::<Value>(&bytes) else {
-        return TicketState::Undecodable;
-    };
-    // JSON that isn't an object has no `exp` either.
-    let Some(exp_in_seconds) = payload["exp"].as_i64() else {
+    let Value::Object(claims) = payload else {
         return TicketState::Malformed;
     };
-    let Ok(claims) = TicketClaims::deserialize(&payload) else {
+    let Some(exp_in_seconds) = claims.get("exp").and_then(read_seconds) else {
         return TicketState::Malformed;
     };
     check_expiry(claims, exp_in_seconds, now_in_seconds)
 }
 
 /// Reads a signed ticket: first failure wins, and nothing in the payload is read until the
-/// signature holds.
+/// signature holds. The caller handles the header as for `parse_base64_ticket`.
 pub fn parse_jwt_ticket(
     value: &str,
     verifier: &TicketVerifier,
     now_in_seconds: i64,
 ) -> TicketState {
+    if value.is_empty() {
+        return TicketState::Absent;
+    }
     let parts: Vec<&str> = value.split('.').collect();
     let [header, payload, signature] = parts[..] else {
         return TicketState::Undecodable;
@@ -145,14 +89,14 @@ pub fn parse_jwt_ticket(
     }
     // The signature covers the first two parts exactly as received.
     let signed = &value[..value.len() - signature.len() - 1];
-    let (Ok(header), Ok(payload), Ok(signature)) = (
-        URL_SAFE_NO_PAD.decode(header),
-        URL_SAFE_NO_PAD.decode(payload),
-        URL_SAFE_NO_PAD.decode(signature),
+    let (Some(header), Some(payload), Some(signature)) = (
+        decode_base64(header),
+        decode_base64(payload),
+        decode_base64(signature),
     ) else {
         return TicketState::Undecodable;
     };
-    let Ok(header @ Value::Object(_)) = serde_json::from_slice(&header) else {
+    let Some(header @ Value::Object(_)) = read_json(&header) else {
         return TicketState::Undecodable;
     };
 
@@ -169,36 +113,82 @@ pub fn parse_jwt_ticket(
     let Ok(signature) = Signature::from_slice(&signature) else {
         return TicketState::BadSignature;
     };
-    if key.verify(signed.as_bytes(), &signature).is_err() {
+    // Strict, so a weak key in the set can't be used to forge a ticket.
+    if key.verify_strict(signed.as_bytes(), &signature).is_err() {
         return TicketState::BadSignature;
     }
 
-    let Ok(payload) = serde_json::from_slice::<Value>(&payload) else {
+    let Some(payload) = read_json(&payload) else {
         return TicketState::Undecodable;
     };
-    let (Some(exp_in_seconds), Some(nbf_in_seconds)) =
-        (payload["exp"].as_i64(), payload["nbf"].as_i64())
-    else {
+    let Value::Object(claims) = payload else {
         return TicketState::Malformed;
     };
-    let Ok(claims) = TicketClaims::deserialize(&payload) else {
+    let (Some(exp_in_seconds), Some(nbf_in_seconds)) = (
+        claims.get("exp").and_then(read_seconds),
+        claims.get("nbf").and_then(read_seconds),
+    ) else {
         return TicketState::Malformed;
     };
 
     // Genuine, so not `BadSignature`, but with nothing to compare against it isn't for us either.
-    let (Some(issuer), Some(audience)) = (&verifier.issuer, &verifier.audience) else {
+    // An empty one would match a ticket carrying `iss: ""`.
+    let issuer = verifier
+        .issuer
+        .as_deref()
+        .filter(|issuer| !issuer.is_empty());
+    let audience = verifier
+        .audience
+        .as_deref()
+        .filter(|audience| !audience.is_empty());
+    let (Some(issuer), Some(audience)) = (issuer, audience) else {
         return TicketState::WrongAudience;
     };
     if now_in_seconds < nbf_in_seconds.saturating_sub(NBF_ALLOWANCE_IN_SECONDS)
-        || payload["iss"].as_str() != Some(issuer)
-        || payload["aud"].as_str() != Some(audience)
+        || claims.get("iss").and_then(Value::as_str) != Some(issuer)
+        || claims.get("aud").and_then(Value::as_str) != Some(audience)
     {
         return TicketState::WrongAudience;
     }
     check_expiry(claims, exp_in_seconds, now_in_seconds)
 }
 
-fn check_expiry(claims: TicketClaims, exp_in_seconds: i64, now_in_seconds: i64) -> TicketState {
+/// Either alphabet, padded or not: a trailing run of `=` is dropped, and nothing else is.
+fn decode_base64(text: &str) -> Option<Vec<u8>> {
+    // The engine refuses any other byte, and a body of length 4n + 1.
+    let body: String = text
+        .trim_end_matches('=')
+        .chars()
+        .map(|c| match c {
+            '+' => '-',
+            '/' => '_',
+            c => c,
+        })
+        .collect();
+    BASE64.decode(body).ok()
+}
+
+/// Strict UTF-8, less one leading byte-order mark.
+fn read_json(bytes: &[u8]) -> Option<Value> {
+    let text = std::str::from_utf8(bytes).ok()?;
+    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
+    serde_json::from_str(text).ok()
+}
+
+/// A whole number of seconds a double holds exactly, written with a fraction or without.
+fn read_seconds(value: &Value) -> Option<i64> {
+    let seconds = value.as_f64()?;
+    if seconds.fract() != 0.0 || seconds.abs() > MAX_SAFE_INTEGER {
+        return None;
+    }
+    Some(seconds as i64)
+}
+
+fn check_expiry(
+    claims: Map<String, Value>,
+    exp_in_seconds: i64,
+    now_in_seconds: i64,
+) -> TicketState {
     if now_in_seconds >= exp_in_seconds {
         return TicketState::Expired;
     }
@@ -206,15 +196,4 @@ fn check_expiry(claims: TicketClaims, exp_in_seconds: i64, now_in_seconds: i64) 
         exp_in_seconds,
         claims,
     }))
-}
-
-/// Only the lowercase hyphenated form Rail Center mints, so a claim compares as the string it was sent as.
-fn read_canonical_uuid<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Uuid, D::Error> {
-    let text = String::deserialize(deserializer)?;
-    let id = Uuid::try_parse(&text).map_err(D::Error::custom)?;
-    let mut buffer = [0; uuid::fmt::Hyphenated::LENGTH];
-    if *id.hyphenated().encode_lower(&mut buffer) != *text {
-        return Err(D::Error::custom(format!("uuid {text:?} is not canonical")));
-    }
-    Ok(id)
 }

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin>=1.16,<2"]
+requires = ["maturin==1.16.0"]
 build-backend = "maturin"
 
 [project]
@@ -11,5 +11,7 @@ requires-python = ">=3.10"
 dev = ["pytest"]
 
 [tool.maturin]
+# Fails on a stale Cargo.lock, as the cargo steps in CI do.
+locked = true
 python-source = "python"
 module-name = "datrail_policy._native"

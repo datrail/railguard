@@ -1,11 +1,13 @@
 use std::collections::HashSet;
 use std::fmt;
 
-use serde::Deserialize;
+use serde::de::Error as _;
+use serde::{Deserialize, Deserializer};
 use uuid::Uuid;
 
 use crate::condition::Condition;
 use crate::endpoint::ResolvedKey;
+use crate::sanitize::sanitize;
 
 /// The body of Rail Center's `GET /v1/policy-bundle`.
 #[derive(Debug, Deserialize)]
@@ -15,7 +17,8 @@ pub struct Bundle {
     pub content_hash: String,
     // `generated_at` goes here: nothing reads it yet, and it needs a date type.
     pub enforcement: Enforcement,
-    /// In evaluation order, including the disabled ones Rail Center publishes.
+    /// In evaluation order, as `parse_bundle` leaves it, including the disabled ones Rail Center
+    /// publishes.
     pub policies: Vec<Policy>,
     pub bindings: Vec<Binding>,
     /// For an endpoint with no binding: `block` denies, `pass` walks the whole chain.
@@ -24,30 +27,32 @@ pub struct Bundle {
     pub ticket_fallback: Fallback,
 }
 
-/// Rail Center writes `MAJOR.MINOR`, which reads as revision 0.
+/// `MAJOR.MINOR`, digits only.
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(try_from = "String")]
 pub struct SchemaVersion {
     pub major: u32,
     pub minor: u32,
-    pub revision: u32,
 }
 
 impl TryFrom<String> for SchemaVersion {
     type Error = String;
 
     fn try_from(text: String) -> Result<Self, String> {
-        let numbers: Result<Vec<u32>, _> = text.split('.').map(str::parse).collect();
-        let (major, minor, revision) = match numbers.as_deref() {
-            Ok(&[major, minor]) => (major, minor, 0),
-            Ok(&[major, minor, revision]) => (major, minor, revision),
-            _ => return Err(format!("schema_version {text:?}")),
+        // Digits only, since `u32::from_str` also takes a leading `+`.
+        let read = |part: &str| -> Option<u32> {
+            if !part.bytes().all(|byte| byte.is_ascii_digit()) {
+                return None;
+            }
+            part.parse().ok()
         };
-        Ok(Self {
-            major,
-            minor,
-            revision,
-        })
+        let version = text.split_once('.').and_then(|(major, minor)| {
+            Some(Self {
+                major: read(major)?,
+                minor: read(minor)?,
+            })
+        });
+        version.ok_or_else(|| format!("schema_version {text:?}"))
     }
 }
 
@@ -76,11 +81,26 @@ pub enum Fallback {
 pub struct Policy {
     pub id: Uuid,
     pub name: String,
-    /// Lowest first, ties broken by id.
+    /// Lowest first, ties broken by id. Within ±(2^53 − 1), so a double holds it exactly.
+    #[serde(deserialize_with = "read_priority")]
     pub priority: i64,
     pub condition: Condition,
     pub action: Action,
     pub enabled: bool,
+}
+
+/// The largest whole number a double holds exactly.
+const MAX_SAFE_INTEGER: i64 = (1 << 53) - 1;
+
+// Past the bound, two priorities a double can't tell apart would order differently here.
+fn read_priority<'de, D: Deserializer<'de>>(deserializer: D) -> Result<i64, D::Error> {
+    let priority = i64::deserialize(deserializer)?;
+    if !(-MAX_SAFE_INTEGER..=MAX_SAFE_INTEGER).contains(&priority) {
+        return Err(D::Error::custom(format!(
+            "priority {priority} past ±(2^53 − 1)"
+        )));
+    }
+    Ok(priority)
 }
 
 /// `alert` records a match and never denies.
@@ -121,6 +141,12 @@ impl TryFrom<String> for EndpointKey {
     }
 }
 
+impl fmt::Display for EndpointKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}#{}", self.slug, self.resolved.as_str())
+    }
+}
+
 /// `gated` applies only `policy_ids`; `open` applies no policy.
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -142,57 +168,62 @@ impl fmt::Display for UnusableBundle {
 impl std::error::Error for UnusableBundle {}
 
 pub fn parse_bundle(json: &str) -> Result<Bundle, UnusableBundle> {
-    let mut bundle: Bundle =
-        serde_json::from_str(json).map_err(|e| UnusableBundle(e.to_string()))?;
+    let mut bundle: Bundle = serde_json::from_str(json)
+        .map_err(|e| UnusableBundle(sanitize(&e.to_string()).to_string()))?;
 
-    check_policies(&bundle.policies)?;
-    check_bindings(&bundle.bindings, &bundle.policies)?;
+    let known_policies = check_policies(&bundle.policies)?;
+    check_bindings(&bundle.bindings, &known_policies)?;
     bundle
         .policies
         .sort_by_key(|policy| (policy.priority, policy.id));
     Ok(bundle)
 }
 
-fn refuse(reason: String) -> Result<(), UnusableBundle> {
-    Err(UnusableBundle(reason))
-}
-
-fn check_policies(policies: &[Policy]) -> Result<(), UnusableBundle> {
-    let mut seen = HashSet::new();
+/// Returns the policy ids, each once.
+fn check_policies(policies: &[Policy]) -> Result<HashSet<Uuid>, UnusableBundle> {
+    let mut ids = HashSet::new();
     for policy in policies {
-        if !seen.insert(policy.id) {
-            return refuse(format!("policy {} appears twice", policy.id));
+        if !ids.insert(policy.id) {
+            return Err(UnusableBundle(format!(
+                "policy {} appears twice",
+                policy.id
+            )));
         }
     }
-    Ok(())
+    Ok(ids)
 }
 
-fn check_bindings(bindings: &[Binding], policies: &[Policy]) -> Result<(), UnusableBundle> {
-    let known_bindings: HashSet<Uuid> = policies.iter().map(|policy| policy.id).collect();
+fn check_bindings(
+    bindings: &[Binding],
+    known_policies: &HashSet<Uuid>,
+) -> Result<(), UnusableBundle> {
+    let refuse = |reason: String| Err(UnusableBundle(reason));
     let mut seen = HashSet::new();
     for binding in bindings {
         let key = &binding.endpoint_key;
+        // From the bundle, so a key holding a newline can't forge a line where this is logged.
+        let shown = sanitize(&key.to_string()).to_string();
         // The gateway matches keys without the slug, so these reach one endpoint.
         if !seen.insert(&key.resolved) {
-            return refuse(format!("two bindings reach {key:?}"));
+            return refuse(format!("two bindings reach {shown}"));
         }
         match (&binding.mode, binding.policy_ids.is_empty()) {
             (BindingMode::Open, false) => {
-                return refuse(format!("open binding {key:?} names policies"));
+                return refuse(format!("open binding {shown} names policies"));
             }
             // Read literally, this would disarm the endpoint.
             (BindingMode::Gated, true) => {
-                return refuse(format!("gated binding {key:?} names no policy"));
+                return refuse(format!("gated binding {shown} names no policy"));
             }
             _ => {}
         }
-        // Ignores `enabled`: a disabled id is still a real policy, an unknown one a broken bundle.
+        // Stricter than the contract, where an unknown id binds nothing: Rail Center never sends one.
         if let Some(id) = binding
             .policy_ids
             .iter()
-            .find(|id| !known_bindings.contains(id))
+            .find(|id| !known_policies.contains(id))
         {
-            return refuse(format!("binding {key:?} names unknown policy {id}"));
+            return refuse(format!("binding {shown} names unknown policy {id}"));
         }
     }
     Ok(())

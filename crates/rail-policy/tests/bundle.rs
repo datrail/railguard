@@ -3,7 +3,7 @@ use rail_policy::{
     SchemaVersion, TicketPath, parse_bundle,
 };
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::value::RawValue;
 use uuid::Uuid;
 
 const VECTORS: &str = include_str!("../../../vectors/parse_bundle_conformance_cases.json");
@@ -42,7 +42,8 @@ struct Vectors {
 #[derive(Deserialize)]
 struct Case {
     name: String,
-    bundle: Value,
+    // Raw, since a priority may be past what a `Value` holds.
+    bundle: Box<RawValue>,
     usable: bool,
     /// Usable cases only: the enabled policy ids, in evaluation order.
     chain: Option<Vec<Uuid>>,
@@ -53,11 +54,12 @@ struct Case {
 #[test]
 fn test_vectors() {
     let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
+    assert!(!vectors.cases.is_empty());
 
     let mut failures = Vec::new();
     for case in vectors.cases {
         let name = case.name;
-        let result = parse_bundle(&case.bundle.to_string());
+        let result = parse_bundle(case.bundle.get());
         if case.usable == result.is_err() {
             failures.push(format!("{name}: {result:?}"));
         } else if let Ok(bundle) = result {
@@ -79,11 +81,7 @@ fn test_vectors() {
 fn test_reads_every_field_rail_center_publishes() {
     let bundle = parse_bundle(EXAMPLE).unwrap();
 
-    let version = SchemaVersion {
-        major: 2,
-        minor: 0,
-        revision: 0,
-    };
+    let version = SchemaVersion { major: 2, minor: 0 };
     assert_eq!(bundle.schema_version, version);
     assert_eq!(bundle.content_hash, "a3f1c09e7b2d4485");
     assert_eq!(bundle.enforcement.mode, EnforcementMode::Observe);
@@ -96,7 +94,8 @@ fn test_reads_every_field_rail_center_publishes() {
     let Condition::Valid(Predicate::Lt { path, value }) = &policy.condition else {
         panic!("{:?}", policy.condition);
     };
-    assert_eq!(*path, Path::Ticket(TicketPath::OverallScore));
+    let keys = ["posture", "overall", "score"].map(str::to_string).to_vec();
+    assert_eq!(*path, Path::Ticket(TicketPath(keys)));
     assert_eq!(*value, 40.0);
 
     let binding = &bundle.bindings[0];
@@ -138,16 +137,24 @@ fn test_reads_an_operand_as_the_nearest_double() {
 }
 
 #[test]
-fn test_reads_a_version_of_two_or_three_parts() {
+fn test_reads_a_version_of_two_numbers() {
     let read = |version: &str| {
         let bundle = EXAMPLE.replace(r#""2.0""#, &format!(r#""{version}""#));
         parse_bundle(&bundle).map(|bundle| bundle.schema_version)
     };
 
-    assert_eq!(read("2.0").unwrap().revision, 0);
-    assert_eq!(read("2.1.3").unwrap().revision, 3);
-    assert!(read("2").is_err());
-    assert!(read("2.0.0.0").is_err());
+    assert_eq!(
+        read("2.10").unwrap(),
+        SchemaVersion {
+            major: 2,
+            minor: 10
+        }
+    );
+    for version in [
+        "2", "2.0.0", "+2.0", "2.+0", "2.", ".0", "2.0 ", "-1.0", "2,0",
+    ] {
+        assert!(read(version).is_err(), "{version:?}");
+    }
 }
 
 #[test]
@@ -168,14 +175,9 @@ fn test_reads_an_endpoint_key_with_a_separator_in_its_call() {
 }
 
 #[test]
-fn test_refuses_an_endpoint_key_with_too_few_parts() {
-    let bundle = EXAMPLE.replace("#refund_order", "");
-    assert!(parse_bundle(&bundle).is_err());
-}
-
-#[test]
-fn test_refuses_an_endpoint_key_with_an_empty_part() {
+fn test_refuses_an_endpoint_key_with_a_part_missing_or_empty() {
     let keys = [
+        "finretail#/mcp#tools/call",
         "#/mcp#tools/call#refund_order",
         "finretail##tools/call#refund_order",
         "finretail#/mcp##refund_order",
@@ -218,4 +220,26 @@ fn test_keeps_a_bundle_whose_condition_is_nested_past_any_limit() {
         bundle.policies[0].condition,
         Condition::Invalid(_)
     ));
+}
+
+#[test]
+fn test_names_an_endpoint_key_as_sent_when_refusing() {
+    let bundle = EXAMPLE.replace(r#""gated""#, r#""open""#);
+    let refusal = parse_bundle(&bundle).unwrap_err().to_string();
+    assert_eq!(
+        refusal,
+        "unusable policy bundle: open binding finretail#/mcp#tools/call#refund_order names policies"
+    );
+}
+
+#[test]
+fn test_sanitizes_what_a_refusal_quotes() {
+    let bundle = EXAMPLE
+        .replace(r#""gated""#, r#""open""#)
+        .replace("#refund_order", r"#a\nforged\u001b[31m\u202eé");
+    let refusal = parse_bundle(&bundle).unwrap_err().to_string();
+    assert_eq!(
+        refusal,
+        r"unusable policy bundle: open binding finretail#/mcp#tools/call#a\u{a}forged\u{1b}[31m\u{202e}é names policies"
+    );
 }

@@ -1,10 +1,10 @@
 use rail_policy::{
-    Budget, Condition, Endpoint, Environment, Headers, Refusal, ResolvedKey, TicketClaims,
-    compile_condition, evaluate_condition,
+    Budget, Condition, Endpoint, Environment, Headers, Refusal, compile_condition,
+    evaluate_condition,
 };
 use serde::Deserialize;
 use serde_json::value::RawValue;
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 const VECTORS: &str = include_str!("../../../vectors/judge_condition_conformance_cases.json");
 
@@ -18,7 +18,7 @@ struct Case {
     name: String,
     // Raw, since some operands are past what a `Value` holds.
     condition: Box<RawValue>,
-    ticket: Option<TicketClaims>,
+    ticket: Option<Map<String, Value>>,
     endpoint_key: Option<String>,
     headers: Vec<(String, String)>,
     expect: String,
@@ -54,6 +54,7 @@ fn get_outcome_name(outcome: &Result<bool, Refusal>) -> &'static str {
 #[test]
 fn test_vectors() {
     let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
+    assert!(!vectors.cases.is_empty());
 
     let failures: Vec<String> = vectors
         .cases
@@ -137,29 +138,11 @@ fn test_folds_header_lines() {
     assert_eq!(headers, expected);
 }
 
-#[test]
-fn test_reads_a_resolved_key() {
-    let key: ResolvedKey = "/mcp#tools/call#a#b".parse().unwrap();
-    assert_eq!(
-        (key.path(), key.method(), key.call()),
-        ("/mcp", "tools/call", "a#b")
-    );
-    assert_eq!(key.as_str(), "/mcp#tools/call#a#b");
-
-    for text in [
-        "/mcp#tools/call",
-        "/mcp#tools/call#",
-        "#tools/call#a",
-        "/mcp##a",
-        "",
-    ] {
-        assert!(text.parse::<ResolvedKey>().is_err(), "{text:?}");
-    }
-}
-
 fn evaluate_on_claims(condition: Value, claims: Value) -> Result<bool, Refusal> {
     let condition: Condition = serde_json::from_value(condition).unwrap();
-    let claims: TicketClaims = serde_json::from_value(claims).unwrap();
+    let Value::Object(claims) = claims else {
+        panic!();
+    };
     let headers = Headers::default();
     let environment = Environment {
         ticket: Some(&claims),
@@ -171,18 +154,6 @@ fn evaluate_on_claims(condition: Value, claims: Value) -> Result<bool, Refusal> 
         &environment,
         &mut Budget::default(),
     )
-}
-
-fn get_claims(score: f64, categories: Value) -> Value {
-    json!({
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "20000000-0000-4000-8000-000000000002",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {"overall": {"score": score, "level": "low"}, "categories": categories},
-        "alignment": {"drifted": []},
-    })
 }
 
 #[test]
@@ -207,7 +178,7 @@ fn test_never_reads_a_boolean_operand_as_a_member() {
 
     let condition = json!({"path": "ticket.posture.overall.score", "op": "in", "value": [true]});
     assert_eq!(
-        evaluate_on_claims(condition, get_claims(1.0, json!({}))),
+        evaluate_on_claims(condition, json!({"posture": {"overall": {"score": 1}}})),
         Ok(false)
     );
 }
@@ -223,7 +194,10 @@ fn test_reads_one_header_value_as_a_string() {
 
 #[test]
 fn test_reads_what_a_ticket_leaves_out_as_absent() {
-    let claims = get_claims(1.0, json!({"identity": {"score": null, "capped": true}}));
+    let claims = json!({
+        "posture": {"categories": {"identity": {"score": null, "capped": true}}},
+        "alignment": {"drifted": []},
+    });
     let read = |path: &str| {
         let condition = json!({"path": path, "op": "existing"});
         evaluate_on_claims(condition, claims.clone()).unwrap()
@@ -234,4 +208,18 @@ fn test_reads_what_a_ticket_leaves_out_as_absent() {
     assert!(read("ticket.posture.categories.identity"));
     assert!(read("ticket.posture.categories.identity.capped"));
     assert!(!read("ticket.posture.categories.identity.score"));
+}
+
+#[test]
+fn test_reads_a_list_item_that_is_not_a_scalar_as_matching_nothing() {
+    let read = |op: &str, value: Value, skills: Value| {
+        let condition = json!({"path": "ticket.skills", "op": op, "value": value});
+        evaluate_on_claims(condition, json!({"skills": skills})).unwrap()
+    };
+    assert!(!read("eq", json!("acme"), json!(["acme", null])));
+    assert!(read("ne", json!("acme"), json!(["acme", null])));
+    assert!(read("ne", json!("acme"), json!(["acme", {}])));
+    assert!(!read("in", json!(["acme"]), json!([null, true])));
+    assert!(!read("matches", json!("*"), json!([true, null, 1])));
+    assert!(read("matches", json!("*"), json!([true, "a"])));
 }

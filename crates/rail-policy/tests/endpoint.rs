@@ -1,4 +1,4 @@
-use rail_policy::{Endpoint, Resolution, resolve_endpoint};
+use rail_policy::{Endpoint, Resolution, ResolvedKey, resolve_endpoint};
 
 const MOUNT: &str = "/mcp";
 
@@ -114,4 +114,24 @@ fn test_reads_a_key_on_an_empty_path_as_unrecognised() {
         resolve_endpoint("", "tools/call", Some("track_package")),
         Resolution::Judged(Endpoint::Unrecognised)
     );
+}
+
+#[test]
+fn test_reads_a_resolved_key() {
+    let key: ResolvedKey = "/mcp#tools/call#a#b".parse().unwrap();
+    assert_eq!(
+        (key.path(), key.method(), key.call()),
+        ("/mcp", "tools/call", "a#b")
+    );
+    assert_eq!(key.as_str(), "/mcp#tools/call#a#b");
+
+    for text in [
+        "/mcp#tools/call",
+        "/mcp#tools/call#",
+        "#tools/call#a",
+        "/mcp##a",
+        "",
+    ] {
+        assert!(text.parse::<ResolvedKey>().is_err(), "{text:?}");
+    }
 }

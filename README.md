@@ -3,9 +3,9 @@
 The Rust workspace for DatRail's rules language and enforcement layer.
 
 ```sh
-cargo fmt --check
-cargo clippy --all-targets -- -D warnings
-cargo test
+make lint
+make test
+make test-py
 ```
 
-`crates/rail-policy-py` builds the `datrail-policy` wheel. `make test-py` needs [uv](https://docs.astral.sh/uv/).
+`make check` runs all three, as CI does. `crates/rail-policy-py` builds the `datrail-policy` wheel. `make test-py` needs [uv](https://docs.astral.sh/uv/).
