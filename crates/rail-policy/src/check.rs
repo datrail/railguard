@@ -14,13 +14,21 @@ const EXISTENCE_OPS: [&str; 2] = ["existing", "not_existing"];
 /// Something wrong with a condition, and who refuses it for that.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Problem {
-    /// A JSON pointer into the condition.
-    pub pointer: &'static str,
+    /// Where in the condition, from its root; empty for the whole condition.
+    pub location: Vec<Segment>,
     pub code: ProblemCode,
     pub scope: Scope,
     /// The operand shape the op takes, for `OperandShape` only.
     pub expected: Option<OperandShape>,
     pub message: String,
+}
+
+/// One step into a condition: an object's key, or a list's index.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum Segment {
+    Key(String),
+    Index(usize),
 }
 
 /// Rail Center's refusal codes, plus `Unreadable`.
@@ -135,7 +143,7 @@ pub fn check_condition(text: &str, ticket_schema: &TicketSchema) -> Vec<Problem>
                 sanitize(&e.to_string())
             );
             return vec![problem(
-                "",
+                &[],
                 ProblemCode::Unreadable,
                 Scope::Enforcement,
                 message,
@@ -145,7 +153,7 @@ pub fn check_condition(text: &str, ticket_schema: &TicketSchema) -> Vec<Problem>
     let Value::Object(fields) = &condition else {
         let message = "not a JSON object".to_string();
         return vec![problem(
-            "",
+            &[],
             ProblemCode::NotAnObject,
             Scope::Enforcement,
             message,
@@ -163,13 +171,13 @@ pub fn check_condition(text: &str, ticket_schema: &TicketSchema) -> Vec<Problem>
     let kind = check_path(fields.get("path"), ticket_schema, scope, &mut problems);
     match op {
         None => problems.push(problem(
-            "/op",
+            &["op"],
             ProblemCode::UnknownOp,
             Scope::Enforcement,
             "not a string".to_string(),
         )),
         Some(op) if op_unknown => problems.push(problem(
-            "/op",
+            &["op"],
             ProblemCode::UnknownOp,
             Scope::Authoring,
             format!("\"{}\": not an op this reader knows", sanitize(op)),
@@ -178,7 +186,12 @@ pub fn check_condition(text: &str, ticket_schema: &TicketSchema) -> Vec<Problem>
     }
     if get_depth(&condition) > MAX_AUTHORING_DEPTH {
         let message = format!("nested deeper than {MAX_AUTHORING_DEPTH} levels");
-        problems.push(problem("", ProblemCode::TooDeep, Scope::Authoring, message));
+        problems.push(problem(
+            &[],
+            ProblemCode::TooDeep,
+            Scope::Authoring,
+            message,
+        ));
     }
     problems
 }
@@ -192,7 +205,12 @@ fn check_path(
 ) -> Option<Kind> {
     let Some(path) = path.and_then(Value::as_str) else {
         let message = "not a string".to_string();
-        problems.push(problem("/path", ProblemCode::UnknownSource, scope, message));
+        problems.push(problem(
+            &["path"],
+            ProblemCode::UnknownSource,
+            scope,
+            message,
+        ));
         return None;
     };
     let mut parts = path.split('.');
@@ -230,7 +248,7 @@ fn check_path(
             format!("\"{shown}\": not under ticket or request"),
         ),
     };
-    problems.push(problem("/path", code, problem_scope, message));
+    problems.push(problem(&["path"], code, problem_scope, message));
     None
 }
 
@@ -244,7 +262,7 @@ fn check_operand(
         && !is_op_for(kind, op)
     {
         problems.push(problem(
-            "/op",
+            &["op"],
             ProblemCode::OpNotForPath,
             Scope::Authoring,
             format!("{op} can't hold for {}", format_kind(kind)),
@@ -256,7 +274,7 @@ fn check_operand(
         problems.push(Problem {
             expected: Some(expected),
             ..problem(
-                "/value",
+                &["value"],
                 ProblemCode::OperandShape,
                 Scope::Enforcement,
                 format!("{op} takes a {}", format_shape(expected)),
@@ -265,9 +283,12 @@ fn check_operand(
     }
 }
 
-fn problem(pointer: &'static str, code: ProblemCode, scope: Scope, message: String) -> Problem {
+fn problem(keys: &[&str], code: ProblemCode, scope: Scope, message: String) -> Problem {
     Problem {
-        pointer,
+        location: keys
+            .iter()
+            .map(|key| Segment::Key(key.to_string()))
+            .collect(),
         code,
         scope,
         expected: None,

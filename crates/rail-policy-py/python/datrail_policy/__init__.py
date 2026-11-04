@@ -127,8 +127,8 @@ class UnreadableSample:
 
 @dataclass(frozen=True)
 class ConditionProblem:
-    # A JSON pointer into the condition.
-    pointer: str
+    # Where in the condition: keys and list indexes from its root; empty for the whole condition.
+    location: tuple[str | int, ...]
     code: Literal[
         "not_an_object",
         "unknown_source",
@@ -184,7 +184,7 @@ def check_condition(
     """
     schema_text = _write_schema(TICKET_SCHEMA if ticket_schema is None else ticket_schema)
     # JSON can't carry them to Rust, so a stand-in keeps the other checks running.
-    non_finite: list[str] = []
+    non_finite: list[tuple[str | int, ...]] = []
     try:
         text = json.dumps(_replace_non_finite(condition, non_finite))
     except _TooDeep:
@@ -193,16 +193,19 @@ def check_condition(
         # Such as an int past Python's digit limit.
         return ConditionCheck(problems=(_build_unreadable(str(error)),))
     native = _native.check_condition(text, ticket_schema=schema_text)
-    problems = [ConditionProblem(**problem) for problem in json.loads(native)]
+    problems = [
+        ConditionProblem(**{**problem, "location": tuple(problem["location"])})
+        for problem in json.loads(native)
+    ]
     problems += [
         ConditionProblem(
-            pointer=pointer,
+            location=location,
             code="unwritable_number",
             scope="authoring",
             expected=None,
             message="infinity or NaN can't be written back as the JSON it came from",
         )
-        for pointer in non_finite
+        for location in non_finite
     ]
     return ConditionCheck(problems=tuple(problems))
 
@@ -211,19 +214,19 @@ class _TooDeep(Exception):
     pass
 
 
-def _replace_non_finite(condition: Any, found: list[str]) -> Any:
-    """A copy of plain dicts and lists, with each non-finite float's pointer in `found`."""
+def _replace_non_finite(condition: Any, found: list[tuple[str | int, ...]]) -> Any:
+    """A copy of plain dicts and lists, with each non-finite float's location in `found`."""
     root = [condition]
-    stack: list[tuple[Any, Any, str, int]] = [(root, 0, "", 1)]
-    # Iterative, since depth is one of the things checked; children pushed in reverse, so pointers
-    # come in document order.
+    stack: list[tuple[Any, Any, tuple[str | int, ...]]] = [(root, 0, ())]
+    # Iterative, since depth is one of the things checked; children pushed in reverse, so
+    # locations come in document order.
     while stack:
-        parent, key, pointer, level = stack.pop()
+        parent, key, location = stack.pop()
         value = parent[key]
-        if level > _MAX_WALK_DEPTH:
+        if len(location) >= _MAX_WALK_DEPTH:
             raise _TooDeep
         if isinstance(value, float) and not math.isfinite(value):
-            found.append(pointer)
+            found.append(location)
             parent[key] = 0.0
         elif isinstance(value, Mapping):
             copy = {}
@@ -232,19 +235,17 @@ def _replace_non_finite(condition: Any, found: list[str]) -> Any:
                     raise TypeError(f"condition keys must be str, not {type(item_key).__name__}")
                 copy[item_key] = item
             parent[key] = copy
-            pointers = [(k, f"{pointer}/{_escape_pointer(k)}") for k in copy]
-            stack.extend((copy, k, child, level + 1) for k, child in reversed(pointers))
+            stack.extend((copy, k, (*location, k)) for k in reversed(list(copy)))
         elif isinstance(value, list | tuple):
             copy = list(value)
             parent[key] = copy
-            indices = reversed(range(len(copy)))
-            stack.extend((copy, i, f"{pointer}/{i}", level + 1) for i in indices)
+            stack.extend((copy, i, (*location, i)) for i in reversed(range(len(copy))))
     return root[0]
 
 
 def _build_unreadable(reason: str) -> ConditionProblem:
     return ConditionProblem(
-        pointer="",
+        location=(),
         code="unreadable",
         scope="enforcement",
         expected=None,
@@ -263,10 +264,6 @@ def _read_mapping(value: Any) -> dict[str, Any]:
     if isinstance(value, Mapping):
         return dict(value)
     raise TypeError(f"{type(value).__name__} is not a kind")
-
-
-def _escape_pointer(key: str) -> str:
-    return key.replace("~", "~0").replace("/", "~1")
 
 
 def judge_sample(

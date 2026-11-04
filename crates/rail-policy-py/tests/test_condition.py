@@ -15,7 +15,7 @@ _REFUSING_CODES = {"unknown_op", "unwritable_number"}
 
 
 def _get_codes(check):
-    return [(problem.pointer, problem.code, problem.scope) for problem in check.problems]
+    return [(problem.location, problem.code, problem.scope) for problem in check.problems]
 
 
 def test_has_cases():
@@ -45,7 +45,7 @@ def test_reports_a_problem_as_data():
     assert check == ConditionCheck(
         problems=(
             ConditionProblem(
-                pointer="/value",
+                location=("value",),
                 code="operand_shape",
                 scope="enforcement",
                 expected="list",
@@ -58,11 +58,11 @@ def test_reports_a_problem_as_data():
 def test_reports_what_only_rail_center_refuses():
     check = check_condition({"path": "ticket.posture.score", "op": "lt", "value": 1})
 
-    assert _get_codes(check) == [("/path", "unknown_path", "authoring")]
+    assert _get_codes(check) == [(("path",), "unknown_path", "authoring")]
 
 
 def test_reports_a_non_object():
-    assert _get_codes(check_condition(["path"])) == [("", "not_an_object", "enforcement")]
+    assert _get_codes(check_condition(["path"])) == [((), "not_an_object", "enforcement")]
 
 
 @pytest.mark.parametrize("number", [math.nan, math.inf, -math.inf])
@@ -72,22 +72,22 @@ def test_reports_each_number_that_cannot_be_written_back(number):
     check = check_condition(condition)
 
     assert _get_codes(check) == [
-        ("/value/1", "unwritable_number", "authoring"),
-        ("/x~1~0", "unwritable_number", "authoring"),
+        (("value", 1), "unwritable_number", "authoring"),
+        (("x/~",), "unwritable_number", "authoring"),
     ]
 
 
 def test_reports_a_number_past_a_double():
     check = check_condition({"path": "ticket.posture.overall.score", "op": "lt", "value": 10**400})
 
-    assert _get_codes(check) == [("", "unreadable", "enforcement")]
+    assert _get_codes(check) == [((), "unreadable", "enforcement")]
 
 
 def test_takes_a_custom_ticket_schema():
     condition = {"path": "ticket.tenant", "op": "eq", "value": "a"}
 
     assert check_condition(condition, ticket_schema={"tenant": "string"}).problems == ()
-    assert _get_codes(check_condition(condition)) == [("/path", "unknown_path", "authoring")]
+    assert _get_codes(check_condition(condition)) == [(("path",), "unknown_path", "authoring")]
 
 
 def test_reads_the_default_schema_at_call_time(monkeypatch):
@@ -112,13 +112,13 @@ def test_reads_any_mapping_and_sequence():
 
     check = check_condition(condition, ticket_schema=MappingProxyType(datrail_policy.TICKET_SCHEMA))
 
-    assert _get_codes(check) == [("/value/1", "unwritable_number", "authoring")]
+    assert _get_codes(check) == [(("value", 1), "unwritable_number", "authoring")]
 
 
 def test_stands_in_a_number_for_a_non_finite_operand():
     check = check_condition({"path": "ticket.posture.overall.score", "op": "lt", "value": math.inf})
 
-    assert _get_codes(check) == [("/value", "unwritable_number", "authoring")]
+    assert _get_codes(check) == [(("value",), "unwritable_number", "authoring")]
 
 
 @pytest.mark.parametrize("depth", [200, 3000])
@@ -129,7 +129,7 @@ def test_reports_a_condition_nested_too_deep_for_any_reader(depth):
 
     check = check_condition({"path": "ticket.skills", "op": "in", "value": deep})
 
-    assert _get_codes(check) == [("", "unreadable", "enforcement")]
+    assert _get_codes(check) == [((), "unreadable", "enforcement")]
 
 
 def test_reports_a_cycle_as_too_deep():
@@ -138,13 +138,13 @@ def test_reports_a_cycle_as_too_deep():
 
     check = check_condition({"path": "ticket.skills", "op": "in", "value": cycle})
 
-    assert _get_codes(check) == [("", "unreadable", "enforcement")]
+    assert _get_codes(check) == [((), "unreadable", "enforcement")]
 
 
 def test_reports_an_int_past_pythons_digit_limit():
     check = check_condition({"path": "ticket.posture.overall.score", "op": "lt", "value": 10**5000})
 
-    assert _get_codes(check) == [("", "unreadable", "enforcement")]
+    assert _get_codes(check) == [((), "unreadable", "enforcement")]
 
 
 def test_raises_on_a_key_that_is_not_a_str():
