@@ -985,6 +985,7 @@ name = "rail-envoy"
 version = "0.0.0"
 dependencies = [
  "envoy-types",
+ "rail-runtime",
  "tokio",
  "tokio-stream",
  "tonic",

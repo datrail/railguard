@@ -1,4 +1,5 @@
 use std::pin::Pin;
+use std::sync::Arc;
 
 use envoy_types::ext_authz::v3::CheckResponseExt;
 use envoy_types::ext_authz::v3::pb::{Authorization, CheckRequest, CheckResponse, OkHttpResponse};
@@ -9,13 +10,16 @@ use envoy_types::pb::envoy::service::ext_proc::v3::{
     BodyResponse, CommonResponse, HeaderMutation, HeadersResponse, ProcessingRequest,
     ProcessingResponse, TrailersResponse,
 };
+use rail_runtime::TicketHolder;
 use tokio_stream::{Stream, StreamExt};
 use tonic::{Status, Streaming};
 
 use crate::xrail::XRailHeaders;
 
 /// ext_authz: allows every request, with its x-rail headers.
-pub struct Allow;
+pub struct Allow {
+    pub tickets: Option<Arc<TicketHolder>>,
+}
 
 #[tonic::async_trait]
 impl Authorization for Allow {
@@ -37,9 +41,10 @@ impl Authorization for Allow {
                     .flat_map(|map| map.headers.iter().map(|header| header.key.as_str())),
             )
         });
-        let headers = XRailHeaders::of(sent);
+        let headers = XRailHeaders::of(self.tickets.as_deref(), sent);
         let mut response = CheckResponse::with_status(Status::ok(""));
         response.set_http_response(OkHttpResponse {
+            headers: headers.options_as_value(),
             headers_to_remove: headers.remove,
             ..Default::default()
         });
@@ -47,8 +52,10 @@ impl Authorization for Allow {
     }
 }
 
-/// ext_proc: lets every phase continue, with the request's x-rail headers.
-pub struct Continue;
+/// ext_proc: lets every phase continue, adding the x-rail headers to the request's.
+pub struct Continue {
+    pub tickets: Option<Arc<TicketHolder>>,
+}
 
 type ProcessStream = Pin<Box<dyn Stream<Item = Result<ProcessingResponse, Status>> + Send>>;
 
@@ -60,12 +67,13 @@ impl ExternalProcessor for Continue {
         &self,
         request: tonic::Request<Streaming<ProcessingRequest>>,
     ) -> Result<tonic::Response<ProcessStream>, Status> {
-        let replies = request.into_inner().map(|message| {
+        let tickets = self.tickets.clone();
+        let replies = request.into_inner().map(move |message| {
             let request = message?
                 .request
                 .ok_or_else(|| Status::invalid_argument("the message names no phase"))?;
             Ok(ProcessingResponse {
-                response: Some(continue_after(request)),
+                response: Some(continue_after(request, tickets.as_deref())),
                 ..Default::default()
             })
         });
@@ -74,19 +82,19 @@ impl ExternalProcessor for Continue {
 }
 
 // Each phase Envoy sends must be answered with its own kind of response.
-fn continue_after(request: Request) -> Response {
+fn continue_after(request: Request, tickets: Option<&TicketHolder>) -> Response {
     match request {
         Request::RequestHeaders(request) => {
             let sent = request
                 .headers
                 .iter()
                 .flat_map(|map| map.headers.iter().map(|header| header.key.as_str()));
-            let headers = XRailHeaders::of(sent);
+            let headers = XRailHeaders::of(tickets, sent);
             Response::RequestHeaders(HeadersResponse {
                 response: Some(CommonResponse {
                     header_mutation: Some(HeaderMutation {
+                        set_headers: headers.options_as_raw_value(),
                         remove_headers: headers.remove,
-                        ..Default::default()
                     }),
                     ..Default::default()
                 }),

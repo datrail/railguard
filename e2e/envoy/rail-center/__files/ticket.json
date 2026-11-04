@@ -1,0 +1,1 @@
+{"host_id":"{{request.query.host_id}}","tickets":[{"agent_id":"6f1c2e2a-6a5e-4b8e-9d3c-0b6c1f8f2a10","sandbox_name":"e2e-sandbox","agent_key":"default","token":"e2e-opaque-token","expires_at":"{{now offset='6 hours' timezone='UTC' format="yyyy-MM-dd'T'HH:mm:ssX"}}"}]}

@@ -1,10 +1,39 @@
-# The Envoy host's e2e stack: rail-envoy behind Envoy, once over ext_authz and once over ext_proc.
+# The Envoy host's e2e stack: rail-envoy behind Envoy, once per ticket state, over ext_authz and
+# over ext_proc.
 #
 #   docker compose -f e2e/envoy/compose.yml up --build --force-recreate --abort-on-container-exit --exit-code-from driver
 #
 # The result is the driver container's exit code.
 
 name: railguard-e2e-envoy
+
+x-wiremock: &wiremock
+  # Pinned by digest: a tag is mutable.
+  image: wiremock/wiremock:3.9.1@sha256:8fe02bc3f9b63deb1454d41750dbaf081adf4b3e8c74fd8e31f790bee5647b88
+  command: ["--global-response-templating"]
+  healthcheck:
+    test: ["CMD", "curl", "-sf", "http://localhost:8080/__admin/health"]
+    interval: 2s
+    timeout: 3s
+    retries: 15
+
+x-ext: &ext
+  build:
+    context: ../..
+    target: railguard-envoy
+  healthcheck:
+    test: ["CMD", "/rail-envoy", "probe"]
+    interval: 1s
+    timeout: 5s
+    retries: 30
+  depends_on:
+    rail-center: {condition: service_healthy}
+
+# Rail Center at the stub, which answers by sandbox name (rail-center/mappings).
+x-attached: &attached
+  RAIL_CENTER_URL: http://rail-center:8080
+  RAIL_ALLOW_HTTP: "true"
+  RAIL_HOST_ID: host-e2e
 
 x-envoy: &envoy
   image: envoyproxy/envoy:v1.39.2@sha256:460f8c329f24b2e1c7c5af64cb314a6f351ad1c262ba77b135ac46b35ebd5f85
@@ -19,31 +48,55 @@ x-envoy: &envoy
 
 services:
   upstream:
-    # Pinned by digest: a tag is mutable.
-    image: wiremock/wiremock:3.9.1@sha256:8fe02bc3f9b63deb1454d41750dbaf081adf4b3e8c74fd8e31f790bee5647b88
+    <<: *wiremock
     volumes:
       - ./upstream-mappings:/home/wiremock/mappings:ro
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8080/__admin/health"]
-      interval: 2s
-      timeout: 3s
-      retries: 15
     networks:
       default:
         aliases: [upstream.test]
 
+  rail-center:
+    <<: *wiremock
+    volumes:
+      - ./rail-center:/home/wiremock:ro
+
+  # One extension per ticket state.
   ext:
-    build:
-      context: ../..
-      target: railguard-envoy
-    healthcheck:
-      test: ["CMD", "/rail-envoy", "probe"]
-      interval: 1s
-      timeout: 5s
-      retries: 30
+    <<: *ext
+    environment:
+      <<: *attached
+      RAIL_SANDBOX_NAME: e2e-sandbox
     volumes: [ext-socket:/run/rail]
 
-  # After the extension, so the socket volume starts as the image has /run/rail: owned by 10001.
+  ext-not-found:
+    <<: *ext
+    environment:
+      <<: *attached
+      RAIL_SANDBOX_NAME: not-a-registered-sandbox
+    volumes: [ext-not-found-socket:/run/rail]
+
+  ext-expired:
+    <<: *ext
+    environment:
+      <<: *attached
+      RAIL_SANDBOX_NAME: e2e-expired
+    volumes: [ext-expired-socket:/run/rail]
+
+  ext-issuer-down:
+    <<: *ext
+    environment:
+      <<: *attached
+      RAIL_SANDBOX_NAME: e2e-issuer-down
+    volumes: [ext-issuer-down-socket:/run/rail]
+
+  ext-disabled:
+    <<: *ext
+    environment:
+      RAIL_DISABLED: "true"
+    volumes: [ext-disabled-socket:/run/rail]
+
+  # Each Envoy after its extension, so the socket volume starts as the image has /run/rail:
+  # owned by 10001.
   envoy-ext-authz:
     <<: *envoy
     depends_on:
@@ -59,6 +112,38 @@ services:
     volumes:
       - ./envoy-ext-proc.yaml:/etc/envoy/envoy.yaml:ro
       - ext-socket:/run/rail
+
+  envoy-not-found:
+    <<: *envoy
+    depends_on:
+      ext-not-found: {condition: service_healthy}
+    volumes:
+      - ./envoy-ext-authz.yaml:/etc/envoy/envoy.yaml:ro
+      - ext-not-found-socket:/run/rail
+
+  envoy-expired:
+    <<: *envoy
+    depends_on:
+      ext-expired: {condition: service_healthy}
+    volumes:
+      - ./envoy-ext-authz.yaml:/etc/envoy/envoy.yaml:ro
+      - ext-expired-socket:/run/rail
+
+  envoy-issuer-down:
+    <<: *envoy
+    depends_on:
+      ext-issuer-down: {condition: service_healthy}
+    volumes:
+      - ./envoy-ext-authz.yaml:/etc/envoy/envoy.yaml:ro
+      - ext-issuer-down-socket:/run/rail
+
+  envoy-disabled:
+    <<: *envoy
+    depends_on:
+      ext-disabled: {condition: service_healthy}
+    volumes:
+      - ./envoy-ext-authz.yaml:/etc/envoy/envoy.yaml:ro
+      - ext-disabled-socket:/run/rail
 
   # A socket volume nothing serves on: every callout fails, so nothing should cross.
   envoy-no-ext-authz:
@@ -83,9 +168,17 @@ services:
       upstream: {condition: service_healthy}
       envoy-ext-authz: {condition: service_healthy}
       envoy-ext-proc: {condition: service_healthy}
+      envoy-not-found: {condition: service_healthy}
+      envoy-expired: {condition: service_healthy}
+      envoy-issuer-down: {condition: service_healthy}
+      envoy-disabled: {condition: service_healthy}
       envoy-no-ext-authz: {condition: service_healthy}
       envoy-no-ext-proc: {condition: service_healthy}
 
 volumes:
   ext-socket:
+  ext-not-found-socket:
+  ext-expired-socket:
+  ext-issuer-down-socket:
+  ext-disabled-socket:
   no-ext-socket:
