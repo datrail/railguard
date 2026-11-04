@@ -1,6 +1,5 @@
 use std::fmt;
 
-use rail_policy::sanitize;
 use reqwest::Url;
 
 use crate::config::{Secret, Settings};
@@ -143,10 +142,11 @@ fn read_token(settings: &mut Settings) -> Option<Option<Secret>> {
                 }
             }
         }
+        // Not quoted: a token pasted into the wrong variable would reach the log.
         _ => {
             settings.refuse(format!(
-                "{AUTH_MODE} must be none or bearer, got: {}",
-                sanitize(mode.unwrap_or_default())
+                "{AUTH_MODE} must be none or bearer, and is something else ({} characters)",
+                mode.unwrap_or_default().chars().count()
             ));
             None
         }

@@ -192,10 +192,10 @@ fn a_token_written_to_a_file_keeps_its_meaning() {
 }
 
 #[test]
-fn an_unknown_mode_names_what_is_accepted() {
+fn an_unknown_mode_names_what_is_accepted_without_quoting_it() {
     assert_eq!(
-        refusal(&[URL, ("RAIL_AUTH_MODE", "basic\u{1b}[2J")]),
-        "RAIL_AUTH_MODE must be none or bearer, got: basic\\u{1b}[2J"
+        refusal(&[URL, ("RAIL_AUTH_MODE", TOKEN)]),
+        "RAIL_AUTH_MODE must be none or bearer, and is something else (50 characters)"
     );
 }
 
