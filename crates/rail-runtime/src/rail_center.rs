@@ -21,8 +21,7 @@ pub struct RailCenterSettings {
     pub token: Option<Secret>,
 }
 
-/// Whether Rail Center is off (`RAIL_DISABLED=true`), or `None` when that's unreadable, and so
-/// whether Rail Center is meant is unknown. Retired names are refused here.
+/// Whether `RAIL_DISABLED` is true, `None` if unreadable; refuses the retired names too.
 pub fn read_disabled(settings: &mut Settings) -> Option<bool> {
     let disable = format!("Rail Center is used unless {DISABLED}=true");
     settings.retired("RAIL_PLUGIN_ENABLED", &disable);
@@ -36,8 +35,7 @@ pub fn read_disabled(settings: &mut Settings) -> Option<bool> {
     (settings.refusals() == before).then_some(disabled)
 }
 
-/// Reads the Rail Center settings: every one set is judged, and the URL (and the token under
-/// bearer) are refused unset only when `required`. `None` when any is refused or none is set.
+/// The Rail Center settings, every one set judged; the URL and token are required if `required`.
 pub fn read_rail_center(settings: &mut Settings, required: bool) -> Option<RailCenterSettings> {
     let before = settings.refusals();
     let parse_url = |text: &str| CenterUrl::parse(text);

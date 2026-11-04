@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use crate::config::Secret;
 use crate::ticket::OpaqueTicket;
 use crate::ticket_holder::Unavailable;
 
@@ -6,30 +9,30 @@ pub const XRAIL: &str = "x-rail";
 /// Why there is no ticket, when there is none.
 pub const XRAIL_STATUS: &str = "x-rail-status";
 
-/// The proxy's x-rail headers for one call: at most one set, and every x-rail header the agent
-/// sent removed.
+/// The proxy's x-rail headers for one call: at most one set, the agent's others removed.
 #[derive(Debug, PartialEq, Eq)]
 pub struct XRailHeaders {
-    pub set: Option<(&'static str, String)>,
+    /// A secret, since it may be the ticket.
+    pub set: Option<(&'static str, Secret)>,
     pub remove: Vec<String>,
 }
 
 impl XRailHeaders {
-    /// From the ticket, or why there is none (`None` without Rail Center), and the names of the
-    /// headers the request carries.
+    /// From the holder's reading (`None` without Rail Center) and every header name the host saw.
     pub fn of<'a>(
-        ticket: Option<Result<&OpaqueTicket, Unavailable>>,
+        ticket: Option<Result<Arc<OpaqueTicket>, Unavailable>>,
         sent: impl IntoIterator<Item = &'a str>,
     ) -> Self {
         let set = ticket.map(|ticket| match ticket {
-            Ok(ticket) => (XRAIL, ticket.token.expose().to_owned()),
-            Err(reason) => (XRAIL_STATUS, reason.as_str().to_owned()),
+            Ok(ticket) => (XRAIL, ticket.token.clone()),
+            Err(reason) => (XRAIL_STATUS, Secret::new(reason.as_str().to_owned())),
         });
-        // The one set replaces the agent's, whichever order a host applies removals in.
+        // A header the host never reported can't be removed, so it must report them all.
         let mut remove: Vec<String> = sent
             .into_iter()
             .map(str::to_ascii_lowercase)
             .filter(|name| is_xrail(name))
+            // The one set replaces the agent's, whichever order a host applies removals in.
             .filter(|name| set.as_ref().is_none_or(|(set, _)| name != set))
             .collect();
         remove.sort();

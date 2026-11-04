@@ -1,107 +1,11 @@
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
-use rail_runtime::{
-    OpaqueTicket, Secret, TicketAnswer, TicketHolder, TicketSource, Unavailable, WallClock,
-};
-use tokio::runtime::Handle;
-use tokio::time::{Instant, sleep};
+use rail_runtime::{TicketAnswer, Unavailable};
+use tokio::time::sleep;
 
-const HOUR: Duration = Duration::from_secs(3600);
+mod holder;
 
-// A wall clock that moves with tokio's paused time, starting at a fixed instant.
-struct Clock {
-    started: Instant,
-}
-
-impl Clock {
-    fn new() -> Self {
-        Self {
-            started: Instant::now(),
-        }
-    }
-
-    fn wall(&self) -> WallClock {
-        let started = self.started;
-        Arc::new(move || UNIX_EPOCH + Duration::from_secs(1_800_000_000) + started.elapsed())
-    }
-
-    // The wall-clock time `seconds` from the start.
-    fn at(&self, seconds: u64) -> SystemTime {
-        UNIX_EPOCH + Duration::from_secs(1_800_000_000 + seconds)
-    }
-}
-
-type Answer = Result<TicketAnswer, String>;
-
-// Answers fetch n with `answers(n)`, and records when each fetch came, in seconds from the start,
-// and the `sent_at` it was given.
-#[derive(Clone)]
-struct Script {
-    answers: Arc<dyn Fn(usize) -> Answer + Send + Sync>,
-    fetched_at: Arc<Mutex<Vec<u64>>>,
-    sent_at: Arc<Mutex<Vec<SystemTime>>>,
-    started: Instant,
-}
-
-impl Script {
-    fn new(clock: &Clock, answers: impl Fn(usize) -> Answer + Send + Sync + 'static) -> Self {
-        Self {
-            answers: Arc::new(answers),
-            fetched_at: Arc::default(),
-            sent_at: Arc::default(),
-            started: clock.started,
-        }
-    }
-
-    fn fetched_at(&self) -> Vec<u64> {
-        self.fetched_at.lock().unwrap().clone()
-    }
-}
-
-impl TicketSource for Script {
-    async fn fetch(&self, sent_at: SystemTime) -> Answer {
-        self.sent_at.lock().unwrap().push(sent_at);
-        let fetches = {
-            let mut fetched_at = self.fetched_at.lock().unwrap();
-            fetched_at.push(self.started.elapsed().as_secs());
-            fetched_at.len()
-        };
-        (self.answers)(fetches - 1)
-    }
-}
-
-fn ticket(token: &str, expires_at: SystemTime) -> Answer {
-    Ok(TicketAnswer::Ticket(OpaqueTicket {
-        token: Secret::new(token.to_owned()),
-        expires_at,
-    }))
-}
-
-fn failed() -> Answer {
-    Err("Rail Center was silent for 10s".to_owned())
-}
-
-fn start(clock: &Clock, script: &Script, refresh_interval: Duration) -> TicketHolder {
-    TicketHolder::start(
-        &Handle::current(),
-        script.clone(),
-        refresh_interval,
-        clock.wall(),
-    )
-}
-
-fn token(holder: &TicketHolder) -> Result<String, Unavailable> {
-    holder
-        .current()
-        .map(|ticket| ticket.token.expose().to_owned())
-}
-
-// Lets the refresh loop run up to `seconds` from the start.
-async fn until(clock: &Clock, seconds: u64) {
-    tokio::time::sleep_until(clock.started + Duration::from_secs(seconds)).await;
-    tokio::task::yield_now().await;
-}
+use holder::{Clock, HOUR, Script, failed, start, ticket, token, until};
 
 #[tokio::test(start_paused = true)]
 async fn a_fetched_ticket_is_presented_from_the_first_fetch() {
@@ -421,41 +325,4 @@ async fn a_lapsed_ticket_after_none_is_expired_not_not_found() {
     until(&clock, 10).await;
 
     assert_eq!(token(&holder), Err(Unavailable::Expired));
-}
-
-#[derive(Clone, Default)]
-struct Logs(Arc<Mutex<Vec<u8>>>);
-
-impl std::io::Write for Logs {
-    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
-        self.0.lock().unwrap().extend_from_slice(bytes);
-        Ok(bytes.len())
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        Ok(())
-    }
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_panicking_refresh_loop_is_logged() {
-    let logs = Logs::default();
-    let writer = logs.clone();
-    let subscriber = tracing_subscriber::fmt()
-        .with_writer(move || writer.clone())
-        .with_ansi(false)
-        .finish();
-    let _logging = tracing::subscriber::set_default(subscriber);
-    let clock = Clock::new();
-    let script = Script::new(&clock, |_| panic!("a defect in the fetch"));
-
-    let holder = start(&clock, &script, HOUR);
-    until(&clock, 1).await;
-
-    assert_eq!(token(&holder), Err(Unavailable::IssuerUnreachable));
-    let logs = String::from_utf8(logs.0.lock().unwrap().clone()).unwrap();
-    assert!(
-        logs.contains("the ticket refresh loop panicked; the ticket is no longer refreshed"),
-        "{logs}"
-    );
 }

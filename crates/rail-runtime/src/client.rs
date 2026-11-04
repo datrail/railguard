@@ -32,8 +32,7 @@ pub struct Response {
     pub body: Vec<u8>,
 }
 
-/// Why a fetch got no response. Never carries the credential, a route or a query; a TLS name
-/// mismatch names the host.
+/// Why a fetch got no response: never the credential, route or query (a TLS error names the host).
 #[derive(Debug)]
 pub enum FetchError {
     Deadline(Duration),
@@ -100,8 +99,7 @@ impl RailCenterClient {
         })
     }
 
-    /// `GET` `route` under Rail Center's URL, retried once if it fails before a response is read,
-    /// as the first after a long idle may meet a pooled connection the peer closed.
+    /// `GET` `route`, retried once if no response was read: a pooled connection may have closed.
     pub async fn get(
         &self,
         route: &str,

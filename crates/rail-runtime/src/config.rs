@@ -118,8 +118,7 @@ impl<'a> Settings<'a> {
         }
     }
 
-    /// How many refusals were made so far, a repeated one included, so a caller can tell
-    /// whether its own reads refused anything.
+    /// Refusals so far, repeats included, so a caller can tell whether its own reads refused.
     pub fn refusals(&self) -> usize {
         self.refusals
     }

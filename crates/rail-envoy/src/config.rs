@@ -12,8 +12,7 @@ const DEFAULT_SOCKET: &str = "/run/rail/ext.sock";
 #[derive(Debug)]
 pub struct Config {
     pub socket: PathBuf,
-    /// Where this proxy's ticket comes from; `None` when Rail Center is disabled, and then it's
-    /// never reached.
+    /// Where this proxy's ticket comes from; `None` when Rail Center is disabled.
     pub ticket: Option<(RailCenterSettings, TicketSettings)>,
 }
 
@@ -26,16 +25,18 @@ impl Config {
                 .then_some(path)
                 .ok_or_else(|| "must be an absolute path".to_owned())
         });
-        // Disabled, whatever is set is still judged; only what's required changes.
-        let ticket = read_disabled(&mut settings).and_then(|disabled| {
-            let rail_center = read_rail_center(&mut settings, !disabled);
-            let ticket = read_ticket_settings(&mut settings, !disabled);
-            (!disabled).then(|| rail_center.zip(ticket))
-        });
+        // Whatever is set is judged either way; only an enabled Rail Center requires its settings.
+        let enabled = read_disabled(&mut settings) == Some(false);
+        let rail_center = read_rail_center(&mut settings, enabled);
+        let ticket = read_ticket_settings(&mut settings, enabled);
         settings.finish()?;
         Ok(Self {
             socket: socket.unwrap_or_else(|| PathBuf::from(DEFAULT_SOCKET)),
-            ticket: ticket.flatten(),
+            ticket: enabled.then(|| {
+                rail_center
+                    .zip(ticket)
+                    .expect("required, so read when nothing is refused")
+            }),
         })
     }
 }
@@ -100,10 +101,16 @@ mod tests {
     }
 
     #[test]
-    fn an_unreadable_disabled_flag_is_the_only_refusal() {
+    fn an_unreadable_disabled_flag_requires_nothing_but_judges_the_rest() {
         assert_eq!(
             read(&[("RAIL_DISABLED", "maybe")]).unwrap_err(),
             ["RAIL_DISABLED must be true or false, got: maybe"]
+        );
+        assert_eq!(
+            read(&[("RAIL_DISABLED", "maybe"), ("RAIL_CENTER_URL", "ftp://x")])
+                .unwrap_err()
+                .len(),
+            2
         );
     }
 

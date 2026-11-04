@@ -41,10 +41,7 @@ impl Authorization for Allow {
                     .flat_map(|map| map.headers.iter().map(|header| header.key.as_str())),
             )
         });
-        let current = self.tickets.as_ref().map(|tickets| tickets.current());
-        let ticket = current
-            .as_ref()
-            .map(|current| current.as_deref().map_err(|reason| *reason));
+        let ticket = self.tickets.as_deref().map(TicketHolder::current);
         let headers = XRailHeaders::of(ticket, sent);
         let mut response = CheckResponse::with_status(Status::ok(""));
         response.set_http_response(OkHttpResponse {
@@ -85,7 +82,7 @@ impl ExternalProcessor for Continue {
     }
 }
 
-// Each phase gets its own kind of response; full-duplex streamed bodies, never asked for, don't.
+// Each phase gets its own kind of response (full-duplex bodies, never asked for, would need more).
 fn continue_after(request: Request, tickets: Option<&TicketHolder>) -> Response {
     match request {
         Request::RequestHeaders(request) => {
@@ -93,11 +90,7 @@ fn continue_after(request: Request, tickets: Option<&TicketHolder>) -> Response 
                 .headers
                 .iter()
                 .flat_map(|map| map.headers.iter().map(|header| header.key.as_str()));
-            let current = tickets.map(TicketHolder::current);
-            let ticket = current
-                .as_ref()
-                .map(|current| current.as_deref().map_err(|reason| *reason));
-            let headers = XRailHeaders::of(ticket, sent);
+            let headers = XRailHeaders::of(tickets.map(TicketHolder::current), sent);
             Response::RequestHeaders(HeadersResponse {
                 response: Some(CommonResponse {
                     header_mutation: Some(HeaderMutation {
