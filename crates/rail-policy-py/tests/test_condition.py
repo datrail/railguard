@@ -48,7 +48,7 @@ def test_reports_a_problem_as_data():
                 location=("value",),
                 code="operand_shape",
                 scope="enforcement",
-                expected="list",
+                expected_shape="list",
                 message="in takes a list",
             ),
         )

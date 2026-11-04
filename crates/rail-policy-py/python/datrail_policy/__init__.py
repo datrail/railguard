@@ -17,13 +17,13 @@ __all__ = [
     "DEFAULT_STEP_LIMIT",
     "TICKET_CLAIMS_SCHEMA",
     "BundleCheck",
-    "ChainVerdict",
+    "ChainOutcome",
     "ConditionCheck",
     "ConditionProblem",
     "CompiledBundle",
     "Judgement",
     "NotJudged",
-    "Resolved",
+    "ResolvedValue",
     "TicketReading",
     "TraceStep",
     "UnreadableSample",
@@ -47,7 +47,7 @@ TICKET_CLAIMS_SCHEMA: dict[str, Any] = {
     "posture": {
         "overall": {"score": "number", "level": "string"},
         "categories": {
-            name: {"score": "number", "capped": "boolean"}
+            name: {"score": "number", "capped": "bool"}
             for name in (
                 "identity",
                 "api_access",
@@ -77,7 +77,7 @@ class UnusableBundle:
 
 
 @dataclass(frozen=True)
-class Resolved:
+class ResolvedValue:
     kind: Literal["absent", "string", "number", "bool", "list", "object"]
     # The value as JSON; `None` for `absent` and `object`.
     value: Any = None
@@ -87,14 +87,14 @@ class Resolved:
 class TraceStep:
     policy: UUID
     # `None` when no path was resolved: the condition can't be read, or the budget ran out first.
-    resolved: Resolved | None
+    resolved: ResolvedValue | None
     verdict: Literal["holds", "does_not_hold", "refused"]
     # Why the condition refused; `None` unless `refused`.
     refusal: Literal["uninterpretable", "budget_exceeded"] | None
 
 
 @dataclass(frozen=True)
-class ChainVerdict:
+class ChainOutcome:
     decision: Literal["allowed", "denied", "refused"]
     # The deciding policy; `None` when allowed.
     policy: UUID | None
@@ -105,9 +105,9 @@ class ChainVerdict:
 @dataclass(frozen=True)
 class Judgement:
     mode: Literal["observe", "enforce"]
-    fallbacks: tuple[Literal["ticket", "binding"], ...]
+    fallback_denials: tuple[Literal["ticket", "binding"], ...]
     # `None` when the policies weren't consulted: at `enforce`, after a fallback denied.
-    chain: ChainVerdict | None
+    chain: ChainOutcome | None
     # The policies the walk evaluated, in order; any other policy didn't run.
     trace: tuple[TraceStep, ...]
     kind: Literal["judged"] = "judged"
@@ -144,7 +144,7 @@ class ConditionProblem:
     # on another version.
     scope: Literal["enforcement", "authoring"]
     # The operand shape the op takes; `None` unless `operand_shape`.
-    expected: Literal["number", "list", "scalar", "string"] | None
+    expected_shape: Literal["number", "list", "scalar", "string"] | None
     message: str
 
 
@@ -188,8 +188,8 @@ def check_condition(
     # JSON can't carry them to Rust, so a stand-in keeps the other checks running.
     non_finite: list[tuple[str | int, ...]] = []
     try:
-        text = json.dumps(_replace_non_finite(condition, non_finite))
-    except _TooDeep:
+        text = json.dumps(_review_condition(condition, non_finite))
+    except _TooDeepError:
         return ConditionCheck(problems=(_build_unreadable("nested too deep"),))
     except ValueError as error:
         # Such as an int past Python's digit limit.
@@ -204,7 +204,7 @@ def check_condition(
             location=location,
             code="unwritable_number",
             scope="authoring",
-            expected=None,
+            expected_shape=None,
             message="infinity or NaN can't be written back as the JSON it came from",
         )
         for location in non_finite
@@ -212,11 +212,11 @@ def check_condition(
     return ConditionCheck(problems=tuple(problems))
 
 
-class _TooDeep(Exception):
+class _TooDeepError(Exception):
     pass
 
 
-def _replace_non_finite(condition: Any, found: list[tuple[str | int, ...]]) -> Any:
+def _review_condition(condition: Any, found: list[tuple[str | int, ...]]) -> Any:
     """A copy of plain dicts and lists, with each non-finite float's location in `found`."""
     root = [condition]
     stack: list[tuple[Any, Any, tuple[str | int, ...]]] = [(root, 0, ())]
@@ -226,7 +226,7 @@ def _replace_non_finite(condition: Any, found: list[tuple[str | int, ...]]) -> A
         parent, key, location = stack.pop()
         value = parent[key]
         if len(location) >= _MAX_WALK_DEPTH:
-            raise _TooDeep
+            raise _TooDeepError
         if isinstance(value, float) and not math.isfinite(value):
             found.append(location)
             parent[key] = 0.0
@@ -250,7 +250,7 @@ def _build_unreadable(reason: str) -> ConditionProblem:
         location=(),
         code="unreadable",
         scope="enforcement",
-        expected=None,
+        expected_shape=None,
         message=f"not JSON this reader can hold: {reason}",
     )
 
@@ -314,15 +314,15 @@ def _read_result(result: dict[str, Any]) -> Judgement | NotJudged | UnreadableSa
     chain = result["chain"]
     return Judgement(
         mode=result["mode"],
-        fallbacks=tuple(result["fallbacks"]),
+        fallback_denials=tuple(result["fallback_denials"]),
         chain=None if chain is None else _read_chain(chain),
         trace=tuple(_read_step(step) for step in result["trace"]),
     )
 
 
-def _read_chain(chain: dict[str, Any]) -> ChainVerdict:
+def _read_chain(chain: dict[str, Any]) -> ChainOutcome:
     policy = chain["policy"]
-    return ChainVerdict(
+    return ChainOutcome(
         decision=chain["decision"],
         policy=None if policy is None else UUID(policy),
         refusal=chain["refusal"],
@@ -334,7 +334,7 @@ def _read_step(step: dict[str, Any]) -> TraceStep:
     resolved = step["resolved"]
     return TraceStep(
         policy=UUID(step["policy"]),
-        resolved=None if resolved is None else Resolved(**resolved),
+        resolved=None if resolved is None else ResolvedValue(**resolved),
         verdict=step["verdict"],
         refusal=step["refusal"],
     )
@@ -363,7 +363,7 @@ def read_ticket(
         _native.read_ticket(
             raw_ticket,
             # Exact, where `timestamp()` goes through a float.
-            now_in_seconds=(now - _EPOCH) // timedelta(seconds=1),
+            now_epoch_seconds=(now - _EPOCH) // timedelta(seconds=1),
             keys=dict(keys or {}),
             issuer=issuer,
             audience=audience,
