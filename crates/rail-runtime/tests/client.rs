@@ -1,0 +1,502 @@
+use std::io::Write as _;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
+use flate2::Compression;
+use flate2::write::GzEncoder;
+use rail_runtime::{
+    FetchError, Limits, RailCenter, RailCenterClient, RailCenterSettings, Settings, Variables,
+    read_rail_center,
+};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
+
+const TOKEN: &str = "rc_svc_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+
+const LIMITS: Limits = Limits {
+    attempt_timeout: Duration::from_secs(5),
+    deadline: Duration::from_secs(10),
+    max_bytes: 1024,
+};
+
+// What the test server does with the nth connection.
+enum Reply {
+    Raw(Vec<u8>),
+    // Writes the head, then one body byte per interval, for ever.
+    Dribble(Vec<u8>, Duration),
+    // Closes without answering, as a pooled connection the peer dropped.
+    Close,
+}
+
+struct Server {
+    url: String,
+    requests: Arc<Mutex<Vec<String>>>,
+}
+
+async fn serve(reply: impl Fn(usize) -> Reply + Send + Sync + 'static) -> Server {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    let requests = Arc::new(Mutex::new(Vec::new()));
+    let seen = Arc::clone(&requests);
+    tokio::spawn(async move {
+        let mut count = 0;
+        loop {
+            let (stream, _) = listener.accept().await.unwrap();
+            let seen = Arc::clone(&seen);
+            let reply = reply(count);
+            count += 1;
+            tokio::spawn(async move { answer(stream, reply, &seen).await });
+        }
+    });
+    Server { url, requests }
+}
+
+async fn answer(mut stream: TcpStream, reply: Reply, seen: &Mutex<Vec<String>>) {
+    let mut head = Vec::new();
+    let mut byte = [0];
+    while !head.ends_with(b"\r\n\r\n") {
+        if stream.read(&mut byte).await.unwrap_or(0) == 0 {
+            return;
+        }
+        head.push(byte[0]);
+    }
+    seen.lock().unwrap().push(String::from_utf8(head).unwrap());
+    match reply {
+        Reply::Raw(bytes) => {
+            let _ = stream.write_all(&bytes).await;
+            let _ = stream.shutdown().await;
+        }
+        Reply::Dribble(head, interval) => {
+            let _ = stream.write_all(&head).await;
+            while stream.write_all(b"x").await.is_ok() {
+                tokio::time::sleep(interval).await;
+            }
+        }
+        Reply::Close => {}
+    }
+}
+
+fn response(status: &str, headers: &[&str], body: &[u8]) -> Vec<u8> {
+    let mut bytes = format!("HTTP/1.1 {status}\r\nconnection: close\r\n").into_bytes();
+    for header in headers {
+        bytes.extend_from_slice(format!("{header}\r\n").as_bytes());
+    }
+    bytes.extend_from_slice(format!("content-length: {}\r\n\r\n", body.len()).as_bytes());
+    bytes.extend_from_slice(body);
+    bytes
+}
+
+// A body with no declared length, so only the running count can bound it.
+fn unsized_response(headers: &[&str], body: &[u8]) -> Vec<u8> {
+    let mut bytes = b"HTTP/1.1 200 OK\r\nconnection: close\r\n".to_vec();
+    for header in headers {
+        bytes.extend_from_slice(format!("{header}\r\n").as_bytes());
+    }
+    bytes.extend_from_slice(b"\r\n");
+    bytes.extend_from_slice(body);
+    bytes
+}
+
+fn gzip(body: &[u8]) -> Vec<u8> {
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
+    encoder.write_all(body).unwrap();
+    encoder.finish().unwrap()
+}
+
+fn settings(url: &str, token: Option<&str>) -> RailCenterSettings {
+    let mut pairs = vec![("RAIL_CENTER_URL", url), ("RAIL_ALLOW_HTTP", "true")];
+    if let Some(token) = token {
+        pairs.extend([("RAIL_AUTH_MODE", "bearer"), ("RAIL_AUTH_TOKEN", token)]);
+    }
+    let variables: Variables = pairs.into_iter().collect();
+    let mut reader = Settings::new(&variables);
+    let read = read_rail_center(&mut reader);
+    reader.finish().unwrap();
+    match read {
+        Some(RailCenter::Enabled(settings)) => settings,
+        other => panic!("{other:?}"),
+    }
+}
+
+fn client(url: &str) -> RailCenterClient {
+    RailCenterClient::new(&settings(url, Some(TOKEN))).unwrap()
+}
+
+#[tokio::test]
+async fn a_get_reaches_the_route_under_the_base_with_the_credential() {
+    let server = serve(|_| Reply::Raw(response("200 OK", &[], b"{}"))).await;
+
+    let fetched = client(&format!("{}/rc/", server.url))
+        .get(
+            "/v1/tickets",
+            &[("host_id", "h 1"), ("sandbox_name", "s&t")],
+            LIMITS,
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(fetched.status, 200);
+    assert_eq!(fetched.body, b"{}");
+    let requests = server.requests.lock().unwrap();
+    let request = requests[0].to_ascii_lowercase();
+    assert!(
+        request.starts_with("get /rc/v1/tickets?host_id=h+1&sandbox_name=s%26t http/1.1\r\n"),
+        "{request}"
+    );
+    assert!(request.contains(&format!(
+        "\r\nauthorization: bearer {}\r\n",
+        TOKEN.to_ascii_lowercase()
+    )));
+    assert!(request.contains("\r\naccept: application/json\r\n"));
+    assert!(request.contains("\r\naccept-encoding: gzip, identity\r\n"));
+}
+
+#[tokio::test]
+async fn no_credential_sends_no_authorization_header() {
+    let server = serve(|_| Reply::Raw(response("200 OK", &[], b""))).await;
+    let client = RailCenterClient::new(&settings(&server.url, None)).unwrap();
+
+    client.get("/v1/policy-bundle", &[], LIMITS).await.unwrap();
+
+    let requests = server.requests.lock().unwrap();
+    assert!(!requests[0].to_ascii_lowercase().contains("authorization"));
+}
+
+#[tokio::test]
+async fn a_redirect_is_answered_not_followed() {
+    let elsewhere = serve(|_| Reply::Raw(response("200 OK", &[], b""))).await;
+    let location = format!("location: {}/v1/tickets", elsewhere.url);
+    let server = serve(move |_| Reply::Raw(response("302 Found", &[&location], b""))).await;
+
+    let fetched = client(&server.url)
+        .get("/v1/tickets", &[], LIMITS)
+        .await
+        .unwrap();
+
+    assert_eq!(fetched.status, 302);
+    assert!(elsewhere.requests.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn a_declared_length_past_the_cap_is_refused_unread() {
+    // The body never comes, so only the declared length can refuse it in time.
+    let server = serve(|_| {
+        Reply::Dribble(
+            b"HTTP/1.1 200 OK\r\ncontent-length: 1025\r\n\r\n".to_vec(),
+            Duration::from_secs(3600),
+        )
+    })
+    .await;
+    let limits = Limits {
+        attempt_timeout: Duration::from_millis(200),
+        ..LIMITS
+    };
+
+    let error = client(&server.url)
+        .get("/v1/x", &[], limits)
+        .await
+        .unwrap_err();
+
+    assert!(
+        matches!(error, FetchError::TooLarge { max_bytes: 1024 }),
+        "{error:?}"
+    );
+}
+
+#[tokio::test]
+async fn an_unsized_body_past_the_cap_is_refused_while_streaming() {
+    let server = serve(|_| Reply::Raw(unsized_response(&[], &[b'x'; 1025]))).await;
+
+    let error = client(&server.url)
+        .get("/v1/x", &[], LIMITS)
+        .await
+        .unwrap_err();
+
+    assert!(matches!(error, FetchError::TooLarge { .. }), "{error:?}");
+}
+
+#[tokio::test]
+async fn a_body_at_the_cap_is_read() {
+    let server = serve(|_| Reply::Raw(unsized_response(&[], &[b'x'; 1024]))).await;
+
+    let fetched = client(&server.url).get("/v1/x", &[], LIMITS).await.unwrap();
+
+    assert_eq!(fetched.body.len(), 1024);
+}
+
+#[tokio::test]
+async fn a_gzip_body_is_decoded() {
+    let server = serve(|_| {
+        Reply::Raw(response(
+            "200 OK",
+            &["content-encoding: gzip"],
+            &gzip(b"{\"a\":1}"),
+        ))
+    })
+    .await;
+
+    let fetched = client(&server.url).get("/v1/x", &[], LIMITS).await.unwrap();
+
+    assert_eq!(fetched.body, b"{\"a\":1}");
+}
+
+#[tokio::test]
+async fn a_gzip_bomb_is_refused_by_its_decoded_size() {
+    let bomb = gzip(&vec![0; 64 << 20]);
+    assert!(bomb.len() < 1 << 20);
+    let server =
+        serve(move |_| Reply::Raw(response("200 OK", &["content-encoding: gzip"], &bomb))).await;
+    let limits = Limits {
+        max_bytes: 1 << 20,
+        ..LIMITS
+    };
+
+    let error = client(&server.url)
+        .get("/v1/x", &[], limits)
+        .await
+        .unwrap_err();
+
+    assert!(matches!(error, FetchError::TooLarge { .. }), "{error:?}");
+}
+
+#[tokio::test]
+async fn an_encoding_not_offered_is_refused() {
+    let server =
+        serve(|_| Reply::Raw(response("200 OK", &["content-encoding: br"], b"\x1b\x00"))).await;
+
+    let error = client(&server.url)
+        .get("/v1/x", &[], LIMITS)
+        .await
+        .unwrap_err();
+
+    assert!(
+        matches!(&error, FetchError::Encoding(encoding) if encoding.contains("br")),
+        "{error:?}"
+    );
+}
+
+#[tokio::test]
+async fn every_encoding_listed_is_checked() {
+    let server = serve(|_| {
+        Reply::Raw(response(
+            "200 OK",
+            &["content-encoding: identity", "content-encoding: br"],
+            b"\x1b\x00",
+        ))
+    })
+    .await;
+
+    let error = client(&server.url)
+        .get("/v1/x", &[], LIMITS)
+        .await
+        .unwrap_err();
+
+    assert!(
+        matches!(&error, FetchError::Encoding(encoding) if encoding.contains("br")),
+        "{error:?}"
+    );
+}
+
+#[tokio::test]
+async fn an_encoding_behind_gzip_is_refused() {
+    let cases: [&[&str]; 4] = [
+        &["content-encoding: gzip", "content-encoding: br"],
+        &["content-encoding: gzip, br"],
+        &["content-encoding: gzip", "content-encoding: gzip"],
+        &["content-encoding: gzip, gzip"],
+    ];
+    for headers in cases {
+        let server = serve(move |_| Reply::Raw(response("200 OK", headers, &gzip(b"{}")))).await;
+
+        let error = client(&server.url)
+            .get("/v1/x", &[], LIMITS)
+            .await
+            .unwrap_err();
+
+        assert!(
+            matches!(&error, FetchError::Encoding(_)),
+            "{headers:?}: {error:?}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn gzip_that_does_not_decode_is_refused() {
+    let whole = gzip(b"{\"a\":1}");
+    for body in [b"not gzip".to_vec(), whole[..whole.len() - 4].to_vec()] {
+        let server =
+            serve(move |_| Reply::Raw(response("200 OK", &["content-encoding: gzip"], &body)))
+                .await;
+
+        let error = client(&server.url)
+            .get("/v1/x", &[], LIMITS)
+            .await
+            .unwrap_err();
+
+        assert!(matches!(&error, FetchError::BadGzip(_)), "{error:?}");
+    }
+}
+
+#[tokio::test]
+async fn identity_is_read_however_it_is_spelled() {
+    let server =
+        serve(|_| Reply::Raw(response("200 OK", &["content-encoding: Identity "], b"ok"))).await;
+
+    let fetched = client(&server.url).get("/v1/x", &[], LIMITS).await.unwrap();
+
+    assert_eq!(fetched.body, b"ok");
+}
+
+#[tokio::test]
+async fn a_silent_body_times_the_attempt_out() {
+    let server = serve(|_| {
+        Reply::Dribble(
+            b"HTTP/1.1 200 OK\r\n\r\n".to_vec(),
+            Duration::from_secs(3600),
+        )
+    })
+    .await;
+    let limits = Limits {
+        attempt_timeout: Duration::from_millis(200),
+        ..LIMITS
+    };
+
+    let error = client(&server.url)
+        .get("/v1/x", &[], limits)
+        .await
+        .unwrap_err();
+
+    assert!(matches!(error, FetchError::Timeout(_)), "{error:?}");
+}
+
+#[tokio::test]
+async fn a_dribbling_body_runs_into_the_deadline() {
+    let server = serve(|_| {
+        Reply::Dribble(
+            b"HTTP/1.1 200 OK\r\n\r\n".to_vec(),
+            Duration::from_millis(20),
+        )
+    })
+    .await;
+    let limits = Limits {
+        attempt_timeout: Duration::from_millis(500),
+        deadline: Duration::from_millis(300),
+        max_bytes: 1 << 20,
+    };
+
+    let error = client(&server.url)
+        .get("/v1/x", &[], limits)
+        .await
+        .unwrap_err();
+
+    assert!(matches!(error, FetchError::Deadline(_)), "{error:?}");
+}
+
+#[tokio::test]
+async fn a_request_closed_unanswered_is_retried_once() {
+    let server = serve(|count| match count {
+        0 => Reply::Close,
+        _ => Reply::Raw(response("200 OK", &[], b"ok")),
+    })
+    .await;
+
+    let fetched = client(&server.url).get("/v1/x", &[], LIMITS).await.unwrap();
+
+    assert_eq!(fetched.body, b"ok");
+    assert_eq!(server.requests.lock().unwrap().len(), 2);
+}
+
+#[tokio::test]
+async fn a_second_unanswered_request_is_a_failure() {
+    let server = serve(|_| Reply::Close).await;
+
+    let error = client(&server.url)
+        .get("/v1/x", &[], LIMITS)
+        .await
+        .unwrap_err();
+
+    assert!(matches!(error, FetchError::Transport(_)), "{error:?}");
+    assert_eq!(server.requests.lock().unwrap().len(), 2);
+}
+
+#[tokio::test]
+async fn no_failure_carries_the_credential_or_the_url() {
+    let silent = serve(|_| {
+        Reply::Dribble(
+            b"HTTP/1.1 200 OK\r\n\r\n".to_vec(),
+            Duration::from_secs(3600),
+        )
+    })
+    .await;
+    let closed = serve(|_| Reply::Close).await;
+    let refused = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let refused_url = format!("http://{}", refused.local_addr().unwrap());
+    drop(refused);
+    let limits = Limits {
+        attempt_timeout: Duration::from_millis(200),
+        ..LIMITS
+    };
+
+    for url in [&silent.url, &closed.url, &refused_url] {
+        let error = client(url)
+            .get("/v1/secret-route", &[("q", "v")], limits)
+            .await
+            .unwrap_err();
+
+        for shown in [error.to_string(), format!("{error:?}")] {
+            assert!(!shown.contains("AAAAAAAA"), "{shown}");
+            assert!(!shown.contains("secret-route"), "{shown}");
+        }
+    }
+}
+
+#[tokio::test]
+async fn an_https_url_is_fetched_over_tls() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("https://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.unwrap();
+        let _ = stream.write_all(b"HTTP/1.1 200 OK\r\n\r\n").await;
+    });
+
+    let error = client(&url).get("/v1/x", &[], LIMITS).await.unwrap_err();
+
+    // A plaintext answer fails the handshake, so TLS was attempted.
+    assert!(matches!(error, FetchError::Transport(_)), "{error:?}");
+}
+
+// Run in a child process, which the test below starts with the proxy variables set.
+#[tokio::test]
+#[ignore = "run by an_ambient_proxy_is_not_used"]
+async fn ambient_proxy_child() {
+    let server = serve(|_| Reply::Raw(response("200 OK", &[], b"direct"))).await;
+
+    let fetched = client(&server.url).get("/v1/x", &[], LIMITS).await.unwrap();
+
+    assert_eq!(fetched.body, b"direct");
+}
+
+#[test]
+fn an_ambient_proxy_is_not_used() {
+    // Nothing listens there, so a request sent through the proxy fails.
+    let proxy = "http://127.0.0.1:9";
+    let status = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "ambient_proxy_child", "--ignored", "--quiet"])
+        .envs(
+            [
+                "HTTP_PROXY",
+                "http_proxy",
+                "HTTPS_PROXY",
+                "https_proxy",
+                "ALL_PROXY",
+                "all_proxy",
+            ]
+            .map(|name| (name, proxy)),
+        )
+        .env_remove("NO_PROXY")
+        .env_remove("no_proxy")
+        .status()
+        .unwrap();
+
+    assert!(status.success());
+}
