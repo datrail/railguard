@@ -15,7 +15,8 @@ pub use bundle::{
     Policy, SchemaVersion, UnusableBundle, parse_bundle,
 };
 pub use check::{
-    OperandShape, Problem, ProblemCode, Scope, Segment, TicketClaimsSchema, check_condition,
+    ConditionProblem, LocationSegment, OperandShape, ProblemCode, ProblemScope, TicketClaimsSchema,
+    check_condition,
 };
 pub use condition::{Condition, Path, Predicate, RequestPath, Scalar, TicketPath};
 pub use endpoint::{Endpoint, Resolution, ResolvedKey, resolve_endpoint};
@@ -25,10 +26,10 @@ pub use evaluate::{
     compile_condition, evaluate_condition,
 };
 pub use judge::{
-    ChainVerdict, Decision, FallbackDenial, Judge, JudgingMode, NoTrace, Outcome, Trace,
+    ChainOutcome, CompiledBundle, Decision, FallbackDenial, JudgingMode, NoTracer, Outcome, Tracer,
     compile_bundle, judge, judge_traced,
 };
 pub use sanitize::sanitize;
 pub use ticket::{
-    Ticket, TicketState, TicketVerifier, parse_base64_ticket, parse_jwt_ticket, parse_ticket,
+    SignedTicketConfig, Ticket, TicketState, parse_base64_ticket, parse_jwt_ticket, parse_ticket,
 };

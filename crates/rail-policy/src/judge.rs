@@ -12,7 +12,7 @@ use crate::evaluate::{
 
 /// A bundle compiled for judging: built once per bundle, then used for every call.
 #[derive(Debug)]
-pub struct Judge {
+pub struct CompiledBundle {
     /// The enabled policies, in the order they're evaluated.
     chain: Vec<ChainPolicy>,
     /// For each bound endpoint, the indices in `chain` of the policies that apply to it.
@@ -53,10 +53,10 @@ impl EnforcementMode {
 pub struct Outcome {
     /// The fallbacks that deny the call, ticket first. At `enforce` the first one ends the
     /// judgement, so there's at most one.
-    pub fallbacks: Vec<FallbackDenial>,
+    pub fallback_denials: Vec<FallbackDenial>,
     /// What the policies concluded, or `None` if they weren't consulted: at `enforce`, after a
     /// fallback denied.
-    pub chain: Option<ChainVerdict>,
+    pub chain: Option<ChainOutcome>,
 }
 
 /// A fallback that denies a call. No policy is named.
@@ -71,7 +71,7 @@ pub enum FallbackDenial {
 
 /// What the policies concluded.
 #[derive(Debug, PartialEq)]
-pub struct ChainVerdict {
+pub struct ChainOutcome {
     pub decision: Decision,
     /// The `alert` policies whose conditions held, in evaluation order. Empty when the call is
     /// refused.
@@ -89,7 +89,7 @@ pub enum Decision {
     Refused { policy: Uuid, refusal: Refusal },
 }
 
-pub fn compile_bundle(bundle: &Bundle) -> Judge {
+pub fn compile_bundle(bundle: &Bundle) -> CompiledBundle {
     // `policies` is expected already in evaluation order, as `parse_bundle` leaves it.
     let chain: Vec<ChainPolicy> = bundle
         .policies
@@ -126,7 +126,7 @@ pub fn compile_bundle(bundle: &Bundle) -> Judge {
             (binding.endpoint_key.resolved.clone(), allowed)
         })
         .collect();
-    Judge {
+    CompiledBundle {
         chain,
         bindings,
         binding_fallback: bundle.binding_fallback,
@@ -135,43 +135,43 @@ pub fn compile_bundle(bundle: &Bundle) -> Judge {
 }
 
 /// Told of each policy the walk evaluates, in order, to explain an outcome.
-pub trait Trace {
-    fn visit(&mut self, policy: Uuid, evaluation: &Evaluation);
+pub trait Tracer {
+    fn record(&mut self, policy: Uuid, evaluation: &Evaluation);
 }
 
 /// Records nothing, so judging with it costs nothing.
-pub struct NoTrace;
+pub struct NoTracer;
 
-impl Trace for NoTrace {
-    fn visit(&mut self, _: Uuid, _: &Evaluation) {}
+impl Tracer for NoTracer {
+    fn record(&mut self, _: Uuid, _: &Evaluation) {}
 }
 
 /// The ticket fallback, then the binding fallback, then the chain. At `enforce` a fallback's
 /// denial ends the judgement; at `observe` the chain is walked anyway, to preview it.
 pub fn judge(
-    compiled: &Judge,
+    bundle: &CompiledBundle,
     environment: &Environment,
     mode: JudgingMode,
     budget: &mut Budget,
 ) -> Outcome {
-    judge_traced(compiled, environment, mode, budget, &mut NoTrace)
+    judge_traced(bundle, environment, mode, budget, &mut NoTracer)
 }
 
-/// `judge`, telling `trace` of each policy evaluated.
+/// `judge`, telling `tracer` of each policy evaluated.
 pub fn judge_traced(
-    compiled: &Judge,
+    bundle: &CompiledBundle,
     environment: &Environment,
     mode: JudgingMode,
     budget: &mut Budget,
-    trace: &mut impl Trace,
+    tracer: &mut impl Tracer,
 ) -> Outcome {
     let enforcing = mode == JudgingMode::Enforce;
-    let mut fallbacks = Vec::new();
-    if environment.ticket.is_none() && compiled.ticket_fallback == Fallback::Block {
-        fallbacks.push(FallbackDenial::Ticket);
+    let mut fallback_denials = Vec::new();
+    if environment.ticket.is_none() && bundle.ticket_fallback == Fallback::Block {
+        fallback_denials.push(FallbackDenial::Ticket);
         if enforcing {
             return Outcome {
-                fallbacks,
+                fallback_denials,
                 chain: None,
             };
         }
@@ -181,30 +181,30 @@ pub fn judge_traced(
         Endpoint::Keyless => (None, false),
         Endpoint::Unrecognised => (None, true),
         Endpoint::Resolved(key) => {
-            let narrowed = compiled.bindings.get(key);
+            let narrowed = bundle.bindings.get(key);
             (narrowed, narrowed.is_none())
         }
     };
-    if unbound && compiled.binding_fallback == Fallback::Block {
-        fallbacks.push(FallbackDenial::Binding);
+    if unbound && bundle.binding_fallback == Fallback::Block {
+        fallback_denials.push(FallbackDenial::Binding);
         if enforcing {
             return Outcome {
-                fallbacks,
+                fallback_denials,
                 chain: None,
             };
         }
     }
     let chain = match narrowed {
         Some(positions) => walk(
-            positions.iter().map(|&position| &compiled.chain[position]),
+            positions.iter().map(|&position| &bundle.chain[position]),
             environment,
             budget,
-            trace,
+            tracer,
         ),
-        None => walk(compiled.chain.iter(), environment, budget, trace),
+        None => walk(bundle.chain.iter(), environment, budget, tracer),
     };
     Outcome {
-        fallbacks,
+        fallback_denials,
         chain: Some(chain),
     }
 }
@@ -214,12 +214,12 @@ fn walk<'a>(
     policies: impl Iterator<Item = &'a ChainPolicy>,
     environment: &Environment,
     budget: &mut Budget,
-    trace: &mut impl Trace,
-) -> ChainVerdict {
+    tracer: &mut impl Tracer,
+) -> ChainOutcome {
     let mut alerts = Vec::new();
     for policy in policies {
         let evaluation = evaluate_condition(&policy.condition, environment, budget);
-        trace.visit(policy.id, &evaluation);
+        tracer.record(policy.id, &evaluation);
         match evaluation.verdict {
             // A refused call reports nothing, its alerts included.
             Verdict::Refused(refusal) => {
@@ -227,7 +227,7 @@ fn walk<'a>(
                     policy: policy.id,
                     refusal,
                 };
-                return ChainVerdict {
+                return ChainOutcome {
                     decision,
                     alerts: Vec::new(),
                 };
@@ -236,11 +236,11 @@ fn walk<'a>(
             Verdict::Holds if policy.action == Action::Alert => alerts.push(policy.id),
             Verdict::Holds => {
                 let decision = Decision::Denied(policy.id);
-                return ChainVerdict { decision, alerts };
+                return ChainOutcome { decision, alerts };
             }
         }
     }
-    ChainVerdict {
+    ChainOutcome {
         decision: Decision::Allowed,
         alerts,
     }

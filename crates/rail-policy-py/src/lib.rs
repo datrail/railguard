@@ -11,10 +11,9 @@ mod _native {
     use pyo3::types::{PyBytes, PyBytesMethods};
     use pyo3::{Bound, IntoPyObject, PyResult, pyclass, pyfunction};
     use rail_policy::{
-        Budget, ChainVerdict, Decision, Endpoint, EnforcementMode, Environment, Evaluation,
-        FallbackDenial, Headers, Judge, JudgingMode, Lookup, Refusal, TicketClaimsSchema,
-        TicketState, TicketVerifier, Trace, Verdict, check_condition as check,
-        compile_bundle as compile, judge_traced, parse_bundle, parse_ticket, sanitize,
+        Budget, Decision, Endpoint, EnforcementMode, Environment, Evaluation, FallbackDenial,
+        Headers, JudgingMode, Lookup, Refusal, SignedTicketConfig, TicketClaimsSchema, TicketState,
+        Tracer, Verdict, judge_traced, parse_bundle, parse_ticket, sanitize,
     };
     use serde::Serialize;
     use serde_json::{Map, Value};
@@ -34,7 +33,7 @@ mod _native {
     /// A bundle compiled once, to judge many samples against.
     #[pyclass(frozen, module = "datrail_policy")]
     struct CompiledBundle {
-        judge: Judge,
+        compiled: rail_policy::CompiledBundle,
         mode: EnforcementMode,
     }
 
@@ -49,7 +48,7 @@ mod _native {
     fn compile_bundle(json: &str) -> Compiled {
         match parse_bundle(json) {
             Ok(bundle) => Compiled::Bundle(CompiledBundle {
-                judge: compile(&bundle),
+                compiled: rail_policy::compile_bundle(&bundle),
                 mode: bundle.enforcement.mode,
             }),
             Err(unusable) => Compiled::Unusable(unusable.to_string()),
@@ -93,7 +92,7 @@ mod _native {
                 };
                 let mut recorder = Recorder(Vec::new());
                 let outcome = judge_traced(
-                    &bundle.judge,
+                    &bundle.compiled,
                     &environment,
                     mode,
                     &mut Budget::new(step_limit),
@@ -101,8 +100,8 @@ mod _native {
                 );
                 SampleResult::Judged {
                     mode,
-                    fallbacks: outcome.fallbacks,
-                    chain: outcome.chain.map(Chain::from),
+                    fallback_denials: outcome.fallback_denials,
+                    chain: outcome.chain.map(ChainOutcome::from),
                     trace: recorder.0,
                 }
             }
@@ -112,10 +111,10 @@ mod _native {
 
     /// How an `x-rail` value classifies, as JSON text, with the claims when it's valid.
     #[pyfunction]
-    #[pyo3(signature = (raw_ticket, *, now_in_seconds, keys, issuer, audience))]
+    #[pyo3(signature = (raw_ticket, *, now_epoch_seconds, keys, issuer, audience))]
     fn read_ticket(
         raw_ticket: Option<&str>,
-        now_in_seconds: i64,
+        now_epoch_seconds: i64,
         keys: HashMap<String, Bound<'_, PyBytes>>,
         issuer: Option<String>,
         audience: Option<String>,
@@ -133,12 +132,12 @@ mod _native {
                 Ok((kid, key))
             })
             .collect::<PyResult<_>>()?;
-        let verifier = TicketVerifier {
+        let config = SignedTicketConfig {
             keys,
             issuer,
             audience,
         };
-        let state = parse_ticket(raw_ticket.unwrap_or(""), &verifier, now_in_seconds);
+        let state = parse_ticket(raw_ticket.unwrap_or(""), &config, now_epoch_seconds);
         let (state, claims) = match state {
             TicketState::Absent => ("absent", None),
             TicketState::Undecodable => ("undecodable", None),
@@ -160,7 +159,9 @@ mod _native {
             .map_err(|e| e.to_string())
             .and_then(|schema| TicketClaimsSchema::from_value(&schema))
             .map_err(|problem| PyValueError::new_err(format!("ticket claims schema: {problem}")))?;
-        Ok(write_json(&check(condition, &schema)))
+        Ok(write_json(&rail_policy::check_condition(
+            condition, &schema,
+        )))
     }
 
     /// The endpoint, and the claims of a usable ticket, or why the sample can't be read.
@@ -197,9 +198,9 @@ mod _native {
     enum SampleResult {
         Judged {
             mode: JudgingMode,
-            fallbacks: Vec<FallbackDenial>,
-            chain: Option<Chain>,
-            trace: Vec<Step>,
+            fallback_denials: Vec<FallbackDenial>,
+            chain: Option<ChainOutcome>,
+            trace: Vec<TraceStep>,
         },
         NotJudged {
             reason: &'static str,
@@ -210,15 +211,15 @@ mod _native {
     }
 
     #[derive(Serialize)]
-    struct Chain {
+    struct ChainOutcome {
         decision: &'static str,
         policy: Option<Uuid>,
         refusal: Option<Refusal>,
         alerts: Vec<Uuid>,
     }
 
-    impl From<ChainVerdict> for Chain {
-        fn from(chain: ChainVerdict) -> Self {
+    impl From<rail_policy::ChainOutcome> for ChainOutcome {
+        fn from(chain: rail_policy::ChainOutcome) -> Self {
             let (decision, policy, refusal) = match chain.decision {
                 Decision::Allowed => ("allowed", None, None),
                 Decision::Denied(policy) => ("denied", Some(policy), None),
@@ -234,9 +235,9 @@ mod _native {
     }
 
     #[derive(Serialize)]
-    struct Step {
+    struct TraceStep {
         policy: Uuid,
-        resolved: Option<Resolved>,
+        resolved: Option<ResolvedValue>,
         verdict: &'static str,
         refusal: Option<Refusal>,
     }
@@ -244,7 +245,7 @@ mod _native {
     /// Owned, since a trace outlives the call's environment.
     #[derive(Serialize)]
     #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
-    enum Resolved {
+    enum ResolvedValue {
         Absent,
         String(String),
         Number(f64),
@@ -253,11 +254,11 @@ mod _native {
         Object,
     }
 
-    impl From<Lookup<'_>> for Resolved {
+    impl From<Lookup<'_>> for ResolvedValue {
         fn from(lookup: Lookup) -> Self {
             match lookup {
                 Lookup::Absent => Self::Absent,
-                Lookup::Str(text) => Self::String(text.to_string()),
+                Lookup::String(text) => Self::String(text.to_string()),
                 Lookup::Number(number) => Self::Number(number),
                 Lookup::Bool(value) => Self::Bool(value),
                 Lookup::List(items) => Self::List(items.to_vec()),
@@ -272,18 +273,18 @@ mod _native {
         claims: Option<Map<String, Value>>,
     }
 
-    struct Recorder(Vec<Step>);
+    struct Recorder(Vec<TraceStep>);
 
-    impl Trace for Recorder {
-        fn visit(&mut self, policy: Uuid, evaluation: &Evaluation) {
+    impl Tracer for Recorder {
+        fn record(&mut self, policy: Uuid, evaluation: &Evaluation) {
             let (verdict, refusal) = match evaluation.verdict {
                 Verdict::Holds => ("holds", None),
                 Verdict::DoesNotHold => ("does_not_hold", None),
                 Verdict::Refused(refusal) => ("refused", Some(refusal)),
             };
-            self.0.push(Step {
+            self.0.push(TraceStep {
                 policy,
-                resolved: evaluation.resolved.map(Resolved::from),
+                resolved: evaluation.resolved.map(ResolvedValue::from),
                 verdict,
                 refusal,
             });

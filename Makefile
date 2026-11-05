@@ -1,4 +1,4 @@
-.PHONY: build test test-py fmt lint check coverage
+.PHONY: build test test-py fmt fmt-py lint lint-py check coverage
 
 build:
 	cargo build --locked
@@ -6,19 +6,24 @@ build:
 test:
 	cargo test --locked
 
-# Rebuilds the wheel, which uv would otherwise reuse from its cache.
 test-py:
-	cd crates/rail-policy-py && uv run --locked --reinstall-package datrail-policy pytest
+	$(MAKE) -C crates/rail-policy-py test
 
 fmt:
 	cargo fmt
+
+fmt-py:
+	$(MAKE) -C crates/rail-policy-py fmt
 
 lint:
 	cargo fmt --check
 	cargo clippy --locked --all-targets -- -D warnings
 	cargo clippy --locked -p rail-policy-py -- -D warnings
 
-check: lint test test-py
+lint-py:
+	$(MAKE) -C crates/rail-policy-py lint
+
+check: lint lint-py test test-py
 
 # Needs `cargo install cargo-llvm-cov` and `rustup component add llvm-tools`.
 coverage:

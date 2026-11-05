@@ -4,7 +4,7 @@ use base64::Engine;
 use base64::engine::general_purpose::{URL_SAFE, URL_SAFE_NO_PAD};
 use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
 use rail_policy::{
-    TicketState, TicketVerifier, parse_base64_ticket, parse_jwt_ticket, parse_ticket,
+    SignedTicketConfig, TicketState, parse_base64_ticket, parse_jwt_ticket, parse_ticket,
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -68,7 +68,7 @@ fn check_case(case: &Case, state: &TicketState) -> Option<String> {
         && (Some(_read_numbers_as_doubles(Value::Object(
             ticket.claims.clone(),
         ))) != case.token.clone().map(_read_numbers_as_doubles)
-            || Some(ticket.exp_in_seconds) != case.exp_in_seconds)
+            || Some(ticket.exp_epoch_seconds) != case.exp_in_seconds)
     {
         return Some(format!("{}: wrong ticket", case.name));
     }
@@ -93,7 +93,7 @@ fn test_base64_vectors() {
     let vectors: Vectors = serde_json::from_str(BASE64_VECTORS).unwrap();
     assert!(!vectors.cases.is_empty());
 
-    let verifier = TicketVerifier {
+    let config = SignedTicketConfig {
         keys: HashMap::new(),
         issuer: None,
         audience: None,
@@ -105,7 +105,7 @@ fn test_base64_vectors() {
             let state = parse_base64_ticket(&case.header, case.now_in_seconds);
             // No vector's header holds a `.`.
             assert_eq!(
-                parse_ticket(&case.header, &verifier, case.now_in_seconds),
+                parse_ticket(&case.header, &config, case.now_in_seconds),
                 state
             );
             check_case(case, &state)
@@ -124,13 +124,13 @@ fn test_jwt_vectors() {
         .try_into()
         .unwrap();
     let keys = HashMap::from([(vectors.kid, VerifyingKey::from_bytes(&key).unwrap())]);
-    let get_verifier = |reader: Option<&Reader>| match reader {
-        None => TicketVerifier {
+    let get_config = |reader: Option<&Reader>| match reader {
+        None => SignedTicketConfig {
             keys: keys.clone(),
             issuer: Some(vectors.issuer.clone()),
             audience: Some(vectors.audience.clone()),
         },
-        Some(reader) => TicketVerifier {
+        Some(reader) => SignedTicketConfig {
             keys: if reader.holds_keys {
                 keys.clone()
             } else {
@@ -145,11 +145,11 @@ fn test_jwt_vectors() {
         .cases
         .iter()
         .filter_map(|case| {
-            let verifier = get_verifier(case.reader.as_ref());
-            let state = parse_jwt_ticket(&case.header, &verifier, case.now_in_seconds);
+            let config = get_config(case.reader.as_ref());
+            let state = parse_jwt_ticket(&case.header, &config, case.now_in_seconds);
             // Every vector's header holds a `.`.
             assert_eq!(
-                parse_ticket(&case.header, &verifier, case.now_in_seconds),
+                parse_ticket(&case.header, &config, case.now_in_seconds),
                 state
             );
             check_case(case, &state)
@@ -160,13 +160,13 @@ fn test_jwt_vectors() {
 
 #[test]
 fn test_reads_an_empty_header_as_absent() {
-    let verifier = TicketVerifier {
+    let config = SignedTicketConfig {
         keys: HashMap::new(),
         issuer: None,
         audience: None,
     };
     assert_eq!(parse_base64_ticket("", 0), TicketState::Absent);
-    assert_eq!(parse_jwt_ticket("", &verifier, 0), TicketState::Absent);
+    assert_eq!(parse_jwt_ticket("", &config, 0), TicketState::Absent);
 }
 
 fn _sign_ticket(key: &SigningKey, header: &str, payload: &str) -> String {
@@ -178,7 +178,7 @@ fn _sign_ticket(key: &SigningKey, header: &str, payload: &str) -> String {
 #[test]
 fn test_reads_padded_parts_in_either_alphabet() {
     let key = SigningKey::from_bytes(&[7; 32]);
-    let verifier = TicketVerifier {
+    let config = SignedTicketConfig {
         keys: HashMap::from([("k".to_string(), key.verifying_key())]),
         issuer: Some("i".to_string()),
         audience: Some("a".to_string()),
@@ -190,7 +190,7 @@ fn test_reads_padded_parts_in_either_alphabet() {
     assert!(header.ends_with('=') && payload.contains('/') && payload.ends_with('='));
 
     let ticket = _sign_ticket(&key, &header, &payload);
-    let TicketState::Valid(ticket) = parse_jwt_ticket(&ticket, &verifier, 0) else {
+    let TicketState::Valid(ticket) = parse_jwt_ticket(&ticket, &config, 0) else {
         panic!();
     };
     assert_eq!(ticket.claims["x"], "???a");
@@ -203,7 +203,7 @@ fn test_refuses_a_signature_for_a_weak_key() {
     let mut identity = [0; 32];
     identity[0] = 1;
     let key = VerifyingKey::from_bytes(&identity).unwrap();
-    let verifier = TicketVerifier {
+    let config = SignedTicketConfig {
         keys: HashMap::from([("k".to_string(), key)]),
         issuer: Some("i".to_string()),
         audience: Some("a".to_string()),
@@ -217,7 +217,7 @@ fn test_refuses_a_signature_for_a_weak_key() {
 
     let ticket = format!("{header}.{payload}.{signature}");
     assert_eq!(
-        parse_jwt_ticket(&ticket, &verifier, 0),
+        parse_jwt_ticket(&ticket, &config, 0),
         TicketState::BadSignature
     );
 }
@@ -228,13 +228,13 @@ fn test_reads_an_empty_issuer_or_audience_as_not_configured() {
     let header = URL_SAFE_NO_PAD.encode(json!({"alg": "EdDSA", "kid": "k"}).to_string());
     let payload = json!({"exp": 60, "nbf": 0, "iss": "", "aud": ""}).to_string();
     let ticket = _sign_ticket(&key, &header, &URL_SAFE_NO_PAD.encode(payload));
-    let verifier = TicketVerifier {
+    let config = SignedTicketConfig {
         keys: HashMap::from([("k".to_string(), key.verifying_key())]),
         issuer: Some(String::new()),
         audience: Some(String::new()),
     };
     assert_eq!(
-        parse_jwt_ticket(&ticket, &verifier, 0),
+        parse_jwt_ticket(&ticket, &config, 0),
         TicketState::WrongAudience
     );
 }

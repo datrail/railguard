@@ -9,11 +9,11 @@ from uuid import UUID
 import pytest
 
 from datrail_policy import (
-    ChainVerdict,
+    ChainOutcome,
     CompiledBundle,
     Judgement,
     NotJudged,
-    Resolved,
+    ResolvedValue,
     TraceStep,
     UnreadableSample,
     UnusableBundle,
@@ -83,7 +83,7 @@ def _format_outcome(judgement):
             chain.decision if chain.decision == "allowed" else {chain.decision: str(chain.policy)}
         )
         chain = {"decision": decision, "alerts": [str(alert) for alert in chain.alerts]}
-    return {"fallbacks": list(judgement.fallbacks), "chain": chain}
+    return {"fallbacks": list(judgement.fallback_denials), "chain": chain}
 
 
 def test_has_cases():
@@ -138,26 +138,26 @@ def test_traces_each_policy_evaluated_until_one_decides():
 
     assert judgement == Judgement(
         mode="enforce",
-        fallbacks=(),
-        chain=ChainVerdict(
+        fallback_denials=(),
+        chain=ChainOutcome(
             decision="denied", policy=_get_policy_id(3), refusal=None, alerts=(_get_policy_id(1),)
         ),
         trace=(
             TraceStep(
                 policy=_get_policy_id(1),
-                resolved=Resolved(kind="bool", value=True),
+                resolved=ResolvedValue(kind="bool", value=True),
                 verdict="holds",
                 refusal=None,
             ),
             TraceStep(
                 policy=_get_policy_id(2),
-                resolved=Resolved(kind="absent"),
+                resolved=ResolvedValue(kind="absent"),
                 verdict="does_not_hold",
                 refusal=None,
             ),
             TraceStep(
                 policy=_get_policy_id(3),
-                resolved=Resolved(kind="list", value=["b", "c"]),
+                resolved=ResolvedValue(kind="list", value=["b", "c"]),
                 verdict="holds",
                 refusal=None,
             ),
@@ -184,11 +184,11 @@ def test_traces_what_each_path_resolved_to():
     )
 
     assert [step.resolved for step in judgement.trace] == [
-        Resolved(kind="string", value="a"),
-        Resolved(kind="number", value=1.5),
-        Resolved(kind="object"),
-        Resolved(kind="string", value="/mcp#tools/call#t"),
-        Resolved(kind="bool", value=False),
+        ResolvedValue(kind="string", value="a"),
+        ResolvedValue(kind="number", value=1.5),
+        ResolvedValue(kind="object"),
+        ResolvedValue(kind="string", value="/mcp#tools/call#t"),
+        ResolvedValue(kind="bool", value=False),
     ]
 
 
@@ -202,7 +202,7 @@ def test_traces_a_refusal_with_nothing_resolved():
 
     judgement = judge_sample(compiled, endpoint_key="keyless", claims={"score": 10})
 
-    assert judgement.chain == ChainVerdict(
+    assert judgement.chain == ChainOutcome(
         decision="refused", policy=_get_policy_id(1), refusal="uninterpretable", alerts=()
     )
     assert judgement.trace == (
@@ -222,7 +222,7 @@ def test_refuses_past_the_step_limit():
 
     judgement = judge_sample(compiled, endpoint_key="keyless", claims={"score": 10}, step_limit=1)
 
-    assert judgement.chain == ChainVerdict(
+    assert judgement.chain == ChainOutcome(
         decision="refused", policy=_get_policy_id(2), refusal="budget_exceeded", alerts=()
     )
     assert judgement.trace[-1] == TraceStep(
@@ -243,7 +243,7 @@ def test_traces_a_path_resolved_before_the_budget_ran_out():
     assert judgement.trace == (
         TraceStep(
             policy=_get_policy_id(1),
-            resolved=Resolved(kind="list", value=["a", "b", "c"]),
+            resolved=ResolvedValue(kind="list", value=["a", "b", "c"]),
             verdict="refused",
             refusal="budget_exceeded",
         ),
@@ -262,9 +262,9 @@ def test_mode_defaults_to_the_bundle_and_can_be_overridden():
     enforced = judge_sample(compiled, endpoint_key="keyless", mode="enforce")
 
     assert observed.mode == "observe"
-    assert observed.fallbacks == ("ticket",)
+    assert observed.fallback_denials == ("ticket",)
     assert observed.chain is not None
-    assert enforced == Judgement(mode="enforce", fallbacks=("ticket",), chain=None, trace=())
+    assert enforced == Judgement(mode="enforce", fallback_denials=("ticket",), chain=None, trace=())
 
 
 def test_judges_nothing_at_mode_none():
