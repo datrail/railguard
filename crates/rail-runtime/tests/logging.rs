@@ -44,7 +44,7 @@ fn a_text_value_is_quoted_with_what_hides_escaped() {
 }
 
 #[test]
-fn a_value_past_255_characters_is_kept_whole() {
+fn a_value_under_1024_characters_is_kept_whole() {
     let value = format!("{}root cause", "a".repeat(1000));
 
     assert_eq!(

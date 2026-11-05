@@ -12,9 +12,8 @@ pub fn sanitize(text: &str) -> impl fmt::Display + '_ {
     Sanitized(text)
 }
 
-/// `text` as [`sanitize`] writes it, but cut at `max_chars`, with `"` and `\` escaped by a
-/// backslash too, between double quotes: the cut falls inside them, and each escape reads back to
-/// one character.
+/// `text` escaped as [`sanitize`] escapes it, `"` and `\` by a backslash too, between double
+/// quotes; cut at `max_chars` inside them, ending in `…`. Each escape reads back to one character.
 pub fn sanitize_quoted(text: &str, max_chars: usize) -> impl fmt::Display + '_ {
     Quoted(text, max_chars)
 }
