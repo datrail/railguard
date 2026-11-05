@@ -1,12 +1,13 @@
 # Envoy v1.39, for what the example configs don't do; never an example. One listener per variant:
 #
-#   15001        ext_authz then ext_proc in one chain, otherwise as the examples
+#   15001        ext_authz then ext_proc in one chain
 #   15002        ext_authz with `encode_raw_headers`, and nothing removed but by rail-envoy
 #   15011-15015  ext_proc in each request body mode
 #   15016        ext_authz with the body
 #   15017        ext_proc `BUFFERED`, with the trailers sent too
 #
-# Past 15001 each fails closed, so a callout rail-envoy can't answer shows rather than passing.
+# Each fails closed, so a callout rail-envoy can't answer shows rather than passing. Each ext_proc's
+# `message_timeout` is past the 200 ms default, which a slow CI runner can miss.
 
 static_resources:
   listeners:
@@ -61,7 +62,7 @@ static_resources:
                       grpc_service:
                         envoy_grpc: { cluster_name: rail_ext }
                         timeout: 1s
-                      failure_mode_allow: true
+                      failure_mode_allow: false
                       clear_route_cache: true
                       decoder_header_mutation_rules:
                         allow_all_routing: true
@@ -71,7 +72,8 @@ static_resources:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExternalProcessor
                       grpc_service:
                         envoy_grpc: { cluster_name: rail_ext }
-                      failure_mode_allow: true
+                      message_timeout: 5s
+                      failure_mode_allow: false
                       processing_mode:
                         request_header_mode: SEND
                         response_header_mode: SKIP
@@ -134,6 +136,7 @@ static_resources:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExternalProcessor
                       grpc_service:
                         envoy_grpc: { cluster_name: rail_ext }
+                      message_timeout: 5s
                       processing_mode:
                         request_header_mode: SEND
                         response_header_mode: SKIP
@@ -160,6 +163,7 @@ static_resources:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExternalProcessor
                       grpc_service:
                         envoy_grpc: { cluster_name: rail_ext }
+                      message_timeout: 5s
                       processing_mode:
                         request_header_mode: SEND
                         response_header_mode: SKIP
@@ -186,6 +190,7 @@ static_resources:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExternalProcessor
                       grpc_service:
                         envoy_grpc: { cluster_name: rail_ext }
+                      message_timeout: 5s
                       processing_mode:
                         request_header_mode: SEND
                         response_header_mode: SKIP
@@ -212,6 +217,7 @@ static_resources:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExternalProcessor
                       grpc_service:
                         envoy_grpc: { cluster_name: rail_ext }
+                      message_timeout: 5s
                       send_body_without_waiting_for_header_response: true
                       processing_mode:
                         request_header_mode: SEND
@@ -239,6 +245,7 @@ static_resources:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExternalProcessor
                       grpc_service:
                         envoy_grpc: { cluster_name: rail_ext }
+                      message_timeout: 5s
                       processing_mode:
                         request_header_mode: SEND
                         response_header_mode: SKIP
@@ -295,6 +302,7 @@ static_resources:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExternalProcessor
                       grpc_service:
                         envoy_grpc: { cluster_name: rail_ext }
+                      message_timeout: 5s
                       processing_mode:
                         request_header_mode: SEND
                         response_header_mode: SKIP

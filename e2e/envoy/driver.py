@@ -102,24 +102,32 @@ _CASES = [
 ]
 
 # rail-envoy answers a full-duplex body part as any other, not sending it back, so Envoy drops the
-# answer as spurious and the agent gets a 500. Expected to fail; a pass fails the run.
-_FULL_DUPLEX_UNSUPPORTED = "rail-envoy doesn't send a full-duplex body back"
+# answer as spurious: the agent gets a 500, and nothing reaches the upstream. Expected to fail so,
+# and only so; a pass fails the run.
+_FULL_DUPLEX_UNSUPPORTED = ("rail-envoy doesn't send a full-duplex body back", 500)
 
-# (What Envoy sends rail-envoy, its listener on envoy-variants, whether trailers follow the body,
-# why it's expected to fail or None)
-_BODY_CASES = [
-    ("ext_proc BUFFERED", 15011, False, None),
-    ("ext_proc BUFFERED", 15011, True, None),
-    ("ext_proc BUFFERED_PARTIAL", 15012, False, None),
-    ("ext_proc STREAMED", 15013, False, None),
-    ("ext_proc STREAMED, without waiting", 15014, False, None),
-    ("ext_proc FULL_DUPLEX_STREAMED", 15015, False, _FULL_DUPLEX_UNSUPPORTED),
-    ("ext_proc FULL_DUPLEX_STREAMED", 15015, True, _FULL_DUPLEX_UNSUPPORTED),
-    ("ext_proc BUFFERED, the trailers sent", 15017, True, None),
-    ("ext_authz with the body", 15016, False, None),
-]
 # The body, as the agent's chunks.
 _PARTS = [b'{"jsonrpc":"2.0",', b'"id":1,', b'"method":"tools/list"}']
+# Past 15016's `max_request_bytes` (1024), so ext_authz sees only its start.
+_OVERSIZED_PARTS = [b'{"jsonrpc":"2.0","id":1,', b'"method":"tools/list","params":{"pad":"' + b"x" * 1500, b'"}}']
+
+# (What Envoy sends rail-envoy, its listener on envoy-variants, the body's chunks, whether trailers
+# follow the body, why it's expected to fail and the status the agent then gets, or None)
+_BODY_CASES = [
+    ("ext_proc BUFFERED", 15011, _PARTS, False, None),
+    ("ext_proc BUFFERED", 15011, _PARTS, True, None),
+    ("ext_proc BUFFERED_PARTIAL", 15012, _PARTS, False, None),
+    ("ext_proc BUFFERED_PARTIAL", 15012, _PARTS, True, None),
+    ("ext_proc STREAMED", 15013, _PARTS, False, None),
+    ("ext_proc STREAMED", 15013, _PARTS, True, None),
+    ("ext_proc STREAMED, without waiting", 15014, _PARTS, False, None),
+    ("ext_proc STREAMED, without waiting", 15014, _PARTS, True, None),
+    ("ext_proc FULL_DUPLEX_STREAMED", 15015, _PARTS, False, _FULL_DUPLEX_UNSUPPORTED),
+    ("ext_proc FULL_DUPLEX_STREAMED", 15015, _PARTS, True, _FULL_DUPLEX_UNSUPPORTED),
+    ("ext_proc BUFFERED, trailers sent to rail-envoy", 15017, _PARTS, True, None),
+    ("ext_authz with the body", 15016, _PARTS, False, None),
+    ("ext_authz with the body, past max_request_bytes", 15016, _OVERSIZED_PARTS, False, None),
+]
 
 
 def _send_through(via, host):
@@ -141,6 +149,14 @@ def _send_through(via, host):
             return response.status, response.read(), marker
     except urllib.error.HTTPError as error:
         return error.code, error.read(), marker
+
+
+def _is_answer(body):
+    """Whether `body` is the upstream's answer, unchanged; not JSON is a no."""
+    try:
+        return json.loads(body) == _ANSWER
+    except ValueError:
+        return False
 
 
 def _read_journal(journal):
@@ -194,7 +210,7 @@ def _run_case(via, host, expected_status, arrives, expected_headers):
     while True:
         status, body, marker = _send_through(via, host)
         received = _find_received(marker)
-        answered = expected_status != 200 or status == 200 and json.loads(body) == _ANSWER
+        answered = expected_status != 200 or status == 200 and _is_answer(body)
         ok = status == expected_status and received == expected and answered
         if ok or time.monotonic() > deadline:
             return ok, status, received
@@ -222,8 +238,8 @@ def _check_redirect():
     return ok
 
 
-def _upload(port, marker, trailers):
-    """`_PARTS` to upstream-plain.test, chunked and a moment apart, then a trailer if asked."""
+def _upload(port, marker, parts, trailers):
+    """`parts` to upstream-plain.test, chunked and a moment apart, then a trailer if asked."""
     with socket.create_connection(("envoy-variants", port), timeout=10) as connection:
         connection.sendall(
             "POST /mcp HTTP/1.1\r\n"
@@ -233,36 +249,38 @@ def _upload(port, marker, trailers):
             "Transfer-Encoding: chunked\r\n"
             "\r\n".encode()
         )
-        for part in _PARTS:
+        for part in parts:
             time.sleep(0.3)
             connection.sendall(b"%x\r\n%s\r\n" % (len(part), part))
         connection.sendall(b"0\r\nx-e2e-trailer: yes\r\n\r\n" if trailers else b"0\r\n\r\n")
         response = http.client.HTTPResponse(connection)
         response.begin()
-        return response.status
+        return response.status, response.read()
 
 
-def _check_body(what, port, trailers, known):
-    """A body Envoy sends rail-envoy reaches the upstream whole, with the ticket; whether that's
-    as expected, a failure `known` or not."""
+def _check_body(what, port, parts, trailers, known):
+    """A body Envoy sends rail-envoy reaches the upstream whole, with the ticket, and the upstream's
+    answer reaches the agent; or, if `known`, it fails only as known."""
     marker = str(uuid.uuid4())
     try:
-        status = _upload(port, marker, trailers)
+        status, body = _upload(port, marker, parts, trailers)
     except OSError as error:
-        status = repr(error)
+        status, body = repr(error), b""
     received = [
         (entry["request"]["body"], _read_headers(entry).get("x-rail"))
         for entry in _read_journal(_PLAIN)
         if _read_headers(entry).get(_MARKER) == marker
     ]
-    ok = status == 200 and received == [(b"".join(_PARTS).decode(), _TICKET["x-rail"])]
-    with_trailers = ", trailers after it" if trailers else ""
+    ok = status == 200 and _is_answer(body) and received == [(b"".join(parts).decode(), _TICKET["x-rail"])]
+    with_trailers = ", with trailers" if trailers else ""
     if known is None:
         print(f"{'ok  ' if ok else 'FAIL'} envoy-variants:{port} {what}{with_trailers}: {status}, received {received}")
         return ok
-    verdict = "XPASS" if ok else "xfail"
-    print(f"{verdict} envoy-variants:{port} {what}{with_trailers} ({known}): {status}, received {received}")
-    return not ok
+    why, known_status = known
+    # Any other failure is a broken listener, not the known gap.
+    verdict = "XPASS" if ok else "xfail" if (status, received) == (known_status, []) else "FAIL"
+    print(f"{verdict} envoy-variants:{port} {what}{with_trailers} ({why}): {status}, received {received}")
+    return verdict == "xfail"
 
 
 def main():
@@ -277,8 +295,8 @@ def main():
         passed = passed and ok
         print(f"{'ok  ' if ok else 'FAIL'} {via or 'direct'} {host}: {status}, received {received}, {fetches} fetches")
     passed = _check_redirect() and passed
-    for what, port, trailers, known in _BODY_CASES:
-        passed = _check_body(what, port, trailers, known) and passed
+    for what, port, parts, trailers, known in _BODY_CASES:
+        passed = _check_body(what, port, parts, trailers, known) and passed
     return 0 if passed else 1
 
 

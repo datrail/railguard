@@ -10,4 +10,4 @@ make e2e-down           # remove a stack's containers and volumes; STACK=envoy b
 
 The envoy stack's TLS upstreams get a test CA and key made at each start (`envoy/certs.sh`), for that run only.
 
-`envoy/envoy-variants.yaml` is one Envoy with a listener per config the examples don't show: both callouts in one chain, ext_authz's `encode_raw_headers` and body, and each ext_proc body mode. The driver expects the full-duplex body mode to fail (`xfail`): rail-envoy doesn't send that body back yet.
+`envoy/envoy-variants.yaml` is one Envoy with a listener per config the examples don't show: both callouts in one chain, ext_authz's `encode_raw_headers` and body, and each ext_proc body mode, each failing closed. Each body case expects the body to reach the upstream whole, with the agent's trailers or past ext_authz's `max_request_bytes` too, and the agent to get the upstream's answer. The driver expects the full-duplex body mode to fail (`xfail`), and only as known, a 500 with nothing received: rail-envoy doesn't send that body back yet.
