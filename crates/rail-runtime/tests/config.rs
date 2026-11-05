@@ -139,7 +139,7 @@ fn a_refused_configuration_exits_2() {
         .output()
         .unwrap();
 
-    assert_eq!(output.status.code(), Some(EXIT_CODE));
+    assert_eq!(output.status.code(), Some(EXIT_CODE.into()));
     assert_eq!(EXIT_CODE, 2);
     let stderr = String::from_utf8(output.stderr).unwrap();
     assert!(

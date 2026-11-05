@@ -5,7 +5,7 @@ use rail_policy::sanitize;
 
 use crate::config::{Refused, Settings};
 
-pub const PROTECTED_HOSTS: &str = "RAIL_PROXY_PROTECTED_HOSTS";
+pub(crate) const PROTECTED_HOSTS: &str = "RAIL_PROXY_PROTECTED_HOSTS";
 
 const ENTRY_FORMAT: &str = "an entry is [http(s)://]host[:port]";
 const REQUIRED_BECAUSE: &str =

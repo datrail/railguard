@@ -5,7 +5,7 @@ use rail_runtime::{
     read_protected_hosts, read_rail_center, read_ticket_settings,
 };
 
-pub const EXT_SOCKET: &str = "RAIL_EXT_SOCKET";
+const EXT_SOCKET: &str = "RAIL_EXT_SOCKET";
 const DEFAULT_SOCKET: &str = "/run/rail/ext.sock";
 
 /// What this process runs with.

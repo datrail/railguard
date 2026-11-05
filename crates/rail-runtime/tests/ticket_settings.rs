@@ -28,9 +28,6 @@ fn the_host_and_sandbox_are_read_and_the_rest_defaults() {
         }
     );
     assert_eq!(ticket.refresh_interval, Duration::from_secs(3600));
-    assert_eq!(ticket.limits.deadline, Duration::from_secs(10));
-    assert_eq!(ticket.limits.max_bytes, 256 * 1024);
-    assert_eq!(ticket.max_lifetime, Duration::from_secs(86_700));
 }
 
 #[test]

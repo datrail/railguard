@@ -16,14 +16,16 @@ use tonic::{Status, Streaming};
 
 use crate::xrail::{as_raw_value, as_value};
 
-/// ext_authz: allows every request, with its x-rail headers and, to a protected host, its route.
-pub struct Allow {
+/// Both callouts, which change a request alike: one clone serves each.
+#[derive(Clone)]
+pub struct Callouts {
     pub tickets: Option<Arc<TicketHolder>>,
     pub protected_hosts: Arc<ProtectedHosts>,
 }
 
+/// ext_authz: allows every request, with its x-rail headers and, to a protected host, its route.
 #[tonic::async_trait]
-impl Authorization for Allow {
+impl Authorization for Callouts {
     async fn check(
         &self,
         request: tonic::Request<CheckRequest>,
@@ -56,16 +58,11 @@ impl Authorization for Allow {
     }
 }
 
-/// ext_proc: lets every phase continue, changing the request's headers as ext_authz does.
-pub struct Continue {
-    pub tickets: Option<Arc<TicketHolder>>,
-    pub protected_hosts: Arc<ProtectedHosts>,
-}
-
 type ProcessStream = Pin<Box<dyn Stream<Item = Result<ProcessingResponse, Status>> + Send>>;
 
+/// ext_proc: lets every phase continue, changing the request's headers as ext_authz does.
 #[tonic::async_trait]
-impl ExternalProcessor for Continue {
+impl ExternalProcessor for Callouts {
     type ProcessStream = ProcessStream;
 
     async fn process(
@@ -147,7 +144,7 @@ mod tests {
     use envoy_types::pb::envoy::service::ext_proc::v3::processing_request::Request as Phase;
     use envoy_types::pb::envoy::service::ext_proc::v3::processing_response::Response;
 
-    use super::{Allow, continue_after};
+    use super::{Callouts, continue_after};
     use crate::test_settings::protect;
 
     // Each header's name and value, from `value` or `raw_value`, whichever is set.
@@ -170,7 +167,7 @@ mod tests {
     }
 
     async fn check(host: &str, protected: &str) -> (Vec<(String, String)>, Vec<String>) {
-        let allow = Allow {
+        let allow = Callouts {
             tickets: None,
             protected_hosts: Arc::new(protect(protected)),
         };

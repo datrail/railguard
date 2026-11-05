@@ -16,9 +16,9 @@ const ROUTE: &str = "/v1/tickets";
 // Not settings: a lower floor would let a fleet hammer Rail Center.
 pub(crate) const MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(5);
 
-pub const HOST_ID: &str = "RAIL_HOST_ID";
-pub const SANDBOX_NAME: &str = "RAIL_SANDBOX_NAME";
-pub const TICKET_REFRESH_SECONDS: &str = "RAIL_TICKET_REFRESH_SECONDS";
+pub(crate) const HOST_ID: &str = "RAIL_HOST_ID";
+pub(crate) const SANDBOX_NAME: &str = "RAIL_SANDBOX_NAME";
+pub(crate) const TICKET_REFRESH_SECONDS: &str = "RAIL_TICKET_REFRESH_SECONDS";
 
 // Rail Center's bounds on the query (`get_host_tickets`), in characters.
 const MAX_HOST_ID_CHARS: usize = 64;
@@ -26,16 +26,22 @@ const MAX_SANDBOX_NAME_CHARS: usize = 255;
 
 const DEFAULT_REFRESH_INTERVAL: Duration = Duration::from_secs(3600);
 
+// A named fetch answers with one ticket at most, so a body past this is a wrong one.
+const LIMITS: Limits = Limits {
+    attempt_timeout: Duration::from_secs(10),
+    deadline: Duration::from_secs(10),
+    max_bytes: 256 * 1024,
+};
+
+// Rail Center stamps at most a day (`TICKET_TTL_MAX_SECONDS`), plus a margin for skew.
+const MAX_LIFETIME: Duration = Duration::from_secs(86_400 + 300);
+
 /// How this host's ticket is fetched and kept.
 #[derive(Clone, Debug)]
 pub struct TicketSettings {
     pub query: TicketQuery,
     /// The longest a valid ticket goes unrefreshed; its own lifetime paces refreshes below it.
     pub refresh_interval: Duration,
-    /// Not read from the environment yet.
-    pub limits: Limits,
-    /// Not read from the environment yet.
-    pub max_lifetime: Duration,
 }
 
 impl TicketSettings {
@@ -43,14 +49,6 @@ impl TicketSettings {
         Self {
             query,
             refresh_interval: DEFAULT_REFRESH_INTERVAL,
-            // A named fetch answers with one ticket at most, so a body past this is a wrong one.
-            limits: Limits {
-                attempt_timeout: Duration::from_secs(10),
-                deadline: Duration::from_secs(10),
-                max_bytes: 256 * 1024,
-            },
-            // Rail Center stamps at most a day (`TICKET_TTL_MAX_SECONDS`), plus a margin for skew.
-            max_lifetime: Duration::from_secs(86_400 + 300),
         }
     }
 }
@@ -175,7 +173,7 @@ impl TicketSource for RailCenterTickets {
             ("sandbox_name", query.sandbox_name.as_str()),
         ];
         let response = client
-            .get(ROUTE, &params, ticket.limits)
+            .get(ROUTE, &params, LIMITS)
             .await
             .map_err(|error| error.to_string())?;
         if response.status != StatusCode::OK {
@@ -218,11 +216,11 @@ impl TicketSource for RailCenterTickets {
         let expires_at = parse_expires_at(&entry.expires_at)?;
         if expires_at
             .duration_since(sent_at)
-            .is_ok_and(|lifetime| lifetime > ticket.max_lifetime)
+            .is_ok_and(|lifetime| lifetime > MAX_LIFETIME)
         {
             return Err(format!(
                 "the ticket expires more than {} s away, past what Rail Center stamps",
-                ticket.max_lifetime.as_secs()
+                MAX_LIFETIME.as_secs()
             ));
         }
         Ok(TicketAnswer::Ticket(OpaqueTicket {

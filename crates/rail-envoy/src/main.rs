@@ -40,7 +40,7 @@ use tonic_health::server::HealthReporter;
 
 use crate::config::Config;
 use crate::rail_center::RailCenterThread;
-use crate::services::{Allow, Continue};
+use crate::services::Callouts;
 
 // Envoy keeps its connections open, and an ext_proc stream lasts as long as its request.
 const SHUTDOWN_DEADLINE: Duration = Duration::from_secs(5);
@@ -82,7 +82,8 @@ async fn serve(config: Config, startup: &Startup) -> ExitCode {
         Ok(listener) => listener,
         Err(error) => {
             tracing::error!(error = %error, "can't listen on the socket");
-            return ExitCode::from(2);
+            // The socket path is configuration, so it fails as a refused configuration does.
+            return ExitCode::from(rail_runtime::EXIT_CODE);
         }
     };
     let (rail_center, tickets) = match config.ticket.map(start_tickets).transpose() {
@@ -92,7 +93,10 @@ async fn serve(config: Config, startup: &Startup) -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let protected_hosts = Arc::new(config.protected_hosts);
+    let callouts = Callouts {
+        tickets,
+        protected_hosts: Arc::new(config.protected_hosts),
+    };
     // Only answered once serving; the ticket never changes it, so nothing restarts us for it.
     let (health, health_service) = tonic_health::server::health_reporter();
     report_status(&health, ServingStatus::Serving).await;
@@ -105,14 +109,8 @@ async fn serve(config: Config, startup: &Startup) -> ExitCode {
     };
     let server = tonic::transport::Server::builder()
         .add_service(health_service)
-        .add_service(AuthorizationServer::new(Allow {
-            tickets: tickets.clone(),
-            protected_hosts: Arc::clone(&protected_hosts),
-        }))
-        .add_service(ExternalProcessorServer::new(Continue {
-            tickets,
-            protected_hosts,
-        }))
+        .add_service(AuthorizationServer::new(callouts.clone()))
+        .add_service(ExternalProcessorServer::new(callouts))
         .serve_with_incoming_shutdown(UnixListenerStream::new(listener), stopping);
     let served = drain_until_deadline(server, drain_started).await;
     // Its stop blocks on a join, so it's kept off the async workers.
@@ -219,10 +217,10 @@ fn bind(socket: &Path) -> Result<UnixListener, String> {
 async fn report_status(health: &HealthReporter, status: ServingStatus) {
     health.set_service_status("", status).await;
     health
-        .set_service_status(AuthorizationServer::<Allow>::NAME, status)
+        .set_service_status(AuthorizationServer::<Callouts>::NAME, status)
         .await;
     health
-        .set_service_status(ExternalProcessorServer::<Continue>::NAME, status)
+        .set_service_status(ExternalProcessorServer::<Callouts>::NAME, status)
         .await;
 }
 

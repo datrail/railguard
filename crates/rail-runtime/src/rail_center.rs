@@ -4,11 +4,11 @@ use reqwest::Url;
 
 use crate::config::{Refused, Secret, Settings};
 
-pub const DISABLED: &str = "RAIL_DISABLED";
-pub const CENTER_URL: &str = "RAIL_CENTER_URL";
-pub const ALLOW_HTTP: &str = "RAIL_ALLOW_HTTP";
-pub const AUTH_MODE: &str = "RAIL_AUTH_MODE";
-pub const AUTH_TOKEN: &str = "RAIL_AUTH_TOKEN";
+pub(crate) const DISABLED: &str = "RAIL_DISABLED";
+pub(crate) const CENTER_URL: &str = "RAIL_CENTER_URL";
+pub(crate) const ALLOW_HTTP: &str = "RAIL_ALLOW_HTTP";
+pub(crate) const AUTH_MODE: &str = "RAIL_AUTH_MODE";
+pub(crate) const AUTH_TOKEN: &str = "RAIL_AUTH_TOKEN";
 
 // Why Rail Center's settings and the ticket's are required, when they are.
 pub(crate) const USED: &str = "RAIL_DISABLED isn't true";

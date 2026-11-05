@@ -5,7 +5,7 @@ use std::fmt;
 use rail_policy::sanitize;
 
 /// The exit status of a process whose configuration is refused.
-pub const EXIT_CODE: i32 = 2;
+pub const EXIT_CODE: u8 = 2;
 
 /// A snapshot of the environment, so a test passes its own instead of the process's.
 #[derive(Clone, Debug, Default)]
@@ -312,7 +312,7 @@ impl ConfigErrors {
     /// Writes the refusals to stderr and exits with [`EXIT_CODE`].
     pub fn exit(&self) -> ! {
         eprintln!("{self}");
-        std::process::exit(EXIT_CODE)
+        std::process::exit(EXIT_CODE.into())
     }
 }
 
