@@ -1,4 +1,4 @@
-.PHONY: build test test-py fmt fmt-py lint lint-py check coverage
+.PHONY: build test test-py fmt fmt-py lint lint-py check coverage e2e-envoy e2e-down
 
 build:
 	cargo build --locked
@@ -30,3 +30,10 @@ coverage:
 	cargo llvm-cov --html
 	cargo llvm-cov report
 	@echo "Report: target/llvm-cov/html/index.html"
+
+# The result is the driver's exit code.
+e2e-envoy:
+	docker compose -f e2e/envoy/compose.yml up --build --force-recreate --abort-on-container-exit --exit-code-from driver
+
+e2e-down:
+	docker compose -f e2e/envoy/compose.yml down --volumes --remove-orphans

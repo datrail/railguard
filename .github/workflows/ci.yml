@@ -27,3 +27,11 @@ jobs:
           version: "0.13.7"
       - run: make lint-py
       - run: make test-py
+
+  e2e-envoy:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: make e2e-envoy
+      - if: always()
+        run: make e2e-down

@@ -1,0 +1,91 @@
+# The Envoy host's e2e stack: rail-envoy behind Envoy, once over ext_authz and once over ext_proc.
+#
+#   docker compose -f e2e/envoy/compose.yml up --build --force-recreate --abort-on-container-exit --exit-code-from driver
+#
+# The result is the driver container's exit code.
+
+name: railguard-e2e-envoy
+
+x-envoy: &envoy
+  image: envoyproxy/envoy:v1.39.2@sha256:460f8c329f24b2e1c7c5af64cb314a6f351ad1c262ba77b135ac46b35ebd5f85
+  environment:
+    # The image's entrypoint puts its `envoy` user in this group, the socket's.
+    ENVOY_GID: "10001"
+  healthcheck:
+    test: ["CMD", "bash", "-c", "</dev/tcp/127.0.0.1/15001"]
+    interval: 1s
+    timeout: 2s
+    retries: 30
+
+services:
+  upstream:
+    # Pinned by digest: a tag is mutable.
+    image: wiremock/wiremock:3.9.1@sha256:8fe02bc3f9b63deb1454d41750dbaf081adf4b3e8c74fd8e31f790bee5647b88
+    volumes:
+      - ./upstream-mappings:/home/wiremock/mappings:ro
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/__admin/health"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    networks:
+      default:
+        aliases: [upstream.test]
+
+  ext:
+    build:
+      context: ../..
+      target: railguard-envoy
+    healthcheck:
+      test: ["CMD", "/rail-envoy", "probe"]
+      interval: 1s
+      timeout: 5s
+      retries: 30
+    volumes: [ext-socket:/run/rail]
+
+  # After the extension, so the socket volume starts as the image has /run/rail: owned by 10001.
+  envoy-ext-authz:
+    <<: *envoy
+    depends_on:
+      ext: {condition: service_healthy}
+    volumes:
+      - ./envoy-ext-authz.yaml:/etc/envoy/envoy.yaml:ro
+      - ext-socket:/run/rail
+
+  envoy-ext-proc:
+    <<: *envoy
+    depends_on:
+      ext: {condition: service_healthy}
+    volumes:
+      - ./envoy-ext-proc.yaml:/etc/envoy/envoy.yaml:ro
+      - ext-socket:/run/rail
+
+  # A socket volume nothing serves on: every callout fails, so nothing should cross.
+  envoy-no-ext-authz:
+    <<: *envoy
+    volumes:
+      - ./envoy-ext-authz.yaml:/etc/envoy/envoy.yaml:ro
+      - no-ext-socket:/run/rail
+
+  envoy-no-ext-proc:
+    <<: *envoy
+    volumes:
+      - ./envoy-ext-proc.yaml:/etc/envoy/envoy.yaml:ro
+      - no-ext-socket:/run/rail
+
+  driver:
+    image: python:3.12-slim@sha256:05cda9777409a9c3ffddd94a4c476b79f0769a0b4857f0c7ed9226b6800b0d6f
+    volumes:
+      - ./driver.py:/e2e/driver.py:ro
+    # Unbuffered, so each line shows as it's reached.
+    command: ["python", "-u", "/e2e/driver.py"]
+    depends_on:
+      upstream: {condition: service_healthy}
+      envoy-ext-authz: {condition: service_healthy}
+      envoy-ext-proc: {condition: service_healthy}
+      envoy-no-ext-authz: {condition: service_healthy}
+      envoy-no-ext-proc: {condition: service_healthy}
+
+volumes:
+  ext-socket:
+  no-ext-socket:
