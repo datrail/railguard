@@ -125,9 +125,9 @@ fn log_protected_hosts(hosts: &ProtectedHosts) {
             .port
             .map_or_else(|| "the agent's".to_owned(), |port| port.to_string());
         if host.tls {
-            tracing::info!(host = %host.host, port, "protected host, over HTTPS");
+            tracing::info!(host = %host.host, port, "protected host (HTTPS)");
         } else {
-            tracing::warn!(host = %host.host, port, "protected host over plain HTTP: the ticket crosses in the clear");
+            tracing::warn!(host = %host.host, port, "protected host (HTTP): the ticket crosses in the clear");
         }
     }
 }
