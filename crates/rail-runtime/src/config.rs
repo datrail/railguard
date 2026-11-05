@@ -127,6 +127,7 @@ impl<'s, 'a> Setting<'s, 'a> {
     }
 
     /// Refuses it, `reason` following its name.
+    /// The reason is logged, so it quotes a value only through `sanitize`, and never a secret's.
     pub fn refuse(mut self, reason: impl fmt::Display) {
         self.reject(reason);
     }
@@ -137,6 +138,7 @@ impl<'s, 'a> Setting<'s, 'a> {
     }
 
     /// The text read by `parse`, whose refusal follows the name.
+    /// The reason is logged, so it quotes a value only through `sanitize`, and never a secret's.
     pub fn parsed<T>(mut self, parse: impl FnOnce(&str) -> Result<T, String>) -> Option<T> {
         let text = self.read()?;
         parse(text).map_err(|reason| self.reject(reason)).ok()

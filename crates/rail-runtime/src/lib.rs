@@ -18,4 +18,4 @@ pub use ticket::{
     TicketSettings, fetch_ticket, read_ticket_settings,
 };
 pub use ticket_holder::{RailCenterTickets, TicketHolder, TicketSource, Unavailable, WallClock};
-pub use xrail::XRailHeaders;
+pub use xrail::{XRailHeader, XRailHeaders};
