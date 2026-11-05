@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use rail_runtime::{
-    ProtectedHosts, RailCenterSettings, Settings, TicketSettings, read_disabled,
+    ProtectedHosts, RailCenterSettings, Refused, Settings, TicketSettings, read_disabled,
     read_protected_hosts, read_rail_center, read_ticket_settings,
 };
 
@@ -19,8 +19,9 @@ pub struct Config {
 }
 
 impl Config {
-    /// The configuration, `None` if anything is refused; `settings` keeps the refusals.
-    pub fn read(settings: &mut Settings) -> Option<Self> {
+    /// The configuration, every setting judged, or `Err` if anything is refused; `settings` keeps
+    /// the refusals.
+    pub fn read(settings: &mut Settings) -> Result<Self, Refused> {
         let socket = settings
             .get(EXT_SOCKET)
             .parsed(|text| {
@@ -34,19 +35,24 @@ impl Config {
             settings.describe(EXT_SOCKET, socket.display());
         }
         // Whatever is set is judged either way; only an enabled Rail Center requires its settings.
-        let enabled = read_disabled(settings) == Ok(false);
+        let disabled = read_disabled(settings);
+        let enabled = disabled == Ok(false);
         let rail_center = read_rail_center(settings, enabled);
         let ticket = read_ticket_settings(settings, enabled);
         let protected_hosts = read_protected_hosts(settings, enabled);
+        disabled?;
+        let (socket, rail_center, ticket, protected_hosts) =
+            (socket?, rail_center?, ticket?, protected_hosts?);
+        // Enabled, both are required, so both are read.
         let ticket = if enabled {
-            Some(rail_center.ok()?.zip(ticket.ok()?)?)
+            rail_center.zip(ticket)
         } else {
             None
         };
-        Some(Self {
-            socket: socket.ok()?,
+        Ok(Self {
+            socket,
             ticket,
-            protected_hosts: protected_hosts.ok()?,
+            protected_hosts,
         })
     }
 }
@@ -292,7 +298,25 @@ mod tests {
 
     #[test]
     fn nothing_set_and_unused_is_unread() {
-        assert!(read_startup(&COMPLETE).unwrap().1.unread.is_empty());
+        let disabled: Vec<_> = COMPLETE
+            .into_iter()
+            .map(|(name, value)| match name {
+                "RAIL_DISABLED" => (name, "true"),
+                _ => (name, value),
+            })
+            .collect();
+        let no_credential: Vec<_> = COMPLETE
+            .into_iter()
+            .filter_map(|(name, value)| match name {
+                "RAIL_AUTH_MODE" => Some((name, "none")),
+                "RAIL_AUTH_TOKEN" => None,
+                _ => Some((name, value)),
+            })
+            .collect();
+        for pairs in [&COMPLETE[..], &disabled, &no_credential] {
+            let (_, startup) = read_startup(pairs).unwrap();
+            assert!(startup.unread.is_empty(), "{pairs:?}: {:?}", startup.unread);
+        }
     }
 
     #[test]

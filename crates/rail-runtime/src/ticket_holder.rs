@@ -310,11 +310,13 @@ mod tests {
     }
 
     #[test]
-    fn the_same_token_again_is_unchanged_with_its_new_expiry() {
-        assert_eq!(
-            run(&held("a", 60), answer("a", 120)),
-            (Some(held("a", 120)), Outcome::Unchanged, 0)
-        );
+    fn the_same_token_again_is_unchanged_with_its_new_expiry_lapsed_or_not() {
+        for previous in [held("a", 60), held("a", -60)] {
+            assert_eq!(
+                run(&previous, answer("a", 120)),
+                (Some(held("a", 120)), Outcome::Unchanged, 0)
+            );
+        }
     }
 
     #[test]
@@ -353,17 +355,19 @@ mod tests {
 
     #[test]
     fn a_failure_keeps_a_lapsed_ticket_and_forgets_not_found() {
-        let failed_unkept = Outcome::Failed {
+        let failed_unkept = || Outcome::Failed {
             reason: "silent".to_owned(),
             kept: false,
         };
         assert_eq!(
             run(&held("a", -60), failed()),
-            (Some(held("a", -60)), failed_unkept, 2)
+            (Some(held("a", -60)), failed_unkept(), 2)
         );
         for previous in [Held::Unreached, Held::NotFound] {
-            let (next, _, failures) = run(&previous, failed());
-            assert_eq!((next, failures), (Some(Held::Unreached), 2));
+            assert_eq!(
+                run(&previous, failed()),
+                (Some(Held::Unreached), failed_unkept(), 2)
+            );
         }
     }
 

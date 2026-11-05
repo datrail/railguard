@@ -96,7 +96,7 @@ pub fn read_from<T>(
     reader: impl FnOnce(&mut Settings) -> Result<T, Refused>,
 ) -> Result<(T, Startup), Vec<String>> {
     let mut settings = Settings::new(variables);
-    let read = reader(&mut settings).ok();
+    let read = reader(&mut settings);
     settings
         .finish("RAIL_", read)
         .map_err(|ConfigErrors(errors)| errors)

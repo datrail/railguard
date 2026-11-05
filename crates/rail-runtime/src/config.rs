@@ -38,9 +38,9 @@ impl<K: Into<OsString>, V: Into<OsString>> FromIterator<(K, V)> for Variables {
     }
 }
 
-/// A refusal, already recorded in the [`Settings`] that read it.
+/// A refusal, already recorded in the [`Settings`] that read it; only `Settings` makes one.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Refused;
+pub struct Refused(());
 
 /// Reads typed settings, collecting every refusal so an operator fixes them in one round, and
 /// each setting's entry for the startup log.
@@ -52,6 +52,8 @@ pub struct Settings<'a> {
     errors: Vec<String>,
     // In the order first read, which orders the entries.
     read: Vec<&'static str>,
+    // Read for their text, not only checked with `is_set`.
+    texts: BTreeSet<&'static str>,
     secrets: BTreeSet<&'static str>,
     entries: Vec<Entry>,
 }
@@ -62,6 +64,7 @@ impl<'a> Settings<'a> {
             variables,
             errors: Vec::new(),
             read: Vec::new(),
+            texts: BTreeSet::new(),
             secrets: BTreeSet::new(),
             entries: Vec::new(),
         }
@@ -94,14 +97,18 @@ impl<'a> Settings<'a> {
 
     /// `value` and what to log of the settings, or every refusal.
     ///
-    /// A name read but not described gets an entry as read: its value, only `set` for a secret, or
-    /// `unset`. Entries are in the order their names were first read. `prefix` names the
-    /// variables that are likely typos when nothing reads them.
-    pub fn finish<T>(self, prefix: &str, value: Option<T>) -> Result<(T, Startup), ConfigErrors> {
+    /// A name read but not described gets an entry as read: its value, only `set` for a secret or
+    /// a name only checked with `is_set`, or `unset`. Entries are in the order their names were
+    /// first read. `prefix` names the variables that are likely typos when nothing reads them.
+    pub fn finish<T>(
+        self,
+        prefix: &str,
+        value: Result<T, Refused>,
+    ) -> Result<(T, Startup), ConfigErrors> {
         if !self.errors.is_empty() {
             return Err(ConfigErrors(self.errors));
         }
-        let value = value.expect("a reader returns its value when nothing is refused");
+        let value = value.expect("no errors recorded means Ok");
         let unread = self.find_unread(prefix);
         let mut entries = Vec::new();
         for &name in &self.read {
@@ -136,7 +143,7 @@ impl<'a> Settings<'a> {
     fn format_as_read(&self, name: &str) -> String {
         if !self.variables.is_set(name) {
             "unset".to_owned()
-        } else if self.secrets.contains(name) {
+        } else if self.secrets.contains(name) || !self.texts.contains(name) {
             "set".to_owned()
         } else {
             let value = self.variables.0[OsStr::new(name)].to_string_lossy();
@@ -175,7 +182,7 @@ impl<'a> Settings<'a> {
         if !self.errors.contains(&refusal) {
             self.errors.push(refusal);
         }
-        Refused
+        Refused(())
     }
 }
 
@@ -213,10 +220,11 @@ impl<'s, 'a> Setting<'s, 'a> {
     }
 
     /// Refuses it if it's set: nothing reads it any more, and `instead` says what does.
-    pub fn retired(mut self, instead: &str) {
+    pub fn retired(mut self, instead: &str) -> Result<(), Refused> {
         if self.settings.variables.is_set(self.name) {
-            self.reject(format_args!("is no longer read; {instead}"));
+            return Err(self.reject(format_args!("is no longer read; {instead}")));
         }
+        Ok(())
     }
 
     /// Refuses it, `reason` following its name.
@@ -260,6 +268,7 @@ impl<'s, 'a> Setting<'s, 'a> {
     // The checks every read makes, in this order: unset, UTF-8, blank, length.
     fn read(&mut self) -> Result<Option<&'a str>, Refused> {
         self.settings.mark_read(self.name);
+        self.settings.texts.insert(self.name);
         let Some(value) = self.raw() else {
             return self.missing();
         };
@@ -381,7 +390,9 @@ pub struct Entry {
 /// What a read configuration logs at startup.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Startup {
-    /// Each setting read, with the value it takes after parsing and defaults.
+    /// Each setting read, with the value it takes after parsing and defaults; one nothing
+    /// described is filled in as read: its value, `set` for a secret or a name only checked with
+    /// `is_set`, or `unset`.
     pub entries: Vec<Entry>,
     /// Each variable under the prefix that nothing read, likely a typo.
     pub unread: Vec<String>,

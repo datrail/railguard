@@ -1,4 +1,6 @@
-use rail_runtime::{Level, ProtectedHost, ProtectedHosts, read_protected_hosts};
+use rail_runtime::{
+    Level, ProtectedHost, ProtectedHosts, Settings, Variables, read_protected_hosts,
+};
 
 mod common;
 
@@ -311,4 +313,24 @@ fn not_required_judges_only_what_is_set() {
             .len(),
         1
     );
+}
+
+#[test]
+fn a_refused_entry_beside_a_good_one_is_an_err() {
+    for value in [
+        "a.example.com,",
+        "a.example.com,ftp://b.example.com",
+        "a.example.com,u@b.example.com",
+        "a.example.com,A.example.com",
+    ] {
+        let variables: Variables = [("RAIL_PROXY_PROTECTED_HOSTS", value)]
+            .into_iter()
+            .collect();
+        let mut settings = Settings::new(&variables);
+
+        assert!(
+            read_protected_hosts(&mut settings, true).is_err(),
+            "{value}"
+        );
+    }
 }

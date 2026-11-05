@@ -2,16 +2,16 @@ use std::ffi::OsString;
 use std::os::unix::ffi::OsStringExt;
 
 use rail_runtime::{
-    ConfigErrors, EXIT_CODE, Entry, Level, Refused, Secret, Settings, Source, Startup, Variables,
+    ConfigErrors, EXIT_CODE, Entry, Level, Secret, Settings, Source, Startup, Variables,
 };
 
 // What `settings` logs, which must refuse nothing.
 fn finish(settings: Settings) -> Startup {
-    settings.finish("RAIL_", Some(())).unwrap().1
+    settings.finish("RAIL_", Ok(())).unwrap().1
 }
 
 fn errors(settings: Settings) -> Vec<String> {
-    settings.finish("RAIL_", None::<()>).unwrap_err().0
+    settings.finish("RAIL_", Ok(())).unwrap_err().0
 }
 
 fn entry(name: &'static str, value: &str, level: Level, source: Source) -> Entry {
@@ -36,7 +36,7 @@ fn text_is_trimmed_and_blank_is_unset() {
     assert_eq!(settings.get("D").text(), Ok(None));
     assert!(settings.get("A").is_set());
     assert!(!settings.get("B").is_set());
-    assert!(settings.finish("RAIL_", Some(())).is_ok());
+    assert!(settings.finish("RAIL_", Ok(())).is_ok());
 }
 
 #[test]
@@ -47,14 +47,17 @@ fn a_value_that_is_not_utf8_is_refused_once() {
     let mut settings = Settings::new(&variables);
 
     assert!(settings.get("A").is_set());
-    assert_eq!(
-        settings.get("A").required_if(true, "X is on").text(),
-        Err(Refused)
+    assert!(
+        settings
+            .get("A")
+            .required_if(true, "X is on")
+            .text()
+            .is_err()
     );
-    assert_eq!(settings.get("A").secret(), Err(Refused));
+    assert!(settings.get("A").secret().is_err());
 
     assert_eq!(
-        settings.finish("RAIL_", None::<()>).unwrap_err(),
+        settings.finish("RAIL_", Ok(())).unwrap_err(),
         ConfigErrors(vec!["A is not valid UTF-8".to_owned()])
     );
 }
@@ -68,10 +71,10 @@ fn parse_refusals_follow_the_name_and_are_all_kept() {
         text.parse::<u16>()
             .map_err(|_| format!("is not a port, got: {text}"))
     };
-    assert_eq!(settings.get("N").parsed(number), Err(Refused));
-    assert_eq!(settings.get("M").parsed(number), Err(Refused));
+    assert!(settings.get("N").parsed(number).is_err());
+    assert!(settings.get("M").parsed(number).is_err());
     assert_eq!(settings.get("UNSET").parsed(number), Ok(None));
-    let errors = settings.finish("RAIL_", None::<()>).unwrap_err();
+    let errors = settings.finish("RAIL_", Ok(())).unwrap_err();
 
     assert_eq!(
         errors.0,
@@ -93,7 +96,7 @@ fn a_boolean_is_true_or_false_case_folded() {
     assert_eq!(settings.get("T").boolean(), Ok(Some(true)));
     assert_eq!(settings.get("F").boolean(), Ok(Some(false)));
     assert_eq!(settings.get("UNSET").boolean(), Ok(None));
-    assert_eq!(settings.get("X").boolean(), Err(Refused));
+    assert!(settings.get("X").boolean().is_err());
     assert_eq!(errors(settings), ["X must be true or false, got: 1"]);
 }
 
@@ -161,16 +164,19 @@ fn a_required_parse_refuses_unset_and_what_it_rejects() {
         settings.get("P").required_if(true, "X is on").parsed(port),
         Ok(Some(8080))
     );
-    assert_eq!(
-        settings.get("N").required_if(true, "X is on").parsed(port),
-        Err(Refused)
+    assert!(
+        settings
+            .get("N")
+            .required_if(true, "X is on")
+            .parsed(port)
+            .is_err()
     );
-    assert_eq!(
+    assert!(
         settings
             .get("UNSET")
             .required_if(true, "X is on")
-            .parsed(port),
-        Err(Refused)
+            .parsed(port)
+            .is_err()
     );
     assert_eq!(
         errors(settings),
@@ -188,8 +194,8 @@ fn a_repeated_refusal_is_listed_once_and_refused_each_time() {
         .collect();
     let mut settings = Settings::new(&variables);
 
-    assert_eq!(settings.get("A").text(), Err(Refused));
-    assert_eq!(settings.get("A").text(), Err(Refused));
+    assert!(settings.get("A").text().is_err());
+    assert!(settings.get("A").text().is_err());
 
     assert_eq!(errors(settings), ["A is not valid UTF-8"]);
 }
@@ -203,14 +209,14 @@ fn a_value_past_its_length_in_characters_is_refused() {
 
     assert_eq!(settings.get("BYTES").max_chars(4).text(), Ok(Some("abcé")));
     assert_eq!(settings.get("PADDED").max_chars(4).text(), Ok(Some("abcd")));
-    assert_eq!(settings.get("LONG").max_chars(4).text(), Err(Refused));
-    assert_eq!(
+    assert!(settings.get("LONG").max_chars(4).text().is_err());
+    assert!(
         settings
             .get("UNSET")
             .required_if(true, "X is on")
             .max_chars(4)
-            .text(),
-        Err(Refused)
+            .text()
+            .is_err()
     );
     assert_eq!(
         errors(settings),
@@ -230,9 +236,12 @@ fn the_reason_a_setting_is_required_is_said_only_when_it_is() {
         settings.get("OFF").required_if(false, "X is on").text(),
         Ok(None)
     );
-    assert_eq!(
-        settings.get("ON").required_if(true, "X is on").text(),
-        Err(Refused)
+    assert!(
+        settings
+            .get("ON")
+            .required_if(true, "X is on")
+            .text()
+            .is_err()
     );
     assert_eq!(
         errors(settings),
@@ -245,10 +254,10 @@ fn a_refusal_and_a_retired_name_follow_the_name() {
     let variables: Variables = [("OLD", "1"), ("BLANK", " \n")].into_iter().collect();
     let mut settings = Settings::new(&variables);
 
-    settings.get("OLD").retired("NEW replaces it");
-    settings.get("BLANK").retired("blank is unset");
-    settings.get("GONE").retired("nothing reads it");
-    assert_eq!(settings.get("X").refuse("is wrong for a reason"), Refused);
+    assert!(settings.get("OLD").retired("NEW replaces it").is_err());
+    assert_eq!(settings.get("BLANK").retired("blank is unset"), Ok(()));
+    assert_eq!(settings.get("GONE").retired("nothing reads it"), Ok(()));
+    let _ = settings.get("X").refuse("is wrong for a reason");
 
     assert_eq!(
         errors(settings),
@@ -269,8 +278,8 @@ fn every_name_read_or_checked_has_an_entry_and_a_retired_one_has_none() {
     let _ = settings.get("C").boolean();
     let _ = settings.get("D").secret();
     settings.get("E").is_set();
-    settings.get("OLD").retired("NEW replaces it");
-    settings.get("GONE").retired("nothing reads it");
+    let _ = settings.get("OLD").retired("NEW replaces it");
+    let _ = settings.get("GONE").retired("nothing reads it");
 
     let names: Vec<_> = finish(settings)
         .entries
@@ -308,7 +317,7 @@ fn a_retired_name_carrying_no_value_is_not_unread() {
         .collect();
     let mut settings = Settings::new(&variables);
 
-    settings.get("RAIL_OLD").retired("nothing reads it");
+    let _ = settings.get("RAIL_OLD").retired("nothing reads it");
 
     assert_eq!(finish(settings).unread, ["RAIL_TYPO"]);
 }
@@ -377,7 +386,7 @@ fn a_name_read_but_not_described_is_described_as_read() {
     settings.get("CHECKED").is_set();
     let _ = settings.get("BLANK").text();
     let _ = settings.get("UNSET").secret();
-    settings.get("OLD").retired("nothing reads it");
+    let _ = settings.get("OLD").retired("nothing reads it");
     settings.describe("USED", "1 as used");
 
     assert_eq!(
@@ -386,7 +395,7 @@ fn a_name_read_but_not_described_is_described_as_read() {
             entry("USED", "1 as used", Level::Info, Source::Env),
             entry("UNUSED", "a\u{1b}[31mb", Level::Info, Source::Env),
             entry("TOKEN", "set", Level::Info, Source::Env),
-            entry("CHECKED", "yes", Level::Info, Source::Env),
+            entry("CHECKED", "set", Level::Info, Source::Env),
             entry("BLANK", "unset", Level::Info, Source::Default),
             entry("UNSET", "unset", Level::Info, Source::Default),
         ]
@@ -428,9 +437,29 @@ fn a_refused_configuration_returns_only_its_refusals() {
     let read = settings.get("A").boolean();
 
     assert_eq!(
-        settings.finish("RAIL_", read.ok()),
+        settings.finish("RAIL_", read),
         Err(ConfigErrors(vec![
             "A must be true or false, got: x".to_owned()
         ]))
+    );
+}
+
+#[test]
+fn a_token_only_checked_with_is_set_is_filled_in_as_set_never_as_text() {
+    let token = "rc_svc_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+    let variables: Variables = [("RAIL_AUTH_MODE", "none"), ("RAIL_AUTH_TOKEN", token)]
+        .into_iter()
+        .collect();
+    let mut settings = Settings::new(&variables);
+
+    let _ = settings.get("RAIL_AUTH_MODE").text();
+    settings.get("RAIL_AUTH_TOKEN").is_set();
+
+    assert_eq!(
+        finish(settings).entries,
+        [
+            entry("RAIL_AUTH_MODE", "none", Level::Info, Source::Env),
+            entry("RAIL_AUTH_TOKEN", "set", Level::Info, Source::Env),
+        ]
     );
 }

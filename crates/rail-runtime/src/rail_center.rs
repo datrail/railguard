@@ -26,15 +26,8 @@ pub struct RailCenterSettings {
     pub token: Option<Secret>,
 }
 
-/// Whether `RAIL_DISABLED` is true; refuses the retired names too, which aren't described, since
-/// none can be set.
+/// Whether `RAIL_DISABLED` is true.
 pub fn read_disabled(settings: &mut Settings) -> Result<bool, Refused> {
-    let disable = format!("Rail Center is used unless {DISABLED}=true");
-    settings.get("RAIL_PLUGIN_ENABLED").retired(&disable);
-    settings.get("RAIL_TICKET_MODE").retired(&disable);
-    settings
-        .get("RAIL_PROXY_ALLOW_INSECURE_CREDENTIAL")
-        .retired(&format!("{ALLOW_HTTP}=true allows an http:// {CENTER_URL}"));
     let disabled = settings.get(DISABLED).boolean()?.unwrap_or(false);
     if disabled {
         settings.warn(
@@ -49,11 +42,21 @@ pub fn read_disabled(settings: &mut Settings) -> Result<bool, Refused> {
 }
 
 /// The Rail Center settings, every one set judged, `None` if the URL or token is missing; both
-/// are required if `required`, which is whether Rail Center is used.
+/// are required if `required`, which is whether Rail Center is used. Refuses the retired names
+/// too, which aren't described, since none can be set.
 pub fn read_rail_center(
     settings: &mut Settings,
     required: bool,
 ) -> Result<Option<RailCenterSettings>, Refused> {
+    // Here, not with `RAIL_DISABLED`: refusing one mustn't change what's required.
+    let disable = format!("Rail Center is used unless {DISABLED}=true");
+    let retired = [
+        settings.get("RAIL_PLUGIN_ENABLED").retired(&disable),
+        settings.get("RAIL_TICKET_MODE").retired(&disable),
+        settings
+            .get("RAIL_PROXY_ALLOW_INSECURE_CREDENTIAL")
+            .retired(&format!("{ALLOW_HTTP}=true allows an http:// {CENTER_URL}")),
+    ];
     let url = settings
         .get(CENTER_URL)
         .required_if(required, USED)
@@ -74,17 +77,19 @@ pub fn read_rail_center(
     if let Ok(allow_http) = allow_http {
         settings.describe(ALLOW_HTTP, allow_http);
     }
-    if let Ok(Some(url)) = &url
-        && !url.is_https()
-        && !allow_http.unwrap_or(false)
-    {
-        settings.get(CENTER_URL).refuse(format_args!(
-            "is http://, which sends the credential and what Rail Center returns in the clear; \
-             use https://, or set {ALLOW_HTTP}=true"
-        ));
-    }
+    let http = match &url {
+        Ok(Some(url)) if !url.is_https() && !allow_http.unwrap_or(false) => {
+            Err(settings.get(CENTER_URL).refuse(format_args!(
+                "is http://, which sends the credential and what Rail Center returns in the clear; \
+                 use https://, or set {ALLOW_HTTP}=true"
+            )))
+        }
+        _ => Ok(()),
+    };
     let token = read_token(settings, required);
+    retired.into_iter().try_for_each(|retired| retired)?;
     let (url, allow_http, token) = (url?, allow_http?, token?);
+    http?;
     Ok(url.zip(token).map(|(url, token)| RailCenterSettings {
         url,
         allow_http,

@@ -56,12 +56,14 @@ pub fn read_protected_hosts(
         .map(|text| text.split(',').map(str::trim).collect())
         .unwrap_or_default();
     let mut hosts = BTreeMap::new();
+    // Every entry is judged before any refusal returns.
+    let mut refused = None;
     for (index, entry) in entries.iter().enumerate() {
         let position = format!("entry {} of {}", index + 1, entries.len());
         if entry.is_empty() {
-            settings.get(PROTECTED_HOSTS).refuse(format_args!(
+            refused = Some(settings.get(PROTECTED_HOSTS).refuse(format_args!(
                 "has an empty entry, {position}; {ENTRY_FORMAT}"
-            ));
+            )));
             continue;
         }
         // Not quoted: a credential, query or fragment can hold a secret, which would reach the log.
@@ -73,29 +75,32 @@ pub fn read_protected_hosts(
             None
         };
         if let Some(what) = unquoted {
-            settings.get(PROTECTED_HOSTS).refuse(format_args!(
+            refused = Some(settings.get(PROTECTED_HOSTS).refuse(format_args!(
                 "has {what} in {position}, which isn't quoted; {ENTRY_FORMAT}"
-            ));
+            )));
             continue;
         }
         match parse_entry(entry) {
             // Matching ignores the scheme and port, so two entries would give one host two routes.
             Ok(host) if hosts.contains_key(&host.host) => {
-                settings.get(PROTECTED_HOSTS).refuse(format_args!(
+                refused = Some(settings.get(PROTECTED_HOSTS).refuse(format_args!(
                     "lists {} more than once; one entry per host",
                     sanitize(&host.host)
-                ));
+                )));
             }
             Ok(host) => {
                 hosts.insert(host.host.clone(), host);
             }
             Err(reason) => {
-                settings.get(PROTECTED_HOSTS).refuse(format_args!(
+                refused = Some(settings.get(PROTECTED_HOSTS).refuse(format_args!(
                     "has an entry that {reason}; {ENTRY_FORMAT}, got: {}",
                     sanitize(entry)
-                ));
+                )));
             }
         }
+    }
+    if let Some(refused) = refused {
+        return Err(refused);
     }
     let hosts = ProtectedHosts(hosts);
     describe(&hosts, settings);

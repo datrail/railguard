@@ -64,17 +64,11 @@ pub fn read_ticket_settings(
         .required_if(required, USED)
         .max_chars(MAX_HOST_ID_CHARS)
         .text();
-    if let Ok(Some(host_id)) = host_id {
-        settings.describe(HOST_ID, host_id);
-    }
     let sandbox_name = settings
         .get(SANDBOX_NAME)
         .required_if(required, USED)
         .max_chars(MAX_SANDBOX_NAME_CHARS)
         .text();
-    if let Ok(Some(sandbox_name)) = sandbox_name {
-        settings.describe(SANDBOX_NAME, sandbox_name);
-    }
     let refresh = settings
         .get(TICKET_REFRESH_SECONDS)
         .parsed(|text| match text.parse::<u64>() {

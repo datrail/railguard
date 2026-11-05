@@ -1,5 +1,5 @@
 use rail_runtime::{
-    CenterUrl, Level, RailCenterSettings, Variables, read_disabled, read_rail_center,
+    CenterUrl, Level, RailCenterSettings, Settings, Variables, read_disabled, read_rail_center,
 };
 
 mod common;
@@ -488,4 +488,17 @@ fn an_unreadable_disabled_flag_is_the_only_refusal() {
         refusals(&[("RAIL_DISABLED", "yes")]),
         ["RAIL_DISABLED must be true or false, got: yes"]
     );
+}
+
+#[test]
+fn a_refusal_derived_from_two_settings_or_a_retired_name_is_an_err() {
+    for pairs in [
+        &[("RAIL_CENTER_URL", "http://rc.example.com")][..],
+        &[URL, ("RAIL_TICKET_MODE", "enforce")],
+    ] {
+        let variables: Variables = pairs.iter().copied().collect();
+        let mut settings = Settings::new(&variables);
+
+        assert!(read_rail_center(&mut settings, true).is_err(), "{pairs:?}");
+    }
 }

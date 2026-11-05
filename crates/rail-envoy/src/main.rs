@@ -63,7 +63,8 @@ async fn main() -> ExitCode {
         Some("probe") => probe(&config.socket).await,
         Some(argument) => {
             eprintln!("unknown argument {argument:?}; usage: rail-envoy [probe]");
-            ExitCode::from(2)
+            // A usage error shares the exit status of a refused configuration.
+            ExitCode::from(rail_runtime::EXIT_CODE)
         }
     }
 }
