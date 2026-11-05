@@ -30,8 +30,9 @@ x-attached: &attached
   RAIL_CENTER_URL: http://rail-center:8080
   RAIL_ALLOW_HTTP: "true"
   RAIL_HOST_ID: host-e2e
-  # With a port, at the agent's, over plain HTTP, and a name that doesn't resolve.
-  RAIL_PROXY_PROTECTED_HOSTS: upstream-tls.test:8443,upstream-agent-port.test,http://upstream-plain.test,nowhere.test
+  # With a port, at the agent's (or 443), over plain HTTP, a name that doesn't resolve, and one that
+  # resolves to a server whose certificate doesn't name it.
+  RAIL_PROXY_PROTECTED_HOSTS: upstream-tls.test:8443,upstream-agent-port.test,upstream-443.test,http://upstream-plain.test,nowhere.test,misresolved.test:8443
 
 x-envoy: &envoy
   image: envoyproxy/envoy:v1.39.2@sha256:460f8c329f24b2e1c7c5af64cb314a6f351ad1c262ba77b135ac46b35ebd5f85
@@ -79,7 +80,8 @@ services:
         aliases: [upstream.test, upstream-plain.test]
 
   # HTTPS on 8443, its journal on 8080: upstream-tls.test is protected with that port,
-  # upstream-agent-port.test without one.
+  # upstream-agent-port.test without one. misresolved.test is protected too, but not in its
+  # certificate.
   upstream-tls:
     <<: *wiremock
     command:
@@ -96,7 +98,26 @@ services:
       - certs:/certs:ro
     networks:
       default:
-        aliases: [upstream-tls.test, upstream-agent-port.test]
+        aliases: [upstream-tls.test, upstream-agent-port.test, misresolved.test]
+
+  # HTTPS on 443, its journal on 8080: upstream-443.test is protected without a port.
+  upstream-443:
+    <<: *wiremock
+    command:
+      - --global-response-templating
+      - --https-port=443
+      - --https-keystore=/certs/upstream-tls.p12
+      - --keystore-type=PKCS12
+      - --keystore-password=password
+      - --key-manager-password=password
+    depends_on:
+      certs: {condition: service_healthy}
+    volumes:
+      - ./upstream-mappings:/home/wiremock/mappings:ro
+      - certs:/certs:ro
+    networks:
+      default:
+        aliases: [upstream-443.test]
 
   rail-center:
     <<: *wiremock
@@ -203,6 +224,17 @@ services:
       - ext-disabled-socket:/run/rail
       - *test-ca
 
+  # What the example configs don't do, one listener each (envoy-variants.yaml).
+  envoy-variants:
+    <<: *envoy
+    depends_on:
+      certs: {condition: service_healthy}
+      ext: {condition: service_healthy}
+    volumes:
+      - ./envoy-variants.yaml:/etc/envoy/envoy.yaml:ro
+      - ext-socket:/run/rail
+      - *test-ca
+
   # A socket volume nothing serves on: every callout fails, and Envoy fails open.
   envoy-no-ext-authz:
     <<: *envoy
@@ -231,6 +263,7 @@ services:
     depends_on:
       upstream: {condition: service_healthy}
       upstream-tls: {condition: service_healthy}
+      upstream-443: {condition: service_healthy}
       envoy-ext-authz: {condition: service_healthy}
       envoy-ext-proc: {condition: service_healthy}
       envoy-not-found: {condition: service_healthy}
@@ -239,6 +272,7 @@ services:
       envoy-disabled: {condition: service_healthy}
       envoy-no-ext-authz: {condition: service_healthy}
       envoy-no-ext-proc: {condition: service_healthy}
+      envoy-variants: {condition: service_healthy}
 
 volumes:
   certs:

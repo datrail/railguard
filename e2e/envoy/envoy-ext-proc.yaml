@@ -66,6 +66,8 @@ static_resources:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExternalProcessor
                       grpc_service:
                         envoy_grpc: { cluster_name: rail_ext }
+                      # Past the 200 ms default, which a slow CI runner can miss.
+                      message_timeout: 5s
                       # The extension being down never stops a request; nothing forged crosses, as above.
                       failure_mode_allow: true
                       # The request's headers only, as the proxy's ext_proc config.

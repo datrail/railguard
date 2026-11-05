@@ -3,7 +3,7 @@
 # given, at every start: the keys are made for this run and never committed.
 #
 #   ca-certificates.crt   the CA, named as the system bundle Envoy trusts
-#   upstream-tls.p12      the upstream's key and certificate, for WireMock (password: password)
+#   upstream-tls.p12      the TLS upstreams' key and certificate, for WireMock (password: password)
 set -eu
 
 out=$1
@@ -16,10 +16,11 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj "/CN=railguard e2e test 
   -addext "basicConstraints=critical,CA:TRUE" -addext "keyUsage=critical,keyCertSign" \
   -keyout ca.key -out ca.crt 2>/dev/null
 
-# One server for both names: the entry with a port, and the one reached at the agent's.
+# One certificate for the three TLS names: the entry with a port, the one reached at the agent's,
+# and the one at 443. Never misresolved.test, which reaches this server under a name it can't prove.
 openssl req -newkey rsa:2048 -nodes -subj "/CN=upstream-tls.test" \
   -keyout upstream-tls.key -out upstream-tls.csr 2>/dev/null
-printf 'subjectAltName=DNS:upstream-tls.test,DNS:upstream-agent-port.test\nextendedKeyUsage=serverAuth\n' \
+printf 'subjectAltName=DNS:upstream-tls.test,DNS:upstream-agent-port.test,DNS:upstream-443.test\nextendedKeyUsage=serverAuth\n' \
   > upstream-tls.ext
 openssl x509 -req -in upstream-tls.csr -CA ca.crt -CAkey ca.key -CAcreateserial -days 2 \
   -extfile upstream-tls.ext -out upstream-tls.crt 2>/dev/null
