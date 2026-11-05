@@ -41,6 +41,10 @@ pub fn rail_envoy(socket: &Path) -> Command {
         .env_clear()
         .env("RAIL_DISABLED", "true")
         .env("RAIL_EXT_SOCKET", socket);
+    // Under `cargo llvm-cov`, so the binary's coverage is counted, not left in the crate.
+    if let Some(profile) = std::env::var_os("LLVM_PROFILE_FILE") {
+        command.env("LLVM_PROFILE_FILE", profile);
+    }
     command
 }
 

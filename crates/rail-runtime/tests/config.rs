@@ -1,9 +1,7 @@
 use std::ffi::OsString;
 use std::os::unix::ffi::OsStringExt;
 
-use rail_runtime::{
-    ConfigErrors, EXIT_CODE, Entry, Level, Secret, Settings, Source, Startup, Variables,
-};
+use rail_runtime::{ConfigErrors, Entry, Level, Secret, Settings, Source, Startup, Variables};
 
 // What `settings` logs, which must refuse nothing.
 fn finish(settings: Settings) -> Startup {
@@ -136,8 +134,7 @@ fn a_refused_configuration_exits_2() {
         .output()
         .unwrap();
 
-    assert_eq!(output.status.code(), Some(EXIT_CODE.into()));
-    assert_eq!(EXIT_CODE, 2);
+    assert_eq!(output.status.code(), Some(2));
     let stderr = String::from_utf8(output.stderr).unwrap();
     assert!(
         stderr.contains("Invalid configuration detected:\n  X must be true or false, got: 1\n"),

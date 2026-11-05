@@ -4,7 +4,8 @@
 //! `rail-envoy` serves, with `grpc.health.v1` on the same socket; `rail-envoy probe` asks it, and
 //! exits 0 if the server answers SERVING, for a container health check in an image with no shell.
 //!
-//! The binary's library, public only for its tests: nothing else uses it.
+//! The binary as a library: `run`, and the configuration and callouts it serves, which its tests
+//! drive.
 
 mod config;
 mod rail_center;

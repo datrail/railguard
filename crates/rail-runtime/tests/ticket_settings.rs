@@ -1,9 +1,8 @@
-use crate::common;
 use std::time::Duration;
 
 use rail_runtime::{Level, TicketQuery, TicketSettings, read_ticket_settings};
 
-use crate::common::describe;
+use crate::common::{self, describe};
 
 fn read(pairs: &[(&str, &str)]) -> Result<TicketSettings, Vec<String>> {
     common::read(pairs, |settings| read_ticket_settings(settings, true))

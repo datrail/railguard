@@ -1,9 +1,8 @@
-use crate::common;
 use rail_runtime::{
     CenterUrl, Level, RailCenterSettings, Settings, Variables, read_disabled, read_rail_center,
 };
 
-use crate::common::{describe, read_from};
+use crate::common::{self, describe, read_from};
 
 const TOKEN: &str = "rc_svc_abcdefghijklmnopqrstuvwxyzABCDEFGHIJK-_0123";
 

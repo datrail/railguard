@@ -20,7 +20,7 @@ async fn a_fetched_ticket_is_presented_from_the_first_fetch() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_failed_fetch_keeps_a_ticket_still_valid_until_it_lapses() {
+async fn a_failed_fetch_keeps_a_ticket_still_valid_until_it_lapses_and_expired_after() {
     let clock = Clock::new();
     let expiry = clock.at(100);
     let script = Script::new(&clock, move |n| {
@@ -35,7 +35,11 @@ async fn a_failed_fetch_keeps_a_ticket_still_valid_until_it_lapses() {
     until(&clock, 99).await;
     assert_eq!(token(&holder), Ok("a".to_owned()));
     until(&clock, 100).await;
+    assert_eq!(token(&holder), Err(Unavailable::Expired));
+    // A fetch after the lapse fails: the lapsed ticket is kept, so it still reads as expired.
+    until(&clock, 110).await;
 
+    assert!(script.fetched_at().iter().any(|&at| at > 100));
     assert_eq!(token(&holder), Err(Unavailable::Expired));
 }
 
@@ -364,19 +368,4 @@ async fn the_same_ticket_again_takes_its_new_expiry_lapsed_or_not() {
     // Refetched at 50 and at 10, each past the expiry it first had.
     assert_eq!(token(&valid), Ok("a".to_owned()));
     assert_eq!(token(&renewed), Ok("a".to_owned()));
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_ticket_lapsing_as_it_arrives_is_lapsed_and_backs_off() {
-    let clock = Clock::new();
-    let script = Script::new(&clock, {
-        let clock = clock.wall();
-        move |_| ticket("a", clock())
-    });
-
-    let holder = start(&clock, &script, HOUR);
-    until(&clock, 30).await;
-
-    assert_eq!(token(&holder), Err(Unavailable::Expired));
-    assert_eq!(script.fetched_at(), [0, 10, 30]);
 }

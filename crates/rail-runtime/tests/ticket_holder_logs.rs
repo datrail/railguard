@@ -108,15 +108,17 @@ async fn each_answer_is_logged_for_what_it_did_to_the_ticket_held() {
     let logs = Logs::default();
     let _logging = logs.capture();
     let clock = Clock::new();
-    let (first, second, lapsed) = (clock.at(900), clock.at(1800), clock.at(0));
+    let (first, second, lapsed, last) =
+        (clock.at(900), clock.at(1800), clock.at(0), clock.at(5000));
     let script = Script::new(&clock, move |n| match n {
-        0 => ticket("a", first),
-        1 => ticket("b", second),
-        2 => failed(),
-        3 => Ok(TicketAnswer::NoTicket),
-        4 => failed(),
-        5 => ticket("c", lapsed),
-        _ => Ok(TicketAnswer::NoTicket),
+        0 | 1 => ticket("a", first),
+        2 => ticket("b", second),
+        3 => failed(),
+        4 => Ok(TicketAnswer::NoTicket),
+        5 => failed(),
+        6 => Ok(TicketAnswer::NoTicket),
+        7 => ticket("c", lapsed),
+        _ => ticket("d", last),
     });
 
     let _holder = start(&clock, &script, HOUR);
@@ -133,11 +135,16 @@ async fn each_answer_is_logged_for_what_it_did_to_the_ticket_held() {
         ),
         "Rail Center holds no ticket for this host and sandbox cleared=true".to_owned(),
         "ticket refresh failed; none is held".to_owned(),
-        "Rail Center returned a lapsed ticket; none is valid".to_owned(),
         "Rail Center holds no ticket for this host and sandbox cleared=false".to_owned(),
+        "Rail Center returned a lapsed ticket; none is valid".to_owned(),
+        // A lapsed ticket held is replaced, not acquired anew.
+        format!("ticket rotated fingerprint=\"{}\"", fingerprint("d")),
     ];
     let mut lines = logs.lines();
     for line in &expected {
         assert!(lines.any(|logged| logged.contains(line)), "{line}\n{logs}");
     }
+    // The same ticket again, a's and d's, is logged only at debug.
+    assert_eq!(logs.matches("ticket rotated").count(), 2, "{logs}");
+    assert_eq!(logs.matches("ticket acquired").count(), 1, "{logs}");
 }
