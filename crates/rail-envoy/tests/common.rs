@@ -1,11 +1,14 @@
 //! The real binary, run on a socket of its own.
-#![allow(dead_code)]
 
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
+
+// Every test runs in one process, so the pid alone doesn't keep their directories apart.
+static SOCKETS: AtomicUsize = AtomicUsize::new(0);
 
 /// A directory of its own for one test's socket, removed after.
 pub struct TempSocket {
@@ -15,7 +18,9 @@ pub struct TempSocket {
 
 impl TempSocket {
     pub fn new(test: &str) -> Self {
-        let dir = std::env::temp_dir().join(format!("rail-envoy-{}-{test}", std::process::id()));
+        let count = SOCKETS.fetch_add(1, Ordering::Relaxed);
+        let dir =
+            std::env::temp_dir().join(format!("rail-envoy-{}-{count}-{test}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir(&dir).unwrap();
         let path = dir.join("ext.sock");

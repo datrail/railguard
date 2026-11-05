@@ -1,5 +1,3 @@
-mod common;
-
 use std::time::{Duration, Instant};
 
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_client::ExternalProcessorClient;
@@ -8,7 +6,7 @@ use envoy_types::pb::envoy::service::ext_proc::v3::{HttpHeaders, ProcessingReque
 use tokio_stream::StreamExt;
 use tonic::transport::Endpoint;
 
-use common::{Server, TempSocket};
+use crate::common::{Server, TempSocket};
 
 #[test]
 fn with_nothing_open_it_stops_at_once() {

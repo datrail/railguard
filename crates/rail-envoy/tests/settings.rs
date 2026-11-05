@@ -1,4 +1,4 @@
-//! Settings read as `main` reads them, for the unit tests.
+//! Settings read as `run` reads them.
 
 use rail_runtime::{ProtectedHosts, Refused, Settings, Startup, Variables, read_protected_hosts};
 

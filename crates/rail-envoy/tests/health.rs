@@ -1,5 +1,3 @@
-mod common;
-
 use std::os::unix::net::UnixListener as StdUnixListener;
 use std::time::{Duration, Instant};
 
@@ -7,7 +5,7 @@ use tokio::net::UnixListener;
 use tokio_stream::wrappers::UnixListenerStream;
 use tonic_health::ServingStatus;
 
-use common::{Server, TempSocket, probe};
+use crate::common::{Server, TempSocket, probe};
 
 fn stdout(output: &std::process::Output) -> String {
     String::from_utf8(output.stdout.clone()).unwrap()

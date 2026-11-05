@@ -1,9 +1,7 @@
-mod common;
-
 use std::process::Stdio;
 use std::time::{Duration, Instant};
 
-use common::{Server, TempSocket, rail_envoy};
+use crate::common::{Server, TempSocket, rail_envoy};
 
 // The fields after the target, of the one line holding `needle`.
 fn find_fields<'a>(logs: &'a str, needle: &str) -> &'a str {
