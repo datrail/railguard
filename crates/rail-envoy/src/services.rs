@@ -146,19 +146,9 @@ mod tests {
     use envoy_types::pb::envoy::service::ext_proc::v3::HttpHeaders;
     use envoy_types::pb::envoy::service::ext_proc::v3::processing_request::Request as Phase;
     use envoy_types::pb::envoy::service::ext_proc::v3::processing_response::Response;
-    use rail_runtime::{ProtectedHosts, Settings, Variables, read_protected_hosts};
 
     use super::{Allow, continue_after};
-
-    fn protect(value: &str) -> ProtectedHosts {
-        let variables: Variables = [("RAIL_PROXY_PROTECTED_HOSTS", value)]
-            .into_iter()
-            .collect();
-        let mut settings = Settings::new(&variables);
-        let hosts = read_protected_hosts(&mut settings, true);
-        settings.finish().unwrap();
-        hosts.unwrap()
-    }
+    use crate::test_settings::protect;
 
     // Each header's name and value, from `value` or `raw_value`, whichever is set.
     fn read_set(options: &[HeaderValueOption]) -> Vec<(String, String)> {

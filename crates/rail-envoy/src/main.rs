@@ -7,6 +7,8 @@
 mod config;
 mod rail_center;
 mod services;
+#[cfg(test)]
+mod test_settings;
 mod xrail;
 
 use std::fs;
@@ -21,7 +23,7 @@ use envoy_types::ext_authz::v3::pb::AuthorizationServer;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
 use rail_policy::sanitize;
 use rail_runtime::{
-    Described, Level, RailCenterClient, RailCenterSettings, RailCenterTickets, Settings,
+    Level, RailCenterClient, RailCenterSettings, RailCenterTickets, Settings, Startup,
     TicketHolder, TicketSettings, Variables,
 };
 use tokio::net::UnixListener;
@@ -53,11 +55,11 @@ async fn main() -> ExitCode {
     let variables = Variables::from_process();
     let mut settings = Settings::new(&variables);
     let config = Config::read(&mut settings);
-    let unread = settings.find_unread("RAIL_");
-    settings.finish().unwrap_or_else(|errors| errors.exit());
-    let config = config.expect("Config::read returns the config when it refuses nothing");
+    let (config, startup) = settings
+        .finish("RAIL_", config)
+        .unwrap_or_else(|errors| errors.exit());
     match std::env::args().nth(1).as_deref() {
-        None => serve(config, &variables, &unread).await,
+        None => serve(config, &startup).await,
         Some("probe") => probe(&config.socket).await,
         Some(argument) => {
             eprintln!("unknown argument {argument:?}; usage: rail-envoy [probe]");
@@ -66,8 +68,8 @@ async fn main() -> ExitCode {
     }
 }
 
-async fn serve(config: Config, variables: &Variables, unread: &[String]) -> ExitCode {
-    log_settings(&config.described, variables, unread);
+async fn serve(config: Config, startup: &Startup) -> ExitCode {
+    log_settings(startup);
     // SIGTERM is how a container is stopped; as PID 1 nothing handles it unless we do.
     let terminate = match signal(SignalKind::terminate()) {
         Ok(terminate) => terminate,
@@ -174,13 +176,9 @@ fn start_tickets(
 }
 
 // Each setting as used, then each RAIL_ variable nothing read, likely a typo; never its value.
-fn log_settings(described: &Described, variables: &Variables, unread: &[String]) {
-    for entry in described.entries() {
-        let source = if variables.is_set(entry.name) {
-            "env"
-        } else {
-            "default"
-        };
+fn log_settings(startup: &Startup) {
+    for entry in &startup.entries {
+        let source = entry.source.as_str();
         match entry.level {
             Level::Info => {
                 tracing::info!(name = %entry.name, value = %entry.value, source = %source, "setting");
@@ -190,7 +188,7 @@ fn log_settings(described: &Described, variables: &Variables, unread: &[String])
             }
         }
     }
-    for name in unread {
+    for name in &startup.unread {
         tracing::warn!(name = %name, "set but not read");
     }
 }

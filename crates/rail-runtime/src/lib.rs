@@ -10,11 +10,13 @@ mod ticket_holder;
 mod xrail;
 
 pub use client::{FetchError, Limits, RailCenterClient, Response};
-pub use config::{ConfigErrors, Described, EXIT_CODE, Entry, Level, Secret, Settings, Variables};
+pub use config::{
+    ConfigErrors, EXIT_CODE, Entry, Level, Refused, Secret, Settings, Source, Startup, Variables,
+};
 pub use protected_hosts::{PROTECTED_HOSTS, ProtectedHost, ProtectedHosts, read_protected_hosts};
 pub use rail_center::{
     ALLOW_HTTP, AUTH_MODE, AUTH_TOKEN, CENTER_URL, CenterUrl, DISABLED, RailCenterSettings,
-    describe_disabled, read_disabled, read_rail_center,
+    read_disabled, read_rail_center,
 };
 pub use ticket::{
     HOST_ID, OpaqueTicket, SANDBOX_NAME, TICKET_REFRESH_SECONDS, TicketAnswer, TicketQuery,

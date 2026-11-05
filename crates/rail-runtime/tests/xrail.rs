@@ -2,25 +2,18 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use rail_runtime::{
-    OpaqueTicket, ProtectedHosts, Route, Secret, Settings, Unavailable, Variables, XRailHeader,
-    XRailHeaders, read_protected_hosts,
+    OpaqueTicket, ProtectedHosts, Route, Secret, Unavailable, XRailHeader, XRailHeaders,
 };
+
+mod common;
+
+use common::protect;
 
 fn ticket() -> Arc<OpaqueTicket> {
     Arc::new(OpaqueTicket {
         token: Secret::new("a.b.c".to_owned()),
         expires_at: SystemTime::now() + Duration::from_secs(900),
     })
-}
-
-fn protect(value: &str) -> ProtectedHosts {
-    let variables: Variables = [("RAIL_PROXY_PROTECTED_HOSTS", value)]
-        .into_iter()
-        .collect();
-    let mut settings = Settings::new(&variables);
-    let hosts = read_protected_hosts(&mut settings, true);
-    settings.finish().unwrap();
-    hosts.unwrap()
 }
 
 fn mcp() -> ProtectedHosts {

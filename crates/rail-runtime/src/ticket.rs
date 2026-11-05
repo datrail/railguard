@@ -7,7 +7,8 @@ use time::PrimitiveDateTime;
 use time::macros::format_description;
 
 use crate::client::{Limits, RailCenterClient};
-use crate::config::{Described, Secret, Settings};
+use crate::config::{Refused, Secret, Settings};
+use crate::rail_center::USED;
 use crate::ticket_holder::MIN_REFRESH_INTERVAL;
 
 const ROUTE: &str = "/v1/tickets";
@@ -19,6 +20,8 @@ pub const TICKET_REFRESH_SECONDS: &str = "RAIL_TICKET_REFRESH_SECONDS";
 // Rail Center's bounds on the query (`get_host_tickets`), in characters.
 const MAX_HOST_ID_CHARS: usize = 64;
 const MAX_SANDBOX_NAME_CHARS: usize = 255;
+
+const DEFAULT_REFRESH_INTERVAL: Duration = Duration::from_secs(3600);
 
 /// How this host's ticket is fetched and kept.
 #[derive(Clone, Debug)]
@@ -36,7 +39,7 @@ impl TicketSettings {
     pub fn new(query: TicketQuery) -> Self {
         Self {
             query,
-            refresh_interval: Duration::from_secs(3600),
+            refresh_interval: DEFAULT_REFRESH_INTERVAL,
             // A named fetch answers with one ticket at most, so a body past this is a wrong one.
             limits: Limits {
                 attempt_timeout: Duration::from_secs(10),
@@ -47,27 +50,30 @@ impl TicketSettings {
             max_lifetime: Duration::from_secs(86_400 + 300),
         }
     }
-
-    /// The settings read; the limits and the lifetime aren't, so they aren't described.
-    pub fn describe(&self, out: &mut Described) {
-        out.info(HOST_ID, &self.query.host_id);
-        out.info(SANDBOX_NAME, &self.query.sandbox_name);
-        out.info(TICKET_REFRESH_SECONDS, self.refresh_interval.as_secs());
-    }
 }
 
-/// The ticket's settings, every one set judged; the host and sandbox are required if `required`.
-pub fn read_ticket_settings(settings: &mut Settings, required: bool) -> Option<TicketSettings> {
+/// The ticket's settings, every one set judged, `None` if the host or sandbox is missing; both
+/// are required if `required`, which is whether Rail Center is used.
+pub fn read_ticket_settings(
+    settings: &mut Settings,
+    required: bool,
+) -> Result<Option<TicketSettings>, Refused> {
     let host_id = settings
         .get(HOST_ID)
-        .required(required)
+        .required_if(required, USED)
         .max_chars(MAX_HOST_ID_CHARS)
         .text();
+    if let Ok(Some(host_id)) = host_id {
+        settings.describe(HOST_ID, host_id);
+    }
     let sandbox_name = settings
         .get(SANDBOX_NAME)
-        .required(required)
+        .required_if(required, USED)
         .max_chars(MAX_SANDBOX_NAME_CHARS)
         .text();
+    if let Ok(Some(sandbox_name)) = sandbox_name {
+        settings.describe(SANDBOX_NAME, sandbox_name);
+    }
     let refresh = settings
         .get(TICKET_REFRESH_SECONDS)
         .parsed(|text| match text.parse::<u64>() {
@@ -80,15 +86,21 @@ pub fn read_ticket_settings(settings: &mut Settings, required: bool) -> Option<T
                 MIN_REFRESH_INTERVAL.as_secs(),
                 sanitize(text)
             )),
-        });
-    let mut ticket = TicketSettings::new(TicketQuery {
-        host_id: host_id?.to_owned(),
-        sandbox_name: sandbox_name?.to_owned(),
-    });
-    if settings.get(TICKET_REFRESH_SECONDS).is_set() {
-        ticket.refresh_interval = refresh?;
+        })
+        .map(|refresh| refresh.unwrap_or(DEFAULT_REFRESH_INTERVAL));
+    if let Ok(refresh) = refresh {
+        settings.describe(TICKET_REFRESH_SECONDS, refresh.as_secs());
     }
-    Some(ticket)
+    let (host_id, sandbox_name, refresh_interval) = (host_id?, sandbox_name?, refresh?);
+    Ok(host_id
+        .zip(sandbox_name)
+        .map(|(host_id, sandbox_name)| TicketSettings {
+            refresh_interval,
+            ..TicketSettings::new(TicketQuery {
+                host_id: host_id.to_owned(),
+                sandbox_name: sandbox_name.to_owned(),
+            })
+        }))
 }
 
 /// Whose ticket to fetch: this host, and the one sandbox it serves.
