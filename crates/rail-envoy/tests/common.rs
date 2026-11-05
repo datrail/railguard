@@ -52,8 +52,9 @@ pub fn rail_envoy(socket: &Path) -> Command {
 pub struct Server(pub Child);
 
 impl Server {
-    pub fn start(socket: &Path) -> Self {
-        let child = rail_envoy(socket)
+    /// `command` spawned, its log kept.
+    pub fn spawn(mut command: Command) -> Self {
+        let child = command
             .stdout(Stdio::null())
             .stderr(Stdio::piped())
             .spawn()
@@ -63,7 +64,12 @@ impl Server {
 
     /// Waits for the probe to pass, so the server is serving.
     pub fn start_serving(socket: &Path) -> Self {
-        let server = Self::start(socket);
+        Self::serve(rail_envoy(socket), socket)
+    }
+
+    /// `command` spawned, once the probe on `socket` passes.
+    pub fn serve(command: Command, socket: &Path) -> Self {
+        let server = Self::spawn(command);
         let deadline = Instant::now() + Duration::from_secs(10);
         while !probe(socket).status.success() {
             assert!(

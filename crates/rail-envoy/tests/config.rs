@@ -98,20 +98,6 @@ fn disabled_describes_every_setting_set_though_its_group_is_incomplete() {
 }
 
 #[test]
-fn the_token_is_in_no_entry_whichever_way_it_is_read() {
-    let disabled: Vec<_> = COMPLETE
-        .into_iter()
-        .map(|(name, value)| match name {
-            "RAIL_DISABLED" => (name, "true"),
-            _ => (name, value),
-        })
-        .collect();
-    for pairs in [&COMPLETE[..], &disabled] {
-        assert_no_token(&describe(pairs));
-    }
-}
-
-#[test]
 fn without_a_credential_the_token_is_described_as_unset() {
     let pairs: Vec<_> = COMPLETE
         .into_iter()

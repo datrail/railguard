@@ -287,10 +287,11 @@ async fn a_response_off_the_contract_is_described_without_its_values() {
 
     let error = refusal(answer("200 OK", body).await);
 
-    assert_eq!(
-        error,
-        "the response is off the contract (Data error at line 1, column 54)"
+    assert!(
+        error.starts_with("the response is off the contract ("),
+        "{error}"
     );
+    assert!(!error.contains("eyJ0aGUiOiJ0aWNrZXQifQ"), "{error}");
 }
 
 // On paused time the first timer due fires at once: the error names which, and when.

@@ -9,7 +9,10 @@ use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_client::Ex
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
 use envoy_types::pb::envoy::service::ext_proc::v3::processing_request::Request as Phase;
 use envoy_types::pb::envoy::service::ext_proc::v3::processing_response::Response;
-use envoy_types::pb::envoy::service::ext_proc::v3::{HttpHeaders, ProcessingRequest};
+use envoy_types::pb::envoy::service::ext_proc::v3::{
+    BodyResponse, HeadersResponse, HttpBody, HttpHeaders, HttpTrailers, ProcessingRequest,
+    TrailersResponse,
+};
 use rail_envoy::Callouts;
 use tokio::net::UnixListener;
 use tokio_stream::wrappers::UnixListenerStream;
@@ -99,8 +102,8 @@ async fn ext_authz_leaves_an_unprotected_host_unrouted() {
     assert_eq!(remove, ["x-rail", "x-rail-status", "x-rail-upstream"]);
 }
 
-// One headers message through a served ext_proc, as Envoy sends it.
-async fn process(authority: HeaderValue, protected: &str) -> (Vec<(String, String)>, Vec<String>) {
+// Each phase's reply from a served ext_proc, the phases sent on one stream as Envoy sends them.
+async fn send(phases: Vec<Phase>, protected: &str) -> Vec<Response> {
     let socket = TempSocket::new("ext-proc");
     let listener = UnixListener::bind(&socket.path).unwrap();
     let callouts = Callouts {
@@ -117,6 +120,24 @@ async fn process(authority: HeaderValue, protected: &str) -> (Vec<(String, Strin
         .connect()
         .await
         .unwrap();
+    let requests = phases.into_iter().map(|phase| ProcessingRequest {
+        request: Some(phase),
+        ..Default::default()
+    });
+    let mut replies = ExternalProcessorClient::new(channel)
+        .process(tokio_stream::iter(requests.collect::<Vec<_>>()))
+        .await
+        .unwrap()
+        .into_inner();
+    let mut responses = Vec::new();
+    while let Some(reply) = replies.message().await.unwrap() {
+        responses.push(reply.response.unwrap());
+    }
+    responses
+}
+
+// One headers message, and the headers it sets and removes.
+async fn process(authority: HeaderValue, protected: &str) -> (Vec<(String, String)>, Vec<String>) {
     let phase = Phase::RequestHeaders(HttpHeaders {
         headers: Some(HeaderMap {
             headers: vec![
@@ -130,19 +151,10 @@ async fn process(authority: HeaderValue, protected: &str) -> (Vec<(String, Strin
         }),
         ..Default::default()
     });
-    let request = ProcessingRequest {
-        request: Some(phase),
-        ..Default::default()
+    let [Response::RequestHeaders(response)] = &send(vec![phase], protected).await[..] else {
+        panic!("not one headers response");
     };
-    let mut replies = ExternalProcessorClient::new(channel)
-        .process(tokio_stream::iter([request]))
-        .await
-        .unwrap()
-        .into_inner();
-    let reply = replies.message().await.unwrap().unwrap();
-    let Some(Response::RequestHeaders(response)) = reply.response else {
-        panic!("not a headers response");
-    };
+    let response = response.clone();
     let common = response.response.unwrap();
     assert!(common.clear_route_cache);
     let mutation = common.header_mutation.unwrap();
@@ -195,4 +207,28 @@ async fn ext_proc_removes_the_agents_route_to_an_unprotected_host() {
 
     assert!(set.is_empty());
     assert_eq!(remove, ["x-rail", "x-rail-status", "x-rail-upstream"]);
+}
+
+#[tokio::test]
+async fn ext_proc_lets_every_other_phase_through_unchanged() {
+    let phases = vec![
+        Phase::ResponseHeaders(HttpHeaders::default()),
+        Phase::RequestBody(HttpBody::default()),
+        Phase::ResponseBody(HttpBody::default()),
+        Phase::RequestTrailers(HttpTrailers::default()),
+        Phase::ResponseTrailers(HttpTrailers::default()),
+    ];
+
+    let responses = send(phases, "mcp.example.com").await;
+
+    assert_eq!(
+        responses,
+        [
+            Response::ResponseHeaders(HeadersResponse::default()),
+            Response::RequestBody(BodyResponse::default()),
+            Response::ResponseBody(BodyResponse::default()),
+            Response::RequestTrailers(TrailersResponse::default()),
+            Response::ResponseTrailers(TrailersResponse::default()),
+        ]
+    );
 }

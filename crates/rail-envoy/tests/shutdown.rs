@@ -6,7 +6,7 @@ use envoy_types::pb::envoy::service::ext_proc::v3::{HttpHeaders, ProcessingReque
 use tokio_stream::StreamExt;
 use tonic::transport::Endpoint;
 
-use crate::common::{Server, TempSocket};
+use crate::common::{Server, TempSocket, rail_envoy};
 
 #[test]
 fn with_nothing_open_it_stops_at_once() {
@@ -23,6 +23,34 @@ fn with_nothing_open_it_stops_at_once() {
         logs.contains("shut down: every connection drained"),
         "{logs}"
     );
+}
+
+#[test]
+fn with_rail_center_unreachable_it_serves_and_stops_at_once() {
+    let socket = TempSocket::new("rail-center");
+    let mut command = rail_envoy(&socket.path);
+    command.envs([
+        ("RAIL_DISABLED", "false"),
+        ("RAIL_CENTER_URL", "http://127.0.0.1:1"),
+        ("RAIL_ALLOW_HTTP", "true"),
+        ("RAIL_HOST_ID", "host-1"),
+        ("RAIL_SANDBOX_NAME", "sandbox-1"),
+        ("RAIL_PROXY_PROTECTED_HOSTS", "mcp.example.com"),
+    ]);
+    let mut server = Server::serve(command, &socket.path);
+    let started = Instant::now();
+
+    server.terminate();
+
+    assert_eq!(server.wait_for_exit(Duration::from_secs(3)), Some(Some(0)));
+    assert!(started.elapsed() < Duration::from_secs(3));
+    let logs = server.read_logs();
+    assert!(logs.contains("ticket refresh failed"), "{logs}");
+    assert!(
+        logs.contains("shut down: every connection drained"),
+        "{logs}"
+    );
+    assert!(!logs.contains("panicked"), "{logs}");
 }
 
 // Envoy keeps a stream open as long as its request, so only the deadline ends it.

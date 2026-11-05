@@ -81,6 +81,64 @@ fn evaluate_on_header(condition: Value, value: &str, budget: &mut Budget) -> Ver
     evaluate_condition(&compile_condition(&condition), &environment, budget).verdict
 }
 
+fn evaluate_on_endpoint(condition: Value, endpoint: &Endpoint) -> Verdict {
+    let condition: Condition = serde_json::from_value(condition).unwrap();
+    let headers = Headers::from_lines([("x-a", "a")]);
+    let environment = Environment {
+        ticket: None,
+        endpoint,
+        headers: &headers,
+    };
+    evaluate_condition(
+        &compile_condition(&condition),
+        &environment,
+        &mut Budget::default(),
+    )
+    .verdict
+}
+
+#[test]
+fn test_reads_the_endpoint_key_of_a_keyless_or_unrecognised_call_as_absent() {
+    let key = |op, value| json!({"path": "request.endpoint_key", "op": op, "value": value});
+    let resolved = Endpoint::Resolved("/mcp#tools/call#t".parse().unwrap());
+    assert_eq!(
+        evaluate_on_endpoint(key("existing", json!(null)), &resolved),
+        Verdict::Holds
+    );
+    for endpoint in [Endpoint::Keyless, Endpoint::Unrecognised] {
+        for (op, value, verdict) in [
+            ("existing", json!(null), Verdict::DoesNotHold),
+            ("not_existing", json!(null), Verdict::Holds),
+            ("ne", json!("x"), Verdict::DoesNotHold),
+        ] {
+            assert_eq!(
+                evaluate_on_endpoint(key(op, value), &endpoint),
+                verdict,
+                "{endpoint:?} {op}"
+            );
+        }
+    }
+}
+
+#[test]
+fn test_reads_the_request_and_its_headers_as_objects() {
+    for path in ["request", "request.headers"] {
+        for (op, value, verdict) in [
+            ("existing", json!(null), Verdict::Holds),
+            ("eq", json!("x"), Verdict::DoesNotHold),
+        ] {
+            assert_eq!(
+                evaluate_on_endpoint(
+                    json!({"path": path, "op": op, "value": value}),
+                    &Endpoint::Keyless
+                ),
+                verdict,
+                "{path} {op}"
+            );
+        }
+    }
+}
+
 #[test]
 fn test_refuses_past_the_step_limit_and_not_before() {
     let condition = json!({"path": "request.headers.x-a", "op": "eq", "value": "a"});
@@ -94,6 +152,32 @@ fn test_refuses_past_the_step_limit_and_not_before() {
         evaluate_on_header(condition, "a,a,a", &mut Budget::new(3)),
         Verdict::Refused(Refusal::BudgetExceeded)
     );
+}
+
+#[test]
+fn test_refuses_an_in_or_a_match_past_the_step_limit_and_not_before() {
+    let is_in = json!({"path": "request.headers.x-a", "op": "in", "value": ["b", "c", "a"]});
+    let matches = json!({"path": "request.headers.x-a", "op": "matches", "value": "a*a"});
+    let long = "a".repeat(200);
+    let cases = [
+        // The condition, then one per operand item.
+        (&is_in, "a".to_owned(), 4),
+        // The condition, one per value, then each value against each operand item.
+        (&is_in, "a,a".to_owned(), 9),
+        // The condition, then one per scan and one per 64 bytes of value and pattern.
+        (&matches, long.clone(), 5),
+        (&matches, format!("b,{long}"), 8),
+    ];
+    for (condition, value, steps) in cases {
+        let at = |steps| evaluate_on_header(condition.clone(), &value, &mut Budget::new(steps));
+
+        assert_eq!(at(steps), Verdict::Holds, "{condition} {steps}");
+        assert_eq!(
+            at(steps - 1),
+            Verdict::Refused(Refusal::BudgetExceeded),
+            "{condition} {steps}"
+        );
+    }
 }
 
 #[test]

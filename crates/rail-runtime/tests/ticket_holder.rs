@@ -96,26 +96,6 @@ async fn a_recovered_ticket_clears_the_reason() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_ticket_already_lapsed_never_replaces_one_still_valid() {
-    let clock = Clock::new();
-    let (good, lapsed) = (clock.at(900), clock.at(0));
-    let script = Script::new(&clock, move |n| {
-        if n == 0 {
-            ticket("a", good)
-        } else {
-            ticket("b", lapsed)
-        }
-    });
-
-    let holder = start(&clock, &script, HOUR);
-    until(&clock, 450).await;
-    assert_eq!(token(&holder), Ok("a".to_owned()));
-    until(&clock, 900).await;
-
-    assert_eq!(token(&holder), Err(Unavailable::Expired));
-}
-
-#[tokio::test(start_paused = true)]
 async fn refreshes_come_at_half_the_remaining_life() {
     let clock = Clock::new();
     let expiry = clock.at(800);
@@ -278,7 +258,7 @@ async fn a_new_ticket_replaces_one_still_valid() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_lapsed_answer_while_a_ticket_holds_leaves_the_ramp_alone() {
+async fn a_lapsed_answer_never_replaces_a_ticket_still_valid_nor_moves_the_ramp() {
     let clock = Clock::new();
     let (good, lapsed) = (clock.at(40), clock.at(0));
     let script = Script::new(&clock, move |n| {
@@ -289,9 +269,12 @@ async fn a_lapsed_answer_while_a_ticket_holds_leaves_the_ramp_alone() {
         }
     });
 
-    let _holder = start(&clock, &script, HOUR);
+    let holder = start(&clock, &script, HOUR);
+    until(&clock, 39).await;
+    assert_eq!(token(&holder), Ok("a".to_owned()));
     until(&clock, 60).await;
 
+    assert_eq!(token(&holder), Err(Unavailable::Expired));
     // Held until 40, lapsed answers kept out; at 40 the lapsed one is stored and the ramp starts.
     assert_eq!(script.fetched_at(), [0, 20, 30, 35, 40, 50]);
 }

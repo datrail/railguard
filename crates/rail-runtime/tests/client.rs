@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use flate2::Compression;
 use flate2::write::GzEncoder;
-use rail_runtime::{FetchError, Limits, RailCenterClient};
+use rail_runtime::{FetchError, Limits, RailCenterClient, RailCenterSettings, Secret};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 
@@ -152,17 +152,13 @@ async fn a_gzip_body_is_decoded() {
 
 #[tokio::test]
 async fn a_gzip_bomb_is_refused_by_its_decoded_size() {
-    let bomb = gzip(&vec![0; 64 << 20]);
-    assert!(bomb.len() < 1 << 20);
+    let bomb = gzip(&[0; 64 << 10]);
+    assert!(bomb.len() < LIMITS.max_bytes);
     let server =
         serve(move |_| Reply::Raw(response("200 OK", &["content-encoding: gzip"], &bomb))).await;
-    let limits = Limits {
-        max_bytes: 1 << 20,
-        ..LIMITS
-    };
 
     let error = client(&server.url)
-        .get("/v1/x", &[], limits)
+        .get("/v1/x", &[], LIMITS)
         .await
         .unwrap_err();
 
@@ -170,52 +166,22 @@ async fn a_gzip_bomb_is_refused_by_its_decoded_size() {
 }
 
 #[tokio::test]
-async fn an_encoding_not_offered_is_refused() {
-    let server =
-        serve(|_| Reply::Raw(response("200 OK", &["content-encoding: br"], b"\x1b\x00"))).await;
-
-    let error = client(&server.url)
-        .get("/v1/x", &[], LIMITS)
-        .await
-        .unwrap_err();
-
-    assert!(
-        matches!(&error, FetchError::Encoding(encoding) if encoding.contains("br")),
-        "{error:?}"
-    );
-}
-
-#[tokio::test]
-async fn every_encoding_listed_is_checked() {
-    let server = serve(|_| {
-        Reply::Raw(response(
-            "200 OK",
+async fn an_encoding_not_offered_or_behind_gzip_is_refused() {
+    let cases: [(&[&str], &str); 6] = [
+        (&["content-encoding: br"], "br"),
+        (
             &["content-encoding: identity", "content-encoding: br"],
-            b"\x1b\x00",
-        ))
-    })
-    .await;
-
-    let error = client(&server.url)
-        .get("/v1/x", &[], LIMITS)
-        .await
-        .unwrap_err();
-
-    assert!(
-        matches!(&error, FetchError::Encoding(encoding) if encoding.contains("br")),
-        "{error:?}"
-    );
-}
-
-#[tokio::test]
-async fn an_encoding_behind_gzip_is_refused() {
-    let cases: [&[&str]; 4] = [
-        &["content-encoding: gzip", "content-encoding: br"],
-        &["content-encoding: gzip, br"],
-        &["content-encoding: gzip", "content-encoding: gzip"],
-        &["content-encoding: gzip, gzip"],
+            "br",
+        ),
+        (&["content-encoding: gzip", "content-encoding: br"], "br"),
+        (&["content-encoding: gzip, br"], "br"),
+        (
+            &["content-encoding: gzip", "content-encoding: gzip"],
+            "gzip",
+        ),
+        (&["content-encoding: gzip, gzip"], "gzip"),
     ];
-    for headers in cases {
+    for (headers, named) in cases {
         let server = serve(move |_| Reply::Raw(response("200 OK", headers, &gzip(b"{}")))).await;
 
         let error = client(&server.url)
@@ -224,8 +190,14 @@ async fn an_encoding_behind_gzip_is_refused() {
             .unwrap_err();
 
         assert!(
-            matches!(&error, FetchError::Encoding(_)),
+            matches!(&error, FetchError::Encoding(encoding) if encoding.contains(named)),
             "{headers:?}: {error:?}"
+        );
+        assert!(
+            error
+                .to_string()
+                .starts_with("the response's Content-Encoding is "),
+            "{error}"
         );
     }
 }
@@ -244,6 +216,12 @@ async fn gzip_that_does_not_decode_is_refused() {
             .unwrap_err();
 
         assert!(matches!(&error, FetchError::BadGzip(_)), "{error:?}");
+        assert!(
+            error
+                .to_string()
+                .starts_with("the response's gzip doesn't decode: "),
+            "{error}"
+        );
     }
 }
 
@@ -417,4 +395,25 @@ fn an_ambient_proxy_is_not_used() {
     // A name matching no test would pass with nothing run.
     assert!(stdout.contains("1 passed"), "{stdout}");
     assert!(output.status.success(), "{stdout}");
+}
+
+#[test]
+fn a_token_that_cant_go_in_a_header_is_refused_unquoted() {
+    let cases = [
+        (
+            "rc_svc_x\r\nX-Evil: 1",
+            "holds a byte at offset 15 that can't go in a header value",
+        ),
+        ("rc_svc_x ", "is padded with whitespace"),
+    ];
+    for (token, refusal) in cases {
+        let settings = RailCenterSettings {
+            token: Some(Secret::new(token.to_owned())),
+            ..settings("http://127.0.0.1:1", None)
+        };
+
+        let error = RailCenterClient::new(&settings).err().unwrap();
+
+        assert_eq!(error, format!("the authorization header {refusal}"));
+    }
 }

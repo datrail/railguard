@@ -196,6 +196,28 @@ fn test_reads_padded_parts_in_either_alphabet() {
     assert_eq!(ticket.claims["x"], "???a");
 }
 
+#[test]
+fn test_reads_a_signed_payload_that_is_not_an_object_as_malformed() {
+    let key = SigningKey::from_bytes(&[7; 32]);
+    let config = SignedTicketConfig {
+        keys: HashMap::from([("k".to_string(), key.verifying_key())]),
+        issuer: None,
+        audience: None,
+    };
+    let header = URL_SAFE.encode(json!({"alg": "EdDSA", "kid": "k"}).to_string());
+    for payload in ["[]", r#""x""#, "1"] {
+        let ticket = _sign_ticket(&key, &header, &URL_SAFE.encode(payload));
+
+        assert!(
+            matches!(
+                parse_jwt_ticket(&ticket, &config, 0),
+                TicketState::Malformed
+            ),
+            "{payload}"
+        );
+    }
+}
+
 // With the identity point as the key, `[s]B = R + [k]A` holds for `R` the identity and `s` zero,
 // whatever the message: `verify` accepts that, `verify_strict` doesn't.
 #[test]

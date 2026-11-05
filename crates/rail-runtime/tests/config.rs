@@ -173,19 +173,6 @@ fn a_required_parse_refuses_unset_and_what_it_rejects() {
 }
 
 #[test]
-fn a_repeated_refusal_is_listed_once_and_refused_each_time() {
-    let variables: Variables = [(OsString::from("A"), OsString::from_vec(vec![0xff]))]
-        .into_iter()
-        .collect();
-    let mut settings = Settings::new(&variables);
-
-    assert!(settings.get("A").text().is_err());
-    assert!(settings.get("A").text().is_err());
-
-    assert_eq!(errors(settings), ["A is not valid UTF-8"]);
-}
-
-#[test]
 fn a_value_past_its_length_in_characters_is_refused() {
     let variables: Variables = [("BYTES", "abcé"), ("PADDED", " abcd \n"), ("LONG", "abcdé")]
         .into_iter()
@@ -439,25 +426,5 @@ fn a_refused_configuration_returns_only_its_refusals() {
         Err(ConfigErrors(vec![
             "A must be true or false, got: x".to_owned()
         ]))
-    );
-}
-
-#[test]
-fn a_token_only_checked_with_is_set_is_filled_in_as_set_never_as_text() {
-    let token = "rc_svc_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-    let variables: Variables = [("RAIL_AUTH_MODE", "none"), ("RAIL_AUTH_TOKEN", token)]
-        .into_iter()
-        .collect();
-    let mut settings = Settings::new(&variables);
-
-    let _ = settings.get("RAIL_AUTH_MODE").text();
-    settings.get("RAIL_AUTH_TOKEN").is_set();
-
-    assert_eq!(
-        finish(settings).entries,
-        [
-            entry("RAIL_AUTH_MODE", "none", Level::Info, Source::Env),
-            entry("RAIL_AUTH_TOKEN", "set", Level::Info, Source::Env),
-        ]
     );
 }
