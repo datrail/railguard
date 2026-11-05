@@ -48,9 +48,7 @@ const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[tokio::main]
 async fn main() -> ExitCode {
-    tracing_subscriber::fmt()
-        .with_writer(std::io::stderr)
-        .init();
+    rail_runtime::logging::init();
     // The probe reads the same configuration, so it checks the socket where it's served.
     let variables = Variables::from_process();
     let mut settings = Settings::new(&variables);

@@ -1,7 +1,8 @@
-//! The IO: configuration, and talking to Rail Center.
+//! The IO: configuration, the log, and talking to Rail Center.
 
 mod client;
 mod config;
+pub mod logging;
 mod protected_hosts;
 mod rail_center;
 mod ticket;
