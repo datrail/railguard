@@ -30,7 +30,7 @@ impl Drop for TempSocket {
 }
 
 // Only what's set here, so the caller's own RAIL_* variables can't change a run.
-fn rail_envoy(socket: &Path) -> Command {
+pub fn rail_envoy(socket: &Path) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_rail-envoy"));
     command
         .env_clear()

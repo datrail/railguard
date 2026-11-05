@@ -161,8 +161,7 @@ pub async fn fetch_ticket(
     if envelope.host_id != query.host_id {
         return Err(format!(
             "the response answers for host {}, not {}",
-            sanitize(&envelope.host_id),
-            sanitize(&query.host_id)
+            envelope.host_id, query.host_id
         ));
     }
     let entry = match <[Entry; 1]>::try_from(envelope.tickets) {
@@ -179,8 +178,8 @@ pub async fn fetch_ticket(
     if entry.sandbox_name.as_deref() != Some(query.sandbox_name.as_str()) {
         return Err(format!(
             "the ticket names sandbox {}, not {}",
-            sanitize(entry.sandbox_name.as_deref().unwrap_or("none")),
-            sanitize(&query.sandbox_name)
+            entry.sandbox_name.as_deref().unwrap_or("none"),
+            query.sandbox_name
         ));
     }
     check_token(&entry.token)?;
@@ -218,5 +217,5 @@ fn parse_expires_at(text: &str) -> Result<SystemTime, String> {
     let format = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
     PrimitiveDateTime::parse(text, &format)
         .map(|at| at.assume_utc().into())
-        .map_err(|_| format!("expires_at isn't YYYY-MM-DDTHH:MM:SSZ: {}", sanitize(text)))
+        .map_err(|_| format!("expires_at isn't YYYY-MM-DDTHH:MM:SSZ: {text}"))
 }

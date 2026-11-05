@@ -72,21 +72,21 @@ async fn serve(config: Config, variables: &Variables, unread: &[String]) -> Exit
     let terminate = match signal(SignalKind::terminate()) {
         Ok(terminate) => terminate,
         Err(error) => {
-            tracing::error!("can't handle SIGTERM: {error}");
+            tracing::error!(error = %error, "can't handle SIGTERM");
             return ExitCode::FAILURE;
         }
     };
     let listener = match bind(&config.socket) {
         Ok(listener) => listener,
         Err(error) => {
-            tracing::error!("{error}");
+            tracing::error!(error = %error, "can't listen on the socket");
             return ExitCode::from(2);
         }
     };
     let (rail_center, tickets) = match config.ticket.map(start_tickets).transpose() {
         Ok(started) => started.unzip(),
         Err(error) => {
-            tracing::error!("{error}");
+            tracing::error!(error = %error, "can't start fetching the ticket");
             return ExitCode::FAILURE;
         }
     };
@@ -117,12 +117,12 @@ async fn serve(config: Config, variables: &Variables, unread: &[String]) -> Exit
     if let Some(thread) = rail_center
         && let Err(error) = tokio::task::spawn_blocking(move || thread.stop()).await
     {
-        tracing::error!("stopping the Rail Center thread failed: {error}");
+        tracing::error!(error = %error, "stopping the Rail Center thread failed");
     }
     match served {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            tracing::error!("the gRPC server failed: {error}");
+            tracing::error!(error = %error, "the gRPC server failed");
             ExitCode::FAILURE
         }
     }
@@ -183,15 +183,15 @@ fn log_settings(described: &Described, variables: &Variables, unread: &[String])
         };
         match entry.level {
             Level::Info => {
-                tracing::info!(name = %entry.name, value = ?entry.value, source = %source, "setting");
+                tracing::info!(name = %entry.name, value = %entry.value, source = %source, "setting");
             }
             Level::Warn(weakens) => {
-                tracing::warn!(name = %entry.name, value = ?entry.value, source = %source, weakens, "setting");
+                tracing::warn!(name = %entry.name, value = %entry.value, source = %source, weakens, "setting");
             }
         }
     }
     for name in unread {
-        tracing::warn!(name = ?sanitize(name).to_string(), "set but not read");
+        tracing::warn!(name = %name, "set but not read");
     }
 }
 
@@ -253,13 +253,17 @@ async fn probe(socket: &Path) -> ExitCode {
             ExitCode::FAILURE
         }
         Ok(Err(error)) => {
-            println!("can't check health on {}: {error}", socket.display());
+            println!(
+                "can't check health on {}: {}",
+                sanitize(&socket.display().to_string()),
+                sanitize(&error)
+            );
             ExitCode::FAILURE
         }
         Err(_) => {
             println!(
                 "no answer on {} within {}s",
-                socket.display(),
+                sanitize(&socket.display().to_string()),
                 PROBE_TIMEOUT.as_secs()
             );
             ExitCode::FAILURE
@@ -282,7 +286,7 @@ async fn check_health(socket: &Path) -> Result<WireStatus, String> {
     let response = HealthClient::new(channel)
         .check(HealthCheckRequest::default())
         .await
-        .map_err(|status| format!("{:?}: {}", status.code(), sanitize(status.message())))?;
+        .map_err(|status| format!("{:?}: {}", status.code(), status.message()))?;
     let status = response.into_inner().status;
     // A value this version doesn't know isn't SERVING.
     Ok(WireStatus::try_from(status).unwrap_or(WireStatus::Unknown))

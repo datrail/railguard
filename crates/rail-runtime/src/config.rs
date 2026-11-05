@@ -183,7 +183,7 @@ impl<'s, 'a> Setting<'s, 'a> {
     }
 
     /// Refuses it, `reason` following its name.
-    /// The reason is logged, so it quotes a value only through `sanitize`, and never a secret's.
+    /// The reason is printed, so it quotes a value only through `sanitize`, and never a secret's.
     pub fn refuse(mut self, reason: impl fmt::Display) {
         self.reject(reason);
     }
@@ -194,7 +194,7 @@ impl<'s, 'a> Setting<'s, 'a> {
     }
 
     /// The text read by `parse`, whose refusal follows the name.
-    /// The reason is logged, so it quotes a value only through `sanitize`, and never a secret's.
+    /// The reason is printed, so it quotes a value only through `sanitize`, and never a secret's.
     pub fn parsed<T>(mut self, parse: impl FnOnce(&str) -> Result<T, String>) -> Option<T> {
         let text = self.read()?;
         parse(text).map_err(|reason| self.reject(reason)).ok()
@@ -317,7 +317,7 @@ pub enum Level {
     Warn(&'static str),
 }
 
-/// One setting as it's used, or as read if nothing used it, its value sanitized.
+/// One setting as it's used, or as read if nothing used it, its value as given: the log escapes it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Entry {
     pub name: &'static str,
@@ -355,7 +355,7 @@ impl Described {
     fn push(&mut self, name: &'static str, value: impl fmt::Display, level: Level) {
         self.0.push(Entry {
             name,
-            value: sanitize(&value.to_string()).to_string(),
+            value: value.to_string(),
             level,
         });
     }

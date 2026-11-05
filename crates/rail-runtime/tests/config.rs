@@ -285,7 +285,7 @@ fn a_name_that_is_not_utf8_is_found_lossily() {
 }
 
 #[test]
-fn a_described_value_is_sanitized_and_a_warning_says_what_it_weakens() {
+fn a_described_value_is_kept_as_given_and_a_warning_says_what_it_weakens() {
     let mut described = Described::default();
 
     described.info("A", "a\u{1b}[31mb");
@@ -296,7 +296,7 @@ fn a_described_value_is_sanitized_and_a_warning_says_what_it_weakens() {
         [
             Entry {
                 name: "A",
-                value: "a\\u{1b}[31mb".to_owned(),
+                value: "a\u{1b}[31mb".to_owned(),
                 level: Level::Info,
             },
             Entry {
@@ -367,7 +367,7 @@ fn a_name_read_and_set_but_not_described_is_described_as_read_and_a_secret_only_
             ("USED", "1 as used", Level::Info),
             ("CHECKED", "yes", Level::Info),
             ("TOKEN", "set", Level::Info),
-            ("UNUSED", "a\\u{1b}[31mb", Level::Info),
+            ("UNUSED", "a\u{1b}[31mb", Level::Info),
         ]
     );
 }
