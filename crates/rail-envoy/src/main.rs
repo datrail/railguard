@@ -12,6 +12,7 @@ mod xrail;
 use std::fs;
 use std::os::unix::fs::{FileTypeExt, PermissionsExt};
 use std::path::Path;
+use std::pin::pin;
 use std::process::ExitCode;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
@@ -25,6 +26,7 @@ use rail_runtime::{
 };
 use tokio::net::UnixListener;
 use tokio::signal::unix::{Signal, SignalKind, signal};
+use tokio::sync::oneshot;
 use tokio_stream::wrappers::UnixListenerStream;
 use tonic::server::NamedService;
 use tonic::transport::Endpoint;
@@ -37,6 +39,9 @@ use tonic_health::server::HealthReporter;
 use crate::config::Config;
 use crate::rail_center::RailCenterThread;
 use crate::services::{Allow, Continue};
+
+// Envoy keeps its connections open, and an ext_proc stream lasts as long as its request.
+const SHUTDOWN_DEADLINE: Duration = Duration::from_secs(5);
 
 // Longer than any answer from a live server, and within the e2e health check's timeout.
 const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
@@ -87,11 +92,13 @@ async fn serve(config: Config) -> ExitCode {
     let (health, health_service) = tonic_health::server::health_reporter();
     report_status(&health, ServingStatus::Serving).await;
     tracing::info!(socket = %config.socket.display(), rail_center = tickets.is_some(), protected_hosts = protected_hosts.hosts().count(), "serving Envoy");
+    let (draining, drain_started) = oneshot::channel();
     let stopping = async {
         terminated(terminate).await;
         report_status(&health, ServingStatus::NotServing).await;
+        let _ = draining.send(());
     };
-    let served = tonic::transport::Server::builder()
+    let server = tonic::transport::Server::builder()
         .add_service(health_service)
         .add_service(AuthorizationServer::new(Allow {
             tickets: tickets.clone(),
@@ -101,10 +108,13 @@ async fn serve(config: Config) -> ExitCode {
             tickets,
             protected_hosts,
         }))
-        .serve_with_incoming_shutdown(UnixListenerStream::new(listener), stopping)
-        .await;
-    if let Some(thread) = rail_center {
-        thread.stop();
+        .serve_with_incoming_shutdown(UnixListenerStream::new(listener), stopping);
+    let served = drain_until_deadline(server, drain_started).await;
+    // Its stop blocks on a join, so it's kept off the async workers.
+    if let Some(thread) = rail_center
+        && let Err(error) = tokio::task::spawn_blocking(move || thread.stop()).await
+    {
+        tracing::error!("stopping the Rail Center thread failed: {error}");
     }
     match served {
         Ok(()) => ExitCode::SUCCESS,
@@ -113,6 +123,31 @@ async fn serve(config: Config) -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+// At the deadline the server is dropped; tonic's connection tasks end with the runtime, on exit.
+async fn drain_until_deadline(
+    server: impl Future<Output = Result<(), tonic::transport::Error>>,
+    mut drain_started: oneshot::Receiver<()>,
+) -> Result<(), tonic::transport::Error> {
+    let mut server = pin!(server);
+    let served = tokio::select! {
+        served = &mut server => served,
+        Ok(()) = &mut drain_started => {
+            match tokio::time::timeout(SHUTDOWN_DEADLINE, &mut server).await {
+                Ok(served) => served,
+                Err(_) => {
+                    tracing::warn!(deadline_seconds = SHUTDOWN_DEADLINE.as_secs(), "shut down at the deadline: the connections still open are cut");
+                    return Ok(());
+                }
+            }
+        }
+    };
+    // It ends without an error only once drained, which may be in the poll that starts the drain.
+    if served.is_ok() {
+        tracing::info!("shut down: every connection drained");
+    }
+    served
 }
 
 // The ticket is fetched and refreshed on the Rail Center thread; calls only read it.

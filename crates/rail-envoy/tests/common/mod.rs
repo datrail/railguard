@@ -2,6 +2,7 @@
 #![allow(dead_code)]
 
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
 use std::time::{Duration, Instant};
@@ -45,7 +46,7 @@ impl Server {
     pub fn start(socket: &Path) -> Self {
         let child = rail_envoy(socket)
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stderr(Stdio::piped())
             .spawn()
             .unwrap();
         Self(child)
@@ -83,6 +84,14 @@ impl Server {
             std::thread::sleep(Duration::from_millis(20));
         }
         None
+    }
+
+    /// What it logged, once it has exited.
+    pub fn read_logs(&mut self) -> String {
+        let mut logs = String::new();
+        let mut stderr = self.0.stderr.take().unwrap();
+        stderr.read_to_string(&mut logs).unwrap();
+        logs
     }
 }
 
