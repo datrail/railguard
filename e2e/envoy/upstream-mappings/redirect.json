@@ -1,0 +1,7 @@
+{
+  "request": { "method": "GET", "urlPath": "/redirect" },
+  "response": {
+    "status": 302,
+    "headers": { "Location": "http://upstream.test:8080/followed" }
+  }
+}
