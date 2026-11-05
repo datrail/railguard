@@ -54,8 +54,14 @@ fn rail_center_is_used_unless_disabled() {
         read(&[("RAIL_DISABLED", "TRUE")]),
         Ok(Read::Disabled(None))
     ));
-    assert!(refusal(&[]).starts_with("RAIL_CENTER_URL is required"));
-    assert!(refusal(&[("RAIL_DISABLED", " false ")]).starts_with("RAIL_CENTER_URL is required"));
+    assert_eq!(
+        refusal(&[]),
+        "RAIL_CENTER_URL is required and is unset or blank"
+    );
+    assert_eq!(
+        refusal(&[("RAIL_DISABLED", " false ")]),
+        "RAIL_CENTER_URL is required and is unset or blank"
+    );
     assert!(matches!(read(&[URL]), Ok(Read::Enabled(_))));
 }
 
@@ -75,7 +81,10 @@ fn a_blank_value_is_unset() {
         read(&[("RAIL_DISABLED", " \n"), URL]),
         Ok(Read::Enabled(_))
     ));
-    assert!(refusal(&[("RAIL_CENTER_URL", "  ")]).starts_with("RAIL_CENTER_URL is required"));
+    assert_eq!(
+        refusal(&[("RAIL_CENTER_URL", "  ")]),
+        "RAIL_CENTER_URL is required and is unset or blank"
+    );
     let settings = enabled(&[URL, ("RAIL_AUTH_MODE", ""), ("RAIL_AUTH_TOKEN", " ")]);
     assert!(settings.token.is_none());
 }
