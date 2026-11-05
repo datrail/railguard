@@ -17,13 +17,13 @@ fn options(
     encode: impl Fn(&str) -> (String, Vec<u8>),
 ) -> Vec<HeaderValueOption> {
     headers
-        .set
-        .iter()
-        .map(|set| {
-            let (value, raw_value) = encode(set.expose_value());
+        .expose_set()
+        .into_iter()
+        .map(|(name, value)| {
+            let (value, raw_value) = encode(value);
             HeaderValueOption {
                 header: Some(HeaderValue {
-                    key: set.name().to_owned(),
+                    key: name.to_owned(),
                     value,
                     raw_value,
                 }),

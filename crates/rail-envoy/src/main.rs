@@ -1,5 +1,5 @@
 //! The Envoy host, in the proxy role: ext_authz and ext_proc on a unix socket Envoy shares. For
-//! now it allows every request, with this proxy's ticket in `x-rail`.
+//! now it allows every request, with this proxy's ticket in `x-rail` to a protected host.
 //!
 //! `rail-envoy` serves; `rail-envoy probe` exits 0 if the server accepts a connection, for a
 //! container health check in an image with no shell.
@@ -19,8 +19,8 @@ use std::time::SystemTime;
 use envoy_types::ext_authz::v3::pb::AuthorizationServer;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
 use rail_runtime::{
-    RailCenterClient, RailCenterSettings, RailCenterTickets, TicketHolder, TicketSettings,
-    Variables,
+    ProtectedHosts, RailCenterClient, RailCenterSettings, RailCenterTickets, TicketHolder,
+    TicketSettings, Variables,
 };
 use tokio::net::{UnixListener, UnixStream};
 use tokio::signal::unix::{Signal, SignalKind, signal};
@@ -70,12 +70,18 @@ async fn serve(config: Config) -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    tracing::info!(socket = %config.socket.display(), rail_center = tickets.is_some(), "serving Envoy");
+    log_protected_hosts(&config.protected_hosts);
+    let protected_hosts = Arc::new(config.protected_hosts);
+    tracing::info!(socket = %config.socket.display(), rail_center = tickets.is_some(), protected_hosts = protected_hosts.hosts().count(), "serving Envoy");
     let served = tonic::transport::Server::builder()
         .add_service(AuthorizationServer::new(Allow {
             tickets: tickets.clone(),
+            protected_hosts: Arc::clone(&protected_hosts),
         }))
-        .add_service(ExternalProcessorServer::new(Continue { tickets }))
+        .add_service(ExternalProcessorServer::new(Continue {
+            tickets,
+            protected_hosts,
+        }))
         .serve_with_incoming_shutdown(UnixListenerStream::new(listener), terminated(terminate))
         .await;
     if let Some(thread) = rail_center {
@@ -110,6 +116,20 @@ fn start_tickets(
         Arc::new(SystemTime::now),
     );
     Ok((thread, Arc::new(tickets)))
+}
+
+// Each host the ticket may go to: over plain HTTP, it crosses in the clear.
+fn log_protected_hosts(hosts: &ProtectedHosts) {
+    for host in hosts.hosts() {
+        let port = host
+            .port
+            .map_or_else(|| "the agent's".to_owned(), |port| port.to_string());
+        if host.tls {
+            tracing::info!(host = %host.host, port, "protected host (HTTPS)");
+        } else {
+            tracing::warn!(host = %host.host, port, "protected host (HTTP): the ticket crosses in the clear");
+        }
+    }
 }
 
 // A socket left by an earlier run is replaced; anything else at the path is refused.

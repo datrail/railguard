@@ -1,4 +1,4 @@
-# rail-envoy behind Envoy, per ticket state, over each callout; run with `make e2e-envoy`.
+# rail-envoy behind Envoy, per ticket state and host, over each callout; run with `make e2e-envoy`.
 
 name: railguard-e2e-envoy
 
@@ -29,6 +29,8 @@ x-attached: &attached
   RAIL_CENTER_URL: http://rail-center:8080
   RAIL_ALLOW_HTTP: "true"
   RAIL_HOST_ID: host-e2e
+  # With a port, at the agent's, over plain HTTP, and a name that doesn't resolve.
+  RAIL_PROXY_PROTECTED_HOSTS: upstream-tls.test:8443,upstream-agent-port.test,http://upstream-plain.test,nowhere.test
 
 x-envoy: &envoy
   image: envoyproxy/envoy:v1.39.2@sha256:460f8c329f24b2e1c7c5af64cb314a6f351ad1c262ba77b135ac46b35ebd5f85
@@ -41,14 +43,59 @@ x-envoy: &envoy
     timeout: 2s
     retries: 30
 
+# The test CA over the system bundle the Envoy configs trust. nocopy, or Docker would first fill
+# the empty volume with the image's own bundle.
+x-test-ca: &test-ca
+  type: volume
+  source: certs
+  target: /etc/ssl/certs
+  read_only: true
+  volume: {nocopy: true}
+
 services:
+  # Writes the test CA and the TLS upstream's keystore (certs.sh), then stays up, since a container
+  # that exits stops the stack.
+  certs:
+    image: alpine/openssl:3.5.9@sha256:bf66acee200e5f4959af448eafc9be0634d8ecdf42205873c83cd5ddffb1cdfd
+    entrypoint: ["sh", "-c", "sh /certs.sh /certs && exec sleep infinity"]
+    stop_grace_period: 0s
+    healthcheck:
+      test: ["CMD", "test", "-f", "/certs/ca-certificates.crt"]
+      interval: 1s
+      timeout: 2s
+      retries: 30
+    volumes:
+      - ./certs.sh:/certs.sh:ro
+      - certs:/certs
+
+  # Plain HTTP: upstream.test isn't protected, upstream-plain.test is as http://.
   upstream:
     <<: *wiremock
     volumes:
       - ./upstream-mappings:/home/wiremock/mappings:ro
     networks:
       default:
-        aliases: [upstream.test]
+        aliases: [upstream.test, upstream-plain.test]
+
+  # HTTPS on 8443, its journal on 8080: upstream-tls.test is protected with that port,
+  # upstream-agent-port.test without one.
+  upstream-tls:
+    <<: *wiremock
+    command:
+      - --global-response-templating
+      - --https-port=8443
+      - --https-keystore=/certs/upstream-tls.p12
+      - --keystore-type=PKCS12
+      - --keystore-password=password
+      - --key-manager-password=password
+    depends_on:
+      certs: {condition: service_healthy}
+    volumes:
+      - ./upstream-mappings:/home/wiremock/mappings:ro
+      - certs:/certs:ro
+    networks:
+      default:
+        aliases: [upstream-tls.test, upstream-agent-port.test]
 
   rail-center:
     <<: *wiremock
@@ -84,7 +131,7 @@ services:
       RAIL_SANDBOX_NAME: e2e-issuer-down
     volumes: [ext-issuer-down-socket:/run/rail]
 
-  # Rail Center set up, and switched off: read and judged, never reached.
+  # Rail Center set up, and switched off: read and judged, never reached; the hosts still routed.
   ext-disabled:
     <<: *ext
     environment:
@@ -98,63 +145,81 @@ services:
   envoy-ext-authz:
     <<: *envoy
     depends_on:
+      certs: {condition: service_healthy}
       ext: {condition: service_healthy}
     volumes:
       - ./envoy-ext-authz.yaml:/etc/envoy/envoy.yaml:ro
       - ext-socket:/run/rail
+      - *test-ca
 
   envoy-ext-proc:
     <<: *envoy
     depends_on:
+      certs: {condition: service_healthy}
       ext: {condition: service_healthy}
     volumes:
       - ./envoy-ext-proc.yaml:/etc/envoy/envoy.yaml:ro
       - ext-socket:/run/rail
+      - *test-ca
 
   envoy-not-found:
     <<: *envoy
     depends_on:
+      certs: {condition: service_healthy}
       ext-not-found: {condition: service_healthy}
     volumes:
       - ./envoy-ext-authz.yaml:/etc/envoy/envoy.yaml:ro
       - ext-not-found-socket:/run/rail
+      - *test-ca
 
   envoy-expired:
     <<: *envoy
     depends_on:
+      certs: {condition: service_healthy}
       ext-expired: {condition: service_healthy}
     volumes:
       - ./envoy-ext-authz.yaml:/etc/envoy/envoy.yaml:ro
       - ext-expired-socket:/run/rail
+      - *test-ca
 
   envoy-issuer-down:
     <<: *envoy
     depends_on:
+      certs: {condition: service_healthy}
       ext-issuer-down: {condition: service_healthy}
     volumes:
       - ./envoy-ext-authz.yaml:/etc/envoy/envoy.yaml:ro
       - ext-issuer-down-socket:/run/rail
+      - *test-ca
 
   envoy-disabled:
     <<: *envoy
     depends_on:
+      certs: {condition: service_healthy}
       ext-disabled: {condition: service_healthy}
     volumes:
       - ./envoy-ext-authz.yaml:/etc/envoy/envoy.yaml:ro
       - ext-disabled-socket:/run/rail
+      - *test-ca
 
-  # A socket volume nothing serves on: every callout fails, so nothing should cross.
+  # A socket volume nothing serves on: every callout fails, and Envoy fails open.
   envoy-no-ext-authz:
     <<: *envoy
+    depends_on:
+      certs: {condition: service_healthy}
     volumes:
       - ./envoy-ext-authz.yaml:/etc/envoy/envoy.yaml:ro
       - no-ext-socket:/run/rail
+      - *test-ca
 
   envoy-no-ext-proc:
     <<: *envoy
+    depends_on:
+      certs: {condition: service_healthy}
     volumes:
       - ./envoy-ext-proc.yaml:/etc/envoy/envoy.yaml:ro
       - no-ext-socket:/run/rail
+      - *test-ca
 
   driver:
     image: python:3.12-slim@sha256:05cda9777409a9c3ffddd94a4c476b79f0769a0b4857f0c7ed9226b6800b0d6f
@@ -164,6 +229,7 @@ services:
     command: ["python", "-u", "/e2e/driver.py"]
     depends_on:
       upstream: {condition: service_healthy}
+      upstream-tls: {condition: service_healthy}
       envoy-ext-authz: {condition: service_healthy}
       envoy-ext-proc: {condition: service_healthy}
       envoy-not-found: {condition: service_healthy}
@@ -174,6 +240,7 @@ services:
       envoy-no-ext-proc: {condition: service_healthy}
 
 volumes:
+  certs:
   ext-socket:
   ext-not-found-socket:
   ext-expired-socket:
