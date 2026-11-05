@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use rail_runtime::{
-    ConfigErrors, RailCenterSettings, Settings, TicketSettings, Variables, read_disabled,
-    read_rail_center, read_ticket_settings,
+    ConfigErrors, ProtectedHosts, RailCenterSettings, Settings, TicketSettings, Variables,
+    read_disabled, read_protected_hosts, read_rail_center, read_ticket_settings,
 };
 
 pub const EXT_SOCKET: &str = "RAIL_EXT_SOCKET";
@@ -14,6 +14,8 @@ pub struct Config {
     pub socket: PathBuf,
     /// Where this proxy's ticket comes from; `None` when Rail Center is disabled.
     pub ticket: Option<(RailCenterSettings, TicketSettings)>,
+    /// The hosts the ticket goes to, and how; routed even when Rail Center is disabled.
+    pub protected_hosts: ProtectedHosts,
 }
 
 impl Config {
@@ -29,6 +31,7 @@ impl Config {
         let enabled = read_disabled(&mut settings) == Some(false);
         let rail_center = read_rail_center(&mut settings, enabled);
         let ticket = read_ticket_settings(&mut settings, enabled);
+        let protected_hosts = read_protected_hosts(&mut settings, enabled);
         settings.finish()?;
         Ok(Self {
             socket: socket.unwrap_or_else(|| PathBuf::from(DEFAULT_SOCKET)),
@@ -37,6 +40,8 @@ impl Config {
                     .zip(ticket)
                     .expect("the readers return what they require when nothing is refused")
             }),
+            protected_hosts: protected_hosts
+                .expect("read_protected_hosts returns the hosts when it refuses nothing"),
         })
     }
 }
@@ -50,8 +55,9 @@ mod tests {
 
     use super::Config;
 
-    const ENABLED: [(&str, &str); 4] = [
+    const ENABLED: [(&str, &str); 5] = [
         ("RAIL_CENTER_URL", "https://rail-center.example"),
+        ("RAIL_PROXY_PROTECTED_HOSTS", "mcp.example.com:8443"),
         ("RAIL_HOST_ID", "host-1"),
         ("RAIL_SANDBOX_NAME", "sandbox-1"),
         ("RAIL_TICKET_REFRESH_SECONDS", "600"),
@@ -72,6 +78,42 @@ mod tests {
         assert_eq!(ticket.query.host_id, "host-1");
         assert_eq!(ticket.query.sandbox_name, "sandbox-1");
         assert_eq!(ticket.refresh_interval, Duration::from_secs(600));
+        let protected = config.protected_hosts.get("mcp.example.com").unwrap();
+        assert_eq!((protected.tls, protected.port), (true, Some(8443)));
+    }
+
+    #[test]
+    fn rail_center_on_requires_a_protected_host() {
+        let unprotected: Vec<_> = ENABLED
+            .into_iter()
+            .filter(|(name, _)| *name != "RAIL_PROXY_PROTECTED_HOSTS")
+            .collect();
+
+        let errors = read(&unprotected).unwrap_err();
+
+        assert_eq!(errors.len(), 1, "{errors:#?}");
+        assert!(
+            errors[0].starts_with("RAIL_PROXY_PROTECTED_HOSTS is required because"),
+            "{errors:#?}"
+        );
+    }
+
+    #[test]
+    fn disabled_still_reads_the_protected_hosts() {
+        let config = read(&[
+            ("RAIL_DISABLED", "true"),
+            ("RAIL_PROXY_PROTECTED_HOSTS", "http://gw.internal"),
+        ])
+        .unwrap();
+        assert!(config.ticket.is_none());
+        assert!(!config.protected_hosts.get("gw.internal").unwrap().tls);
+
+        let errors = read(&[
+            ("RAIL_DISABLED", "true"),
+            ("RAIL_PROXY_PROTECTED_HOSTS", "ftp://gw.internal"),
+        ])
+        .unwrap_err();
+        assert_eq!(errors.len(), 1, "{errors:#?}");
     }
 
     #[test]
@@ -136,6 +178,6 @@ mod tests {
         ])
         .unwrap_err();
 
-        assert_eq!(errors.len(), 5, "{errors:#?}");
+        assert_eq!(errors.len(), 6, "{errors:#?}");
     }
 }

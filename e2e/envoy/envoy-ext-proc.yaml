@@ -1,4 +1,6 @@
 # Envoy v1.39 over ext_proc; the agent sends plain HTTP to the listener, the target in `Host`.
+# rail-envoy says which hosts are protected: for those it sets the route (`x-rail-upstream`) and
+# where to connect (`:authority`).
 
 static_resources:
   listeners:
@@ -13,6 +15,20 @@ static_resources:
                 "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
                 stat_prefix: agent
                 codec_type: AUTO
+                # Some upstreams read `_` as `-`, so `x_rail` could pass for `x-rail`.
+                common_http_protocol_options:
+                  headers_with_underscores_action: DROP_HEADER
+                # Before the route is picked, which reads `x-rail-upstream`, and before the callout, so
+                # the agent's x-rail headers never cross nor route even when it fails open.
+                early_header_mutation_extensions:
+                  - name: envoy.http.early_header_mutation.header_mutation
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.http.early_header_mutation.header_mutation.v3.HeaderMutation
+                      mutations:
+                        - remove_on_match:
+                            key_matcher: { exact: x-rail }
+                        - remove_on_match:
+                            key_matcher: { prefix: x-rail- }
                 access_log:
                   - name: envoy.access_loggers.stdout
                     typed_config:
@@ -20,28 +36,46 @@ static_resources:
                       log_format:
                         # No request headers, which will carry the ticket.
                         text_format_source:
-                          inline_string: "[%START_TIME%] %REQ(:METHOD)% %RESPONSE_CODE% %RESPONSE_FLAGS% %UPSTREAM_HOST%\n"
+                          inline_string: "[%START_TIME%] %REQ(:METHOD)% %RESPONSE_CODE% %RESPONSE_FLAGS% %UPSTREAM_CLUSTER% %UPSTREAM_HOST% %UPSTREAM_TRANSPORT_FAILURE_REASON%\n"
                 route_config:
                   name: agent
                   virtual_hosts:
                     - name: all
                       domains: ["*"]
                       routes:
+                        - match:
+                            prefix: /
+                            headers:
+                              - name: x-rail-upstream
+                                string_match: { exact: tls }
+                          route: { cluster: rail_tls, timeout: 0s }
+                          request_headers_to_remove: [x-rail-upstream]
+                        - match:
+                            prefix: /
+                            headers:
+                              - name: x-rail-upstream
+                                string_match: { exact: plain }
+                          route: { cluster: rail_plain, timeout: 0s }
+                          request_headers_to_remove: [x-rail-upstream]
+                        # Unprotected, as the agent sent it.
                         - match: { prefix: / }
-                          route: { cluster: upstream, timeout: 0s }
+                          route: { cluster: rail_plain, timeout: 0s }
                 http_filters:
                   - name: envoy.filters.http.ext_proc
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExternalProcessor
                       grpc_service:
                         envoy_grpc: { cluster_name: rail_ext }
-                      # Off, so a request crosses only if the extension answered.
-                      failure_mode_allow: false
+                      # The extension being down never stops a request; nothing forged crosses, as above.
+                      failure_mode_allow: true
                       # The request's headers only, as the proxy's ext_proc config.
                       processing_mode:
                         request_header_mode: SEND
                         response_header_mode: SKIP
                         request_body_mode: NONE
+                      # Lets the extension rewrite `:authority`; it asks for the route to be picked again.
+                      mutation_rules:
+                        allow_all_routing: true
                   - name: envoy.filters.http.dynamic_forward_proxy
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.dynamic_forward_proxy.v3.FilterConfig
@@ -67,8 +101,30 @@ static_resources:
                   address:
                     pipe: { path: /run/rail/ext.sock }
 
-    # The host in `:authority`, over plain HTTP, at its port or 80.
-    - name: upstream
+    # The host in `:authority` over HTTPS, at its port or 443; SNI and the certificate check follow it.
+    - name: rail_tls
+      lb_policy: CLUSTER_PROVIDED
+      cluster_type:
+        name: envoy.clusters.dynamic_forward_proxy
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.clusters.dynamic_forward_proxy.v3.ClusterConfig
+          dns_cache_config: { name: dns, dns_lookup_family: V4_PREFERRED }
+      typed_extension_protocol_options:
+        envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+          "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+          upstream_http_protocol_options: { auto_sni: true, auto_san_validation: true }
+          explicit_http_config: { http_protocol_options: {} }
+      transport_socket:
+        name: envoy.transport_sockets.tls
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+          common_tls_context:
+            validation_context:
+              # The system bundle; the e2e mounts its test CA here.
+              trusted_ca: { filename: /etc/ssl/certs/ca-certificates.crt }
+
+    # The host in `:authority` over plain HTTP, at its port or 80.
+    - name: rail_plain
       lb_policy: CLUSTER_PROVIDED
       cluster_type:
         name: envoy.clusters.dynamic_forward_proxy
