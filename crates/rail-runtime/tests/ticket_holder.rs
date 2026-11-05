@@ -324,3 +324,59 @@ async fn a_lapsed_ticket_after_none_is_expired_not_not_found() {
 
     assert_eq!(token(&holder), Err(Unavailable::Expired));
 }
+
+#[tokio::test(start_paused = true)]
+async fn a_new_ticket_replaces_a_lapsed_one() {
+    let clock = Clock::new();
+    let (lapsed, good) = (clock.at(0), clock.at(900));
+    let script = Script::new(&clock, move |n| {
+        if n == 0 {
+            ticket("a", lapsed)
+        } else {
+            ticket("b", good)
+        }
+    });
+
+    let holder = start(&clock, &script, HOUR);
+    until(&clock, 0).await;
+    assert_eq!(token(&holder), Err(Unavailable::Expired));
+    until(&clock, 10).await;
+
+    assert_eq!(token(&holder), Ok("b".to_owned()));
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_same_ticket_again_takes_its_new_expiry_lapsed_or_not() {
+    let clock = Clock::new();
+    let (soon, later) = (clock.at(100), clock.at(1000));
+    let valid = Script::new(&clock, move |n| {
+        ticket("a", if n == 0 { soon } else { later })
+    });
+    let lapsed = clock.at(0);
+    let renewed = Script::new(&clock, move |n| {
+        ticket("a", if n == 0 { lapsed } else { later })
+    });
+
+    let valid = start(&clock, &valid, HOUR);
+    let renewed = start(&clock, &renewed, HOUR);
+    until(&clock, 150).await;
+
+    // Refetched at 50 and at 10, each past the expiry it first had.
+    assert_eq!(token(&valid), Ok("a".to_owned()));
+    assert_eq!(token(&renewed), Ok("a".to_owned()));
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_ticket_lapsing_as_it_arrives_is_lapsed_and_backs_off() {
+    let clock = Clock::new();
+    let script = Script::new(&clock, {
+        let clock = clock.wall();
+        move |_| ticket("a", clock())
+    });
+
+    let holder = start(&clock, &script, HOUR);
+    until(&clock, 30).await;
+
+    assert_eq!(token(&holder), Err(Unavailable::Expired));
+    assert_eq!(script.fetched_at(), [0, 10, 30]);
+}

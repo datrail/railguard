@@ -21,6 +21,8 @@ pub enum Reply {
     Dribble(Vec<u8>, Duration),
     // Closes without answering, as a pooled connection the peer dropped.
     Close,
+    // Reads the request and never answers, holding the connection open.
+    Silent,
 }
 
 pub struct Server {
@@ -68,6 +70,10 @@ pub async fn answer(mut stream: TcpStream, reply: Reply, seen: &Mutex<Vec<String
             }
         }
         Reply::Close => {}
+        Reply::Silent => {
+            std::future::pending::<()>().await;
+            drop(stream);
+        }
     }
 }
 

@@ -1,11 +1,13 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
 
-use rail_runtime::{RailCenterTickets, TicketHolder, TicketQuery, TicketSettings, Unavailable};
+use rail_runtime::{
+    RailCenterTickets, TicketAnswer, TicketHolder, TicketQuery, TicketSettings, Unavailable,
+};
 use tokio::runtime::Handle;
 
 use crate::common::{Reply, client, response, serve};
-use crate::holder::{Clock, HOUR, Script, start, ticket, token, until};
+use crate::holder::{Clock, HOUR, Script, failed, start, ticket, token, until};
 use crate::logs::Logs;
 
 #[tokio::test(start_paused = true)]
@@ -99,4 +101,43 @@ async fn a_hostile_answer_is_logged_escaped_once() {
         line.contains(r#"reason="the response answers for host host-1\u{a}fake, not host-1""#),
         "{line}"
     );
+}
+
+#[tokio::test(start_paused = true)]
+async fn each_answer_is_logged_for_what_it_did_to_the_ticket_held() {
+    let logs = Logs::default();
+    let _logging = logs.capture();
+    let clock = Clock::new();
+    let (first, second, lapsed) = (clock.at(900), clock.at(1800), clock.at(0));
+    let script = Script::new(&clock, move |n| match n {
+        0 => ticket("a", first),
+        1 => ticket("b", second),
+        2 => failed(),
+        3 => Ok(TicketAnswer::NoTicket),
+        4 => failed(),
+        5 => ticket("c", lapsed),
+        _ => Ok(TicketAnswer::NoTicket),
+    });
+
+    let _holder = start(&clock, &script, HOUR);
+    until(&clock, 3600).await;
+
+    let logs = logs.text();
+    let expected = [
+        format!("ticket acquired fingerprint=\"{}\"", fingerprint("a")),
+        format!("ticket rotated fingerprint=\"{}\"", fingerprint("b")),
+        format!(
+            "ticket refresh failed; keeping the one held reason=\"Rail Center was silent for 10s\" \
+             fingerprint=\"{}\"",
+            fingerprint("b")
+        ),
+        "Rail Center holds no ticket for this host and sandbox cleared=true".to_owned(),
+        "ticket refresh failed; none is held".to_owned(),
+        "Rail Center returned a lapsed ticket; none is valid".to_owned(),
+        "Rail Center holds no ticket for this host and sandbox cleared=false".to_owned(),
+    ];
+    let mut lines = logs.lines();
+    for line in &expected {
+        assert!(lines.any(|logged| logged.contains(line)), "{line}\n{logs}");
+    }
 }
