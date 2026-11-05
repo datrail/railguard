@@ -32,7 +32,7 @@ pub struct Response {
     pub body: Vec<u8>,
 }
 
-/// Why a fetch got no response. Never carries the credential or a URL.
+/// Why a fetch got no response: never the credential, route or query (a TLS error names the host).
 #[derive(Debug)]
 pub enum FetchError {
     Deadline(Duration),
@@ -81,7 +81,9 @@ impl RailCenterClient {
             sendable(&ACCEPT_ENCODING, "gzip, identity")?,
         );
         if let Some(token) = &settings.token {
-            let value = sendable(&AUTHORIZATION, &format!("Bearer {}", token.expose()))?;
+            let mut value = sendable(&AUTHORIZATION, &format!("Bearer {}", token.expose()))?;
+            // Kept out of reqwest's own Debug, as its `bearer_auth` does.
+            value.set_sensitive(true);
             headers.insert(AUTHORIZATION, value);
         }
         let http = reqwest::Client::builder()
@@ -97,8 +99,7 @@ impl RailCenterClient {
         })
     }
 
-    /// `GET` `route` under Rail Center's URL. A request that fails before any response is retried
-    /// once, since the first one after a long idle may meet a pooled connection the peer closed.
+    /// `GET` `route`, retried once if no response was read: a pooled connection may have closed.
     pub async fn get(
         &self,
         route: &str,

@@ -35,6 +35,7 @@ impl<K: Into<OsString>, V: Into<OsString>> FromIterator<(K, V)> for Variables {
 pub struct Settings<'a> {
     variables: &'a Variables,
     errors: Vec<String>,
+    refusals: usize,
 }
 
 impl<'a> Settings<'a> {
@@ -42,6 +43,7 @@ impl<'a> Settings<'a> {
         Self {
             variables,
             errors: Vec::new(),
+            refusals: 0,
         }
     }
 
@@ -82,6 +84,18 @@ impl<'a> Settings<'a> {
             .ok()
     }
 
+    /// As [`Settings::parse`], refusing an unset or blank value.
+    pub fn required_parse<T>(
+        &mut self,
+        name: &str,
+        parse: impl FnOnce(&str) -> Result<T, String>,
+    ) -> Option<T> {
+        let text = self.required(name)?;
+        parse(text)
+            .map_err(|reason| self.refuse(format!("{name} {reason}")))
+            .ok()
+    }
+
     /// `true` or `false`, case folded, or `default` when unset.
     pub fn boolean(&mut self, name: &str, default: bool) -> bool {
         self.parse(name, |text| match text.to_ascii_lowercase().as_str() {
@@ -104,13 +118,14 @@ impl<'a> Settings<'a> {
         }
     }
 
-    /// How many refusals are recorded so far.
+    /// Refusals so far, repeats included, so a caller can tell whether its own reads refused.
     pub fn refusals(&self) -> usize {
-        self.errors.len()
+        self.refusals
     }
 
-    /// Records a refusal, once however often the same value is read.
+    /// Records a refusal, listed once however often the same value is read.
     pub fn refuse(&mut self, message: impl Into<String>) {
+        self.refusals += 1;
         let message = message.into();
         if !self.errors.contains(&message) {
             self.errors.push(message);

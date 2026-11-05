@@ -1,100 +1,11 @@
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
-use rail_runtime::{
-    Secret, Ticket, TicketAnswer, TicketHolder, TicketSource, Unavailable, WallClock,
-};
-use tokio::runtime::Handle;
-use tokio::time::{Instant, sleep};
+use rail_runtime::{TicketAnswer, Unavailable};
+use tokio::time::sleep;
 
-const HOUR: Duration = Duration::from_secs(3600);
+mod holder;
 
-// A wall clock that moves with tokio's paused time, starting at a fixed instant.
-struct Clock {
-    started: Instant,
-}
-
-impl Clock {
-    fn new() -> Self {
-        Self {
-            started: Instant::now(),
-        }
-    }
-
-    fn wall(&self) -> WallClock {
-        let started = self.started;
-        Arc::new(move || UNIX_EPOCH + Duration::from_secs(1_800_000_000) + started.elapsed())
-    }
-
-    // The wall-clock time `seconds` from the start.
-    fn at(&self, seconds: u64) -> SystemTime {
-        UNIX_EPOCH + Duration::from_secs(1_800_000_000 + seconds)
-    }
-}
-
-type Answer = Result<TicketAnswer, String>;
-
-// Answers fetch n with `answers(n)`, and records when each fetch came, in seconds from the start.
-#[derive(Clone)]
-struct Script {
-    answers: Arc<dyn Fn(usize) -> Answer + Send + Sync>,
-    fetched_at: Arc<Mutex<Vec<u64>>>,
-    started: Instant,
-}
-
-impl Script {
-    fn new(clock: &Clock, answers: impl Fn(usize) -> Answer + Send + Sync + 'static) -> Self {
-        Self {
-            answers: Arc::new(answers),
-            fetched_at: Arc::default(),
-            started: clock.started,
-        }
-    }
-
-    fn fetched_at(&self) -> Vec<u64> {
-        self.fetched_at.lock().unwrap().clone()
-    }
-}
-
-impl TicketSource for Script {
-    async fn fetch(&self, _sent_at: SystemTime) -> Answer {
-        let mut fetched_at = self.fetched_at.lock().unwrap();
-        fetched_at.push(self.started.elapsed().as_secs());
-        (self.answers)(fetched_at.len() - 1)
-    }
-}
-
-fn ticket(token: &str, expires_at: SystemTime) -> Answer {
-    Ok(TicketAnswer::Ticket(Ticket {
-        token: Secret::new(token.to_owned()),
-        expires_at,
-    }))
-}
-
-fn failed() -> Answer {
-    Err("Rail Center was silent for 10s".to_owned())
-}
-
-fn start(clock: &Clock, script: &Script, refresh_interval: Duration) -> TicketHolder {
-    TicketHolder::start(
-        &Handle::current(),
-        script.clone(),
-        refresh_interval,
-        clock.wall(),
-    )
-}
-
-fn token(holder: &TicketHolder) -> Result<String, Unavailable> {
-    holder
-        .current()
-        .map(|ticket| ticket.token.expose().to_owned())
-}
-
-// Lets the refresh loop run up to `seconds` from the start.
-async fn until(clock: &Clock, seconds: u64) {
-    tokio::time::sleep_until(clock.started + Duration::from_secs(seconds)).await;
-    tokio::task::yield_now().await;
-}
+use holder::{Clock, HOUR, Script, failed, start, ticket, token, until};
 
 #[tokio::test(start_paused = true)]
 async fn a_fetched_ticket_is_presented_from_the_first_fetch() {
@@ -341,4 +252,77 @@ async fn dropping_the_holder_stops_the_refreshes() {
     sleep(HOUR).await;
 
     assert_eq!(script.fetched_at(), [0, 10]);
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_new_ticket_replaces_one_still_valid() {
+    let clock = Clock::new();
+    let (first, second) = (clock.at(900), clock.at(1800));
+    let script = Script::new(&clock, move |n| {
+        if n == 0 {
+            ticket("a", first)
+        } else {
+            ticket("b", second)
+        }
+    });
+
+    let holder = start(&clock, &script, HOUR);
+    until(&clock, 450).await;
+
+    assert_eq!(token(&holder), Ok("b".to_owned()));
+    until(&clock, 1125).await;
+    // From 450, half of b's remaining 1350 s.
+    assert_eq!(script.fetched_at(), [0, 450, 1125]);
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_lapsed_answer_while_a_ticket_holds_leaves_the_ramp_alone() {
+    let clock = Clock::new();
+    let (good, lapsed) = (clock.at(40), clock.at(0));
+    let script = Script::new(&clock, move |n| {
+        if n == 0 {
+            ticket("a", good)
+        } else {
+            ticket("b", lapsed)
+        }
+    });
+
+    let _holder = start(&clock, &script, HOUR);
+    until(&clock, 60).await;
+
+    // Held until 40, lapsed answers kept out; at 40 the lapsed one is stored and the ramp starts.
+    assert_eq!(script.fetched_at(), [0, 20, 30, 35, 40, 50]);
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_clock_is_read_for_the_fetch_as_it_is_sent() {
+    let clock = Clock::new();
+    let expiry = clock.at(900);
+    let script = Script::new(&clock, move |_| ticket("a", expiry));
+
+    let _holder = start(&clock, &script, HOUR);
+    until(&clock, 450).await;
+
+    assert_eq!(
+        *script.sent_at.lock().unwrap(),
+        [clock.at(0), clock.at(450)]
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_lapsed_ticket_after_none_is_expired_not_not_found() {
+    let clock = Clock::new();
+    let lapsed = clock.at(0);
+    let script = Script::new(&clock, move |n| {
+        if n == 0 {
+            Ok(TicketAnswer::NoTicket)
+        } else {
+            ticket("a", lapsed)
+        }
+    });
+
+    let holder = start(&clock, &script, HOUR);
+    until(&clock, 10).await;
+
+    assert_eq!(token(&holder), Err(Unavailable::Expired));
 }

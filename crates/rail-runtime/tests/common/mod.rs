@@ -4,9 +4,7 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use rail_runtime::{
-    RailCenter, RailCenterClient, RailCenterSettings, Settings, Variables, read_rail_center,
-};
+use rail_runtime::{RailCenterClient, RailCenterSettings, Settings, Variables, read_rail_center};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
@@ -86,12 +84,9 @@ pub fn settings(url: &str, token: Option<&str>) -> RailCenterSettings {
     }
     let variables: Variables = pairs.into_iter().collect();
     let mut reader = Settings::new(&variables);
-    let read = read_rail_center(&mut reader);
+    let read = read_rail_center(&mut reader, true);
     reader.finish().unwrap();
-    match read {
-        Some(RailCenter::Enabled(settings)) => settings,
-        other => panic!("{other:?}"),
-    }
+    read.expect("read_rail_center returns the settings when it refuses nothing")
 }
 
 pub fn client(url: &str) -> RailCenterClient {

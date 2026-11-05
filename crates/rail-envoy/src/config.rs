@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use rail_runtime::{
-    ConfigErrors, DISABLED, RailCenter, RailCenterSettings, Settings, TICKET_SETTINGS,
-    TicketSettings, Variables, read_rail_center, read_ticket_settings,
+    ConfigErrors, RailCenterSettings, Settings, TicketSettings, Variables, read_disabled,
+    read_rail_center, read_ticket_settings,
 };
 
 pub const EXT_SOCKET: &str = "RAIL_EXT_SOCKET";
@@ -25,48 +25,19 @@ impl Config {
                 .then_some(path)
                 .ok_or_else(|| "must be an absolute path".to_owned())
         });
-        let ticket = match read_rail_center(&mut settings) {
-            Some(RailCenter::Enabled(rail_center)) => {
-                read_ticket_settings(&mut settings).map(|ticket| Some((rail_center, ticket)))
-            }
-            Some(RailCenter::Disabled) => {
-                refuse_beside_disabled(&mut settings);
-                Some(None)
-            }
-            // Refused: the ticket's settings are judged anyway, so every refusal is listed at once.
-            None => {
-                match settings
-                    .text(DISABLED)
-                    .map(|text| text.eq_ignore_ascii_case("true"))
-                {
-                    Some(true) => refuse_beside_disabled(&mut settings),
-                    // Unreadable: whether Rail Center is meant is unknown.
-                    None if settings.is_set(DISABLED) => {}
-                    _ => {
-                        read_ticket_settings(&mut settings);
-                    }
-                }
-                None
-            }
-        };
+        // Whatever is set is judged either way; only an enabled Rail Center requires its settings.
+        let enabled = read_disabled(&mut settings) == Some(false);
+        let rail_center = read_rail_center(&mut settings, enabled);
+        let ticket = read_ticket_settings(&mut settings, enabled);
         settings.finish()?;
         Ok(Self {
             socket: socket.unwrap_or_else(|| PathBuf::from(DEFAULT_SOCKET)),
-            ticket: ticket.expect("read when nothing is refused"),
+            ticket: enabled.then(|| {
+                rail_center
+                    .zip(ticket)
+                    .expect("the readers return what they require when nothing is refused")
+            }),
         })
-    }
-}
-
-fn refuse_beside_disabled(settings: &mut Settings) {
-    let set: Vec<&str> = TICKET_SETTINGS
-        .into_iter()
-        .filter(|name| settings.is_set(name))
-        .collect();
-    for name in set {
-        settings.refuse(format!(
-            "{DISABLED} is true, but {name} is set, which only Rail Center reads; unset {name}, \
-             or {DISABLED}"
-        ));
     }
 }
 
@@ -104,17 +75,42 @@ mod tests {
     }
 
     #[test]
-    fn disabled_reads_no_ticket_and_refuses_its_settings() {
+    fn disabled_reads_no_ticket_but_judges_what_is_set() {
         assert!(read(&[("RAIL_DISABLED", "true")]).unwrap().ticket.is_none());
+        let mut set = ENABLED.to_vec();
+        set.push(("RAIL_DISABLED", "true"));
+        assert!(read(&set).unwrap().ticket.is_none());
 
-        let errors = read(&[("RAIL_DISABLED", "true"), ("RAIL_SANDBOX_NAME", "s")]).unwrap_err();
+        let long = "s".repeat(256);
+        let errors = read(&[
+            ("RAIL_DISABLED", "true"),
+            ("RAIL_CENTER_URL", "ftp://rail-center"),
+            ("RAIL_SANDBOX_NAME", &long),
+        ])
+        .unwrap_err();
 
+        assert_eq!(errors.len(), 2, "{errors:#?}");
+        assert!(
+            errors[0].starts_with("RAIL_CENTER_URL must start with"),
+            "{errors:#?}"
+        );
+        assert!(
+            errors[1].starts_with("RAIL_SANDBOX_NAME has 256 characters"),
+            "{errors:#?}"
+        );
+    }
+
+    #[test]
+    fn an_unreadable_disabled_flag_requires_nothing_but_judges_the_rest() {
         assert_eq!(
-            errors,
-            [
-                "RAIL_DISABLED is true, but RAIL_SANDBOX_NAME is set, which only Rail Center reads; \
-              unset RAIL_SANDBOX_NAME, or RAIL_DISABLED"
-            ]
+            read(&[("RAIL_DISABLED", "maybe")]).unwrap_err(),
+            ["RAIL_DISABLED must be true or false, got: maybe"]
+        );
+        assert_eq!(
+            read(&[("RAIL_DISABLED", "maybe"), ("RAIL_CENTER_URL", "ftp://x")])
+                .unwrap_err()
+                .len(),
+            2
         );
     }
 
@@ -129,19 +125,6 @@ mod tests {
 
         let errors = read(&[("RAIL_DISABLED", "true"), ("RAIL_EXT_SOCKET", "x.sock")]).unwrap_err();
         assert_eq!(errors, ["RAIL_EXT_SOCKET must be an absolute path"]);
-    }
-
-    #[test]
-    fn a_ticket_setting_beside_disabled_is_refused_with_the_rest() {
-        let errors = read(&[
-            ("RAIL_DISABLED", "true"),
-            ("RAIL_CENTER_URL", "https://rail-center.example"),
-            ("RAIL_HOST_ID", "h"),
-        ])
-        .unwrap_err();
-
-        assert_eq!(errors.len(), 2, "{errors:#?}");
-        assert!(errors[1].contains("RAIL_HOST_ID is set"), "{errors:#?}");
     }
 
     #[test]

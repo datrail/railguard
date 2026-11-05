@@ -1,0 +1,106 @@
+//! A scripted ticket source and a clock on tokio's paused time, for the holder's tests.
+#![allow(dead_code)]
+
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+use rail_runtime::{
+    OpaqueTicket, Secret, TicketAnswer, TicketHolder, TicketSource, Unavailable, WallClock,
+};
+use tokio::runtime::Handle;
+use tokio::time::Instant;
+
+pub const HOUR: Duration = Duration::from_secs(3600);
+
+// A wall clock that moves with tokio's paused time, starting at a fixed instant.
+pub struct Clock {
+    pub started: Instant,
+}
+
+impl Clock {
+    pub fn new() -> Self {
+        Self {
+            started: Instant::now(),
+        }
+    }
+
+    pub fn wall(&self) -> WallClock {
+        let started = self.started;
+        Arc::new(move || UNIX_EPOCH + Duration::from_secs(1_800_000_000) + started.elapsed())
+    }
+
+    // The wall-clock time `seconds` from the start.
+    pub fn at(&self, seconds: u64) -> SystemTime {
+        UNIX_EPOCH + Duration::from_secs(1_800_000_000 + seconds)
+    }
+}
+
+pub type Answer = Result<TicketAnswer, String>;
+
+// Answers fetch n with `answers(n)`, recording when it came and the `sent_at` it was given.
+#[derive(Clone)]
+pub struct Script {
+    pub answers: Arc<dyn Fn(usize) -> Answer + Send + Sync>,
+    pub fetched_at: Arc<Mutex<Vec<u64>>>,
+    pub sent_at: Arc<Mutex<Vec<SystemTime>>>,
+    pub started: Instant,
+}
+
+impl Script {
+    pub fn new(clock: &Clock, answers: impl Fn(usize) -> Answer + Send + Sync + 'static) -> Self {
+        Self {
+            answers: Arc::new(answers),
+            fetched_at: Arc::default(),
+            sent_at: Arc::default(),
+            started: clock.started,
+        }
+    }
+
+    pub fn fetched_at(&self) -> Vec<u64> {
+        self.fetched_at.lock().unwrap().clone()
+    }
+}
+
+impl TicketSource for Script {
+    async fn fetch(&self, sent_at: SystemTime) -> Answer {
+        self.sent_at.lock().unwrap().push(sent_at);
+        let fetches = {
+            let mut fetched_at = self.fetched_at.lock().unwrap();
+            fetched_at.push(self.started.elapsed().as_secs());
+            fetched_at.len()
+        };
+        (self.answers)(fetches - 1)
+    }
+}
+
+pub fn ticket(token: &str, expires_at: SystemTime) -> Answer {
+    Ok(TicketAnswer::Ticket(OpaqueTicket {
+        token: Secret::new(token.to_owned()),
+        expires_at,
+    }))
+}
+
+pub fn failed() -> Answer {
+    Err("Rail Center was silent for 10s".to_owned())
+}
+
+pub fn start(clock: &Clock, script: &Script, refresh_interval: Duration) -> TicketHolder {
+    TicketHolder::start(
+        &Handle::current(),
+        script.clone(),
+        refresh_interval,
+        clock.wall(),
+    )
+}
+
+pub fn token(holder: &TicketHolder) -> Result<String, Unavailable> {
+    holder
+        .current()
+        .map(|ticket| ticket.token.expose().to_owned())
+}
+
+// Lets the refresh loop run up to `seconds` from the start.
+pub async fn until(clock: &Clock, seconds: u64) {
+    tokio::time::sleep_until(clock.started + Duration::from_secs(seconds)).await;
+    tokio::task::yield_now().await;
+}

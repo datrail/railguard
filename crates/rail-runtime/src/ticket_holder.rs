@@ -8,10 +8,9 @@ use tokio::runtime::Handle;
 use tokio::task::AbortHandle;
 
 use crate::client::RailCenterClient;
-use crate::ticket::{Ticket, TicketAnswer, TicketSettings, fetch_ticket};
+use crate::ticket::{OpaqueTicket, TicketAnswer, TicketSettings, fetch_ticket};
 
-// Constants, not settings: a higher ratio presents tickets about to lapse, and a lower floor lets
-// a fleet hammer Rail Center.
+// Not settings: a lower floor would let a fleet hammer Rail Center.
 pub(crate) const MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(5);
 const MAX_BACKOFF_DOUBLINGS: u32 = 6;
 
@@ -62,13 +61,12 @@ impl Unavailable {
 
 #[derive(Default)]
 struct Held {
-    ticket: Option<Arc<Ticket>>,
+    ticket: Option<Arc<OpaqueTicket>>,
     // Set only by Rail Center answering "none", never by a failed fetch.
     not_found: bool,
 }
 
-/// Keeps a valid ticket to hand through Rail Center failures, refreshing it in the background.
-/// Dropping it stops the refreshes.
+/// Keeps a valid ticket to hand through Rail Center failures; dropping it stops the refreshes.
 pub struct TicketHolder {
     held: Arc<ArcSwap<Held>>,
     now: WallClock,
@@ -76,8 +74,7 @@ pub struct TicketHolder {
 }
 
 impl TicketHolder {
-    /// Starts fetching at once, on `runtime`. `refresh_interval` caps the time between fetches
-    /// of a valid ticket; the ticket's own lifetime paces them below that.
+    /// Starts fetching at once, on `runtime`; `refresh_interval` caps the wait on a valid ticket.
     pub fn start(
         runtime: &Handle,
         source: impl TicketSource,
@@ -108,7 +105,7 @@ impl TicketHolder {
     }
 
     /// The ticket to present, or why there is none, from one read of the ticket and the clock.
-    pub fn current(&self) -> Result<Arc<Ticket>, Unavailable> {
+    pub fn current(&self) -> Result<Arc<OpaqueTicket>, Unavailable> {
         let held = self.held.load();
         match &held.ticket {
             Some(ticket) if ticket.is_valid((self.now)()) => Ok(Arc::clone(ticket)),
@@ -131,14 +128,14 @@ async fn refresh(
     held: Arc<ArcSwap<Held>>,
     now: WallClock,
 ) {
-    // Attempts made with no valid ticket held, not Rail Center's failures: the ramp restarts
-    // when a ticket lapses, rather than starting at its ceiling.
+    // Attempts with no valid ticket held, so the ramp restarts when a ticket lapses.
     let mut failures = 0;
     loop {
         let answer = source.fetch(now()).await;
         let previous = held.load_full();
         let at = now();
-        let usable = |ticket: &Option<Arc<Ticket>>| ticket.as_ref().is_some_and(|t| t.is_valid(at));
+        let usable =
+            |ticket: &Option<Arc<OpaqueTicket>>| ticket.as_ref().is_some_and(|t| t.is_valid(at));
         let (next, outcome) = match answer {
             Ok(TicketAnswer::NoTicket) => {
                 failures += 1;
@@ -168,11 +165,12 @@ async fn refresh(
             Ok(TicketAnswer::Ticket(ticket))
                 if !ticket.is_valid(at) && usable(&previous.ticket) =>
             {
-                (None, Outcome::Lapsed { kept: true })
+                let lapsed = fingerprint(ticket.token.expose());
+                (None, Outcome::LapsedKept { lapsed })
             }
             Ok(TicketAnswer::Ticket(ticket)) => {
                 let outcome = if !ticket.is_valid(at) {
-                    Outcome::Lapsed { kept: false }
+                    Outcome::Lapsed
                 } else if previous.ticket.is_none() {
                     Outcome::Acquired
                 } else if previous
@@ -209,10 +207,12 @@ enum Outcome {
     Unchanged,
     NoTicket { cleared: bool },
     Failed { reason: String, kept: bool },
-    Lapsed { kept: bool },
+    // Not the one held, which is kept.
+    LapsedKept { lapsed: String },
+    Lapsed,
 }
 
-fn log(outcome: &Outcome, ticket: Option<&Ticket>, now: SystemTime, retry: Duration) {
+fn log(outcome: &Outcome, ticket: Option<&OpaqueTicket>, now: SystemTime, retry: Duration) {
     let fingerprint = ticket.map(|ticket| fingerprint(ticket.token.expose()));
     let fingerprint = fingerprint.as_deref().unwrap_or("none");
     let expires_in = ticket
@@ -252,14 +252,15 @@ fn log(outcome: &Outcome, ticket: Option<&Ticket>, now: SystemTime, retry: Durat
         } => {
             tracing::warn!(reason, retry, "ticket refresh failed; none is held");
         }
-        Outcome::Lapsed { kept: true } => {
+        Outcome::LapsedKept { lapsed } => {
             tracing::warn!(
+                lapsed,
                 fingerprint,
                 expires_in,
                 "Rail Center returned a lapsed ticket; keeping the one held"
             );
         }
-        Outcome::Lapsed { kept: false } => {
+        Outcome::Lapsed => {
             tracing::warn!(retry, "Rail Center returned a lapsed ticket; none is valid");
         }
     }
@@ -274,7 +275,7 @@ fn fingerprint(token: &str) -> String {
 }
 
 fn next_delay(
-    ticket: Option<&Ticket>,
+    ticket: Option<&OpaqueTicket>,
     failures: u32,
     refresh_interval: Duration,
     now: SystemTime,

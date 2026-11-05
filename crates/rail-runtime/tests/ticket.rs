@@ -1,6 +1,6 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use rail_runtime::{Ticket, TicketAnswer, TicketQuery, TicketSettings, fetch_ticket};
+use rail_runtime::{OpaqueTicket, TicketAnswer, TicketQuery, TicketSettings, fetch_ticket};
 
 mod common;
 
@@ -60,7 +60,7 @@ fn refusal(result: Result<TicketAnswer, String>) -> String {
 async fn the_single_entry_is_read_and_its_expiry_parsed() {
     let answer = answer("200 OK", one("eyJhIjoxfQ==", "2026-07-28T10:15:00Z")).await;
 
-    let Ok(TicketAnswer::Ticket(Ticket { token, expires_at })) = answer else {
+    let Ok(TicketAnswer::Ticket(OpaqueTicket { token, expires_at })) = answer else {
         panic!("{answer:?}");
     };
     assert_eq!(token.expose(), "eyJhIjoxfQ==");

@@ -1,14 +1,31 @@
-use rail_runtime::{CenterUrl, RailCenter, Settings, Variables, read_rail_center};
+use rail_runtime::{
+    CenterUrl, RailCenterSettings, Settings, Variables, read_disabled, read_rail_center,
+};
 
 const TOKEN: &str = "rc_svc_abcdefghijklmnopqrstuvwxyzABCDEFGHIJK-_0123";
 
+#[derive(Debug)]
+enum Read {
+    // Whatever was set, validated.
+    Disabled(Option<RailCenterSettings>),
+    Enabled(RailCenterSettings),
+}
+
 // The settings `pairs` describe, or every refusal.
-fn read(pairs: &[(&str, &str)]) -> Result<RailCenter, Vec<String>> {
+fn read(pairs: &[(&str, &str)]) -> Result<Read, Vec<String>> {
     let variables: Variables = pairs.iter().copied().collect();
     let mut settings = Settings::new(&variables);
-    let read = read_rail_center(&mut settings);
+    let disabled = read_disabled(&mut settings);
+    let rail_center = disabled.and_then(|disabled| read_rail_center(&mut settings, !disabled));
     settings.finish().map_err(|errors| errors.0)?;
-    Ok(read.expect("no refusal, so settings"))
+    Ok(
+        match disabled.expect("read_disabled returns the flag when it refuses nothing") {
+            true => Read::Disabled(rail_center),
+            false => Read::Enabled(
+                rail_center.expect("read_rail_center returns the settings when it refuses nothing"),
+            ),
+        },
+    )
 }
 
 fn refusals(pairs: &[(&str, &str)]) -> Vec<String> {
@@ -21,9 +38,9 @@ fn refusal(pairs: &[(&str, &str)]) -> String {
     refusals.into_iter().next().unwrap()
 }
 
-fn enabled(pairs: &[(&str, &str)]) -> rail_runtime::RailCenterSettings {
+fn enabled(pairs: &[(&str, &str)]) -> RailCenterSettings {
     match read(pairs) {
-        Ok(RailCenter::Enabled(settings)) => settings,
+        Ok(Read::Enabled(settings)) => settings,
         other => panic!("{other:?}"),
     }
 }
@@ -35,11 +52,11 @@ const BEARER: (&str, &str) = ("RAIL_AUTH_MODE", "bearer");
 fn rail_center_is_used_unless_disabled() {
     assert!(matches!(
         read(&[("RAIL_DISABLED", "TRUE")]),
-        Ok(RailCenter::Disabled)
+        Ok(Read::Disabled(None))
     ));
     assert!(refusal(&[]).starts_with("RAIL_CENTER_URL is required"));
     assert!(refusal(&[("RAIL_DISABLED", " false ")]).starts_with("RAIL_CENTER_URL is required"));
-    assert!(matches!(read(&[URL]), Ok(RailCenter::Enabled(_))));
+    assert!(matches!(read(&[URL]), Ok(Read::Enabled(_))));
 }
 
 #[test]
@@ -56,7 +73,7 @@ fn disabled_reads_only_true_or_false() {
 fn a_blank_value_is_unset() {
     assert!(matches!(
         read(&[("RAIL_DISABLED", " \n"), URL]),
-        Ok(RailCenter::Enabled(_))
+        Ok(Read::Enabled(_))
     ));
     assert!(refusal(&[("RAIL_CENTER_URL", "  ")]).starts_with("RAIL_CENTER_URL is required"));
     let settings = enabled(&[URL, ("RAIL_AUTH_MODE", ""), ("RAIL_AUTH_TOKEN", " ")]);
@@ -64,48 +81,55 @@ fn a_blank_value_is_unset() {
 }
 
 #[test]
-fn what_only_rail_center_reads_is_refused_beside_disabled() {
-    let refused = refusal(&[
+fn disabled_still_judges_what_is_set() {
+    let read = read(&[
         ("RAIL_DISABLED", "true"),
         URL,
-        ("RAIL_AUTH_MODE", "bearer"),
+        BEARER,
         ("RAIL_AUTH_TOKEN", TOKEN),
-        ("RAIL_ALLOW_HTTP", "true"),
     ]);
+    assert!(matches!(read, Ok(Read::Disabled(Some(_)))), "{read:?}");
 
+    let refused = refusal(&[("RAIL_DISABLED", "true"), ("RAIL_CENTER_URL", "ftp://rc")]);
     assert!(
-        refused.starts_with(
-            "RAIL_DISABLED is true, but RAIL_CENTER_URL, RAIL_AUTH_TOKEN, RAIL_ALLOW_HTTP, \
-             RAIL_AUTH_MODE is set"
-        ),
+        refused.starts_with("RAIL_CENTER_URL must start with"),
         "{refused}"
     );
-    assert!(!refused.contains(TOKEN));
+    let refused = refusal(&[("RAIL_DISABLED", "true"), BEARER, ("RAIL_AUTH_TOKEN", "x")]);
+    assert!(
+        refused.starts_with("RAIL_AUTH_TOKEN doesn't start with rc_svc_"),
+        "{refused}"
+    );
 }
 
 #[test]
-fn defaults_written_out_are_not_refused_beside_disabled() {
-    let read = read(&[
-        ("RAIL_DISABLED", "true"),
-        ("RAIL_AUTH_MODE", "None"),
-        ("RAIL_AUTH_TOKEN", ""),
-        ("RAIL_ALLOW_HTTP", "false"),
-    ]);
-
-    assert!(matches!(read, Ok(RailCenter::Disabled)));
+fn disabled_requires_nothing() {
+    assert!(matches!(
+        read(&[
+            ("RAIL_DISABLED", "true"),
+            BEARER,
+            ("RAIL_ALLOW_HTTP", "true")
+        ]),
+        Ok(Read::Disabled(None))
+    ));
 }
 
 #[test]
 fn nothing_is_returned_once_anything_is_refused() {
     for pairs in [
         &[("RAIL_CENTER_URL", "http://rc.example.com")][..],
-        &[URL, ("RAIL_TICKET_MODE", "enforce")],
-        &[URL, ("RAIL_DISABLED", "maybe")],
-        &[("RAIL_DISABLED", "true"), URL],
+        &[URL, BEARER, ("RAIL_AUTH_TOKEN", "x")],
+        &[
+            ("RAIL_DISABLED", "true"),
+            ("RAIL_CENTER_URL", "http://rc.example.com"),
+        ],
     ] {
         let variables: Variables = pairs.iter().copied().collect();
         let mut settings = Settings::new(&variables);
-        assert!(read_rail_center(&mut settings).is_none(), "{pairs:?}");
+        assert!(
+            read_rail_center(&mut settings, false).is_none(),
+            "{pairs:?}"
+        );
         assert!(settings.finish().is_err());
     }
 }
@@ -358,6 +382,33 @@ fn query_values_are_encoded() {
     let endpoint = url.endpoint("/v1/tickets", &[("sandbox_name", "a&b=c #d")]);
 
     assert_eq!(endpoint.query(), Some("sandbox_name=a%26b%3Dc+%23d"));
+}
+
+#[test]
+fn an_unreadable_mode_is_the_only_refusal() {
+    use std::ffi::OsString;
+    use std::os::unix::ffi::OsStringExt;
+
+    let variables: Variables = [
+        (
+            OsString::from("RAIL_CENTER_URL"),
+            OsString::from("https://rc.example.com"),
+        ),
+        (
+            OsString::from("RAIL_AUTH_MODE"),
+            OsString::from_vec(vec![0xff]),
+        ),
+        (OsString::from("RAIL_AUTH_TOKEN"), OsString::from(TOKEN)),
+    ]
+    .into_iter()
+    .collect();
+    let mut settings = Settings::new(&variables);
+    assert!(read_rail_center(&mut settings, true).is_none());
+
+    assert_eq!(
+        settings.finish().unwrap_err().0,
+        ["RAIL_AUTH_MODE is not valid UTF-8"]
+    );
 }
 
 #[test]

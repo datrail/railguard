@@ -1,5 +1,4 @@
-# The e2e stack's Envoy over ext_proc, for Envoy v1.39, trimmed from datrail/proxy's e2e/envoy-grpc.
-# The agent sends plain HTTP to the listener, with the target in `Host`.
+# Envoy v1.39 over ext_proc; the agent sends plain HTTP to the listener, the target in `Host`.
 
 static_resources:
   listeners:
