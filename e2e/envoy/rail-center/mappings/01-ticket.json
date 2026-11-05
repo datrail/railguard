@@ -1,0 +1,19 @@
+{
+  "priority": 1,
+  "request": {
+    "method": "GET",
+    "urlPath": "/v1/tickets",
+    "queryParameters": {
+      "sandbox_name": {
+        "equalTo": "e2e-sandbox"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyFileName": "ticket.json"
+  }
+}

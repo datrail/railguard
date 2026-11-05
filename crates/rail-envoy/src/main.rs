@@ -1,39 +1,34 @@
 //! The Envoy host, in the proxy role: ext_authz and ext_proc on a unix socket Envoy shares. For
-//! now it allows every request, keeping the agent's x-rail headers from the upstream.
+//! now it allows every request, with this proxy's ticket in `x-rail`.
 //!
 //! `rail-envoy` serves; `rail-envoy probe` exits 0 if the server accepts a connection, for a
 //! container health check in an image with no shell.
 
+mod config;
+mod rail_center;
 mod services;
 mod xrail;
 
 use std::fs;
 use std::os::unix::fs::{FileTypeExt, PermissionsExt};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::ExitCode;
+use std::sync::Arc;
+use std::time::SystemTime;
 
 use envoy_types::ext_authz::v3::pb::AuthorizationServer;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
+use rail_runtime::{
+    RailCenterClient, RailCenterSettings, RailCenterTickets, TicketHolder, TicketSettings,
+    Variables,
+};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::signal::unix::{Signal, SignalKind, signal};
 use tokio_stream::wrappers::UnixListenerStream;
 
+use crate::config::Config;
+use crate::rail_center::RailCenterThread;
 use crate::services::{Allow, Continue};
-
-const DEFAULT_SOCKET: &str = "/run/rail/ext.sock";
-
-/// What this process runs with, read in one place so settings can replace the defaults.
-struct Config {
-    socket: PathBuf,
-}
-
-impl Config {
-    fn read() -> Self {
-        Self {
-            socket: PathBuf::from(DEFAULT_SOCKET),
-        }
-    }
-}
 
 #[tokio::main]
 async fn main() -> ExitCode {
@@ -41,9 +36,9 @@ async fn main() -> ExitCode {
         .with_writer(std::io::stderr)
         .init();
     // The probe reads the same configuration, so it checks the socket where it's served.
-    let config = Config::read();
+    let config = Config::read(&Variables::from_process()).unwrap_or_else(|errors| errors.exit());
     match std::env::args().nth(1).as_deref() {
-        None => serve(&config.socket).await,
+        None => serve(config).await,
         Some("probe") => probe(&config.socket).await,
         Some(argument) => {
             eprintln!("unknown argument {argument:?}; usage: rail-envoy [probe]");
@@ -52,7 +47,7 @@ async fn main() -> ExitCode {
     }
 }
 
-async fn serve(socket: &Path) -> ExitCode {
+async fn serve(config: Config) -> ExitCode {
     // SIGTERM is how a container is stopped; as PID 1 nothing handles it unless we do.
     let terminate = match signal(SignalKind::terminate()) {
         Ok(terminate) => terminate,
@@ -61,19 +56,31 @@ async fn serve(socket: &Path) -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let listener = match bind(socket) {
+    let listener = match bind(&config.socket) {
         Ok(listener) => listener,
         Err(error) => {
             eprintln!("{error}");
             return ExitCode::from(2);
         }
     };
-    tracing::info!(socket = %socket.display(), "serving Envoy");
+    let (rail_center, tickets) = match config.ticket.map(start_tickets).transpose() {
+        Ok(started) => started.unzip(),
+        Err(error) => {
+            eprintln!("{error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    tracing::info!(socket = %config.socket.display(), rail_center = tickets.is_some(), "serving Envoy");
     let served = tonic::transport::Server::builder()
-        .add_service(AuthorizationServer::new(Allow))
-        .add_service(ExternalProcessorServer::new(Continue))
+        .add_service(AuthorizationServer::new(Allow {
+            tickets: tickets.clone(),
+        }))
+        .add_service(ExternalProcessorServer::new(Continue { tickets }))
         .serve_with_incoming_shutdown(UnixListenerStream::new(listener), terminated(terminate))
         .await;
+    if let Some(thread) = rail_center {
+        thread.stop();
+    }
     match served {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
@@ -81,6 +88,28 @@ async fn serve(socket: &Path) -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+// The ticket is fetched and refreshed on the Rail Center thread; calls only read it.
+fn start_tickets(
+    (rail_center, ticket): (RailCenterSettings, TicketSettings),
+) -> Result<(RailCenterThread, Arc<TicketHolder>), String> {
+    let thread = RailCenterThread::start()?;
+    let client = RailCenterClient::new(&rail_center)?;
+    let query = &ticket.query;
+    tracing::info!(url = %rail_center.url, host_id = %query.host_id, sandbox_name = %query.sandbox_name, "fetching this proxy's ticket");
+    let refresh_interval = ticket.refresh_interval;
+    let source = RailCenterTickets {
+        client,
+        settings: ticket,
+    };
+    let tickets = TicketHolder::start(
+        thread.runtime(),
+        source,
+        refresh_interval,
+        Arc::new(SystemTime::now),
+    );
+    Ok((thread, Arc::new(tickets)))
 }
 
 // A socket left by an earlier run is replaced; anything else at the path is refused.
