@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::{OsStr, OsString};
 use std::fmt;
 
@@ -15,6 +15,16 @@ impl Variables {
     pub fn from_process() -> Self {
         Self(std::env::vars_os().collect())
     }
+
+    /// Whether `name` holds anything but whitespace.
+    pub fn is_set(&self, name: &str) -> bool {
+        self.0.get(OsStr::new(name)).is_some_and(holds_text)
+    }
+}
+
+// Blank is unset; a value that isn't UTF-8 is set, to be refused when it's read.
+fn holds_text(value: &OsString) -> bool {
+    value.to_str().is_none_or(|text| !text.trim().is_empty())
 }
 
 impl<K: Into<OsString>, V: Into<OsString>> FromIterator<(K, V)> for Variables {
@@ -36,6 +46,9 @@ pub struct Settings<'a> {
     variables: &'a Variables,
     errors: Vec<String>,
     refusals: usize,
+    read: BTreeSet<&'static str>,
+    secrets: BTreeSet<&'static str>,
+    retired: BTreeSet<&'static str>,
 }
 
 impl<'a> Settings<'a> {
@@ -44,11 +57,14 @@ impl<'a> Settings<'a> {
             variables,
             errors: Vec::new(),
             refusals: 0,
+            read: BTreeSet::new(),
+            secrets: BTreeSet::new(),
+            retired: BTreeSet::new(),
         }
     }
 
     /// The setting `name`, to read or refuse.
-    pub fn get<'s>(&'s mut self, name: &'s str) -> Setting<'s, 'a> {
+    pub fn get<'s>(&'s mut self, name: &'static str) -> Setting<'s, 'a> {
         Setting {
             settings: self,
             name,
@@ -61,6 +77,43 @@ impl<'a> Settings<'a> {
     /// Refusals so far, repeats included, so a caller can tell whether its own reads refused.
     pub fn refusals(&self) -> usize {
         self.refusals
+    }
+
+    /// Every name read, by a read or `is_set`. Retired names are kept apart: nothing uses them.
+    pub fn names_read(&self) -> &BTreeSet<&'static str> {
+        &self.read
+    }
+
+    /// An entry for each name read and set that `out` doesn't describe: its value as read, or
+    /// only `set` for a secret, so a value read but not used is still shown.
+    pub fn describe_rest(&self, out: &mut Described) {
+        let described = out.names();
+        for &name in self.read.difference(&described) {
+            if !self.variables.is_set(name) {
+                continue;
+            }
+            if self.secrets.contains(name) {
+                out.info(name, "set");
+            } else {
+                let value = self.variables.0[OsStr::new(name)].to_string_lossy();
+                out.info(name, value.trim());
+            }
+        }
+    }
+
+    /// The variables set whose name starts with `prefix`, and which were neither read nor retired.
+    pub fn find_unread(&self, prefix: &str) -> Vec<String> {
+        self.variables
+            .0
+            .iter()
+            .filter(|(name, value)| {
+                name.as_encoded_bytes().starts_with(prefix.as_bytes()) && holds_text(value)
+            })
+            .map(|(name, _)| name.to_string_lossy().into_owned())
+            .filter(|name| {
+                !self.read.contains(name.as_str()) && !self.retired.contains(name.as_str())
+            })
+            .collect()
     }
 
     /// Every refusal recorded, if any.
@@ -84,11 +137,13 @@ impl<'a> Settings<'a> {
 /// One setting: what it must be, then one read (`text`, `parsed`, `boolean` or `secret`), which
 /// records any refusal and is `None` when the value is unset, blank or refused.
 ///
-/// `is_set`, `retired` and `refuse` aren't reads: they look at the value, or refuse it, as is.
+/// `is_set`, `retired` and `refuse` skip a read's checks: they look at the value, or refuse it, as
+/// is. A read or `is_set` records the name as read, `secret` as a secret too, and `retired` as
+/// retired.
 #[must_use = "a setting checks nothing until it's read"]
 pub struct Setting<'s, 'a> {
     settings: &'s mut Settings<'a>,
-    name: &'s str,
+    name: &'static str,
     required: bool,
     because: Option<&'s str>,
     max_chars: Option<usize>,
@@ -114,20 +169,21 @@ impl<'s, 'a> Setting<'s, 'a> {
     }
 
     /// Whether it holds anything but whitespace.
-    pub fn is_set(&self) -> bool {
-        self.raw()
-            .is_some_and(|value| value.to_str().is_none_or(|text| !text.trim().is_empty()))
+    pub fn is_set(&mut self) -> bool {
+        self.settings.read.insert(self.name);
+        self.settings.variables.is_set(self.name)
     }
 
     /// Refuses it if it's set: nothing reads it any more, and `instead` says what does.
     pub fn retired(mut self, instead: &str) {
-        if self.is_set() {
+        self.settings.retired.insert(self.name);
+        if self.settings.variables.is_set(self.name) {
             self.reject(format_args!("is no longer read; {instead}"));
         }
     }
 
     /// Refuses it, `reason` following its name.
-    /// The reason is logged, so it quotes a value only through `sanitize`, and never a secret's.
+    /// The reason is printed, so it quotes a value only through `sanitize`, and never a secret's.
     pub fn refuse(mut self, reason: impl fmt::Display) {
         self.reject(reason);
     }
@@ -138,7 +194,7 @@ impl<'s, 'a> Setting<'s, 'a> {
     }
 
     /// The text read by `parse`, whose refusal follows the name.
-    /// The reason is logged, so it quotes a value only through `sanitize`, and never a secret's.
+    /// The reason is printed, so it quotes a value only through `sanitize`, and never a secret's.
     pub fn parsed<T>(mut self, parse: impl FnOnce(&str) -> Result<T, String>) -> Option<T> {
         let text = self.read()?;
         parse(text).map_err(|reason| self.reject(reason)).ok()
@@ -155,11 +211,13 @@ impl<'s, 'a> Setting<'s, 'a> {
 
     /// The text as a secret, which no refusal quotes.
     pub fn secret(mut self) -> Option<Secret> {
+        self.settings.secrets.insert(self.name);
         self.read().map(|text| Secret(text.to_owned()))
     }
 
     // The checks every read makes, in this order: unset, UTF-8, blank, length.
     fn read(&mut self) -> Option<&'a str> {
+        self.settings.read.insert(self.name);
         let Some(value) = self.raw() else {
             return self.missing();
         };
@@ -249,5 +307,56 @@ impl Secret {
 impl fmt::Debug for Secret {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("Secret(***)")
+    }
+}
+
+/// How an entry is logged: a warning says what its value weakens.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Level {
+    Info,
+    Warn(&'static str),
+}
+
+/// One setting as it's used, or as read if nothing used it, its value as given: the log escapes it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Entry {
+    pub name: &'static str,
+    pub value: String,
+    pub level: Level,
+}
+
+/// Each setting read, with the value it takes after parsing and defaults, for the startup log.
+#[derive(Debug, Default)]
+pub struct Described(Vec<Entry>);
+
+impl Described {
+    pub fn info(&mut self, name: &'static str, value: impl fmt::Display) {
+        self.push(name, value, Level::Info);
+    }
+
+    /// A value that weakens something, which `weakens` says.
+    pub fn warn(&mut self, name: &'static str, value: impl fmt::Display, weakens: &'static str) {
+        self.push(name, value, Level::Warn(weakens));
+    }
+
+    /// A secret, only ever as set or unset.
+    pub fn secret(&mut self, name: &'static str, secret: Option<&Secret>) {
+        self.info(name, if secret.is_some() { "set" } else { "unset" });
+    }
+
+    pub fn entries(&self) -> &[Entry] {
+        &self.0
+    }
+
+    pub fn names(&self) -> BTreeSet<&'static str> {
+        self.0.iter().map(|entry| entry.name).collect()
+    }
+
+    fn push(&mut self, name: &'static str, value: impl fmt::Display, level: Level) {
+        self.0.push(Entry {
+            name,
+            value: value.to_string(),
+            level,
+        });
     }
 }

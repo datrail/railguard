@@ -5,7 +5,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use flate2::write::GzDecoder;
-use rail_policy::sanitize;
 use reqwest::header::{
     ACCEPT, ACCEPT_ENCODING, AUTHORIZATION, CONTENT_ENCODING, HeaderMap, HeaderName, HeaderValue,
 };
@@ -166,7 +165,7 @@ fn is_gzipped(headers: &HeaderMap) -> Result<bool, Attempt> {
             if encoding.eq_ignore_ascii_case("gzip") && !gzipped {
                 gzipped = true;
             } else if !encoding.eq_ignore_ascii_case("identity") {
-                return Err(FetchError::Encoding(sanitize(&line).to_string()).into());
+                return Err(FetchError::Encoding(line.into_owned()).into());
             }
         }
     }
@@ -275,11 +274,11 @@ fn sendable(name: &HeaderName, value: &str) -> Result<HeaderValue, String> {
 // The error and its causes, without the URL; the credential is only ever in a header.
 fn describe(error: reqwest::Error) -> String {
     let error = error.without_url();
-    let mut text = sanitize(&error.to_string()).to_string();
+    let mut text = error.to_string();
     let mut source = error.source();
     while let Some(cause) = source {
         text.push_str(": ");
-        text.push_str(&sanitize(&cause.to_string()).to_string());
+        text.push_str(&cause.to_string());
         source = cause.source();
     }
     text

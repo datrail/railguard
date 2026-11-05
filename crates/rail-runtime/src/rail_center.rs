@@ -2,7 +2,7 @@ use std::fmt;
 
 use reqwest::Url;
 
-use crate::config::{Secret, Settings};
+use crate::config::{Described, Secret, Settings};
 
 pub const DISABLED: &str = "RAIL_DISABLED";
 pub const CENTER_URL: &str = "RAIL_CENTER_URL";
@@ -17,8 +17,45 @@ const TOKEN_SECRET_CHARS: usize = 43;
 #[derive(Debug)]
 pub struct RailCenterSettings {
     pub url: CenterUrl,
+    /// Whether `RAIL_ALLOW_HTTP` allows an http:// URL.
+    pub allow_http: bool,
     /// The `rc_svc_` token sent as a bearer credential, under `RAIL_AUTH_MODE=bearer`.
     pub token: Option<Secret>,
+}
+
+impl RailCenterSettings {
+    pub fn describe(&self, out: &mut Described) {
+        if self.url.is_https() {
+            out.info(CENTER_URL, &self.url);
+        } else {
+            out.warn(
+                CENTER_URL,
+                &self.url,
+                "the credential and what Rail Center returns cross in the clear",
+            );
+        }
+        out.info(ALLOW_HTTP, self.allow_http);
+        let mode = if self.token.is_some() {
+            "bearer"
+        } else {
+            "none"
+        };
+        out.info(AUTH_MODE, mode);
+        out.secret(AUTH_TOKEN, self.token.as_ref());
+    }
+}
+
+/// `RAIL_DISABLED` as read; the retired names aren't described, since none can be set.
+pub fn describe_disabled(disabled: bool, out: &mut Described) {
+    if disabled {
+        out.warn(
+            DISABLED,
+            disabled,
+            "Rail Center isn't used: nothing is fetched from it",
+        );
+    } else {
+        out.info(DISABLED, disabled);
+    }
 }
 
 /// Whether `RAIL_DISABLED` is true, `None` if unreadable; refuses the retired names too.
@@ -57,6 +94,7 @@ pub fn read_rail_center(settings: &mut Settings, required: bool) -> Option<RailC
     }
     Some(RailCenterSettings {
         url: url?,
+        allow_http,
         token: token?,
     })
 }
@@ -90,11 +128,16 @@ fn read_token(settings: &mut Settings, required: bool) -> Option<Option<Secret>>
         }
         "bearer" => {
             let bearer = format!("{AUTH_MODE} is bearer");
+            // Read as a secret, so nothing describes its text.
             let token = settings
                 .get(AUTH_TOKEN)
                 .required(required)
                 .because(&bearer)
-                .parsed(check_token)?;
+                .secret()?;
+            if let Err(reason) = check_token(token.expose()) {
+                settings.get(AUTH_TOKEN).refuse(reason);
+                return None;
+            }
             Some(Some(token))
         }
         // Not quoted: a token pasted into the wrong variable would reach the log.
@@ -109,7 +152,7 @@ fn read_token(settings: &mut Settings, required: bool) -> Option<Option<Secret>>
 }
 
 // Says where the token is wrong without quoting any of it.
-fn check_token(token: &str) -> Result<Secret, String> {
+fn check_token(token: &str) -> Result<(), String> {
     let expected = format!(
         "a Rail Center service token is {TOKEN_PREFIX} and {TOKEN_SECRET_CHARS} URL-safe base64 \
          characters"
@@ -134,7 +177,7 @@ fn check_token(token: &str) -> Result<Secret, String> {
             secret.len()
         ));
     }
-    Ok(Secret::new(token.to_owned()))
+    Ok(())
 }
 
 /// Where Rail Center is: an http or https URL with a host, and nothing a route can't be appended

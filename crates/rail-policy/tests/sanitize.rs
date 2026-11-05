@@ -1,4 +1,4 @@
-use rail_policy::sanitize;
+use rail_policy::{escape_unquoted, sanitize, sanitize_quoted};
 
 #[test]
 fn test_escapes_controls_formats_and_separators() {
@@ -47,4 +47,55 @@ fn test_cuts_past_255_characters() {
         sanitize(&escaped).to_string(),
         format!(r"{}\u{{a}}…", "a".repeat(254))
     );
+}
+
+#[test]
+fn test_keeps_quotes_and_backslashes_unless_quoting() {
+    assert_eq!(sanitize(r#"a"b\c"#).to_string(), r#"a"b\c"#);
+}
+
+#[test]
+fn test_quotes_escaping_quotes_backslashes_and_what_sanitize_escapes() {
+    let cases = [
+        ("", r#""""#),
+        ("refund_order", r#""refund_order""#),
+        ("café 漢字 😀", r#""café 漢字 😀""#),
+        (r#"say "hi""#, r#""say \"hi\"""#),
+        (r"a\b", r#""a\\b""#),
+        ("ends in \\", r#""ends in \\""#),
+        (r"a\u{a}b", r#""a\\u{a}b""#),
+        ("a\nb", r#""a\u{a}b""#),
+        ("\u{1b}[31m", r#""\u{1b}[31m""#),
+        ("\u{202e}cba", r#""\u{202e}cba""#),
+        ("a\u{2028}b", r#""a\u{2028}b""#),
+        ("\"\\\n", r#""\"\\\u{a}""#),
+    ];
+    for (text, expected) in cases {
+        assert_eq!(sanitize_quoted(text).to_string(), expected, "{text:?}");
+    }
+}
+
+#[test]
+fn test_quoting_cuts_past_255_characters_inside_the_quotes() {
+    let whole = "é".repeat(255);
+    assert_eq!(sanitize_quoted(&whole).to_string(), format!("\"{whole}\""));
+
+    let long = format!("{whole}é");
+    assert_eq!(sanitize_quoted(&long).to_string(), format!("\"{whole}…\""));
+
+    let escaped = format!("{}\"rest", "a".repeat(254));
+    assert_eq!(
+        sanitize_quoted(&escaped).to_string(),
+        format!(r#""{}\"…""#, "a".repeat(254))
+    );
+}
+
+#[test]
+fn test_escapes_unquoted_without_a_cut() {
+    assert_eq!(
+        escape_unquoted("say \"hi\"\n\\ \u{1b}").to_string(),
+        r#"say \"hi\"\u{a}\\ \u{1b}"#
+    );
+    let long = "a".repeat(300);
+    assert_eq!(escape_unquoted(&long).to_string(), long);
 }

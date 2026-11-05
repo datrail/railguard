@@ -29,7 +29,7 @@ pub use judge::{
     ChainOutcome, CompiledBundle, Decision, FallbackDenial, JudgingMode, NoTracer, Outcome, Tracer,
     compile_bundle, judge, judge_traced,
 };
-pub use sanitize::sanitize;
+pub use sanitize::{escape_unquoted, sanitize, sanitize_quoted};
 pub use ticket::{
     SignedTicketConfig, Ticket, TicketState, parse_base64_ticket, parse_jwt_ticket, parse_ticket,
 };

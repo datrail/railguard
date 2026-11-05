@@ -21,8 +21,8 @@ use envoy_types::ext_authz::v3::pb::AuthorizationServer;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
 use rail_policy::sanitize;
 use rail_runtime::{
-    ProtectedHosts, RailCenterClient, RailCenterSettings, RailCenterTickets, TicketHolder,
-    TicketSettings, Variables,
+    Described, Level, RailCenterClient, RailCenterSettings, RailCenterTickets, Settings,
+    TicketHolder, TicketSettings, Variables,
 };
 use tokio::net::UnixListener;
 use tokio::signal::unix::{Signal, SignalKind, signal};
@@ -48,13 +48,16 @@ const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[tokio::main]
 async fn main() -> ExitCode {
-    tracing_subscriber::fmt()
-        .with_writer(std::io::stderr)
-        .init();
+    rail_runtime::logging::init();
     // The probe reads the same configuration, so it checks the socket where it's served.
-    let config = Config::read(&Variables::from_process()).unwrap_or_else(|errors| errors.exit());
+    let variables = Variables::from_process();
+    let mut settings = Settings::new(&variables);
+    let config = Config::read(&mut settings);
+    let unread = settings.find_unread("RAIL_");
+    settings.finish().unwrap_or_else(|errors| errors.exit());
+    let config = config.expect("Config::read returns the config when it refuses nothing");
     match std::env::args().nth(1).as_deref() {
-        None => serve(config).await,
+        None => serve(config, &variables, &unread).await,
         Some("probe") => probe(&config.socket).await,
         Some(argument) => {
             eprintln!("unknown argument {argument:?}; usage: rail-envoy [probe]");
@@ -63,35 +66,35 @@ async fn main() -> ExitCode {
     }
 }
 
-async fn serve(config: Config) -> ExitCode {
+async fn serve(config: Config, variables: &Variables, unread: &[String]) -> ExitCode {
+    log_settings(&config.described, variables, unread);
     // SIGTERM is how a container is stopped; as PID 1 nothing handles it unless we do.
     let terminate = match signal(SignalKind::terminate()) {
         Ok(terminate) => terminate,
         Err(error) => {
-            tracing::error!("can't handle SIGTERM: {error}");
+            tracing::error!(error = %error, "can't handle SIGTERM");
             return ExitCode::FAILURE;
         }
     };
     let listener = match bind(&config.socket) {
         Ok(listener) => listener,
         Err(error) => {
-            tracing::error!("{error}");
+            tracing::error!(error = %error, "can't listen on the socket");
             return ExitCode::from(2);
         }
     };
     let (rail_center, tickets) = match config.ticket.map(start_tickets).transpose() {
         Ok(started) => started.unzip(),
         Err(error) => {
-            tracing::error!("{error}");
+            tracing::error!(error = %error, "can't start fetching the ticket");
             return ExitCode::FAILURE;
         }
     };
-    log_protected_hosts(&config.protected_hosts);
     let protected_hosts = Arc::new(config.protected_hosts);
     // Only answered once serving; the ticket never changes it, so nothing restarts us for it.
     let (health, health_service) = tonic_health::server::health_reporter();
     report_status(&health, ServingStatus::Serving).await;
-    tracing::info!(socket = %config.socket.display(), rail_center = tickets.is_some(), protected_hosts = protected_hosts.hosts().count(), "serving Envoy");
+    tracing::info!("serving Envoy");
     let (draining, drain_started) = oneshot::channel();
     let stopping = async {
         terminated(terminate).await;
@@ -114,12 +117,12 @@ async fn serve(config: Config) -> ExitCode {
     if let Some(thread) = rail_center
         && let Err(error) = tokio::task::spawn_blocking(move || thread.stop()).await
     {
-        tracing::error!("stopping the Rail Center thread failed: {error}");
+        tracing::error!(error = %error, "stopping the Rail Center thread failed");
     }
     match served {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            tracing::error!("the gRPC server failed: {error}");
+            tracing::error!(error = %error, "the gRPC server failed");
             ExitCode::FAILURE
         }
     }
@@ -156,8 +159,6 @@ fn start_tickets(
 ) -> Result<(RailCenterThread, Arc<TicketHolder>), String> {
     let client = RailCenterClient::new(&rail_center)?;
     let thread = RailCenterThread::start()?;
-    let query = &ticket.query;
-    tracing::info!(url = %rail_center.url, host_id = %query.host_id, sandbox_name = %query.sandbox_name, "fetching this proxy's ticket");
     let refresh_interval = ticket.refresh_interval;
     let source = RailCenterTickets {
         client,
@@ -172,17 +173,25 @@ fn start_tickets(
     Ok((thread, Arc::new(tickets)))
 }
 
-// Each host the ticket may go to: over plain HTTP, it crosses in the clear.
-fn log_protected_hosts(hosts: &ProtectedHosts) {
-    for host in hosts.hosts() {
-        let port = host
-            .port
-            .map_or_else(|| "the agent's".to_owned(), |port| port.to_string());
-        if host.tls {
-            tracing::info!(host = %host.host, port, "protected host (HTTPS)");
+// Each setting as used, then each RAIL_ variable nothing read, likely a typo; never its value.
+fn log_settings(described: &Described, variables: &Variables, unread: &[String]) {
+    for entry in described.entries() {
+        let source = if variables.is_set(entry.name) {
+            "env"
         } else {
-            tracing::warn!(host = %host.host, port, "protected host (HTTP): the ticket crosses in the clear");
+            "default"
+        };
+        match entry.level {
+            Level::Info => {
+                tracing::info!(name = %entry.name, value = %entry.value, source = %source, "setting");
+            }
+            Level::Warn(weakens) => {
+                tracing::warn!(name = %entry.name, value = %entry.value, source = %source, weakens, "setting");
+            }
         }
+    }
+    for name in unread {
+        tracing::warn!(name = %name, "set but not read");
     }
 }
 
@@ -244,13 +253,17 @@ async fn probe(socket: &Path) -> ExitCode {
             ExitCode::FAILURE
         }
         Ok(Err(error)) => {
-            println!("can't check health on {}: {error}", socket.display());
+            println!(
+                "can't check health on {}: {}",
+                sanitize(&socket.display().to_string()),
+                sanitize(&error)
+            );
             ExitCode::FAILURE
         }
         Err(_) => {
             println!(
                 "no answer on {} within {}s",
-                socket.display(),
+                sanitize(&socket.display().to_string()),
                 PROBE_TIMEOUT.as_secs()
             );
             ExitCode::FAILURE
@@ -273,7 +286,7 @@ async fn check_health(socket: &Path) -> Result<WireStatus, String> {
     let response = HealthClient::new(channel)
         .check(HealthCheckRequest::default())
         .await
-        .map_err(|status| format!("{:?}: {}", status.code(), sanitize(status.message())))?;
+        .map_err(|status| format!("{:?}: {}", status.code(), status.message()))?;
     let status = response.into_inner().status;
     // A value this version doesn't know isn't SERVING.
     Ok(WireStatus::try_from(status).unwrap_or(WireStatus::Unknown))

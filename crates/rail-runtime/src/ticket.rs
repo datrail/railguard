@@ -7,7 +7,7 @@ use time::PrimitiveDateTime;
 use time::macros::format_description;
 
 use crate::client::{Limits, RailCenterClient};
-use crate::config::{Secret, Settings};
+use crate::config::{Described, Secret, Settings};
 use crate::ticket_holder::MIN_REFRESH_INTERVAL;
 
 const ROUTE: &str = "/v1/tickets";
@@ -46,6 +46,13 @@ impl TicketSettings {
             // Rail Center stamps at most a day (`TICKET_TTL_MAX_SECONDS`), plus a margin for skew.
             max_lifetime: Duration::from_secs(86_400 + 300),
         }
+    }
+
+    /// The settings read; the limits and the lifetime aren't, so they aren't described.
+    pub fn describe(&self, out: &mut Described) {
+        out.info(HOST_ID, &self.query.host_id);
+        out.info(SANDBOX_NAME, &self.query.sandbox_name);
+        out.info(TICKET_REFRESH_SECONDS, self.refresh_interval.as_secs());
     }
 }
 
@@ -154,8 +161,7 @@ pub async fn fetch_ticket(
     if envelope.host_id != query.host_id {
         return Err(format!(
             "the response answers for host {}, not {}",
-            sanitize(&envelope.host_id),
-            sanitize(&query.host_id)
+            envelope.host_id, query.host_id
         ));
     }
     let entry = match <[Entry; 1]>::try_from(envelope.tickets) {
@@ -172,8 +178,8 @@ pub async fn fetch_ticket(
     if entry.sandbox_name.as_deref() != Some(query.sandbox_name.as_str()) {
         return Err(format!(
             "the ticket names sandbox {}, not {}",
-            sanitize(entry.sandbox_name.as_deref().unwrap_or("none")),
-            sanitize(&query.sandbox_name)
+            entry.sandbox_name.as_deref().unwrap_or("none"),
+            query.sandbox_name
         ));
     }
     check_token(&entry.token)?;
@@ -211,5 +217,5 @@ fn parse_expires_at(text: &str) -> Result<SystemTime, String> {
     let format = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
     PrimitiveDateTime::parse(text, &format)
         .map(|at| at.assume_utc().into())
-        .map_err(|_| format!("expires_at isn't YYYY-MM-DDTHH:MM:SSZ: {}", sanitize(text)))
+        .map_err(|_| format!("expires_at isn't YYYY-MM-DDTHH:MM:SSZ: {text}"))
 }

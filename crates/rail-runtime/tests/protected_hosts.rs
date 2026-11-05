@@ -1,4 +1,10 @@
-use rail_runtime::{ProtectedHost, ProtectedHosts, Settings, Variables, read_protected_hosts};
+use rail_runtime::{
+    Level, ProtectedHost, ProtectedHosts, Settings, Variables, read_protected_hosts,
+};
+
+mod common;
+
+use common::describe;
 
 const FORMAT: &str = "an entry is [http(s)://]host[:port]";
 
@@ -254,6 +260,45 @@ fn required_it_must_name_a_host() {
             format!("RAIL_PROXY_PROTECTED_HOSTS has an empty entry, entry 1 of 2; {FORMAT}"),
             format!("RAIL_PROXY_PROTECTED_HOSTS has an empty entry, entry 2 of 2; {FORMAT}"),
         ]
+    );
+}
+
+#[test]
+fn each_host_is_described_and_one_over_http_as_a_warning() {
+    let hosts = read("mcp.example.com:8443,API.example.com,http://gw.internal,[::1]:9000").unwrap();
+
+    assert_eq!(
+        describe(|out| hosts.describe(out)),
+        [
+            (
+                "RAIL_PROXY_PROTECTED_HOSTS",
+                "[::1]:9000 (HTTPS)".to_owned(),
+                Level::Info
+            ),
+            (
+                "RAIL_PROXY_PROTECTED_HOSTS",
+                "api.example.com, at the agent's port (HTTPS)".to_owned(),
+                Level::Info
+            ),
+            (
+                "RAIL_PROXY_PROTECTED_HOSTS",
+                "gw.internal, at the agent's port (HTTP)".to_owned(),
+                Level::Warn("the ticket crosses in the clear")
+            ),
+            (
+                "RAIL_PROXY_PROTECTED_HOSTS",
+                "mcp.example.com:8443 (HTTPS)".to_owned(),
+                Level::Info
+            ),
+        ]
+    );
+}
+
+#[test]
+fn no_host_is_described_as_none() {
+    assert_eq!(
+        describe(|out| ProtectedHosts::default().describe(out)),
+        [("RAIL_PROXY_PROTECTED_HOSTS", "none".to_owned(), Level::Info)]
     );
 }
 
