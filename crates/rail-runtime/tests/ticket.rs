@@ -1,6 +1,8 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use rail_runtime::{OpaqueTicket, TicketAnswer, TicketQuery, TicketSettings, fetch_ticket};
+use rail_runtime::{
+    OpaqueTicket, RailCenterTickets, TicketAnswer, TicketQuery, TicketSettings, TicketSource,
+};
 
 mod common;
 
@@ -14,6 +16,13 @@ fn query() -> TicketQuery {
     TicketQuery {
         host_id: "host-1".to_owned(),
         sandbox_name: "sandbox a".to_owned(),
+    }
+}
+
+fn tickets(url: &str) -> RailCenterTickets {
+    RailCenterTickets {
+        client: client(url),
+        settings: TicketSettings::new(query()),
     }
 }
 
@@ -49,7 +58,7 @@ async fn answer_at(
 ) -> Result<TicketAnswer, String> {
     let status = status.to_owned();
     let server = serve(move |_| Reply::Raw(response(&status, &[], body.as_bytes()))).await;
-    fetch_ticket(&client(&server.url), &TicketSettings::new(query()), sent_at).await
+    tickets(&server.url).fetch(sent_at).await
 }
 
 fn refusal(result: Result<TicketAnswer, String>) -> String {
@@ -72,13 +81,7 @@ async fn the_query_names_the_host_and_the_sandbox() {
     let body = one("a.b.c", "2026-07-28T10:15:00Z");
     let server = serve(move |_| Reply::Raw(response("200 OK", &[], body.as_bytes()))).await;
 
-    fetch_ticket(
-        &client(&server.url),
-        &TicketSettings::new(query()),
-        at(SENT_AT),
-    )
-    .await
-    .unwrap();
+    tickets(&server.url).fetch(at(SENT_AT)).await.unwrap();
 
     let requests = server.requests.lock().unwrap();
     assert!(

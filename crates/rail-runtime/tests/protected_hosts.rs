@@ -9,19 +9,11 @@ use common::describe;
 const FORMAT: &str = "an entry is [http(s)://]host[:port]";
 
 fn read_with(value: Option<&str>, required: bool) -> Result<ProtectedHosts, Vec<String>> {
-    let variables: Variables = value
+    let pairs: Vec<_> = value
         .map(|value| ("RAIL_PROXY_PROTECTED_HOSTS", value))
         .into_iter()
         .collect();
-    let mut settings = Settings::new(&variables);
-    let read = read_protected_hosts(&mut settings, required);
-    match settings.finish() {
-        Ok(()) => Ok(read.expect("read_protected_hosts returns the hosts when it refuses nothing")),
-        Err(errors) => {
-            assert!(read.is_none(), "nothing is read when anything is refused");
-            Err(errors.0)
-        }
-    }
+    common::read(&pairs, |settings| read_protected_hosts(settings, required))
 }
 
 fn read(value: &str) -> Result<ProtectedHosts, Vec<String>> {
@@ -265,10 +257,12 @@ fn required_it_must_name_a_host() {
 
 #[test]
 fn each_host_is_described_and_one_over_http_as_a_warning() {
-    let hosts = read("mcp.example.com:8443,API.example.com,http://gw.internal,[::1]:9000").unwrap();
+    let value = "mcp.example.com:8443,API.example.com,http://gw.internal,[::1]:9000";
 
     assert_eq!(
-        describe(|out| hosts.describe(out)),
+        describe(&[("RAIL_PROXY_PROTECTED_HOSTS", value)], |settings| {
+            read_protected_hosts(settings, true)
+        }),
         [
             (
                 "RAIL_PROXY_PROTECTED_HOSTS",
@@ -297,7 +291,7 @@ fn each_host_is_described_and_one_over_http_as_a_warning() {
 #[test]
 fn no_host_is_described_as_none() {
     assert_eq!(
-        describe(|out| ProtectedHosts::default().describe(out)),
+        describe(&[], |settings| read_protected_hosts(settings, false)),
         [("RAIL_PROXY_PROTECTED_HOSTS", "none".to_owned(), Level::Info)]
     );
 }
@@ -319,4 +313,24 @@ fn not_required_judges_only_what_is_set() {
             .len(),
         1
     );
+}
+
+#[test]
+fn a_refused_entry_beside_a_good_one_is_an_err() {
+    for value in [
+        "a.example.com,",
+        "a.example.com,ftp://b.example.com",
+        "a.example.com,u@b.example.com",
+        "a.example.com,A.example.com",
+    ] {
+        let variables: Variables = [("RAIL_PROXY_PROTECTED_HOSTS", value)]
+            .into_iter()
+            .collect();
+        let mut settings = Settings::new(&variables);
+
+        assert!(
+            read_protected_hosts(&mut settings, true).is_err(),
+            "{value}"
+        );
+    }
 }

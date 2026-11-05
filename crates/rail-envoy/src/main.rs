@@ -7,6 +7,8 @@
 mod config;
 mod rail_center;
 mod services;
+#[cfg(test)]
+mod test_settings;
 mod xrail;
 
 use std::fs;
@@ -21,7 +23,7 @@ use envoy_types::ext_authz::v3::pb::AuthorizationServer;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
 use rail_policy::sanitize;
 use rail_runtime::{
-    Described, Level, RailCenterClient, RailCenterSettings, RailCenterTickets, Settings,
+    Level, RailCenterClient, RailCenterSettings, RailCenterTickets, Settings, Startup,
     TicketHolder, TicketSettings, Variables,
 };
 use tokio::net::UnixListener;
@@ -38,7 +40,7 @@ use tonic_health::server::HealthReporter;
 
 use crate::config::Config;
 use crate::rail_center::RailCenterThread;
-use crate::services::{Allow, Continue};
+use crate::services::Callouts;
 
 // Envoy keeps its connections open, and an ext_proc stream lasts as long as its request.
 const SHUTDOWN_DEADLINE: Duration = Duration::from_secs(5);
@@ -53,21 +55,22 @@ async fn main() -> ExitCode {
     let variables = Variables::from_process();
     let mut settings = Settings::new(&variables);
     let config = Config::read(&mut settings);
-    let unread = settings.find_unread("RAIL_");
-    settings.finish().unwrap_or_else(|errors| errors.exit());
-    let config = config.expect("Config::read returns the config when it refuses nothing");
+    let (config, startup) = settings
+        .finish("RAIL_", config)
+        .unwrap_or_else(|errors| errors.exit());
     match std::env::args().nth(1).as_deref() {
-        None => serve(config, &variables, &unread).await,
+        None => serve(config, &startup).await,
         Some("probe") => probe(&config.socket).await,
         Some(argument) => {
             eprintln!("unknown argument {argument:?}; usage: rail-envoy [probe]");
-            ExitCode::from(2)
+            // A usage error shares the exit status of a refused configuration.
+            ExitCode::from(rail_runtime::EXIT_CODE)
         }
     }
 }
 
-async fn serve(config: Config, variables: &Variables, unread: &[String]) -> ExitCode {
-    log_settings(&config.described, variables, unread);
+async fn serve(config: Config, startup: &Startup) -> ExitCode {
+    log_settings(startup);
     // SIGTERM is how a container is stopped; as PID 1 nothing handles it unless we do.
     let terminate = match signal(SignalKind::terminate()) {
         Ok(terminate) => terminate,
@@ -80,7 +83,8 @@ async fn serve(config: Config, variables: &Variables, unread: &[String]) -> Exit
         Ok(listener) => listener,
         Err(error) => {
             tracing::error!(error = %error, "can't listen on the socket");
-            return ExitCode::from(2);
+            // The socket path is configuration, so it fails as a refused configuration does.
+            return ExitCode::from(rail_runtime::EXIT_CODE);
         }
     };
     let (rail_center, tickets) = match config.ticket.map(start_tickets).transpose() {
@@ -90,7 +94,10 @@ async fn serve(config: Config, variables: &Variables, unread: &[String]) -> Exit
             return ExitCode::FAILURE;
         }
     };
-    let protected_hosts = Arc::new(config.protected_hosts);
+    let callouts = Callouts {
+        tickets,
+        protected_hosts: Arc::new(config.protected_hosts),
+    };
     // Only answered once serving; the ticket never changes it, so nothing restarts us for it.
     let (health, health_service) = tonic_health::server::health_reporter();
     report_status(&health, ServingStatus::Serving).await;
@@ -103,14 +110,8 @@ async fn serve(config: Config, variables: &Variables, unread: &[String]) -> Exit
     };
     let server = tonic::transport::Server::builder()
         .add_service(health_service)
-        .add_service(AuthorizationServer::new(Allow {
-            tickets: tickets.clone(),
-            protected_hosts: Arc::clone(&protected_hosts),
-        }))
-        .add_service(ExternalProcessorServer::new(Continue {
-            tickets,
-            protected_hosts,
-        }))
+        .add_service(AuthorizationServer::new(callouts.clone()))
+        .add_service(ExternalProcessorServer::new(callouts))
         .serve_with_incoming_shutdown(UnixListenerStream::new(listener), stopping);
     let served = drain_until_deadline(server, drain_started).await;
     // Its stop blocks on a join, so it's kept off the async workers.
@@ -159,28 +160,18 @@ fn start_tickets(
 ) -> Result<(RailCenterThread, Arc<TicketHolder>), String> {
     let client = RailCenterClient::new(&rail_center)?;
     let thread = RailCenterThread::start()?;
-    let refresh_interval = ticket.refresh_interval;
     let source = RailCenterTickets {
         client,
         settings: ticket,
     };
-    let tickets = TicketHolder::start(
-        thread.runtime(),
-        source,
-        refresh_interval,
-        Arc::new(SystemTime::now),
-    );
+    let tickets = TicketHolder::start(thread.runtime(), source, Arc::new(SystemTime::now));
     Ok((thread, Arc::new(tickets)))
 }
 
 // Each setting as used, then each RAIL_ variable nothing read, likely a typo; never its value.
-fn log_settings(described: &Described, variables: &Variables, unread: &[String]) {
-    for entry in described.entries() {
-        let source = if variables.is_set(entry.name) {
-            "env"
-        } else {
-            "default"
-        };
+fn log_settings(startup: &Startup) {
+    for entry in &startup.entries {
+        let source = entry.source.as_str();
         match entry.level {
             Level::Info => {
                 tracing::info!(name = %entry.name, value = %entry.value, source = %source, "setting");
@@ -190,7 +181,7 @@ fn log_settings(described: &Described, variables: &Variables, unread: &[String])
             }
         }
     }
-    for name in unread {
+    for name in &startup.unread {
         tracing::warn!(name = %name, "set but not read");
     }
 }
@@ -227,10 +218,10 @@ fn bind(socket: &Path) -> Result<UnixListener, String> {
 async fn report_status(health: &HealthReporter, status: ServingStatus) {
     health.set_service_status("", status).await;
     health
-        .set_service_status(AuthorizationServer::<Allow>::NAME, status)
+        .set_service_status(AuthorizationServer::<Callouts>::NAME, status)
         .await;
     health
-        .set_service_status(ExternalProcessorServer::<Continue>::NAME, status)
+        .set_service_status(ExternalProcessorServer::<Callouts>::NAME, status)
         .await;
 }
 

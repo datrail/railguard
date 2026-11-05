@@ -1,11 +1,10 @@
 use rail_runtime::{
-    CenterUrl, Described, Level, RailCenterSettings, Settings, Variables, describe_disabled,
-    read_disabled, read_rail_center,
+    CenterUrl, Level, RailCenterSettings, Settings, Variables, read_disabled, read_rail_center,
 };
 
 mod common;
 
-use common::describe;
+use common::{describe, read_from};
 
 const TOKEN: &str = "rc_svc_abcdefghijklmnopqrstuvwxyzABCDEFGHIJK-_0123";
 
@@ -18,19 +17,15 @@ enum Read {
 
 // The settings `pairs` describe, or every refusal.
 fn read(pairs: &[(&str, &str)]) -> Result<Read, Vec<String>> {
-    let variables: Variables = pairs.iter().copied().collect();
-    let mut settings = Settings::new(&variables);
-    let disabled = read_disabled(&mut settings);
-    let rail_center = disabled.and_then(|disabled| read_rail_center(&mut settings, !disabled));
-    settings.finish().map_err(|errors| errors.0)?;
-    Ok(
-        match disabled.expect("read_disabled returns the flag when it refuses nothing") {
-            true => Read::Disabled(rail_center),
-            false => Read::Enabled(
-                rail_center.expect("read_rail_center returns the settings when it refuses nothing"),
-            ),
-        },
-    )
+    common::read(pairs, |settings| {
+        let disabled = read_disabled(settings);
+        let rail_center = read_rail_center(settings, disabled == Ok(false));
+        Ok(if disabled? {
+            Read::Disabled(rail_center?)
+        } else {
+            Read::Enabled(rail_center?.expect("required settings are read or refused"))
+        })
+    })
 }
 
 fn refusals(pairs: &[(&str, &str)]) -> Vec<String> {
@@ -59,8 +54,14 @@ fn rail_center_is_used_unless_disabled() {
         read(&[("RAIL_DISABLED", "TRUE")]),
         Ok(Read::Disabled(None))
     ));
-    assert!(refusal(&[]).starts_with("RAIL_CENTER_URL is required"));
-    assert!(refusal(&[("RAIL_DISABLED", " false ")]).starts_with("RAIL_CENTER_URL is required"));
+    assert_eq!(
+        refusal(&[]),
+        "RAIL_CENTER_URL is required and is unset or blank"
+    );
+    assert_eq!(
+        refusal(&[("RAIL_DISABLED", " false ")]),
+        "RAIL_CENTER_URL is required and is unset or blank"
+    );
     assert!(matches!(read(&[URL]), Ok(Read::Enabled(_))));
 }
 
@@ -80,7 +81,10 @@ fn a_blank_value_is_unset() {
         read(&[("RAIL_DISABLED", " \n"), URL]),
         Ok(Read::Enabled(_))
     ));
-    assert!(refusal(&[("RAIL_CENTER_URL", "  ")]).starts_with("RAIL_CENTER_URL is required"));
+    assert_eq!(
+        refusal(&[("RAIL_CENTER_URL", "  ")]),
+        "RAIL_CENTER_URL is required and is unset or blank"
+    );
     let settings = enabled(&[URL, ("RAIL_AUTH_MODE", ""), ("RAIL_AUTH_TOKEN", " ")]);
     assert!(settings.token.is_none());
 }
@@ -129,13 +133,8 @@ fn nothing_is_returned_once_anything_is_refused() {
             ("RAIL_CENTER_URL", "http://rc.example.com"),
         ],
     ] {
-        let variables: Variables = pairs.iter().copied().collect();
-        let mut settings = Settings::new(&variables);
-        assert!(
-            read_rail_center(&mut settings, false).is_none(),
-            "{pairs:?}"
-        );
-        assert!(settings.finish().is_err());
+        let read = common::read(pairs, |settings| read_rail_center(settings, false));
+        assert!(read.is_err(), "{pairs:?}");
     }
 }
 
@@ -174,6 +173,22 @@ fn every_refusal_is_reported_at_once() {
     ]);
 
     assert_eq!(refused.len(), 4, "{refused:?}");
+}
+
+#[test]
+fn an_http_refusal_does_not_hide_the_tokens() {
+    let refused = refusals(&[
+        ("RAIL_CENTER_URL", "http://rc"),
+        BEARER,
+        ("RAIL_AUTH_TOKEN", "not-a-token"),
+    ]);
+
+    assert_eq!(refused.len(), 2, "{refused:?}");
+    assert!(
+        refused[0].starts_with("RAIL_CENTER_URL is http://"),
+        "{refused:?}"
+    );
+    assert!(refused[1].starts_with("RAIL_AUTH_TOKEN "), "{refused:?}");
 }
 
 #[test]
@@ -407,11 +422,9 @@ fn an_unreadable_mode_is_the_only_refusal() {
     ]
     .into_iter()
     .collect();
-    let mut settings = Settings::new(&variables);
-    assert!(read_rail_center(&mut settings, true).is_none());
 
     assert_eq!(
-        settings.finish().unwrap_err().0,
+        read_from(&variables, |settings| read_rail_center(settings, true)).unwrap_err(),
         ["RAIL_AUTH_MODE is not valid UTF-8"]
     );
 }
@@ -419,7 +432,7 @@ fn an_unreadable_mode_is_the_only_refusal() {
 #[test]
 fn the_settings_describe_themselves_with_their_defaults() {
     assert_eq!(
-        describe(|out| enabled(&[URL]).describe(out)),
+        describe(&[URL], |settings| read_rail_center(settings, true)),
         [
             (
                 "RAIL_CENTER_URL",
@@ -435,8 +448,9 @@ fn the_settings_describe_themselves_with_their_defaults() {
 
 #[test]
 fn the_token_is_described_only_as_set() {
-    let described =
-        describe(|out| enabled(&[URL, BEARER, ("RAIL_AUTH_TOKEN", TOKEN)]).describe(out));
+    let described = describe(&[URL, BEARER, ("RAIL_AUTH_TOKEN", TOKEN)], |settings| {
+        read_rail_center(settings, true)
+    });
 
     assert_eq!(
         described[2..],
@@ -453,11 +467,13 @@ fn the_token_is_described_only_as_set() {
 
 #[test]
 fn an_http_url_is_described_as_a_warning() {
-    let rail_center = enabled(&[
-        ("RAIL_CENTER_URL", "http://rc.internal:8080/"),
-        ("RAIL_ALLOW_HTTP", "true"),
-    ]);
-    let described = describe(|out| rail_center.describe(out));
+    let described = describe(
+        &[
+            ("RAIL_CENTER_URL", "http://rc.internal:8080/"),
+            ("RAIL_ALLOW_HTTP", "true"),
+        ],
+        |settings| read_rail_center(settings, true),
+    );
 
     assert_eq!(
         described[..2],
@@ -474,26 +490,17 @@ fn an_http_url_is_described_as_a_warning() {
 
 #[test]
 fn disabled_is_described_as_a_warning() {
-    let mut described = Described::default();
-
-    describe_disabled(false, &mut described);
-    describe_disabled(true, &mut described);
-
-    let levels: Vec<_> = described
-        .entries()
-        .iter()
-        .map(|entry| (entry.name, entry.value.as_str(), entry.level))
-        .collect();
     assert_eq!(
-        levels,
-        [
-            ("RAIL_DISABLED", "false", Level::Info),
-            (
-                "RAIL_DISABLED",
-                "true",
-                Level::Warn("Rail Center isn't used: nothing is fetched from it")
-            ),
-        ]
+        describe(&[], read_disabled),
+        [("RAIL_DISABLED", "false".to_owned(), Level::Info)]
+    );
+    assert_eq!(
+        describe(&[("RAIL_DISABLED", "TRUE")], read_disabled),
+        [(
+            "RAIL_DISABLED",
+            "true".to_owned(),
+            Level::Warn("Rail Center isn't used: nothing is fetched from it")
+        )]
     );
 }
 
@@ -503,4 +510,17 @@ fn an_unreadable_disabled_flag_is_the_only_refusal() {
         refusals(&[("RAIL_DISABLED", "yes")]),
         ["RAIL_DISABLED must be true or false, got: yes"]
     );
+}
+
+#[test]
+fn a_refusal_derived_from_two_settings_or_a_retired_name_is_an_err() {
+    for pairs in [
+        &[("RAIL_CENTER_URL", "http://rc.example.com")][..],
+        &[URL, ("RAIL_TICKET_MODE", "enforce")],
+    ] {
+        let variables: Variables = pairs.iter().copied().collect();
+        let mut settings = Settings::new(&variables);
+
+        assert!(read_rail_center(&mut settings, true).is_err(), "{pairs:?}");
+    }
 }

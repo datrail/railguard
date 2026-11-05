@@ -3,9 +3,9 @@ use std::net::Ipv6Addr;
 
 use rail_policy::sanitize;
 
-use crate::config::{Described, Settings};
+use crate::config::{Refused, Settings};
 
-pub const PROTECTED_HOSTS: &str = "RAIL_PROXY_PROTECTED_HOSTS";
+pub(crate) const PROTECTED_HOSTS: &str = "RAIL_PROXY_PROTECTED_HOSTS";
 
 const ENTRY_FORMAT: &str = "an entry is [http(s)://]host[:port]";
 const REQUIRED_BECAUSE: &str =
@@ -40,54 +40,31 @@ impl ProtectedHosts {
     pub fn hosts(&self) -> impl Iterator<Item = &ProtectedHost> {
         self.0.values()
     }
-
-    /// One entry per host; over plain HTTP, the ticket crosses in the clear.
-    pub fn describe(&self, out: &mut Described) {
-        if self.0.is_empty() {
-            out.info(PROTECTED_HOSTS, "none");
-        }
-        for host in self.hosts() {
-            let name = if host.host.contains(':') {
-                format!("[{}]", host.host)
-            } else {
-                host.host.clone()
-            };
-            let at = host.port.map_or_else(
-                || ", at the agent's port".to_owned(),
-                |port| format!(":{port}"),
-            );
-            if host.tls {
-                out.info(PROTECTED_HOSTS, format_args!("{name}{at} (HTTPS)"));
-            } else {
-                out.warn(
-                    PROTECTED_HOSTS,
-                    format_args!("{name}{at} (HTTP)"),
-                    "the ticket crosses in the clear",
-                );
-            }
-        }
-    }
 }
 
 /// `RAIL_PROXY_PROTECTED_HOSTS`, judged if set, and required to name a host if `required`.
-pub fn read_protected_hosts(settings: &mut Settings, required: bool) -> Option<ProtectedHosts> {
-    let before = settings.refusals();
+pub fn read_protected_hosts(
+    settings: &mut Settings,
+    required: bool,
+) -> Result<ProtectedHosts, Refused> {
     let text = settings
         .get(PROTECTED_HOSTS)
-        .required(required)
+        .required_if(required)
         .because(REQUIRED_BECAUSE)
-        .text();
+        .text()?;
     // Unset or blank is `None`, so every entry counts, an empty one too.
     let entries: Vec<&str> = text
         .map(|text| text.split(',').map(str::trim).collect())
         .unwrap_or_default();
     let mut hosts = BTreeMap::new();
+    // Every entry is judged before any refusal returns.
+    let mut refused = None;
     for (index, entry) in entries.iter().enumerate() {
         let position = format!("entry {} of {}", index + 1, entries.len());
         if entry.is_empty() {
-            settings.get(PROTECTED_HOSTS).refuse(format_args!(
+            refused = Some(settings.get(PROTECTED_HOSTS).refuse(format_args!(
                 "has an empty entry, {position}; {ENTRY_FORMAT}"
-            ));
+            )));
             continue;
         }
         // Not quoted: a credential, query or fragment can hold a secret, which would reach the log.
@@ -99,29 +76,63 @@ pub fn read_protected_hosts(settings: &mut Settings, required: bool) -> Option<P
             None
         };
         if let Some(what) = unquoted {
-            settings.get(PROTECTED_HOSTS).refuse(format_args!(
+            refused = Some(settings.get(PROTECTED_HOSTS).refuse(format_args!(
                 "has {what} in {position}, which isn't quoted; {ENTRY_FORMAT}"
-            ));
+            )));
             continue;
         }
         match parse_entry(entry) {
             // Matching ignores the scheme and port, so two entries would give one host two routes.
             Ok(host) if hosts.contains_key(&host.host) => {
-                settings.get(PROTECTED_HOSTS).refuse(format_args!(
+                refused = Some(settings.get(PROTECTED_HOSTS).refuse(format_args!(
                     "lists {} more than once; one entry per host",
                     sanitize(&host.host)
-                ));
+                )));
             }
             Ok(host) => {
                 hosts.insert(host.host.clone(), host);
             }
-            Err(reason) => settings.get(PROTECTED_HOSTS).refuse(format_args!(
-                "has an entry that {reason}; {ENTRY_FORMAT}, got: {}",
-                sanitize(entry)
-            )),
+            Err(reason) => {
+                refused = Some(settings.get(PROTECTED_HOSTS).refuse(format_args!(
+                    "has an entry that {reason}; {ENTRY_FORMAT}, got: {}",
+                    sanitize(entry)
+                )));
+            }
         }
     }
-    (settings.refusals() == before).then_some(ProtectedHosts(hosts))
+    if let Some(refused) = refused {
+        return Err(refused);
+    }
+    let hosts = ProtectedHosts(hosts);
+    describe(&hosts, settings);
+    Ok(hosts)
+}
+
+// One entry per host; over plain HTTP, the ticket crosses in the clear.
+fn describe(hosts: &ProtectedHosts, out: &mut Settings) {
+    if hosts.0.is_empty() {
+        out.describe(PROTECTED_HOSTS, "none");
+    }
+    for host in hosts.hosts() {
+        let name = if host.host.contains(':') {
+            format!("[{}]", host.host)
+        } else {
+            host.host.clone()
+        };
+        let at = host.port.map_or_else(
+            || ", at the agent's port".to_owned(),
+            |port| format!(":{port}"),
+        );
+        if host.tls {
+            out.describe(PROTECTED_HOSTS, format_args!("{name}{at} (HTTPS)"));
+        } else {
+            out.warn(
+                PROTECTED_HOSTS,
+                format_args!("{name}{at} (HTTP)"),
+                "the ticket crosses in the clear",
+            );
+        }
+    }
 }
 
 // `[http(s)://]host[:port]`, with no credential.

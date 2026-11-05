@@ -2,8 +2,8 @@
 //!
 //! [`QuotedFields`] writes each field of an event or span. The message stays unquoted, escaped as
 //! [`escape_unquoted`] escapes it, so it can't start a line or reach the terminal. Any other text
-//! is written `name="…"`, through [`sanitize_quoted`], and a number or a bool bare. So code logs
-//! text as a `%` or `&str` field, and never sanitizes it for the log.
+//! is written `name="…"`, through [`sanitize_quoted`] cut at 1024 characters, and a number or a
+//! bool bare. So code logs text as a `%` or `&str` field, and never sanitizes it for the log.
 //!
 //! A `?` value is quoted as its `Debug` text, so a `String` logged with `?` shows Rust's own
 //! escaping inside the quotes: text is logged with `%`.
@@ -16,6 +16,9 @@ use tracing::field::{Field, Visit};
 use tracing_subscriber::field::RecordFields;
 use tracing_subscriber::fmt::FormatFields;
 use tracing_subscriber::fmt::format::Writer;
+
+// Long enough to keep the root cause at the end of an error chain.
+const MAX_FIELD_CHARS: usize = 1024;
 
 /// Logs to stderr for the rest of the process, each field written by [`QuotedFields`].
 pub fn init() {
@@ -52,7 +55,7 @@ impl Visitor<'_> {
         if field.name() == "message" {
             self.write_field(None, escape_unquoted(text));
         } else {
-            self.write_field(Some(field), sanitize_quoted(text));
+            self.write_field(Some(field), sanitize_quoted(text, MAX_FIELD_CHARS));
         }
     }
 

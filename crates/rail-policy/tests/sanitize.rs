@@ -71,21 +71,27 @@ fn test_quotes_escaping_quotes_backslashes_and_what_sanitize_escapes() {
         ("\"\\\n", r#""\"\\\u{a}""#),
     ];
     for (text, expected) in cases {
-        assert_eq!(sanitize_quoted(text).to_string(), expected, "{text:?}");
+        assert_eq!(sanitize_quoted(text, 255).to_string(), expected, "{text:?}");
     }
 }
 
 #[test]
 fn test_quoting_cuts_past_255_characters_inside_the_quotes() {
     let whole = "é".repeat(255);
-    assert_eq!(sanitize_quoted(&whole).to_string(), format!("\"{whole}\""));
+    assert_eq!(
+        sanitize_quoted(&whole, 255).to_string(),
+        format!("\"{whole}\"")
+    );
 
     let long = format!("{whole}é");
-    assert_eq!(sanitize_quoted(&long).to_string(), format!("\"{whole}…\""));
+    assert_eq!(
+        sanitize_quoted(&long, 255).to_string(),
+        format!("\"{whole}…\"")
+    );
 
     let escaped = format!("{}\"rest", "a".repeat(254));
     assert_eq!(
-        sanitize_quoted(&escaped).to_string(),
+        sanitize_quoted(&escaped, 255).to_string(),
         format!(r#""{}\"…""#, "a".repeat(254))
     );
 }

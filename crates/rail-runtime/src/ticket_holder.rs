@@ -1,4 +1,3 @@
-use std::future::Future;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
@@ -7,63 +6,32 @@ use sha2::{Digest, Sha256};
 use tokio::runtime::Handle;
 use tokio::task::AbortHandle;
 
-use crate::client::RailCenterClient;
-use crate::ticket::{OpaqueTicket, TicketAnswer, TicketSettings, fetch_ticket};
+use crate::ticket::{MIN_REFRESH_INTERVAL, OpaqueTicket, TicketAnswer, TicketSource};
+use crate::xrail::Unavailable;
 
-// Not settings: a lower floor would let a fleet hammer Rail Center.
-pub(crate) const MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(5);
 const MAX_BACKOFF_DOUBLINGS: u32 = 6;
 
 /// The wall clock a ticket's `expires_at` is read against.
 pub type WallClock = Arc<dyn Fn() -> SystemTime + Send + Sync>;
 
-/// Where tickets come from: Rail Center, or a test's script.
-pub trait TicketSource: Send + Sync + 'static {
-    /// One fetch; `sent_at` is the wall-clock time read just before it.
-    fn fetch(
-        &self,
-        sent_at: SystemTime,
-    ) -> impl Future<Output = Result<TicketAnswer, String>> + Send;
-}
-
-/// This host's ticket, fetched from Rail Center.
-pub struct RailCenterTickets {
-    pub client: RailCenterClient,
-    pub settings: TicketSettings,
-}
-
-impl TicketSource for RailCenterTickets {
-    async fn fetch(&self, sent_at: SystemTime) -> Result<TicketAnswer, String> {
-        fetch_ticket(&self.client, &self.settings, sent_at).await
-    }
-}
-
-/// Why no ticket is presented, as `x-rail-status` says it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Unavailable {
-    /// Rail Center answered that this host and sandbox have no ticket.
+// What the answers so far leave to present.
+#[derive(Debug, Default, PartialEq, Eq)]
+enum Held {
+    // No answer yet, or the last one was a failure with no ticket held.
+    #[default]
+    Unreached,
+    // Set only by Rail Center answering "none", never by a failed fetch.
     NotFound,
-    /// The ticket held lapsed with no valid one to replace it.
-    Expired,
-    /// No answer yet, or the last answer was a failure to reach Rail Center.
-    IssuerUnreachable,
+    Ticket(Arc<OpaqueTicket>),
 }
 
-impl Unavailable {
-    pub fn as_str(self) -> &'static str {
+impl Held {
+    fn ticket(&self) -> Option<&Arc<OpaqueTicket>> {
         match self {
-            Self::NotFound => "not-found",
-            Self::Expired => "expired",
-            Self::IssuerUnreachable => "issuer-unreachable",
+            Self::Ticket(ticket) => Some(ticket),
+            Self::Unreached | Self::NotFound => None,
         }
     }
-}
-
-#[derive(Default)]
-struct Held {
-    ticket: Option<Arc<OpaqueTicket>>,
-    // Set only by Rail Center answering "none", never by a failed fetch.
-    not_found: bool,
 }
 
 /// Keeps a valid ticket to hand through Rail Center failures; dropping it stops the refreshes.
@@ -74,20 +42,11 @@ pub struct TicketHolder {
 }
 
 impl TicketHolder {
-    /// Starts fetching at once, on `runtime`; `refresh_interval` caps the wait on a valid ticket.
-    pub fn start(
-        runtime: &Handle,
-        source: impl TicketSource,
-        refresh_interval: Duration,
-        now: WallClock,
-    ) -> Self {
+    /// Starts fetching at once, on `runtime`; the source's refresh interval caps the wait on a
+    /// valid ticket.
+    pub fn start(runtime: &Handle, source: impl TicketSource, now: WallClock) -> Self {
         let held = Arc::new(ArcSwap::from_pointee(Held::default()));
-        let refresh = runtime.spawn(refresh(
-            source,
-            refresh_interval,
-            Arc::clone(&held),
-            Arc::clone(&now),
-        ));
+        let refresh = runtime.spawn(refresh(source, Arc::clone(&held), Arc::clone(&now)));
         let abort = refresh.abort_handle();
         // A panic ends the task quietly, and the ticket would lapse with nothing saying why.
         runtime.spawn(async move {
@@ -106,12 +65,11 @@ impl TicketHolder {
 
     /// The ticket to present, or why there is none, from one read of the ticket and the clock.
     pub fn current(&self) -> Result<Arc<OpaqueTicket>, Unavailable> {
-        let held = self.held.load();
-        match &held.ticket {
-            Some(ticket) if ticket.is_valid((self.now)()) => Ok(Arc::clone(ticket)),
-            _ if held.not_found => Err(Unavailable::NotFound),
-            Some(_) => Err(Unavailable::Expired),
-            None => Err(Unavailable::IssuerUnreachable),
+        match &**self.held.load() {
+            Held::Ticket(ticket) if ticket.is_valid((self.now)()) => Ok(Arc::clone(ticket)),
+            Held::Ticket(_) => Err(Unavailable::Expired),
+            Held::NotFound => Err(Unavailable::NotFound),
+            Held::Unreached => Err(Unavailable::IssuerUnreachable),
         }
     }
 }
@@ -122,85 +80,85 @@ impl Drop for TicketHolder {
     }
 }
 
-async fn refresh(
-    source: impl TicketSource,
-    refresh_interval: Duration,
-    held: Arc<ArcSwap<Held>>,
-    now: WallClock,
-) {
+async fn refresh(source: impl TicketSource, held: Arc<ArcSwap<Held>>, now: WallClock) {
+    let refresh_interval = source.refresh_interval();
     // Attempts with no valid ticket held, so the ramp restarts when a ticket lapses.
     let mut failures = 0;
     loop {
         let answer = source.fetch(now()).await;
         let previous = held.load_full();
         let at = now();
-        let usable =
-            |ticket: &Option<Arc<OpaqueTicket>>| ticket.as_ref().is_some_and(|t| t.is_valid(at));
-        let (next, outcome) = match answer {
-            Ok(TicketAnswer::NoTicket) => {
-                failures += 1;
-                let next = Held {
-                    ticket: None,
-                    not_found: true,
-                };
-                (
-                    Some(next),
-                    Outcome::NoTicket {
-                        cleared: usable(&previous.ticket),
-                    },
-                )
-            }
-            Err(reason) => {
-                let kept = usable(&previous.ticket);
-                if !kept {
-                    failures += 1;
-                }
-                let next = Held {
-                    ticket: previous.ticket.clone(),
-                    not_found: false,
-                };
-                (Some(next), Outcome::Failed { reason, kept })
-            }
-            // An already-lapsed ticket never displaces one still good.
-            Ok(TicketAnswer::Ticket(ticket))
-                if !ticket.is_valid(at) && usable(&previous.ticket) =>
-            {
-                let lapsed = fingerprint(ticket.token.expose());
-                (None, Outcome::LapsedKept { lapsed })
-            }
-            Ok(TicketAnswer::Ticket(ticket)) => {
-                let outcome = if !ticket.is_valid(at) {
-                    Outcome::Lapsed
-                } else if previous.ticket.is_none() {
-                    Outcome::Acquired
-                } else if previous
-                    .ticket
-                    .as_ref()
-                    .is_some_and(|held| held.token != ticket.token)
-                {
-                    Outcome::Rotated
-                } else {
-                    Outcome::Unchanged
-                };
-                failures = if ticket.is_valid(at) { 0 } else { failures + 1 };
-                let next = Held {
-                    ticket: Some(Arc::new(ticket)),
-                    not_found: false,
-                };
-                (Some(next), outcome)
-            }
-        };
+        let (next, outcome) = step(&previous, answer, at, &mut failures);
         if let Some(next) = next {
             held.store(Arc::new(next));
         }
-        let ticket = held.load().ticket.clone();
+        let ticket = held.load().ticket().cloned();
         let delay = next_delay(ticket.as_deref(), failures, refresh_interval, now());
         log(&outcome, ticket.as_deref(), at, delay);
         tokio::time::sleep(delay).await;
     }
 }
 
+// What one answer, read at `at`, makes of the ticket held: what to hold next (`None` keeps it),
+// and what to log. Counts in `failures` each attempt that leaves no valid ticket.
+fn step(
+    previous: &Held,
+    answer: Result<TicketAnswer, String>,
+    at: SystemTime,
+    failures: &mut u32,
+) -> (Option<Held>, Outcome) {
+    let usable = |held: &Held| held.ticket().is_some_and(|ticket| ticket.is_valid(at));
+    match answer {
+        Ok(TicketAnswer::NoTicket) => {
+            *failures += 1;
+            (
+                Some(Held::NotFound),
+                Outcome::NoTicket {
+                    cleared: usable(previous),
+                },
+            )
+        }
+        Err(reason) => {
+            let kept = usable(previous);
+            if !kept {
+                *failures += 1;
+            }
+            let next = match previous.ticket() {
+                Some(ticket) => Held::Ticket(Arc::clone(ticket)),
+                None => Held::Unreached,
+            };
+            (Some(next), Outcome::Failed { reason, kept })
+        }
+        // An already-lapsed ticket never displaces one still good.
+        Ok(TicketAnswer::Ticket(ticket)) if !ticket.is_valid(at) && usable(previous) => {
+            let lapsed = fingerprint(ticket.token.expose());
+            (None, Outcome::LapsedKept { lapsed })
+        }
+        Ok(TicketAnswer::Ticket(ticket)) => {
+            let outcome = if !ticket.is_valid(at) {
+                Outcome::Lapsed
+            } else if previous.ticket().is_none() {
+                Outcome::Acquired
+            } else if previous
+                .ticket()
+                .is_some_and(|held| held.token != ticket.token)
+            {
+                Outcome::Rotated
+            } else {
+                Outcome::Unchanged
+            };
+            *failures = if ticket.is_valid(at) {
+                0
+            } else {
+                *failures + 1
+            };
+            (Some(Held::Ticket(Arc::new(ticket))), outcome)
+        }
+    }
+}
+
 // What one fetch did to the ticket held, for the log.
+#[derive(Debug, PartialEq, Eq)]
 enum Outcome {
     Acquired,
     Rotated,
@@ -287,4 +245,161 @@ fn next_delay(
         _ => MIN_REFRESH_INTERVAL * 2_u32.pow(failures.min(MAX_BACKOFF_DOUBLINGS)),
     };
     wait.min(refresh_interval).max(MIN_REFRESH_INTERVAL)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+    use super::{Held, Outcome, fingerprint, step};
+    use crate::config::Secret;
+    use crate::ticket::{OpaqueTicket, TicketAnswer};
+
+    const AT: u64 = 1_800_000_000;
+
+    fn at() -> SystemTime {
+        UNIX_EPOCH + Duration::from_secs(AT)
+    }
+
+    // A ticket `token` that lapses `seconds` after `at`, before it if negative.
+    fn ticket(token: &str, seconds: i64) -> OpaqueTicket {
+        OpaqueTicket {
+            token: Secret::new(token.to_owned()),
+            expires_at: UNIX_EPOCH + Duration::from_secs(AT.saturating_add_signed(seconds)),
+        }
+    }
+
+    fn held(token: &str, seconds: i64) -> Held {
+        Held::Ticket(Arc::new(ticket(token, seconds)))
+    }
+
+    fn answer(token: &str, seconds: i64) -> Result<TicketAnswer, String> {
+        Ok(TicketAnswer::Ticket(ticket(token, seconds)))
+    }
+
+    fn failed() -> Result<TicketAnswer, String> {
+        Err("silent".to_owned())
+    }
+
+    // What `answer` makes of `previous`, and the failure count after one before it.
+    fn run(previous: &Held, answer: Result<TicketAnswer, String>) -> (Option<Held>, Outcome, u32) {
+        let mut failures = 1;
+        let (next, outcome) = step(previous, answer, at(), &mut failures);
+        (next, outcome, failures)
+    }
+
+    #[test]
+    fn a_valid_ticket_is_acquired_whatever_came_before_and_resets_the_failures() {
+        for previous in [Held::Unreached, Held::NotFound] {
+            assert_eq!(
+                run(&previous, answer("a", 60)),
+                (Some(held("a", 60)), Outcome::Acquired, 0)
+            );
+        }
+    }
+
+    #[test]
+    fn a_new_token_rotates_the_one_held_lapsed_or_not() {
+        for previous in [held("a", 60), held("a", -60)] {
+            assert_eq!(
+                run(&previous, answer("b", 120)),
+                (Some(held("b", 120)), Outcome::Rotated, 0)
+            );
+        }
+    }
+
+    #[test]
+    fn the_same_token_again_is_unchanged_with_its_new_expiry_lapsed_or_not() {
+        for previous in [held("a", 60), held("a", -60)] {
+            assert_eq!(
+                run(&previous, answer("a", 120)),
+                (Some(held("a", 120)), Outcome::Unchanged, 0)
+            );
+        }
+    }
+
+    #[test]
+    fn no_ticket_clears_the_one_held_and_counts_as_a_failure() {
+        let no_ticket = || Ok(TicketAnswer::NoTicket);
+        assert_eq!(
+            run(&held("a", 60), no_ticket()),
+            (Some(Held::NotFound), Outcome::NoTicket { cleared: true }, 2)
+        );
+        for previous in [Held::Unreached, Held::NotFound, held("a", -60)] {
+            assert_eq!(
+                run(&previous, no_ticket()),
+                (
+                    Some(Held::NotFound),
+                    Outcome::NoTicket { cleared: false },
+                    2
+                )
+            );
+        }
+    }
+
+    #[test]
+    fn a_failure_keeps_a_valid_ticket_without_counting() {
+        assert_eq!(
+            run(&held("a", 60), failed()),
+            (
+                Some(held("a", 60)),
+                Outcome::Failed {
+                    reason: "silent".to_owned(),
+                    kept: true
+                },
+                1
+            )
+        );
+    }
+
+    #[test]
+    fn a_failure_keeps_a_lapsed_ticket_and_forgets_not_found() {
+        let failed_unkept = || Outcome::Failed {
+            reason: "silent".to_owned(),
+            kept: false,
+        };
+        assert_eq!(
+            run(&held("a", -60), failed()),
+            (Some(held("a", -60)), failed_unkept(), 2)
+        );
+        for previous in [Held::Unreached, Held::NotFound] {
+            assert_eq!(
+                run(&previous, failed()),
+                (Some(Held::Unreached), failed_unkept(), 2)
+            );
+        }
+    }
+
+    #[test]
+    fn a_lapsed_ticket_never_displaces_a_valid_one() {
+        assert_eq!(
+            run(&held("a", 60), answer("b", -60)),
+            (
+                None,
+                Outcome::LapsedKept {
+                    lapsed: fingerprint("b")
+                },
+                1
+            )
+        );
+    }
+
+    #[test]
+    fn a_lapsed_ticket_is_held_where_none_valid_is_and_counts_as_a_failure() {
+        for previous in [Held::Unreached, Held::NotFound, held("a", -120)] {
+            assert_eq!(
+                run(&previous, answer("b", -60)),
+                (Some(held("b", -60)), Outcome::Lapsed, 2)
+            );
+        }
+    }
+
+    #[test]
+    fn a_ticket_lapsing_at_the_instant_read_is_lapsed() {
+        assert_eq!(
+            run(&Held::Unreached, answer("a", 0)),
+            (Some(held("a", 0)), Outcome::Lapsed, 2)
+        );
+    }
 }

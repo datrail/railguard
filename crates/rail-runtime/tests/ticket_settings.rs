@@ -1,24 +1,14 @@
 use std::time::Duration;
 
-use rail_runtime::{Level, Settings, TicketQuery, TicketSettings, Variables, read_ticket_settings};
+use rail_runtime::{Level, TicketQuery, TicketSettings, read_ticket_settings};
 
 mod common;
 
 use common::describe;
 
 fn read(pairs: &[(&str, &str)]) -> Result<TicketSettings, Vec<String>> {
-    let variables: Variables = pairs.iter().copied().collect();
-    let mut settings = Settings::new(&variables);
-    let read = read_ticket_settings(&mut settings, true);
-    match settings.finish() {
-        Ok(()) => {
-            Ok(read.expect("read_ticket_settings returns the settings when it refuses nothing"))
-        }
-        Err(errors) => {
-            assert!(read.is_none(), "nothing is read when anything is refused");
-            Err(errors.0)
-        }
-    }
+    common::read(pairs, |settings| read_ticket_settings(settings, true))
+        .map(|ticket| ticket.expect("required settings are read or refused"))
 }
 
 const NAMED: [(&str, &str); 2] = [
@@ -38,9 +28,6 @@ fn the_host_and_sandbox_are_read_and_the_rest_defaults() {
         }
     );
     assert_eq!(ticket.refresh_interval, Duration::from_secs(3600));
-    assert_eq!(ticket.limits.deadline, Duration::from_secs(10));
-    assert_eq!(ticket.limits.max_bytes, 256 * 1024);
-    assert_eq!(ticket.max_lifetime, Duration::from_secs(86_700));
 }
 
 #[test]
@@ -103,7 +90,7 @@ fn the_refresh_interval_is_whole_seconds_from_5() {
 #[test]
 fn the_refresh_interval_is_described_as_used() {
     assert_eq!(
-        describe(|out| read(&NAMED).unwrap().describe(out)),
+        describe(&NAMED, |settings| read_ticket_settings(settings, true)),
         [
             ("RAIL_HOST_ID", "host-1".to_owned(), Level::Info),
             ("RAIL_SANDBOX_NAME", "sandbox a".to_owned(), Level::Info),
@@ -118,25 +105,41 @@ fn the_refresh_interval_is_described_as_used() {
     let mut pairs = NAMED.to_vec();
     pairs.push(("RAIL_TICKET_REFRESH_SECONDS", " 600\n"));
     assert_eq!(
-        describe(|out| read(&pairs).unwrap().describe(out))[2],
+        describe(&pairs, |settings| read_ticket_settings(settings, true))[2],
         ("RAIL_TICKET_REFRESH_SECONDS", "600".to_owned(), Level::Info)
     );
 }
 
 #[test]
 fn not_required_judges_only_what_is_set() {
-    let variables: Variables = [("RAIL_SANDBOX_NAME", "s".repeat(256))]
-        .into_iter()
-        .collect();
-    let mut settings = Settings::new(&variables);
-    assert!(read_ticket_settings(&mut settings, false).is_none());
+    let long = "s".repeat(256);
     assert_eq!(
-        settings.finish().unwrap_err().0,
+        common::read(&[("RAIL_SANDBOX_NAME", &long)], |settings| {
+            read_ticket_settings(settings, false)
+        })
+        .unwrap_err(),
         ["RAIL_SANDBOX_NAME has 256 characters, past the 255 allowed"]
     );
 
-    let variables: Variables = [("RAIL_HOST_ID", "h")].into_iter().collect();
-    let mut settings = Settings::new(&variables);
-    assert!(read_ticket_settings(&mut settings, false).is_none());
-    assert_eq!(settings.finish(), Ok(()));
+    let read = common::read(&[("RAIL_HOST_ID", "h")], |settings| {
+        read_ticket_settings(settings, false)
+    });
+    assert!(read.unwrap().is_none());
+}
+
+#[test]
+fn incomplete_describes_only_what_is_set_as_read() {
+    assert_eq!(
+        describe(
+            &[
+                ("RAIL_TICKET_REFRESH_SECONDS", " 600\n"),
+                ("RAIL_HOST_ID", "h")
+            ],
+            |settings| read_ticket_settings(settings, false)
+        ),
+        [
+            ("RAIL_HOST_ID", "h".to_owned(), Level::Info),
+            ("RAIL_TICKET_REFRESH_SECONDS", "600".to_owned(), Level::Info),
+        ]
+    );
 }

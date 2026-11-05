@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
 use rail_runtime::{
-    Described, ProtectedHosts, RailCenterSettings, Settings, TicketSettings, describe_disabled,
-    read_disabled, read_protected_hosts, read_rail_center, read_ticket_settings,
+    ProtectedHosts, RailCenterSettings, Refused, Settings, TicketSettings, read_disabled,
+    read_protected_hosts, read_rail_center, read_ticket_settings,
 };
 
-pub const EXT_SOCKET: &str = "RAIL_EXT_SOCKET";
+const EXT_SOCKET: &str = "RAIL_EXT_SOCKET";
 const DEFAULT_SOCKET: &str = "/run/rail/ext.sock";
 
 /// What this process runs with.
@@ -16,68 +16,60 @@ pub struct Config {
     pub ticket: Option<(RailCenterSettings, TicketSettings)>,
     /// The hosts the ticket goes to, and how; routed even when Rail Center is disabled.
     pub protected_hosts: ProtectedHosts,
-    /// Every setting read: as used, or as read if it's set and nothing used it.
-    pub described: Described,
 }
 
 impl Config {
-    /// The configuration, `None` if anything is refused; `settings` keeps the refusals.
-    pub fn read(settings: &mut Settings) -> Option<Self> {
-        let before = settings.refusals();
-        let socket = settings.get(EXT_SOCKET).parsed(|text| {
-            let path = PathBuf::from(text);
-            path.is_absolute()
-                .then_some(path)
-                .ok_or_else(|| "must be an absolute path".to_owned())
-        });
+    /// The configuration, every setting judged, or `Err` if anything is refused; `settings` keeps
+    /// the refusals.
+    pub fn read(settings: &mut Settings) -> Result<Self, Refused> {
+        let socket = settings
+            .get(EXT_SOCKET)
+            .parsed(|text| {
+                let path = PathBuf::from(text);
+                path.is_absolute()
+                    .then_some(path)
+                    .ok_or_else(|| "must be an absolute path".to_owned())
+            })
+            .map(|socket| socket.unwrap_or_else(|| PathBuf::from(DEFAULT_SOCKET)));
+        if let Ok(socket) = &socket {
+            settings.describe(EXT_SOCKET, socket.display());
+        }
         // Whatever is set is judged either way; only an enabled Rail Center requires its settings.
-        let enabled = read_disabled(settings) == Some(false);
+        let disabled = read_disabled(settings);
+        let enabled = disabled == Ok(false);
         let rail_center = read_rail_center(settings, enabled);
         let ticket = read_ticket_settings(settings, enabled);
         let protected_hosts = read_protected_hosts(settings, enabled);
-        if settings.refusals() > before {
-            return None;
-        }
-        let socket = socket.unwrap_or_else(|| PathBuf::from(DEFAULT_SOCKET));
-        let protected_hosts = protected_hosts
-            .expect("read_protected_hosts returns the hosts when it refuses nothing");
-        let mut described = Described::default();
-        described.info(EXT_SOCKET, socket.display());
-        describe_disabled(!enabled, &mut described);
-        if let Some(rail_center) = &rail_center {
-            rail_center.describe(&mut described);
-        }
-        if let Some(ticket) = &ticket {
-            ticket.describe(&mut described);
-        }
-        protected_hosts.describe(&mut described);
-        settings.describe_rest(&mut described);
-        Some(Self {
+        disabled?;
+        let (socket, rail_center, ticket, protected_hosts) =
+            (socket?, rail_center?, ticket?, protected_hosts?);
+        // Enabled, both are required, so both are Some.
+        let ticket = enabled.then(|| {
+            rail_center
+                .zip(ticket)
+                .expect("both are required when Rail Center is used")
+        });
+        Ok(Self {
             socket,
-            ticket: enabled.then(|| {
-                rail_center
-                    .zip(ticket)
-                    .expect("the readers return what they require when nothing is refused")
-            }),
+            ticket,
             protected_hosts,
-            described,
         })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
     use std::path::Path;
     use std::time::Duration;
 
-    use rail_runtime::{Level, Settings, Variables};
+    use rail_runtime::{Level, Source, Startup};
 
     use super::Config;
+    use crate::test_settings;
 
     const TOKEN: &str = "rc_svc_abcdefghijklmnopqrstuvwxyzABCDEFGHIJK-_0123";
 
-    // Every setting, set; one added to the reader must be added here.
+    // Every setting, set.
     const COMPLETE: [(&str, &str); 10] = [
         ("RAIL_EXT_SOCKET", "/tmp/rail/ext.sock"),
         ("RAIL_DISABLED", "false"),
@@ -94,19 +86,6 @@ mod tests {
         ),
     ];
 
-    // COMPLETE with each change made: a name set to another value, or unset by `None`.
-    fn complete_but(changes: &[(&str, Option<&'static str>)]) -> Vec<(&'static str, &'static str)> {
-        COMPLETE
-            .into_iter()
-            .filter_map(|(name, value)| {
-                match changes.iter().find(|(changed, _)| *changed == name) {
-                    Some((_, changed)) => changed.map(|changed| (name, changed)),
-                    None => Some((name, value)),
-                }
-            })
-            .collect()
-    }
-
     const ENABLED: [(&str, &str); 5] = [
         ("RAIL_CENTER_URL", "https://rail-center.example"),
         ("RAIL_PROXY_PROTECTED_HOSTS", "mcp.example.com:8443"),
@@ -115,62 +94,28 @@ mod tests {
         ("RAIL_TICKET_REFRESH_SECONDS", "600"),
     ];
 
-    fn read(pairs: &[(&str, &str)]) -> Result<Config, Vec<String>> {
-        let variables: Variables = pairs.iter().copied().collect();
-        let mut settings = Settings::new(&variables);
-        let config = Config::read(&mut settings);
-        match settings.finish() {
-            Ok(()) => Ok(config.expect("Config::read returns the config when it refuses nothing")),
-            Err(errors) => {
-                assert!(config.is_none(), "nothing is read when anything is refused");
-                Err(errors.0)
-            }
-        }
+    fn read_startup(pairs: &[(&str, &str)]) -> Result<(Config, Startup), Vec<String>> {
+        test_settings::read(pairs, Config::read)
     }
 
-    #[test]
-    fn every_setting_read_is_described() {
-        // Each branch, with the names it reads though they're unset.
-        let fixtures = [
-            ("bearer", complete_but(&[]), &[][..]),
-            (
-                "disabled",
-                complete_but(&[("RAIL_DISABLED", Some("true"))]),
-                &[],
-            ),
-            (
-                "no credential",
-                complete_but(&[("RAIL_AUTH_MODE", Some("none")), ("RAIL_AUTH_TOKEN", None)]),
-                &["RAIL_AUTH_TOKEN"],
-            ),
-        ];
+    fn read(pairs: &[(&str, &str)]) -> Result<Config, Vec<String>> {
+        read_startup(pairs).map(|(config, _)| config)
+    }
+
+    // Each entry logged, as (name, value, level); `pairs` must be accepted.
+    fn describe(pairs: &[(&str, &str)]) -> Vec<(&'static str, String, Level)> {
+        let (_, startup) = read_startup(pairs).unwrap();
+        startup
+            .entries
+            .into_iter()
+            .map(|entry| (entry.name, entry.value, entry.level))
+            .collect()
+    }
+
+    fn assert_no_token(entries: &[(&'static str, String, Level)]) {
         let secret = TOKEN.strip_prefix("rc_svc_").unwrap();
-        for (fixture, pairs, unset) in fixtures {
-            let variables: Variables = pairs.iter().copied().collect();
-            let mut settings = Settings::new(&variables);
-
-            let config = Config::read(&mut settings).unwrap();
-
-            let read: BTreeSet<&str> = settings.names_read().iter().copied().collect();
-            let expected: BTreeSet<&str> = pairs
-                .iter()
-                .map(|(name, _)| *name)
-                .chain(unset.iter().copied())
-                .collect();
-            assert_eq!(read, expected, "{fixture}");
-            assert_eq!(config.described.names(), read, "{fixture}");
-            assert_eq!(
-                settings.find_unread("RAIL_"),
-                Vec::<String>::new(),
-                "{fixture}"
-            );
-            for entry in config.described.entries() {
-                assert!(
-                    !entry.value.contains(secret),
-                    "{fixture}: {} shows the token",
-                    entry.name
-                );
-            }
+        for (name, value, _) in entries {
+            assert!(!value.contains(secret), "{name} shows the token");
         }
     }
 
@@ -184,50 +129,78 @@ mod tests {
             ("RAIL_AUTH_TOKEN", TOKEN),
         ];
 
-        let config = read(&pairs).unwrap();
+        let entries = describe(&pairs);
 
-        let names = config.described.names();
+        let entries_of = |name| entries.iter().filter(move |(named, ..)| *named == name);
         for (name, _) in pairs {
-            assert!(names.contains(name), "{name} has no entry");
+            assert_eq!(entries_of(name).count(), 1, "{name}");
         }
-        let entries: Vec<_> = config
-            .described
-            .entries()
-            .iter()
-            .map(|entry| (entry.name, entry.value.as_str(), entry.level))
-            .collect();
         assert_eq!(
             entries,
             [
-                ("RAIL_EXT_SOCKET", "/run/rail/ext.sock", Level::Info),
+                (
+                    "RAIL_EXT_SOCKET",
+                    "/run/rail/ext.sock".to_owned(),
+                    Level::Info
+                ),
                 (
                     "RAIL_DISABLED",
-                    "true",
+                    "true".to_owned(),
                     Level::Warn("Rail Center isn't used: nothing is fetched from it")
                 ),
-                ("RAIL_PROXY_PROTECTED_HOSTS", "none", Level::Info),
-                ("RAIL_ALLOW_HTTP", "true", Level::Info),
-                ("RAIL_AUTH_MODE", "bearer", Level::Info),
-                ("RAIL_AUTH_TOKEN", "set", Level::Info),
-                ("RAIL_TICKET_REFRESH_SECONDS", "600", Level::Info),
+                ("RAIL_PROXY_PROTECTED_HOSTS", "none".to_owned(), Level::Info),
+                ("RAIL_ALLOW_HTTP", "true".to_owned(), Level::Info),
+                ("RAIL_AUTH_MODE", "bearer".to_owned(), Level::Info),
+                ("RAIL_AUTH_TOKEN", "set".to_owned(), Level::Info),
+                ("RAIL_TICKET_REFRESH_SECONDS", "600".to_owned(), Level::Info),
             ]
         );
-        let secret = TOKEN.strip_prefix("rc_svc_").unwrap();
-        for (name, value, _) in entries {
-            assert!(!value.contains(secret), "{name} shows the token");
+        assert_no_token(&entries);
+    }
+
+    #[test]
+    fn the_token_is_in_no_entry_whichever_way_it_is_read() {
+        let disabled: Vec<_> = COMPLETE
+            .into_iter()
+            .map(|(name, value)| match name {
+                "RAIL_DISABLED" => (name, "true"),
+                _ => (name, value),
+            })
+            .collect();
+        for pairs in [&COMPLETE[..], &disabled] {
+            assert_no_token(&describe(pairs));
         }
     }
 
     #[test]
-    fn the_description_says_each_value_as_used_and_never_the_token() {
-        let variables: Variables = COMPLETE.into_iter().collect();
-        let config = Config::read(&mut Settings::new(&variables)).unwrap();
+    fn without_a_credential_the_token_is_described_as_unset() {
+        let pairs: Vec<_> = COMPLETE
+            .into_iter()
+            .filter_map(|(name, value)| match name {
+                "RAIL_AUTH_MODE" => Some((name, "none")),
+                "RAIL_AUTH_TOKEN" => None,
+                _ => Some((name, value)),
+            })
+            .collect();
 
-        let entries: Vec<_> = config
-            .described
-            .entries()
+        let entries = describe(&pairs);
+
+        assert_eq!(
+            entries[4..6],
+            [
+                ("RAIL_AUTH_MODE", "none".to_owned(), Level::Info),
+                ("RAIL_AUTH_TOKEN", "unset".to_owned(), Level::Info),
+            ]
+        );
+    }
+
+    #[test]
+    fn the_description_says_each_value_as_used_and_never_the_token() {
+        let described = describe(&COMPLETE);
+
+        let entries: Vec<_> = described
             .iter()
-            .map(|entry| (entry.name, entry.value.as_str(), entry.level))
+            .map(|(name, value, level)| (*name, value.as_str(), *level))
             .collect();
         assert_eq!(
             entries,
@@ -257,32 +230,39 @@ mod tests {
                 ),
             ]
         );
-        let secret = TOKEN.strip_prefix("rc_svc_").unwrap();
-        for (name, value, _) in entries {
-            assert!(!value.contains(secret), "{name} shows the token");
-        }
+        assert_no_token(&described);
     }
 
     #[test]
-    fn the_defaults_are_described_and_disabled_as_a_warning() {
-        let config = read(&[("RAIL_DISABLED", "true")]).unwrap();
+    fn the_defaults_are_described_as_used_and_disabled_as_a_warning() {
+        let (_, startup) = read_startup(&[("RAIL_DISABLED", "true")]).unwrap();
 
-        let entries: Vec<_> = config
-            .described
-            .entries()
+        let entries: Vec<_> = startup
+            .entries
             .iter()
-            .map(|entry| (entry.name, entry.value.as_str(), entry.level))
+            .map(|entry| (entry.name, entry.value.as_str(), entry.level, entry.source))
             .collect();
         assert_eq!(
             entries,
             [
-                ("RAIL_EXT_SOCKET", "/run/rail/ext.sock", Level::Info),
+                (
+                    "RAIL_EXT_SOCKET",
+                    "/run/rail/ext.sock",
+                    Level::Info,
+                    Source::Default
+                ),
                 (
                     "RAIL_DISABLED",
                     "true",
-                    Level::Warn("Rail Center isn't used: nothing is fetched from it")
+                    Level::Warn("Rail Center isn't used: nothing is fetched from it"),
+                    Source::Env
                 ),
-                ("RAIL_PROXY_PROTECTED_HOSTS", "none", Level::Info),
+                (
+                    "RAIL_PROXY_PROTECTED_HOSTS",
+                    "none",
+                    Level::Info,
+                    Source::Default
+                ),
             ]
         );
     }
@@ -295,12 +275,33 @@ mod tests {
             ("RAIL_BLANK", " "),
             ("HOME", "/root"),
         ]);
-        let variables: Variables = pairs.into_iter().collect();
-        let mut settings = Settings::new(&variables);
 
-        assert!(Config::read(&mut settings).is_some());
+        let (_, startup) = read_startup(&pairs).unwrap();
 
-        assert_eq!(settings.find_unread("RAIL_"), ["RAIL_PROXY_PROTECTED_HOST"]);
+        assert_eq!(startup.unread, ["RAIL_PROXY_PROTECTED_HOST"]);
+    }
+
+    #[test]
+    fn nothing_set_and_unused_is_unread() {
+        let disabled: Vec<_> = COMPLETE
+            .into_iter()
+            .map(|(name, value)| match name {
+                "RAIL_DISABLED" => (name, "true"),
+                _ => (name, value),
+            })
+            .collect();
+        let no_credential: Vec<_> = COMPLETE
+            .into_iter()
+            .filter_map(|(name, value)| match name {
+                "RAIL_AUTH_MODE" => Some((name, "none")),
+                "RAIL_AUTH_TOKEN" => None,
+                _ => Some((name, value)),
+            })
+            .collect();
+        for pairs in [&COMPLETE[..], &disabled, &no_credential] {
+            let (_, startup) = read_startup(pairs).unwrap();
+            assert!(startup.unread.is_empty(), "{pairs:?}: {:?}", startup.unread);
+        }
     }
 
     #[test]

@@ -1,11 +1,12 @@
-//! The local Rail Center the tests talk to, and the entries a setting describes.
+//! The local Rail Center the tests talk to, and settings read as a binary reads them.
 #![allow(dead_code)]
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use rail_runtime::{
-    Described, Level, RailCenterClient, RailCenterSettings, Settings, Variables, read_rail_center,
+    ConfigErrors, Level, ProtectedHosts, RailCenterClient, RailCenterSettings, Refused, Settings,
+    Startup, Variables, read_protected_hosts, read_rail_center,
 };
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -84,22 +85,52 @@ pub fn settings(url: &str, token: Option<&str>) -> RailCenterSettings {
     if let Some(token) = token {
         pairs.extend([("RAIL_AUTH_MODE", "bearer"), ("RAIL_AUTH_TOKEN", token)]);
     }
-    let variables: Variables = pairs.into_iter().collect();
-    let mut reader = Settings::new(&variables);
-    let read = read_rail_center(&mut reader, true);
-    reader.finish().unwrap();
-    read.expect("read_rail_center returns the settings when it refuses nothing")
+    read(&pairs, |settings| read_rail_center(settings, true))
+        .unwrap()
+        .unwrap()
 }
 
-// Each entry `write` describes, as (name, value, level).
-pub fn describe(write: impl FnOnce(&mut Described)) -> Vec<(&'static str, String, Level)> {
-    let mut described = Described::default();
-    write(&mut described);
-    described
-        .entries()
-        .iter()
-        .map(|entry| (entry.name, entry.value.clone(), entry.level))
+/// What `reader` reads of `variables`, and what that logs, or every refusal.
+pub fn read_from<T>(
+    variables: &Variables,
+    reader: impl FnOnce(&mut Settings) -> Result<T, Refused>,
+) -> Result<(T, Startup), Vec<String>> {
+    let mut settings = Settings::new(variables);
+    let read = reader(&mut settings);
+    settings
+        .finish("RAIL_", read)
+        .map_err(|ConfigErrors(errors)| errors)
+}
+
+/// What `reader` reads of `pairs`, or every refusal.
+pub fn read<T>(
+    pairs: &[(&str, &str)],
+    reader: impl FnOnce(&mut Settings) -> Result<T, Refused>,
+) -> Result<T, Vec<String>> {
+    let variables: Variables = pairs.iter().copied().collect();
+    read_from(&variables, reader).map(|(read, _)| read)
+}
+
+/// Each entry `reader` logs of `pairs`, as (name, value, level); `pairs` must be accepted.
+pub fn describe<T>(
+    pairs: &[(&str, &str)],
+    reader: impl FnOnce(&mut Settings) -> Result<T, Refused>,
+) -> Vec<(&'static str, String, Level)> {
+    let variables: Variables = pairs.iter().copied().collect();
+    let (_, startup) = read_from(&variables, reader).unwrap();
+    startup
+        .entries
+        .into_iter()
+        .map(|entry| (entry.name, entry.value, entry.level))
         .collect()
+}
+
+/// The protected hosts `value` lists, which must be accepted.
+pub fn protect(value: &str) -> ProtectedHosts {
+    read(&[("RAIL_PROXY_PROTECTED_HOSTS", value)], |settings| {
+        read_protected_hosts(settings, true)
+    })
+    .unwrap()
 }
 
 pub fn client(url: &str) -> RailCenterClient {
