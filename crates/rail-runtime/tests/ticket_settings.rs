@@ -1,6 +1,10 @@
 use std::time::Duration;
 
-use rail_runtime::{Settings, TicketQuery, TicketSettings, Variables, read_ticket_settings};
+use rail_runtime::{Level, Settings, TicketQuery, TicketSettings, Variables, read_ticket_settings};
+
+mod common;
+
+use common::describe;
 
 fn read(pairs: &[(&str, &str)]) -> Result<TicketSettings, Vec<String>> {
     let variables: Variables = pairs.iter().copied().collect();
@@ -94,6 +98,29 @@ fn the_refresh_interval_is_whole_seconds_from_5() {
             )]
         );
     }
+}
+
+#[test]
+fn the_refresh_interval_is_described_as_used() {
+    assert_eq!(
+        describe(|out| read(&NAMED).unwrap().describe(out)),
+        [
+            ("RAIL_HOST_ID", "host-1".to_owned(), Level::Info),
+            ("RAIL_SANDBOX_NAME", "sandbox a".to_owned(), Level::Info),
+            (
+                "RAIL_TICKET_REFRESH_SECONDS",
+                "3600".to_owned(),
+                Level::Info
+            ),
+        ]
+    );
+
+    let mut pairs = NAMED.to_vec();
+    pairs.push(("RAIL_TICKET_REFRESH_SECONDS", " 600\n"));
+    assert_eq!(
+        describe(|out| read(&pairs).unwrap().describe(out))[2],
+        ("RAIL_TICKET_REFRESH_SECONDS", "600".to_owned(), Level::Info)
+    );
 }
 
 #[test]

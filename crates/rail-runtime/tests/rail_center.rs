@@ -1,6 +1,11 @@
 use rail_runtime::{
-    CenterUrl, RailCenterSettings, Settings, Variables, read_disabled, read_rail_center,
+    CenterUrl, Described, Level, RailCenterSettings, Settings, Variables, describe_disabled,
+    read_disabled, read_rail_center,
 };
+
+mod common;
+
+use common::describe;
 
 const TOKEN: &str = "rc_svc_abcdefghijklmnopqrstuvwxyzABCDEFGHIJK-_0123";
 
@@ -408,6 +413,87 @@ fn an_unreadable_mode_is_the_only_refusal() {
     assert_eq!(
         settings.finish().unwrap_err().0,
         ["RAIL_AUTH_MODE is not valid UTF-8"]
+    );
+}
+
+#[test]
+fn the_settings_describe_themselves_with_their_defaults() {
+    assert_eq!(
+        describe(|out| enabled(&[URL]).describe(out)),
+        [
+            (
+                "RAIL_CENTER_URL",
+                "https://rc.example.com".to_owned(),
+                Level::Info
+            ),
+            ("RAIL_ALLOW_HTTP", "false".to_owned(), Level::Info),
+            ("RAIL_AUTH_MODE", "none".to_owned(), Level::Info),
+            ("RAIL_AUTH_TOKEN", "unset".to_owned(), Level::Info),
+        ]
+    );
+}
+
+#[test]
+fn the_token_is_described_only_as_set() {
+    let described =
+        describe(|out| enabled(&[URL, BEARER, ("RAIL_AUTH_TOKEN", TOKEN)]).describe(out));
+
+    assert_eq!(
+        described[2..],
+        [
+            ("RAIL_AUTH_MODE", "bearer".to_owned(), Level::Info),
+            ("RAIL_AUTH_TOKEN", "set".to_owned(), Level::Info),
+        ]
+    );
+    let secret = TOKEN.strip_prefix("rc_svc_").unwrap();
+    for (name, value, _) in &described {
+        assert!(!value.contains(secret), "{name} shows the token");
+    }
+}
+
+#[test]
+fn an_http_url_is_described_as_a_warning() {
+    let rail_center = enabled(&[
+        ("RAIL_CENTER_URL", "http://rc.internal:8080/"),
+        ("RAIL_ALLOW_HTTP", "true"),
+    ]);
+    let described = describe(|out| rail_center.describe(out));
+
+    assert_eq!(
+        described[..2],
+        [
+            (
+                "RAIL_CENTER_URL",
+                "http://rc.internal:8080".to_owned(),
+                Level::Warn("the credential and what Rail Center returns cross in the clear")
+            ),
+            ("RAIL_ALLOW_HTTP", "true".to_owned(), Level::Info),
+        ]
+    );
+}
+
+#[test]
+fn disabled_is_described_as_a_warning() {
+    let mut described = Described::default();
+
+    describe_disabled(false, &mut described);
+    describe_disabled(true, &mut described);
+
+    let levels: Vec<_> = described
+        .entries()
+        .iter()
+        .map(|entry| (entry.name, entry.value.as_str(), entry.level))
+        .collect();
+    assert_eq!(
+        levels,
+        [
+            ("RAIL_DISABLED", "false", Level::Info),
+            (
+                "RAIL_DISABLED",
+                "true",
+                Level::Warn("Rail Center isn't used: nothing is fetched from it")
+            ),
+        ]
     );
 }
 

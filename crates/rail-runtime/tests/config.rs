@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 use std::os::unix::ffi::OsStringExt;
 
-use rail_runtime::{ConfigErrors, EXIT_CODE, Settings, Variables};
+use rail_runtime::{ConfigErrors, Described, EXIT_CODE, Entry, Level, Secret, Settings, Variables};
 
 #[test]
 fn text_is_trimmed_and_blank_is_unset() {
@@ -225,6 +225,149 @@ fn a_refusal_and_a_retired_name_follow_the_name() {
         [
             "OLD is no longer read; NEW replaces it",
             "X is wrong for a reason"
+        ]
+    );
+}
+
+#[test]
+fn every_read_and_is_set_records_the_name_but_retired_and_refuse_do_not() {
+    let variables: Variables = [("A", "a"), ("OLD", "1")].into_iter().collect();
+    let mut settings = Settings::new(&variables);
+
+    settings.get("A").text();
+    settings.get("B").parsed(|text| Ok(text.to_owned()));
+    settings.get("C").boolean();
+    settings.get("D").secret();
+    settings.get("E").is_set();
+    settings.get("OLD").retired("NEW replaces it");
+    settings.get("GONE").retired("nothing reads it");
+    settings.get("F").refuse("is wrong for a reason");
+
+    assert_eq!(
+        settings.names_read().iter().copied().collect::<Vec<_>>(),
+        ["A", "B", "C", "D", "E"]
+    );
+}
+
+#[test]
+fn a_variable_set_under_the_prefix_and_never_read_is_found() {
+    let variables: Variables = [
+        ("RAIL_HOST_ID", "h"),
+        ("RAIL_HOST_IDS", "typo"),
+        ("RAIL_BLANK", " \n"),
+        ("RAIL_OLD", "1"),
+        ("RAIL_CHECKED", "1"),
+        ("HOME", "/root"),
+    ]
+    .into_iter()
+    .collect();
+    let mut settings = Settings::new(&variables);
+
+    settings.get("RAIL_HOST_ID").text();
+    settings.get("RAIL_CHECKED").is_set();
+    settings.get("RAIL_OLD").retired("nothing reads it");
+
+    assert_eq!(settings.find_unread("RAIL_"), ["RAIL_HOST_IDS"]);
+}
+
+#[test]
+fn a_name_that_is_not_utf8_is_found_lossily() {
+    let mut name = b"RAIL_".to_vec();
+    name.push(0xff);
+    let variables: Variables = [(OsString::from_vec(name), OsString::from("x"))]
+        .into_iter()
+        .collect();
+
+    assert_eq!(
+        Settings::new(&variables).find_unread("RAIL_"),
+        ["RAIL_\u{fffd}"]
+    );
+}
+
+#[test]
+fn a_described_value_is_sanitized_and_a_warning_says_what_it_weakens() {
+    let mut described = Described::default();
+
+    described.info("A", "a\u{1b}[31mb");
+    described.warn("B", true, "it weakens this");
+
+    assert_eq!(
+        described.entries(),
+        [
+            Entry {
+                name: "A",
+                value: "a\\u{1b}[31mb".to_owned(),
+                level: Level::Info,
+            },
+            Entry {
+                name: "B",
+                value: "true".to_owned(),
+                level: Level::Warn("it weakens this"),
+            },
+        ]
+    );
+    assert_eq!(
+        described.names().into_iter().collect::<Vec<_>>(),
+        ["A", "B"]
+    );
+}
+
+#[test]
+fn a_secret_is_described_only_as_set_or_unset() {
+    let mut described = Described::default();
+
+    described.secret("S", Some(&Secret::new("hunter2".to_owned())));
+    described.secret("U", None);
+
+    let values: Vec<_> = described
+        .entries()
+        .iter()
+        .map(|entry| (entry.name, entry.value.as_str(), entry.level))
+        .collect();
+    assert_eq!(
+        values,
+        [("S", "set", Level::Info), ("U", "unset", Level::Info)]
+    );
+}
+
+#[test]
+fn a_name_read_and_set_but_not_described_is_described_as_read_and_a_secret_only_as_set() {
+    let variables: Variables = [
+        ("USED", "1"),
+        ("UNUSED", " a\u{1b}[31mb\n"),
+        ("TOKEN", "hunter2"),
+        ("CHECKED", "yes"),
+        ("BLANK", " "),
+        ("OLD", "1"),
+        ("NEVER_READ", "x"),
+    ]
+    .into_iter()
+    .collect();
+    let mut settings = Settings::new(&variables);
+    settings.get("USED").text();
+    settings.get("UNUSED").text();
+    settings.get("TOKEN").secret();
+    settings.get("CHECKED").is_set();
+    settings.get("BLANK").text();
+    settings.get("UNSET").text();
+    settings.get("OLD").retired("nothing reads it");
+    let mut described = Described::default();
+    described.info("USED", "1 as used");
+
+    settings.describe_rest(&mut described);
+
+    let entries: Vec<_> = described
+        .entries()
+        .iter()
+        .map(|entry| (entry.name, entry.value.as_str(), entry.level))
+        .collect();
+    assert_eq!(
+        entries,
+        [
+            ("USED", "1 as used", Level::Info),
+            ("CHECKED", "yes", Level::Info),
+            ("TOKEN", "set", Level::Info),
+            ("UNUSED", "a\\u{1b}[31mb", Level::Info),
         ]
     );
 }

@@ -3,7 +3,7 @@ use std::net::Ipv6Addr;
 
 use rail_policy::sanitize;
 
-use crate::config::Settings;
+use crate::config::{Described, Settings};
 
 pub const PROTECTED_HOSTS: &str = "RAIL_PROXY_PROTECTED_HOSTS";
 
@@ -39,6 +39,33 @@ impl ProtectedHosts {
 
     pub fn hosts(&self) -> impl Iterator<Item = &ProtectedHost> {
         self.0.values()
+    }
+
+    /// One entry per host; over plain HTTP, the ticket crosses in the clear.
+    pub fn describe(&self, out: &mut Described) {
+        if self.0.is_empty() {
+            out.info(PROTECTED_HOSTS, "none");
+        }
+        for host in self.hosts() {
+            let name = if host.host.contains(':') {
+                format!("[{}]", host.host)
+            } else {
+                host.host.clone()
+            };
+            let at = host.port.map_or_else(
+                || ", at the agent's port".to_owned(),
+                |port| format!(":{port}"),
+            );
+            if host.tls {
+                out.info(PROTECTED_HOSTS, format_args!("{name}{at} (HTTPS)"));
+            } else {
+                out.warn(
+                    PROTECTED_HOSTS,
+                    format_args!("{name}{at} (HTTP)"),
+                    "the ticket crosses in the clear",
+                );
+            }
+        }
     }
 }
 

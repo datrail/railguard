@@ -1,10 +1,12 @@
-//! The local Rail Center the tests talk to.
+//! The local Rail Center the tests talk to, and the entries a setting describes.
 #![allow(dead_code)]
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use rail_runtime::{RailCenterClient, RailCenterSettings, Settings, Variables, read_rail_center};
+use rail_runtime::{
+    Described, Level, RailCenterClient, RailCenterSettings, Settings, Variables, read_rail_center,
+};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
@@ -87,6 +89,17 @@ pub fn settings(url: &str, token: Option<&str>) -> RailCenterSettings {
     let read = read_rail_center(&mut reader, true);
     reader.finish().unwrap();
     read.expect("read_rail_center returns the settings when it refuses nothing")
+}
+
+// Each entry `write` describes, as (name, value, level).
+pub fn describe(write: impl FnOnce(&mut Described)) -> Vec<(&'static str, String, Level)> {
+    let mut described = Described::default();
+    write(&mut described);
+    described
+        .entries()
+        .iter()
+        .map(|entry| (entry.name, entry.value.clone(), entry.level))
+        .collect()
 }
 
 pub fn client(url: &str) -> RailCenterClient {
