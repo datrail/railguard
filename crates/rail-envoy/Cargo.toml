@@ -4,12 +4,15 @@ edition = "2024"
 
 [dependencies]
 envoy-types = "0.7"
+rail-policy = { path = "../rail-policy" }
 rail-runtime = { path = "../rail-runtime" }
-tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync"] }
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 tokio-stream = { version = "0.1", features = ["net"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt"] }
-tonic = { version = "0.14", default-features = false, features = ["codegen", "router", "server"] }
+# The channel is the probe's client, over the unix socket.
+tonic = { version = "0.14", default-features = false, features = ["channel", "codegen", "router", "server"] }
+tonic-health = { version = "0.14", default-features = false }
 
 [lints.rust]
 unsafe_code = "forbid"
