@@ -4,9 +4,7 @@ use rail_runtime::{
     OpaqueTicket, RailCenterTickets, TicketAnswer, TicketQuery, TicketSettings, TicketSource,
 };
 
-mod common;
-
-use common::{Reply, client, response, serve};
+use crate::common::{Reply, client, response, serve};
 
 // 2026-07-28T10:15:00Z
 const EXPIRES_AT: u64 = 1_785_233_700;

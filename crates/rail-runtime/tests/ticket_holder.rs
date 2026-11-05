@@ -3,9 +3,7 @@ use std::time::Duration;
 use rail_runtime::{TicketAnswer, Unavailable};
 use tokio::time::sleep;
 
-mod holder;
-
-use holder::{Clock, HOUR, Script, failed, start, ticket, token, until};
+use crate::holder::{Clock, HOUR, Script, failed, start, ticket, token, until};
 
 #[tokio::test(start_paused = true)]
 async fn a_fetched_ticket_is_presented_from_the_first_fetch() {

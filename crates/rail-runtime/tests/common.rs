@@ -1,4 +1,5 @@
 //! The local Rail Center the tests talk to, and settings read as a binary reads them.
+// Shared by both test binaries, and each uses only part of it.
 #![allow(dead_code)]
 
 use std::sync::{Arc, Mutex};

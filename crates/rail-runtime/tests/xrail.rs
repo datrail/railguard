@@ -5,9 +5,7 @@ use rail_runtime::{
     OpaqueTicket, ProtectedHosts, Route, Secret, Unavailable, XRailHeader, XRailHeaders,
 };
 
-mod common;
-
-use common::protect;
+use crate::common::protect;
 
 fn ticket() -> Arc<OpaqueTicket> {
     Arc::new(OpaqueTicket {

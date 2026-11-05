@@ -1,18 +1,12 @@
-//! Its own binary: a test logging with no subscriber can race `tracing`'s one-time interest.
-
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
 
 use rail_runtime::{RailCenterTickets, TicketHolder, TicketQuery, TicketSettings, Unavailable};
 use tokio::runtime::Handle;
 
-mod common;
-mod holder;
-mod logs;
-
-use common::{Reply, client, response, serve};
-use holder::{Clock, HOUR, Script, start, ticket, token, until};
-use logs::Logs;
+use crate::common::{Reply, client, response, serve};
+use crate::holder::{Clock, HOUR, Script, start, ticket, token, until};
+use crate::logs::Logs;
 
 #[tokio::test(start_paused = true)]
 async fn a_panicking_refresh_loop_is_logged() {

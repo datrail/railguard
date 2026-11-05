@@ -1,6 +1,16 @@
 [package]
 name = "rail-policy"
 edition = "2024"
+# One test binary, `tests/main.rs`, its modules beside it.
+autotests = false
+
+[lib]
+test = false
+doctest = false
+
+[[test]]
+name = "rail-policy"
+path = "tests/main.rs"
 
 [dependencies]
 base64 = { version = "0.22", default-features = false, features = ["alloc"] }

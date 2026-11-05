@@ -1,10 +1,9 @@
+use crate::common;
 use rail_runtime::{
     Level, ProtectedHost, ProtectedHosts, Settings, Variables, read_protected_hosts,
 };
 
-mod common;
-
-use common::describe;
+use crate::common::describe;
 
 const FORMAT: &str = "an entry is [http(s)://]host[:port]";
 

@@ -1,11 +1,7 @@
-//! Its own binary: a test logging with no subscriber can race `tracing`'s one-time interest.
-
 use std::error::Error;
 use std::fmt;
 
-mod logs;
-
-use logs::Logs;
+use crate::logs::Logs;
 
 // The one line `log` writes, after its target.
 fn format_line(log: impl FnOnce()) -> String {
@@ -18,7 +14,7 @@ fn format_line(log: impl FnOnce()) -> String {
     let lines: Vec<_> = text.lines().collect();
     assert_eq!(lines.len(), 1, "{text}");
     let (_, fields) = lines[0]
-        .split_once(" logging: ")
+        .split_once(&format!(" {}: ", module_path!()))
         .unwrap_or_else(|| panic!("{text}"));
     fields.to_owned()
 }
@@ -194,7 +190,10 @@ fn a_span_field_is_quoted_too_when_created_and_when_recorded() {
     let text = logs.text();
     assert_eq!(text.lines().count(), 1, "{text}");
     assert!(
-        text.contains(r#" INFO work{host="a\u{a}b" late="c\u{1b}d"}: logging: m"#),
+        text.contains(&format!(
+            r#" INFO work{{host="a\u{{a}}b" late="c\u{{1b}}d"}}: {}: m"#,
+            module_path!()
+        )),
         "{text}"
     );
 }

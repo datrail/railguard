@@ -129,7 +129,7 @@ fn a_refused_configuration_exits_2() {
     let output = std::process::Command::new(std::env::current_exe().unwrap())
         .args([
             "--exact",
-            "refused_configuration_child",
+            "config::refused_configuration_child",
             "--ignored",
             "--nocapture",
         ])

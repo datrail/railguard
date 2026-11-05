@@ -7,9 +7,7 @@ use rail_runtime::{FetchError, Limits, RailCenterClient};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 
-mod common;
-
-use common::{Reply, TOKEN, client, response, serve, settings};
+use crate::common::{Reply, TOKEN, client, response, serve, settings};
 
 const LIMITS: Limits = Limits {
     attempt_timeout: Duration::from_secs(5),
@@ -392,8 +390,13 @@ async fn ambient_proxy_child() {
 fn an_ambient_proxy_is_not_used() {
     // Nothing listens there, so a request sent through the proxy fails.
     let proxy = "http://127.0.0.1:9";
-    let status = std::process::Command::new(std::env::current_exe().unwrap())
-        .args(["--exact", "ambient_proxy_child", "--ignored", "--quiet"])
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "client::ambient_proxy_child",
+            "--ignored",
+            "--quiet",
+        ])
         .envs(
             [
                 "HTTP_PROXY",
@@ -407,8 +410,11 @@ fn an_ambient_proxy_is_not_used() {
         )
         .env_remove("NO_PROXY")
         .env_remove("no_proxy")
-        .status()
+        .output()
         .unwrap();
 
-    assert!(status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    // A name matching no test would pass with nothing run.
+    assert!(stdout.contains("1 passed"), "{stdout}");
+    assert!(output.status.success(), "{stdout}");
 }

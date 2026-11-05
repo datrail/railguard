@@ -1,4 +1,5 @@
 //! A scripted ticket source and a clock on tokio's paused time, for the holder's tests.
+// Shared by both test binaries, and each uses only part of it.
 #![allow(dead_code)]
 
 use std::sync::{Arc, Mutex};
