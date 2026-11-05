@@ -35,8 +35,8 @@ fn the_host_and_sandbox_are_both_required() {
     assert_eq!(
         read(&[]).unwrap_err(),
         [
-            "RAIL_HOST_ID is required because RAIL_DISABLED isn't true, and is unset or blank",
-            "RAIL_SANDBOX_NAME is required because RAIL_DISABLED isn't true, and is unset or blank",
+            "RAIL_HOST_ID is required and is unset or blank",
+            "RAIL_SANDBOX_NAME is required and is unset or blank",
         ]
     );
 }
@@ -128,19 +128,18 @@ fn not_required_judges_only_what_is_set() {
 }
 
 #[test]
-fn incomplete_still_describes_each_setting_as_used() {
+fn incomplete_describes_only_what_is_set_as_read() {
     assert_eq!(
-        describe(&[("RAIL_HOST_ID", "h")], |settings| {
-            read_ticket_settings(settings, false)
-        }),
+        describe(
+            &[
+                ("RAIL_TICKET_REFRESH_SECONDS", " 600\n"),
+                ("RAIL_HOST_ID", "h")
+            ],
+            |settings| read_ticket_settings(settings, false)
+        ),
         [
             ("RAIL_HOST_ID", "h".to_owned(), Level::Info),
-            ("RAIL_SANDBOX_NAME", "unset".to_owned(), Level::Info),
-            (
-                "RAIL_TICKET_REFRESH_SECONDS",
-                "3600".to_owned(),
-                Level::Info
-            ),
+            ("RAIL_TICKET_REFRESH_SECONDS", "600".to_owned(), Level::Info),
         ]
     );
 }

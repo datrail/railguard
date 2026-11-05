@@ -47,13 +47,7 @@ fn a_value_that_is_not_utf8_is_refused_once() {
     let mut settings = Settings::new(&variables);
 
     assert!(settings.get("A").is_set());
-    assert!(
-        settings
-            .get("A")
-            .required_if(true, "X is on")
-            .text()
-            .is_err()
-    );
+    assert!(settings.get("A").required_if(true).text().is_err());
     assert!(settings.get("A").secret().is_err());
 
     assert_eq!(
@@ -161,20 +155,14 @@ fn a_required_parse_refuses_unset_and_what_it_rejects() {
     };
 
     assert_eq!(
-        settings.get("P").required_if(true, "X is on").parsed(port),
+        settings.get("P").required_if(true).parsed(port),
         Ok(Some(8080))
     );
-    assert!(
-        settings
-            .get("N")
-            .required_if(true, "X is on")
-            .parsed(port)
-            .is_err()
-    );
+    assert!(settings.get("N").required_if(true).parsed(port).is_err());
     assert!(
         settings
             .get("UNSET")
-            .required_if(true, "X is on")
+            .required_if(true)
             .parsed(port)
             .is_err()
     );
@@ -182,7 +170,7 @@ fn a_required_parse_refuses_unset_and_what_it_rejects() {
         errors(settings),
         [
             "N is not a port, got: x",
-            "UNSET is required because X is on, and is unset or blank"
+            "UNSET is required and is unset or blank"
         ]
     );
 }
@@ -213,7 +201,7 @@ fn a_value_past_its_length_in_characters_is_refused() {
     assert!(
         settings
             .get("UNSET")
-            .required_if(true, "X is on")
+            .required_if(true)
             .max_chars(4)
             .text()
             .is_err()
@@ -222,7 +210,7 @@ fn a_value_past_its_length_in_characters_is_refused() {
         errors(settings),
         [
             "LONG has 5 characters, past the 4 allowed",
-            "UNSET is required because X is on, and is unset or blank"
+            "UNSET is required and is unset or blank"
         ]
     );
 }
@@ -233,13 +221,18 @@ fn the_reason_a_setting_is_required_is_said_only_when_it_is() {
     let mut settings = Settings::new(&variables);
 
     assert_eq!(
-        settings.get("OFF").required_if(false, "X is on").text(),
+        settings
+            .get("OFF")
+            .required_if(false)
+            .because("X is on")
+            .text(),
         Ok(None)
     );
     assert!(
         settings
             .get("ON")
-            .required_if(true, "X is on")
+            .required_if(true)
+            .because("X is on")
             .text()
             .is_err()
     );
@@ -269,10 +262,20 @@ fn a_refusal_and_a_retired_name_follow_the_name() {
 }
 
 #[test]
-fn every_name_read_or_checked_has_an_entry_and_a_retired_one_has_none() {
-    let variables: Variables = [("A", "a"), ("OLD", "")].into_iter().collect();
+fn every_name_set_and_read_or_checked_has_an_entry_and_a_retired_one_has_none() {
+    let variables: Variables = [
+        ("A", "a"),
+        ("B", "b"),
+        ("C", "true"),
+        ("D", "d"),
+        ("E", "e"),
+        ("OLD", ""),
+    ]
+    .into_iter()
+    .collect();
     let mut settings = Settings::new(&variables);
 
+    let _ = settings.get("UNSET").text();
     let _ = settings.get("A").text();
     let _ = settings.get("B").parsed(|text| Ok(text.to_owned()));
     let _ = settings.get("C").boolean();
@@ -367,7 +370,7 @@ fn a_secret_is_described_only_as_set_or_unset() {
 }
 
 #[test]
-fn a_name_read_but_not_described_is_described_as_read() {
+fn a_name_set_and_read_but_not_described_follows_alphabetically_as_read() {
     let variables: Variables = [
         ("USED", "1"),
         ("UNUSED", " a\u{1b}[31mb\n"),
@@ -393,11 +396,9 @@ fn a_name_read_but_not_described_is_described_as_read() {
         finish(settings).entries,
         [
             entry("USED", "1 as used", Level::Info, Source::Env),
-            entry("UNUSED", "a\u{1b}[31mb", Level::Info, Source::Env),
-            entry("TOKEN", "set", Level::Info, Source::Env),
             entry("CHECKED", "set", Level::Info, Source::Env),
-            entry("BLANK", "unset", Level::Info, Source::Default),
-            entry("UNSET", "unset", Level::Info, Source::Default),
+            entry("TOKEN", "set", Level::Info, Source::Env),
+            entry("UNUSED", "a\u{1b}[31mb", Level::Info, Source::Env),
         ]
     );
 }

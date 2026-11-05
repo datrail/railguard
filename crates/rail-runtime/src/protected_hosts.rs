@@ -49,7 +49,8 @@ pub fn read_protected_hosts(
 ) -> Result<ProtectedHosts, Refused> {
     let text = settings
         .get(PROTECTED_HOSTS)
-        .required_if(required, REQUIRED_BECAUSE)
+        .required_if(required)
+        .because(REQUIRED_BECAUSE)
         .text()?;
     // Unset or blank is `None`, so every entry counts, an empty one too.
     let entries: Vec<&str> = text

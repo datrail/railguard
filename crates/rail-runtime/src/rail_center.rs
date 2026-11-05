@@ -10,9 +10,6 @@ pub(crate) const ALLOW_HTTP: &str = "RAIL_ALLOW_HTTP";
 pub(crate) const AUTH_MODE: &str = "RAIL_AUTH_MODE";
 pub(crate) const AUTH_TOKEN: &str = "RAIL_AUTH_TOKEN";
 
-// Why Rail Center's settings and the ticket's are required, when they are.
-pub(crate) const USED: &str = "RAIL_DISABLED isn't true";
-
 // What Rail Center mints for a component: the prefix, then `secrets.token_urlsafe(32)`.
 const TOKEN_PREFIX: &str = "rc_svc_";
 const TOKEN_SECRET_CHARS: usize = 43;
@@ -42,8 +39,8 @@ pub fn read_disabled(settings: &mut Settings) -> Result<bool, Refused> {
 }
 
 /// The Rail Center settings, every one set judged, `None` if the URL or token is missing; both
-/// are required if `required`, which is whether Rail Center is used. Refuses the retired names
-/// too, which aren't described, since none can be set.
+/// are required if `required`, which is whether Rail Center is used. Described only when read
+/// whole. Refuses the retired names too, which aren't described, since none can be set.
 pub fn read_rail_center(
     settings: &mut Settings,
     required: bool,
@@ -59,24 +56,12 @@ pub fn read_rail_center(
     ];
     let url = settings
         .get(CENTER_URL)
-        .required_if(required, USED)
+        .required_if(required)
         .parsed(CenterUrl::parse);
-    match &url {
-        Ok(Some(url)) if url.is_https() => settings.describe(CENTER_URL, url),
-        Ok(Some(url)) => settings.warn(
-            CENTER_URL,
-            url,
-            "the credential and what Rail Center returns cross in the clear",
-        ),
-        _ => {}
-    }
     let allow_http = settings
         .get(ALLOW_HTTP)
         .boolean()
         .map(|allow| allow.unwrap_or(false));
-    if let Ok(allow_http) = allow_http {
-        settings.describe(ALLOW_HTTP, allow_http);
-    }
     let http = match &url {
         Ok(Some(url)) if !url.is_https() && !allow_http.unwrap_or(false) => {
             Err(settings.get(CENTER_URL).refuse(format_args!(
@@ -90,11 +75,36 @@ pub fn read_rail_center(
     retired.into_iter().try_for_each(|retired| retired)?;
     let (url, allow_http, token) = (url?, allow_http?, token?);
     http?;
-    Ok(url.zip(token).map(|(url, token)| RailCenterSettings {
+    let rail_center = url.zip(token).map(|(url, token)| RailCenterSettings {
         url,
         allow_http,
         token,
-    }))
+    });
+    if let Some(rail_center) = &rail_center {
+        describe_rail_center(settings, rail_center);
+    }
+    Ok(rail_center)
+}
+
+fn describe_rail_center(settings: &mut Settings, rail_center: &RailCenterSettings) {
+    let url = &rail_center.url;
+    if url.is_https() {
+        settings.describe(CENTER_URL, url);
+    } else {
+        settings.warn(
+            CENTER_URL,
+            url,
+            "the credential and what Rail Center returns cross in the clear",
+        );
+    }
+    settings.describe(ALLOW_HTTP, rail_center.allow_http);
+    let mode = if rail_center.token.is_some() {
+        "bearer"
+    } else {
+        "none"
+    };
+    settings.describe(AUTH_MODE, mode);
+    settings.describe_secret(AUTH_TOKEN, rail_center.token.as_ref());
 }
 
 // `Some(None)` is no credential; `None` is bearer with no token, when it isn't required.
@@ -118,24 +128,21 @@ fn read_token(settings: &mut Settings, required: bool) -> Result<Option<Option<S
                      {AUTH_MODE}=bearer to use it, or unset {AUTH_TOKEN}"
                 )));
             }
-            settings.describe(AUTH_MODE, "none");
-            settings.describe_secret(AUTH_TOKEN, None);
             Ok(Some(None))
         }
         "bearer" => {
-            settings.describe(AUTH_MODE, "bearer");
             let bearer = format!("{AUTH_MODE} is bearer");
             // Read as a secret, so nothing describes its text.
             let token = settings
                 .get(AUTH_TOKEN)
-                .required_if(required, &bearer)
+                .required_if(required)
+                .because(&bearer)
                 .secret()?;
             if let Some(token) = &token
                 && let Err(reason) = check_token(token.expose())
             {
                 return Err(settings.get(AUTH_TOKEN).refuse(reason));
             }
-            settings.describe_secret(AUTH_TOKEN, token.as_ref());
             Ok(token.map(Some))
         }
         // Not quoted: a token pasted into the wrong variable would reach the log.

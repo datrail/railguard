@@ -54,10 +54,7 @@ fn rail_center_is_used_unless_disabled() {
         read(&[("RAIL_DISABLED", "TRUE")]),
         Ok(Read::Disabled(None))
     ));
-    assert_eq!(
-        refusal(&[]),
-        "RAIL_CENTER_URL is required because RAIL_DISABLED isn't true, and is unset or blank"
-    );
+    assert!(refusal(&[]).starts_with("RAIL_CENTER_URL is required"));
     assert!(refusal(&[("RAIL_DISABLED", " false ")]).starts_with("RAIL_CENTER_URL is required"));
     assert!(matches!(read(&[URL]), Ok(Read::Enabled(_))));
 }

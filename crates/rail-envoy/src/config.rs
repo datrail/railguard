@@ -148,14 +148,11 @@ mod tests {
                     "true".to_owned(),
                     Level::Warn("Rail Center isn't used: nothing is fetched from it")
                 ),
-                ("RAIL_CENTER_URL", "unset".to_owned(), Level::Info),
+                ("RAIL_PROXY_PROTECTED_HOSTS", "none".to_owned(), Level::Info),
                 ("RAIL_ALLOW_HTTP", "true".to_owned(), Level::Info),
                 ("RAIL_AUTH_MODE", "bearer".to_owned(), Level::Info),
                 ("RAIL_AUTH_TOKEN", "set".to_owned(), Level::Info),
-                ("RAIL_HOST_ID", "unset".to_owned(), Level::Info),
-                ("RAIL_SANDBOX_NAME", "unset".to_owned(), Level::Info),
                 ("RAIL_TICKET_REFRESH_SECONDS", "600".to_owned(), Level::Info),
-                ("RAIL_PROXY_PROTECTED_HOSTS", "none".to_owned(), Level::Info),
             ]
         );
         assert_no_token(&entries);
@@ -259,18 +256,6 @@ mod tests {
                     "true",
                     Level::Warn("Rail Center isn't used: nothing is fetched from it"),
                     Source::Env
-                ),
-                ("RAIL_CENTER_URL", "unset", Level::Info, Source::Default),
-                ("RAIL_ALLOW_HTTP", "false", Level::Info, Source::Default),
-                ("RAIL_AUTH_MODE", "none", Level::Info, Source::Default),
-                ("RAIL_AUTH_TOKEN", "unset", Level::Info, Source::Default),
-                ("RAIL_HOST_ID", "unset", Level::Info, Source::Default),
-                ("RAIL_SANDBOX_NAME", "unset", Level::Info, Source::Default),
-                (
-                    "RAIL_TICKET_REFRESH_SECONDS",
-                    "3600",
-                    Level::Info,
-                    Source::Default
                 ),
                 (
                     "RAIL_PROXY_PROTECTED_HOSTS",

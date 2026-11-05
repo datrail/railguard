@@ -75,7 +75,8 @@ impl<'a> Settings<'a> {
         Setting {
             settings: self,
             name,
-            required: None,
+            required: false,
+            because: None,
             max_chars: None,
         }
     }
@@ -97,9 +98,10 @@ impl<'a> Settings<'a> {
 
     /// `value` and what to log of the settings, or every refusal.
     ///
-    /// A name read but not described gets an entry as read: its value, only `set` for a secret or
-    /// a name only checked with `is_set`, or `unset`. Entries are in the order their names were
-    /// first read. `prefix` names the variables that are likely typos when nothing reads them.
+    /// Described entries are in the order their names were first read. A name read, set, but not
+    /// described follows them alphabetically, as read: its value, or only `set` for a secret or a
+    /// name only checked with `is_set`. `prefix` names the variables that are likely typos when
+    /// nothing reads them.
     pub fn finish<T>(
         self,
         prefix: &str,
@@ -111,6 +113,7 @@ impl<'a> Settings<'a> {
         let value = value.expect("no errors recorded means Ok");
         let unread = self.find_unread(prefix);
         let mut entries = Vec::new();
+        let mut rest = BTreeSet::new();
         for &name in &self.read {
             let before = entries.len();
             entries.extend(
@@ -119,9 +122,12 @@ impl<'a> Settings<'a> {
                     .filter(|entry| entry.name == name)
                     .cloned(),
             );
-            if entries.len() == before {
-                entries.push(self.build_entry(name, self.format_as_read(name), Level::Info));
+            if entries.len() == before && self.variables.is_set(name) {
+                rest.insert(name);
             }
+        }
+        for name in rest {
+            entries.push(self.build_entry(name, self.format_as_read(name), Level::Info));
         }
         Ok((value, Startup { entries, unread }))
     }
@@ -140,10 +146,9 @@ impl<'a> Settings<'a> {
             .collect()
     }
 
+    // Only for a name that's set.
     fn format_as_read(&self, name: &str) -> String {
-        if !self.variables.is_set(name) {
-            "unset".to_owned()
-        } else if self.secrets.contains(name) || !self.texts.contains(name) {
+        if self.secrets.contains(name) || !self.texts.contains(name) {
             "set".to_owned()
         } else {
             let value = self.variables.0[OsStr::new(name)].to_string_lossy();
@@ -195,15 +200,21 @@ impl<'a> Settings<'a> {
 pub struct Setting<'s, 'a> {
     settings: &'s mut Settings<'a>,
     name: &'static str,
-    // Why it's required, if it is.
-    required: Option<&'s str>,
+    required: bool,
+    because: Option<&'s str>,
     max_chars: Option<usize>,
 }
 
 impl<'s, 'a> Setting<'s, 'a> {
-    /// Refused when unset, if `condition`; `because` says why it's required.
-    pub fn required_if(mut self, condition: bool, because: &'s str) -> Self {
-        self.required = condition.then_some(because);
+    /// Refused when unset, if `condition`.
+    pub fn required_if(mut self, condition: bool) -> Self {
+        self.required = condition;
+        self
+    }
+
+    /// Why it's required, said when it's refused for being unset.
+    pub fn because(mut self, reason: &'s str) -> Self {
+        self.because = Some(reason);
         self
     }
 
@@ -291,11 +302,12 @@ impl<'s, 'a> Setting<'s, 'a> {
     }
 
     fn missing(&mut self) -> Result<Option<&'a str>, Refused> {
-        match self.required {
-            Some(reason) => Err(self.reject(format_args!(
+        match (self.required, self.because) {
+            (false, _) => Ok(None),
+            (true, Some(reason)) => Err(self.reject(format_args!(
                 "is required because {reason}, and is unset or blank"
             ))),
-            None => Ok(None),
+            (true, None) => Err(self.reject("is required and is unset or blank")),
         }
     }
 
@@ -390,9 +402,9 @@ pub struct Entry {
 /// What a read configuration logs at startup.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Startup {
-    /// Each setting read, with the value it takes after parsing and defaults; one nothing
-    /// described is filled in as read: its value, `set` for a secret or a name only checked with
-    /// `is_set`, or `unset`.
+    /// Each setting described, with the value it takes after parsing and defaults, then each one
+    /// set that nothing described, alphabetically and as read: its value, or `set` for a secret or
+    /// a name only checked with `is_set`.
     pub entries: Vec<Entry>,
     /// Each variable under the prefix that nothing read, likely a typo.
     pub unread: Vec<String>,

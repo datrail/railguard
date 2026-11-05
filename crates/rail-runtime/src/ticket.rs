@@ -9,7 +9,6 @@ use time::macros::format_description;
 
 use crate::client::{Limits, RailCenterClient};
 use crate::config::{Refused, Secret, Settings};
-use crate::rail_center::USED;
 
 const ROUTE: &str = "/v1/tickets";
 
@@ -54,19 +53,20 @@ impl TicketSettings {
 }
 
 /// The ticket's settings, every one set judged, `None` if the host or sandbox is missing; both
-/// are required if `required`, which is whether Rail Center is used.
+/// are required if `required`, which is whether Rail Center is used. Described only when read
+/// whole.
 pub fn read_ticket_settings(
     settings: &mut Settings,
     required: bool,
 ) -> Result<Option<TicketSettings>, Refused> {
     let host_id = settings
         .get(HOST_ID)
-        .required_if(required, USED)
+        .required_if(required)
         .max_chars(MAX_HOST_ID_CHARS)
         .text();
     let sandbox_name = settings
         .get(SANDBOX_NAME)
-        .required_if(required, USED)
+        .required_if(required)
         .max_chars(MAX_SANDBOX_NAME_CHARS)
         .text();
     let refresh = settings
@@ -83,11 +83,8 @@ pub fn read_ticket_settings(
             )),
         })
         .map(|refresh| refresh.unwrap_or(DEFAULT_REFRESH_INTERVAL));
-    if let Ok(refresh) = refresh {
-        settings.describe(TICKET_REFRESH_SECONDS, refresh.as_secs());
-    }
     let (host_id, sandbox_name, refresh_interval) = (host_id?, sandbox_name?, refresh?);
-    Ok(host_id
+    let ticket = host_id
         .zip(sandbox_name)
         .map(|(host_id, sandbox_name)| TicketSettings {
             refresh_interval,
@@ -95,7 +92,13 @@ pub fn read_ticket_settings(
                 host_id: host_id.to_owned(),
                 sandbox_name: sandbox_name.to_owned(),
             })
-        }))
+        });
+    if let Some(ticket) = &ticket {
+        settings.describe(HOST_ID, &ticket.query.host_id);
+        settings.describe(SANDBOX_NAME, &ticket.query.sandbox_name);
+        settings.describe(TICKET_REFRESH_SECONDS, ticket.refresh_interval.as_secs());
+    }
+    Ok(ticket)
 }
 
 /// Whose ticket to fetch: this host, and the one sandbox it serves.
