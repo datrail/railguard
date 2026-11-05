@@ -1,8 +1,8 @@
 //! The Envoy host, in the proxy role: ext_authz and ext_proc on a unix socket Envoy shares. For
 //! now it allows every request, with this proxy's ticket in `x-rail` to a protected host.
 //!
-//! `rail-envoy` serves; `rail-envoy probe` exits 0 if the server accepts a connection, for a
-//! container health check in an image with no shell.
+//! `rail-envoy` serves, with `grpc.health.v1` on the same socket; `rail-envoy probe` asks it, and
+//! exits 0 if the server answers SERVING, for a container health check in an image with no shell.
 
 mod config;
 mod rail_center;
@@ -14,21 +14,32 @@ use std::os::unix::fs::{FileTypeExt, PermissionsExt};
 use std::path::Path;
 use std::process::ExitCode;
 use std::sync::Arc;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use envoy_types::ext_authz::v3::pb::AuthorizationServer;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
+use rail_policy::sanitize;
 use rail_runtime::{
     ProtectedHosts, RailCenterClient, RailCenterSettings, RailCenterTickets, TicketHolder,
     TicketSettings, Variables,
 };
-use tokio::net::{UnixListener, UnixStream};
+use tokio::net::UnixListener;
 use tokio::signal::unix::{Signal, SignalKind, signal};
 use tokio_stream::wrappers::UnixListenerStream;
+use tonic::server::NamedService;
+use tonic::transport::Endpoint;
+use tonic_health::ServingStatus;
+use tonic_health::pb::HealthCheckRequest;
+use tonic_health::pb::health_check_response::ServingStatus as WireStatus;
+use tonic_health::pb::health_client::HealthClient;
+use tonic_health::server::HealthReporter;
 
 use crate::config::Config;
 use crate::rail_center::RailCenterThread;
 use crate::services::{Allow, Continue};
+
+// Longer than any answer from a live server, and within the e2e health check's timeout.
+const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[tokio::main]
 async fn main() -> ExitCode {
@@ -72,8 +83,16 @@ async fn serve(config: Config) -> ExitCode {
     };
     log_protected_hosts(&config.protected_hosts);
     let protected_hosts = Arc::new(config.protected_hosts);
+    // Only answered once serving; the ticket never changes it, so nothing restarts us for it.
+    let (health, health_service) = tonic_health::server::health_reporter();
+    report_status(&health, ServingStatus::Serving).await;
     tracing::info!(socket = %config.socket.display(), rail_center = tickets.is_some(), protected_hosts = protected_hosts.hosts().count(), "serving Envoy");
+    let stopping = async {
+        terminated(terminate).await;
+        report_status(&health, ServingStatus::NotServing).await;
+    };
     let served = tonic::transport::Server::builder()
+        .add_service(health_service)
         .add_service(AuthorizationServer::new(Allow {
             tickets: tickets.clone(),
             protected_hosts: Arc::clone(&protected_hosts),
@@ -82,7 +101,7 @@ async fn serve(config: Config) -> ExitCode {
             tickets,
             protected_hosts,
         }))
-        .serve_with_incoming_shutdown(UnixListenerStream::new(listener), terminated(terminate))
+        .serve_with_incoming_shutdown(UnixListenerStream::new(listener), stopping)
         .await;
     if let Some(thread) = rail_center {
         thread.stop();
@@ -160,6 +179,17 @@ fn bind(socket: &Path) -> Result<UnixListener, String> {
     Ok(listener)
 }
 
+// The server as a whole, and each callout by its service name.
+async fn report_status(health: &HealthReporter, status: ServingStatus) {
+    health.set_service_status("", status).await;
+    health
+        .set_service_status(AuthorizationServer::<Allow>::NAME, status)
+        .await;
+    health
+        .set_service_status(ExternalProcessorServer::<Continue>::NAME, status)
+        .await;
+}
+
 async fn terminated(mut terminate: Signal) {
     tokio::select! {
         _ = terminate.recv() => {}
@@ -167,12 +197,49 @@ async fn terminated(mut terminate: Signal) {
     }
 }
 
+// A connection alone proves nothing: the kernel completes it from the backlog of a hung process.
 async fn probe(socket: &Path) -> ExitCode {
-    match UnixStream::connect(socket).await {
-        Ok(_) => ExitCode::SUCCESS,
-        Err(error) => {
-            eprintln!("no server on {}: {error}", socket.display());
+    match tokio::time::timeout(PROBE_TIMEOUT, check_health(socket)).await {
+        Ok(Ok(WireStatus::Serving)) => {
+            println!("serving");
+            ExitCode::SUCCESS
+        }
+        Ok(Ok(status)) => {
+            println!("not serving: {}", status.as_str_name());
+            ExitCode::FAILURE
+        }
+        Ok(Err(error)) => {
+            println!("can't check health on {}: {error}", socket.display());
+            ExitCode::FAILURE
+        }
+        Err(_) => {
+            println!(
+                "no answer on {} within {}s",
+                socket.display(),
+                PROBE_TIMEOUT.as_secs()
+            );
             ExitCode::FAILURE
         }
     }
+}
+
+// The server's health as a whole.
+async fn check_health(socket: &Path) -> Result<WireStatus, String> {
+    let endpoint = Endpoint::from_shared(format!("unix:{}", socket.display()))
+        .map_err(|error| error.to_string())?;
+    let channel =
+        endpoint
+            .connect()
+            .await
+            .map_err(|error| match std::error::Error::source(&error) {
+                Some(cause) => format!("can't connect: {cause}"),
+                None => format!("can't connect: {error}"),
+            })?;
+    let response = HealthClient::new(channel)
+        .check(HealthCheckRequest::default())
+        .await
+        .map_err(|status| format!("{:?}: {}", status.code(), sanitize(status.message())))?;
+    let status = response.into_inner().status;
+    // A value this version doesn't know isn't SERVING.
+    Ok(WireStatus::try_from(status).unwrap_or(WireStatus::Unknown))
 }

@@ -19,7 +19,8 @@ x-ext: &ext
   healthcheck:
     test: ["CMD", "/rail-envoy", "probe"]
     interval: 1s
-    timeout: 5s
+    # Past the probe's own 5 s, so its answer is the one recorded.
+    timeout: 6s
     retries: 30
   depends_on:
     rail-center: {condition: service_healthy}

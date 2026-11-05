@@ -10,6 +10,8 @@ For a request to a protected host, matched on its `:authority`, it sets:
 
 Any other request gets none of these. From every request it removes the agent's own `x-rail`, `x-rail-status` and `x-rail-upstream` but the one it sets, every other header whose name starts with `x-rail-`, and every header whose name has an `_`.
 
+It serves `grpc.health.v1` on the same socket: SERVING while it serves, NOT_SERVING once it's stopping. `rail-envoy probe` asks it, for an exec probe, and exits 0 only on SERVING; it waits at most 5 s, so give the probe a longer timeout. The ticket never affects health: without one, it fails closed by design, and a restart wouldn't help.
+
 `RAIL_PROXY_PROTECTED_HOSTS` lists the protected hosts, comma-separated, each `[http(s)://]host[:port]`: HTTPS unless it says `http://`, and its port if it names one. It's required unless `RAIL_DISABLED=true`. Anything else, and a host listed twice, is refused.
 
 Envoy's configuration is the customer's, so we can only recommend it. rail-envoy needs at least:
