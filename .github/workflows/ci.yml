@@ -9,31 +9,67 @@ permissions:
   contents: read
 
 jobs:
-  check:
+  rust:
+    name: Rust
     # Named, not ubuntu-latest, so the runner moves on purpose.
     runs-on: ubuntu-26.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # rustup installs the toolchain from rust-toolchain.toml on first use.
+      # The cache is keyed by job, so this and the Python job each keep their own.
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - run: cargo fmt --check
       - run: cargo clippy --locked --all-targets -- -D warnings
       - run: cargo clippy --locked -p rail-policy-py -- -D warnings
       - run: cargo test --locked
 
+  python:
+    name: Python
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The wheel compiles rail-policy through maturin, so this job needs Rust too.
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: "0.13.7"
       - run: make lint-py
       - run: make test-py
 
-  e2e-envoy:
+  # Builds each host's image and runs it behind its real proxy, against stubs.
+  e2e:
+    name: e2e (${{ matrix.stack }})
     runs-on: ubuntu-26.04
     # A cold build, then the stack: a hang shouldn't hold a runner for six hours.
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        stack: [envoy]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - run: make e2e-envoy
+
+      # Its own step, so the build's time shows apart from the run's.
+      - run: make e2e-${{ matrix.stack }}-images
+      - run: make e2e-${{ matrix.stack }}
+
+      - if: failure()
+        run: docker compose -f e2e/${{ matrix.stack }}/compose.yml logs --no-color
       - if: always()
-        run: make e2e-down
+        run: make e2e-down STACK=${{ matrix.stack }}
+
+  # The check the ruleset requires, in place of one per stack. always(): a
+  # failed stack would otherwise skip it, and a skipped check counts as passing.
+  e2e-passed:
+    name: e2e passed
+    needs: e2e
+    if: always()
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    steps:
+      - if: needs.e2e.result != 'success'
+        run: exit 1
