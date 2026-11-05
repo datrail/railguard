@@ -43,12 +43,12 @@ impl Config {
         disabled?;
         let (socket, rail_center, ticket, protected_hosts) =
             (socket?, rail_center?, ticket?, protected_hosts?);
-        // Enabled, both are required, so both are read.
-        let ticket = if enabled {
-            rail_center.zip(ticket)
-        } else {
-            None
-        };
+        // Enabled, both are required, so both are Some.
+        let ticket = enabled.then(|| {
+            rail_center
+                .zip(ticket)
+                .expect("both are required when Rail Center is used")
+        });
         Ok(Self {
             socket,
             ticket,

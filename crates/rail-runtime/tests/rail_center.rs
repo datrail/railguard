@@ -167,6 +167,22 @@ fn every_refusal_is_reported_at_once() {
 }
 
 #[test]
+fn an_http_refusal_does_not_hide_the_tokens() {
+    let refused = refusals(&[
+        ("RAIL_CENTER_URL", "http://rc"),
+        BEARER,
+        ("RAIL_AUTH_TOKEN", "not-a-token"),
+    ]);
+
+    assert_eq!(refused.len(), 2, "{refused:?}");
+    assert!(
+        refused[0].starts_with("RAIL_CENTER_URL is http://"),
+        "{refused:?}"
+    );
+    assert!(refused[1].starts_with("RAIL_AUTH_TOKEN "), "{refused:?}");
+}
+
+#[test]
 fn http_needs_allow_http() {
     let refused = refusal(&[("RAIL_CENTER_URL", "http://rc.example.com")]);
     assert!(

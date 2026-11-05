@@ -251,3 +251,18 @@ fn parse_expires_at(text: &str) -> Result<SystemTime, String> {
         .map(|at| at.assume_utc().into())
         .map_err(|_| format!("expires_at isn't YYYY-MM-DDTHH:MM:SSZ: {text}"))
 }
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use super::{LIMITS, MAX_LIFETIME};
+
+    #[test]
+    fn the_limits_and_the_lifetime_are_pinned() {
+        assert_eq!(LIMITS.deadline, Duration::from_secs(10));
+        assert_eq!(LIMITS.attempt_timeout, Duration::from_secs(10));
+        assert_eq!(LIMITS.max_bytes, 256 * 1024);
+        assert_eq!(MAX_LIFETIME, Duration::from_secs(86_400 + 300));
+    }
+}

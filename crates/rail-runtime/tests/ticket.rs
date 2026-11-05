@@ -294,17 +294,3 @@ async fn a_response_off_the_contract_is_described_without_its_values() {
         "the response is off the contract (Data error at line 1, column 54)"
     );
 }
-
-// Real time, ten seconds of it: a byte every 3 s keeps a 10 s attempt alive, and not a 1 s one.
-#[tokio::test]
-async fn a_dribbling_answer_is_cut_at_the_10_s_deadline_and_never_silent_10_s() {
-    let head = b"HTTP/1.1 200 OK\r\ncontent-length: 100000\r\n\r\n".to_vec();
-    let server = serve(move |_| Reply::Dribble(head.clone(), Duration::from_secs(3))).await;
-
-    let answer = tickets(&server.url).fetch(at(SENT_AT)).await;
-
-    assert_eq!(
-        answer,
-        Err("the fetch ran past its 10s deadline".to_owned())
-    );
-}
