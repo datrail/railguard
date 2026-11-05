@@ -3,7 +3,6 @@ use std::sync::Arc;
 use crate::config::Secret;
 use crate::protected_hosts::{ProtectedHost, ProtectedHosts, split_authority};
 use crate::ticket::OpaqueTicket;
-use crate::ticket_holder::Unavailable;
 
 /// The ticket, for the gateway to check.
 pub const XRAIL: &str = "x-rail";
@@ -43,6 +42,27 @@ impl Route {
     /// The value of `x-rail-upstream`.
     pub fn upstream(&self) -> &'static str {
         if self.tls { "tls" } else { "plain" }
+    }
+}
+
+/// Why no ticket is presented, as `x-rail-status` says it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Unavailable {
+    /// Rail Center answered that this host and sandbox have no ticket.
+    NotFound,
+    /// The ticket held lapsed with no valid one to replace it.
+    Expired,
+    /// No answer yet, or the last answer was a failure to reach Rail Center.
+    IssuerUnreachable,
+}
+
+impl Unavailable {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::NotFound => "not-found",
+            Self::Expired => "expired",
+            Self::IssuerUnreachable => "issuer-unreachable",
+        }
     }
 }
 

@@ -87,7 +87,7 @@ async fn a_hostile_answer_is_logged_escaped_once() {
         }),
     };
 
-    let _holder = TicketHolder::start(&Handle::current(), source, HOUR, Arc::new(SystemTime::now));
+    let _holder = TicketHolder::start(&Handle::current(), source, Arc::new(SystemTime::now));
     let deadline = Instant::now() + Duration::from_secs(10);
     let line = loop {
         let text = logs.text();

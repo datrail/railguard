@@ -44,6 +44,7 @@ pub struct Script {
     pub fetched_at: Arc<Mutex<Vec<u64>>>,
     pub sent_at: Arc<Mutex<Vec<SystemTime>>>,
     pub started: Instant,
+    pub refresh_interval: Duration,
 }
 
 impl Script {
@@ -53,6 +54,7 @@ impl Script {
             fetched_at: Arc::default(),
             sent_at: Arc::default(),
             started: clock.started,
+            refresh_interval: HOUR,
         }
     }
 
@@ -71,6 +73,10 @@ impl TicketSource for Script {
         };
         (self.answers)(fetches - 1)
     }
+
+    fn refresh_interval(&self) -> Duration {
+        self.refresh_interval
+    }
 }
 
 pub fn ticket(token: &str, expires_at: SystemTime) -> Answer {
@@ -85,12 +91,11 @@ pub fn failed() -> Answer {
 }
 
 pub fn start(clock: &Clock, script: &Script, refresh_interval: Duration) -> TicketHolder {
-    TicketHolder::start(
-        &Handle::current(),
-        script.clone(),
+    let source = Script {
         refresh_interval,
-        clock.wall(),
-    )
+        ..script.clone()
+    };
+    TicketHolder::start(&Handle::current(), source, clock.wall())
 }
 
 pub fn token(holder: &TicketHolder) -> Result<String, Unavailable> {

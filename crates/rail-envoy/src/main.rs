@@ -161,17 +161,11 @@ fn start_tickets(
 ) -> Result<(RailCenterThread, Arc<TicketHolder>), String> {
     let client = RailCenterClient::new(&rail_center)?;
     let thread = RailCenterThread::start()?;
-    let refresh_interval = ticket.refresh_interval;
     let source = RailCenterTickets {
         client,
         settings: ticket,
     };
-    let tickets = TicketHolder::start(
-        thread.runtime(),
-        source,
-        refresh_interval,
-        Arc::new(SystemTime::now),
-    );
+    let tickets = TicketHolder::start(thread.runtime(), source, Arc::new(SystemTime::now));
     Ok((thread, Arc::new(tickets)))
 }
 

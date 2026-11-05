@@ -1,3 +1,4 @@
+use std::future::Future;
 use std::time::{Duration, SystemTime};
 
 use rail_policy::sanitize;
@@ -9,9 +10,11 @@ use time::macros::format_description;
 use crate::client::{Limits, RailCenterClient};
 use crate::config::{Refused, Secret, Settings};
 use crate::rail_center::USED;
-use crate::ticket_holder::MIN_REFRESH_INTERVAL;
 
 const ROUTE: &str = "/v1/tickets";
+
+// Not settings: a lower floor would let a fleet hammer Rail Center.
+pub(crate) const MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(5);
 
 pub const HOST_ID: &str = "RAIL_HOST_ID";
 pub const SANDBOX_NAME: &str = "RAIL_SANDBOX_NAME";
@@ -143,72 +146,94 @@ struct Entry {
     expires_at: String,
 }
 
-/// Fetches this host's ticket; `sent_at`, read before the call, keeps the round trip off its life.
-pub async fn fetch_ticket(
-    client: &RailCenterClient,
-    ticket: &TicketSettings,
-    sent_at: SystemTime,
-) -> Result<TicketAnswer, String> {
-    let query = &ticket.query;
-    let params = [
-        ("host_id", query.host_id.as_str()),
-        ("sandbox_name", query.sandbox_name.as_str()),
-    ];
-    let response = client
-        .get(ROUTE, &params, ticket.limits)
-        .await
-        .map_err(|error| error.to_string())?;
-    if response.status != StatusCode::OK {
-        return Err(format!("Rail Center answered {}", response.status));
-    }
-    let envelope: Envelope = serde_json::from_slice(&response.body).map_err(|error| {
-        // Where, not what: serde's message can quote a value, and a value may be the ticket.
-        format!(
-            "the response is off the contract ({:?} error at line {}, column {})",
-            error.classify(),
-            error.line(),
-            error.column()
-        )
-    })?;
-    if envelope.host_id != query.host_id {
-        return Err(format!(
-            "the response answers for host {}, not {}",
-            envelope.host_id, query.host_id
-        ));
-    }
-    let entry = match <[Entry; 1]>::try_from(envelope.tickets) {
-        Ok([entry]) => entry,
-        Err(tickets) if tickets.is_empty() => return Ok(TicketAnswer::NoTicket),
-        Err(tickets) => {
+/// Where tickets come from: Rail Center, or a test's script.
+pub trait TicketSource: Send + Sync + 'static {
+    /// One fetch; `sent_at` is the wall-clock time read just before it.
+    fn fetch(
+        &self,
+        sent_at: SystemTime,
+    ) -> impl Future<Output = Result<TicketAnswer, String>> + Send;
+
+    /// The longest a valid ticket goes unrefreshed.
+    fn refresh_interval(&self) -> Duration;
+}
+
+/// This host's ticket, fetched from Rail Center.
+pub struct RailCenterTickets {
+    pub client: RailCenterClient,
+    pub settings: TicketSettings,
+}
+
+impl TicketSource for RailCenterTickets {
+    /// Fetches this host's ticket; `sent_at`, read before the call, keeps the round trip off its
+    /// life.
+    async fn fetch(&self, sent_at: SystemTime) -> Result<TicketAnswer, String> {
+        let (client, ticket) = (&self.client, &self.settings);
+        let query = &ticket.query;
+        let params = [
+            ("host_id", query.host_id.as_str()),
+            ("sandbox_name", query.sandbox_name.as_str()),
+        ];
+        let response = client
+            .get(ROUTE, &params, ticket.limits)
+            .await
+            .map_err(|error| error.to_string())?;
+        if response.status != StatusCode::OK {
+            return Err(format!("Rail Center answered {}", response.status));
+        }
+        let envelope: Envelope = serde_json::from_slice(&response.body).map_err(|error| {
+            // Where, not what: serde's message can quote a value, and a value may be the ticket.
+            format!(
+                "the response is off the contract ({:?} error at line {}, column {})",
+                error.classify(),
+                error.line(),
+                error.column()
+            )
+        })?;
+        if envelope.host_id != query.host_id {
             return Err(format!(
-                "{} tickets for one sandbox; the narrowing wasn't honoured",
-                tickets.len()
+                "the response answers for host {}, not {}",
+                envelope.host_id, query.host_id
             ));
         }
-    };
-    // An unnamed or other sandbox's entry is another agent's identity.
-    if entry.sandbox_name.as_deref() != Some(query.sandbox_name.as_str()) {
-        return Err(format!(
-            "the ticket names sandbox {}, not {}",
-            entry.sandbox_name.as_deref().unwrap_or("none"),
-            query.sandbox_name
-        ));
+        let entry = match <[Entry; 1]>::try_from(envelope.tickets) {
+            Ok([entry]) => entry,
+            Err(tickets) if tickets.is_empty() => return Ok(TicketAnswer::NoTicket),
+            Err(tickets) => {
+                return Err(format!(
+                    "{} tickets for one sandbox; the narrowing wasn't honoured",
+                    tickets.len()
+                ));
+            }
+        };
+        // An unnamed or other sandbox's entry is another agent's identity.
+        if entry.sandbox_name.as_deref() != Some(query.sandbox_name.as_str()) {
+            return Err(format!(
+                "the ticket names sandbox {}, not {}",
+                entry.sandbox_name.as_deref().unwrap_or("none"),
+                query.sandbox_name
+            ));
+        }
+        check_token(&entry.token)?;
+        let expires_at = parse_expires_at(&entry.expires_at)?;
+        if expires_at
+            .duration_since(sent_at)
+            .is_ok_and(|lifetime| lifetime > ticket.max_lifetime)
+        {
+            return Err(format!(
+                "the ticket expires more than {} s away, past what Rail Center stamps",
+                ticket.max_lifetime.as_secs()
+            ));
+        }
+        Ok(TicketAnswer::Ticket(OpaqueTicket {
+            token: Secret::new(entry.token),
+            expires_at,
+        }))
     }
-    check_token(&entry.token)?;
-    let expires_at = parse_expires_at(&entry.expires_at)?;
-    if expires_at
-        .duration_since(sent_at)
-        .is_ok_and(|lifetime| lifetime > ticket.max_lifetime)
-    {
-        return Err(format!(
-            "the ticket expires more than {} s away, past what Rail Center stamps",
-            ticket.max_lifetime.as_secs()
-        ));
+
+    fn refresh_interval(&self) -> Duration {
+        self.settings.refresh_interval
     }
-    Ok(TicketAnswer::Ticket(OpaqueTicket {
-        token: Secret::new(entry.token),
-        expires_at,
-    }))
 }
 
 // base64url, padded or not, and a JWT's dots: what Rail Center mints. Never quoted.

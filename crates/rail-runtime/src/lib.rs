@@ -19,8 +19,8 @@ pub use rail_center::{
     read_disabled, read_rail_center,
 };
 pub use ticket::{
-    HOST_ID, OpaqueTicket, SANDBOX_NAME, TICKET_REFRESH_SECONDS, TicketAnswer, TicketQuery,
-    TicketSettings, fetch_ticket, read_ticket_settings,
+    HOST_ID, OpaqueTicket, RailCenterTickets, SANDBOX_NAME, TICKET_REFRESH_SECONDS, TicketAnswer,
+    TicketQuery, TicketSettings, TicketSource, read_ticket_settings,
 };
-pub use ticket_holder::{RailCenterTickets, TicketHolder, TicketSource, Unavailable, WallClock};
-pub use xrail::{Route, XRailHeader, XRailHeaders};
+pub use ticket_holder::{TicketHolder, WallClock};
+pub use xrail::{Route, Unavailable, XRailHeader, XRailHeaders};
