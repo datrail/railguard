@@ -19,7 +19,7 @@ pub struct Config {
 impl Config {
     pub fn read(variables: &Variables) -> Result<Self, ConfigErrors> {
         let mut settings = Settings::new(variables);
-        let socket = settings.parse(EXT_SOCKET, |text| {
+        let socket = settings.get(EXT_SOCKET).parsed(|text| {
             let path = PathBuf::from(text);
             path.is_absolute()
                 .then_some(path)
