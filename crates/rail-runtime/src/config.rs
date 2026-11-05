@@ -195,7 +195,8 @@ impl<'a> Settings<'a> {
 /// is `Ok(None)` when the value is unset or blank, and records any refusal.
 ///
 /// `is_set`, `retired` and `refuse` skip a read's checks: they look at the value, or refuse it, as
-/// is. A read or `is_set` records the name as read, and `secret` as a secret too.
+/// is. A read, `is_set`, `describe` or `warn` records the name as read, and `secret` as a secret
+/// too.
 #[must_use = "a setting checks nothing until it's read"]
 pub struct Setting<'s, 'a> {
     settings: &'s mut Settings<'a>,

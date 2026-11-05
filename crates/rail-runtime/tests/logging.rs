@@ -44,12 +44,22 @@ fn a_text_value_is_quoted_with_what_hides_escaped() {
 }
 
 #[test]
+fn a_value_past_255_characters_is_kept_whole() {
+    let value = format!("{}root cause", "a".repeat(1000));
+
+    assert_eq!(
+        format_line(|| tracing::info!(value = %value, "m")),
+        format!("m value=\"{value}\"")
+    );
+}
+
+#[test]
 fn a_long_value_is_cut_inside_the_quotes() {
-    let value = "a".repeat(300);
+    let value = "a".repeat(1100);
 
     assert_eq!(
         format_line(|| tracing::info!(value, "m")),
-        format!("m value=\"{}…\"", "a".repeat(255))
+        format!("m value=\"{}…\"", "a".repeat(1024))
     );
 }
 

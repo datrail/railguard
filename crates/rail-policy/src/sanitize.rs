@@ -12,10 +12,11 @@ pub fn sanitize(text: &str) -> impl fmt::Display + '_ {
     Sanitized(text)
 }
 
-/// `text` as [`sanitize`] writes it, with `"` and `\` escaped by a backslash too, between double
-/// quotes: the cut falls inside them, and each escape reads back to one character.
-pub fn sanitize_quoted(text: &str) -> impl fmt::Display + '_ {
-    Quoted(text)
+/// `text` as [`sanitize`] writes it, but cut at `max_chars`, with `"` and `\` escaped by a
+/// backslash too, between double quotes: the cut falls inside them, and each escape reads back to
+/// one character.
+pub fn sanitize_quoted(text: &str, max_chars: usize) -> impl fmt::Display + '_ {
+    Quoted(text, max_chars)
 }
 
 /// `text` escaped as [`sanitize_quoted`] escapes it, with no quotes and no cut.
@@ -27,16 +28,16 @@ struct Sanitized<'a>(&'a str);
 
 impl fmt::Display for Sanitized<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write_escaped(f, self.0, false, true)
+        write_escaped(f, self.0, false, Some(MAX_CHARS))
     }
 }
 
-struct Quoted<'a>(&'a str);
+struct Quoted<'a>(&'a str, usize);
 
 impl fmt::Display for Quoted<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("\"")?;
-        write_escaped(f, self.0, true, true)?;
+        write_escaped(f, self.0, true, Some(self.1))?;
         f.write_str("\"")
     }
 }
@@ -45,14 +46,19 @@ struct Unquoted<'a>(&'a str);
 
 impl fmt::Display for Unquoted<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write_escaped(f, self.0, true, false)
+        write_escaped(f, self.0, true, None)
     }
 }
 
-fn write_escaped(f: &mut fmt::Formatter<'_>, text: &str, quotes: bool, cut: bool) -> fmt::Result {
+fn write_escaped(
+    f: &mut fmt::Formatter<'_>,
+    text: &str,
+    quotes: bool,
+    cut: Option<usize>,
+) -> fmt::Result {
     let mut start = 0;
     for (count, (index, c)) in text.char_indices().enumerate() {
-        if cut && count == MAX_CHARS {
+        if cut == Some(count) {
             f.write_str(&text[start..index])?;
             return f.write_str("…");
         }
