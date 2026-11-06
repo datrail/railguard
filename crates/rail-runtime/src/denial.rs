@@ -56,7 +56,7 @@ impl DenialSink for RailCenterDenials {
 }
 
 /// What denied a call.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug)]
 pub enum DeniedBy {
     /// The `block` policy whose condition held.
     Policy(Uuid),
@@ -66,7 +66,8 @@ pub enum DeniedBy {
 
 impl DeniedBy {
     /// What denies the call in `outcome`: its first fallback denial, else the policy that denied
-    /// it. `None` if nothing did, or if the walk was refused, which is never reported.
+    /// it. `None` if nothing did, or if the walk was refused, which is never reported. Only an
+    /// outcome judged at `enforce` denies: at `observe` the call is forwarded.
     pub fn of(outcome: &Outcome) -> Option<Self> {
         if let Some(&fallback) = outcome.fallback_denials.first() {
             return Some(Self::Fallback(fallback));
@@ -168,13 +169,7 @@ impl DenialReporter {
         let Ok(permit) = Arc::clone(&self.in_flight).try_acquire_owned() else {
             return self.drop_report(denial);
         };
-        // Built once: Rail Center tells reports apart by what they hold, `denied_at` included.
-        let Some(body) = build_report(denial, (self.now)()) else {
-            tracing::warn!(
-                "dropping a denial report: the wall clock is past what RFC 3339 can write"
-            );
-            return;
-        };
+        let body = build_report(denial, (self.now)());
         let post = Arc::clone(&self.post);
         let (policy, fallback, endpoint_key) = log_fields(denial);
         let endpoint_key = endpoint_key.map(str::to_owned);
@@ -229,9 +224,10 @@ fn log_fields<'a>(denial: &Denial<'a>) -> (Option<Uuid>, Option<&'static str>, O
     (policy, fallback, endpoint_key(denial.endpoint))
 }
 
-// The report's JSON, or `None` if `now` can't be written.
-fn build_report(denial: &Denial, now: std::time::SystemTime) -> Option<Vec<u8>> {
-    let denied_at = OffsetDateTime::from(now).format(&Rfc3339).ok()?;
+fn build_report(denial: &Denial, now: std::time::SystemTime) -> Vec<u8> {
+    let denied_at = OffsetDateTime::from(now)
+        .format(&Rfc3339)
+        .expect("a wall clock within years 0 to 9999");
     let (policy_id, fallback) = match denial.denied_by {
         DeniedBy::Policy(policy) => (Some(policy), None),
         DeniedBy::Fallback(fallback) => (None, Some(fallback)),
@@ -254,7 +250,7 @@ fn build_report(denial: &Denial, now: std::time::SystemTime) -> Option<Vec<u8>> 
             fallback,
         },
     };
-    Some(serde_json::to_vec(&report).expect("a report has only string keys"))
+    serde_json::to_vec(&report).expect("a report has only string keys")
 }
 
 fn endpoint_key(endpoint: &Endpoint) -> Option<&str> {

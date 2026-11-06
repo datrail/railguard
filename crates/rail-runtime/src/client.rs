@@ -9,7 +9,7 @@ use reqwest::header::{
     ACCEPT, ACCEPT_ENCODING, AUTHORIZATION, CACHE_CONTROL, CONTENT_ENCODING, CONTENT_TYPE,
     HeaderMap, HeaderValue,
 };
-use reqwest::{RequestBuilder, StatusCode, redirect, retry};
+use reqwest::{RequestBuilder, StatusCode, redirect};
 use tokio::time::timeout;
 
 use crate::rail_center::{AUTH_MODE, AUTH_TOKEN, CenterUrl, RailCenterSettings};
@@ -92,8 +92,6 @@ impl RailCenterClient {
             .tls_backend_preconfigured(tls_config())
             .no_proxy()
             .redirect(redirect::Policy::none())
-            // One attempt per call, so a `POST` is never sent twice; retrying is the caller's.
-            .retry(retry::never())
             .pool_idle_timeout(settings.idle_timeout)
             .default_headers(headers)
             .build()

@@ -1,4 +1,4 @@
-use rail_policy::TicketState;
+use rail_policy::{FallbackDenial, TicketState};
 use rail_runtime::{Denial, DeniedBy, FetchError};
 use reqwest::StatusCode;
 
@@ -89,4 +89,82 @@ async fn a_dropped_report_is_warned_of_with_the_count() {
         "{}",
         lines[1]
     );
+}
+
+// The log of `count` reports of `denied_by` to a sink holding them in flight.
+fn log_of_held(denied_by: DeniedBy, count: usize) -> String {
+    let logs = Logs::default();
+    let _logging = logs.capture();
+    let sink = Sink::holding();
+    let reporter = sink.start();
+    let endpoint = resolved();
+    let denial = Denial {
+        denied_by,
+        endpoint: &endpoint,
+        ticket: &TicketState::Absent,
+        claimed_status: None,
+    };
+    for _ in 0..count {
+        reporter.report(&denial);
+    }
+    logs.text()
+}
+
+#[tokio::test]
+async fn a_dropped_report_is_warned_of_with_what_it_reported_and_what_was_in_flight() {
+    let fallback = log_of_held(DeniedBy::Fallback(FallbackDenial::Ticket), 17);
+    let policy = log_of_held(DeniedBy::Policy(POLICY), 65);
+
+    let fallback = lines_with(&fallback, "dropping a denial report");
+    assert_eq!(fallback.len(), 1, "{fallback:?}");
+    for field in [
+        r#"fallback="ticket""#,
+        r#"endpoint_key="/mcp#tools/call#getPrice""#,
+        "in_flight=16 ",
+        "naming_no_policy=16 ",
+    ] {
+        assert!(fallback[0].contains(field), "{field}: {}", fallback[0]);
+    }
+    let policy = lines_with(&policy, "dropping a denial report");
+    assert_eq!(policy.len(), 1, "{policy:?}");
+    for field in [
+        format!(r#"policy="{POLICY}""#),
+        "in_flight=64 ".to_owned(),
+        "naming_no_policy=0 ".to_owned(),
+    ] {
+        assert!(policy[0].contains(&field), "{field}: {}", policy[0]);
+    }
+}
+
+#[tokio::test]
+async fn a_failed_report_naming_no_policy_is_warned_of_with_its_fallback() {
+    for (fallback, name) in [
+        (FallbackDenial::Ticket, "ticket"),
+        (FallbackDenial::Binding, "binding"),
+    ] {
+        let logs = Logs::default();
+        let _logging = logs.capture();
+        let sink = Sink::answering(|| accepted(StatusCode::OK));
+        let endpoint = resolved();
+
+        sink.start().report(&Denial {
+            denied_by: DeniedBy::Fallback(fallback),
+            endpoint: &endpoint,
+            ticket: &TicketState::Absent,
+            claimed_status: None,
+        });
+        sink.until_sent(1).await;
+        for _ in 0..10 {
+            tokio::task::yield_now().await;
+        }
+
+        let logs = logs.text();
+        let lines = lines_with(&logs, "denial report failed");
+        assert_eq!(lines.len(), 1, "{logs}");
+        assert!(
+            lines[0].contains(&format!(r#"fallback="{name}""#)),
+            "{}",
+            lines[0]
+        );
+    }
 }

@@ -217,7 +217,11 @@ fn what_denied_is_the_first_fallback_else_the_policy_and_never_a_refusal() {
         ),
     ];
     for (outcome, denied_by) in outcomes {
-        assert_eq!(DeniedBy::of(&outcome), denied_by, "{outcome:?}");
+        assert_eq!(
+            format!("{:?}", DeniedBy::of(&outcome)),
+            format!("{denied_by:?}"),
+            "{outcome:?}"
+        );
     }
 }
 
@@ -279,6 +283,68 @@ async fn reports_naming_no_policy_hold_16_places_at_most() {
     // With all 64 places taken, one naming a policy is dropped too.
     reporter.report(&policy);
     assert_eq!(reporter.dropped(), 5);
+}
+
+#[tokio::test]
+async fn an_answered_report_naming_no_policy_frees_its_place() {
+    let sink = Sink::holding();
+    let reporter = sink.start();
+    let endpoint = resolved();
+    let fallback = denial(
+        DeniedBy::Fallback(FallbackDenial::Binding),
+        &endpoint,
+        &TicketState::Absent,
+    );
+
+    for _ in 0..16 {
+        reporter.report(&fallback);
+    }
+    sink.until_sent(16).await;
+    // Still in flight, so still holding their places.
+    reporter.report(&fallback);
+    assert_eq!(reporter.dropped(), 1);
+
+    sink.release.add_permits(16);
+    for _ in 0..10 {
+        tokio::task::yield_now().await;
+    }
+    for _ in 0..16 {
+        reporter.report(&fallback);
+    }
+    sink.until_sent(32).await;
+
+    assert_eq!(reporter.dropped(), 1);
+}
+
+#[tokio::test]
+async fn a_report_naming_no_policy_dropped_at_the_64_cap_holds_no_place() {
+    let sink = Sink::holding();
+    let reporter = sink.start();
+    let endpoint = resolved();
+    let fallback = denial(
+        DeniedBy::Fallback(FallbackDenial::Binding),
+        &endpoint,
+        &TicketState::Absent,
+    );
+    let policy = denial(DeniedBy::Policy(POLICY), &endpoint, &TicketState::Absent);
+
+    for _ in 0..64 {
+        reporter.report(&policy);
+    }
+    reporter.report(&fallback);
+    assert_eq!(reporter.dropped(), 1);
+
+    sink.until_sent(64).await;
+    sink.release.add_permits(64);
+    for _ in 0..10 {
+        tokio::task::yield_now().await;
+    }
+    for _ in 0..16 {
+        reporter.report(&fallback);
+    }
+    sink.until_sent(80).await;
+
+    assert_eq!(reporter.dropped(), 1);
 }
 
 #[tokio::test]
