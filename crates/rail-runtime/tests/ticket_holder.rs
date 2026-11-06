@@ -3,11 +3,11 @@ use std::time::Duration;
 use rail_runtime::{Jitter, TicketAnswer, Unavailable};
 use tokio::time::sleep;
 
-use crate::holder::{Clock, HOUR, Script, failed, start, start_jittered, ticket, token, until};
+use crate::holder::{HOUR, Script, TestClock, failed, start, start_jittered, ticket, token, until};
 
 #[tokio::test(start_paused = true)]
 async fn a_fetched_ticket_is_presented_from_the_first_fetch() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let expiry = clock.at(900);
     let script = Script::new(&clock, move |_| ticket("a", expiry));
 
@@ -21,7 +21,7 @@ async fn a_fetched_ticket_is_presented_from_the_first_fetch() {
 
 #[tokio::test(start_paused = true)]
 async fn a_failed_fetch_keeps_a_ticket_still_valid_until_it_lapses_and_expired_after() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let expiry = clock.at(100);
     let script = Script::new(&clock, move |n| {
         if n == 0 {
@@ -45,7 +45,7 @@ async fn a_failed_fetch_keeps_a_ticket_still_valid_until_it_lapses_and_expired_a
 
 #[tokio::test(start_paused = true)]
 async fn rail_center_answering_none_clears_a_ticket_still_valid() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let expiry = clock.at(900);
     let script = Script::new(&clock, move |n| {
         if n == 0 {
@@ -63,7 +63,7 @@ async fn rail_center_answering_none_clears_a_ticket_still_valid() {
 
 #[tokio::test(start_paused = true)]
 async fn not_found_lasts_only_while_rail_center_says_so() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let script = Script::new(&clock, |n| {
         if n == 0 {
             Ok(TicketAnswer::NoTicket)
@@ -82,7 +82,7 @@ async fn not_found_lasts_only_while_rail_center_says_so() {
 
 #[tokio::test(start_paused = true)]
 async fn a_recovered_ticket_clears_the_reason() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let expiry = clock.at(900);
     let script = Script::new(&clock, move |n| match n {
         0 => Ok(TicketAnswer::NoTicket),
@@ -97,7 +97,7 @@ async fn a_recovered_ticket_clears_the_reason() {
 
 #[tokio::test(start_paused = true)]
 async fn refreshes_come_at_half_the_remaining_life() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let expiry = clock.at(800);
     let script = Script::new(&clock, move |_| ticket("a", expiry));
 
@@ -109,7 +109,7 @@ async fn refreshes_come_at_half_the_remaining_life() {
 
 #[tokio::test(start_paused = true)]
 async fn a_short_ticket_is_refreshed_no_more_than_every_5_s() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let script = Script::new(&clock, {
         let clock = clock.wall();
         move |_| ticket("a", clock() + Duration::from_secs(2))
@@ -123,7 +123,7 @@ async fn a_short_ticket_is_refreshed_no_more_than_every_5_s() {
 
 #[tokio::test(start_paused = true)]
 async fn a_long_ticket_is_still_refreshed_at_the_interval() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let expiry = clock.at(86_400);
     let script = Script::new(&clock, move |_| ticket("a", expiry));
 
@@ -135,7 +135,7 @@ async fn a_long_ticket_is_still_refreshed_at_the_interval() {
 
 #[tokio::test(start_paused = true)]
 async fn repeated_failure_backs_off_to_a_ceiling() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let script = Script::new(&clock, |_| failed());
 
     let _holder = start(&clock, &script, HOUR);
@@ -150,7 +150,7 @@ async fn repeated_failure_backs_off_to_a_ceiling() {
 
 #[tokio::test(start_paused = true)]
 async fn the_backoff_never_exceeds_the_interval_nor_goes_under_5_s() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let capped = Script::new(&clock, |_| failed());
     let floored = Script::new(&clock, |_| failed());
 
@@ -164,7 +164,7 @@ async fn the_backoff_never_exceeds_the_interval_nor_goes_under_5_s() {
 
 #[tokio::test(start_paused = true)]
 async fn no_ticket_backs_off_like_a_failure() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let script = Script::new(&clock, |_| Ok(TicketAnswer::NoTicket));
 
     let _holder = start(&clock, &script, HOUR);
@@ -175,7 +175,7 @@ async fn no_ticket_backs_off_like_a_failure() {
 
 #[tokio::test(start_paused = true)]
 async fn rail_center_handing_out_lapsed_tickets_still_backs_off() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let lapsed = clock.at(0);
     let script = Script::new(&clock, move |_| ticket("a", lapsed));
 
@@ -188,7 +188,7 @@ async fn rail_center_handing_out_lapsed_tickets_still_backs_off() {
 
 #[tokio::test(start_paused = true)]
 async fn failures_while_a_ticket_holds_back_off_within_half_its_remaining_life() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let expiry = clock.at(40);
     let script = Script::new(&clock, move |n| {
         if n == 0 {
@@ -208,7 +208,7 @@ async fn failures_while_a_ticket_holds_back_off_within_half_its_remaining_life()
 
 #[tokio::test(start_paused = true)]
 async fn a_success_restarts_the_ramp() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let script = Script::new(&clock, {
         let clock = clock.wall();
         move |n| match n {
@@ -226,7 +226,7 @@ async fn a_success_restarts_the_ramp() {
 
 #[tokio::test(start_paused = true)]
 async fn dropping_the_holder_stops_the_refreshes() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let script = Script::new(&clock, |_| failed());
 
     let holder = start(&clock, &script, HOUR);
@@ -239,7 +239,7 @@ async fn dropping_the_holder_stops_the_refreshes() {
 
 #[tokio::test(start_paused = true)]
 async fn a_new_ticket_replaces_one_still_valid() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let (first, second) = (clock.at(900), clock.at(1800));
     let script = Script::new(&clock, move |n| {
         if n == 0 {
@@ -260,7 +260,7 @@ async fn a_new_ticket_replaces_one_still_valid() {
 
 #[tokio::test(start_paused = true)]
 async fn a_lapsed_answer_never_replaces_a_ticket_still_valid_and_backs_off() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let (good, lapsed) = (clock.at(40), clock.at(0));
     let script = Script::new(&clock, move |n| {
         if n == 0 {
@@ -282,7 +282,7 @@ async fn a_lapsed_answer_never_replaces_a_ticket_still_valid_and_backs_off() {
 
 #[tokio::test(start_paused = true)]
 async fn the_clock_is_read_for_the_fetch_as_it_is_sent() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let expiry = clock.at(900);
     let script = Script::new(&clock, move |_| ticket("a", expiry));
 
@@ -297,7 +297,7 @@ async fn the_clock_is_read_for_the_fetch_as_it_is_sent() {
 
 #[tokio::test(start_paused = true)]
 async fn a_lapsed_ticket_after_none_is_expired_not_not_found() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let lapsed = clock.at(0);
     let script = Script::new(&clock, move |n| {
         if n == 0 {
@@ -315,7 +315,7 @@ async fn a_lapsed_ticket_after_none_is_expired_not_not_found() {
 
 #[tokio::test(start_paused = true)]
 async fn a_new_ticket_replaces_a_lapsed_one() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let (lapsed, good) = (clock.at(0), clock.at(900));
     let script = Script::new(&clock, move |n| {
         if n == 0 {
@@ -335,7 +335,7 @@ async fn a_new_ticket_replaces_a_lapsed_one() {
 
 #[tokio::test(start_paused = true)]
 async fn the_same_ticket_again_takes_its_new_expiry_lapsed_or_not() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let (soon, later) = (clock.at(100), clock.at(1000));
     let valid = Script::new(&clock, move |n| {
         ticket("a", if n == 0 { soon } else { later })
@@ -356,7 +356,7 @@ async fn the_same_ticket_again_takes_its_new_expiry_lapsed_or_not() {
 
 #[tokio::test(start_paused = true)]
 async fn the_period_runs_from_the_start_of_a_slow_fetch_and_never_under_5_s_after_it_ends() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let expiry = clock.at(86_400);
     let slow = Script {
         takes: Duration::from_secs(10),
@@ -377,7 +377,7 @@ async fn the_period_runs_from_the_start_of_a_slow_fetch_and_never_under_5_s_afte
 
 #[tokio::test(start_paused = true)]
 async fn jitter_scales_every_wait_never_under_5_s() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let expiry = clock.at(86_400);
     let succeeding = move |n: usize| {
         if n == 0 {
@@ -411,7 +411,7 @@ async fn jitter_scales_every_wait_never_under_5_s() {
 
 #[tokio::test(start_paused = true)]
 async fn random_jitter_varies_within_a_fifth_of_the_period() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let expiry = clock.at(86_400 * 30);
     let script = Script::new(&clock, move |_| ticket("a", expiry));
 
@@ -432,7 +432,7 @@ async fn random_jitter_varies_within_a_fifth_of_the_period() {
 
 #[tokio::test(start_paused = true)]
 async fn half_the_remaining_life_runs_from_the_end_of_a_slow_fetch_and_isnt_jittered_past() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let expiry = clock.at(800);
     let script = Script {
         takes: Duration::from_secs(10),

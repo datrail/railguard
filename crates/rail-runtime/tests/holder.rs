@@ -14,11 +14,11 @@ use tokio::time::Instant;
 pub const HOUR: Duration = Duration::from_secs(3600);
 
 // A wall clock that moves with tokio's paused time, starting at a fixed instant.
-pub struct Clock {
+pub struct TestClock {
     pub started: Instant,
 }
 
-impl Clock {
+impl TestClock {
     pub fn new() -> Self {
         Self {
             started: Instant::now(),
@@ -51,7 +51,10 @@ pub struct Script {
 }
 
 impl Script {
-    pub fn new(clock: &Clock, answers: impl Fn(usize) -> Answer + Send + Sync + 'static) -> Self {
+    pub fn new(
+        clock: &TestClock,
+        answers: impl Fn(usize) -> Answer + Send + Sync + 'static,
+    ) -> Self {
         Self {
             answers: Arc::new(answers),
             fetched_at: Arc::default(),
@@ -96,12 +99,12 @@ pub fn failed() -> Answer {
 }
 
 // With no jitter, so the times the fetches come are exact.
-pub fn start(clock: &Clock, script: &Script, refresh_interval: Duration) -> TicketHolder {
+pub fn start(clock: &TestClock, script: &Script, refresh_interval: Duration) -> TicketHolder {
     start_jittered(clock, script, refresh_interval, Jitter::new(|| 1.0))
 }
 
 pub fn start_jittered(
-    clock: &Clock,
+    clock: &TestClock,
     script: &Script,
     refresh_interval: Duration,
     jitter: Jitter,
@@ -120,7 +123,7 @@ pub fn token(holder: &TicketHolder) -> Result<String, Unavailable> {
 }
 
 // Lets the refresh loop run up to `seconds` from the start.
-pub async fn until(clock: &Clock, seconds: u64) {
+pub async fn until(clock: &TestClock, seconds: u64) {
     tokio::time::sleep_until(clock.started + Duration::from_secs(seconds)).await;
     tokio::task::yield_now().await;
 }

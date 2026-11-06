@@ -11,7 +11,7 @@ use serde_json::{Value, json};
 use tokio::runtime::Handle;
 use tokio::time::Instant;
 
-use crate::holder::Clock;
+use crate::holder::TestClock;
 
 pub const ONE: &str = "5c8f1e42-0000-4000-8000-0000000000a1";
 pub const TWO: &str = "5c8f1e42-0000-4000-8000-0000000000a2";
@@ -30,7 +30,10 @@ pub struct Script {
 }
 
 impl Script {
-    pub fn new(clock: &Clock, answers: impl Fn(usize) -> Answer + Send + Sync + 'static) -> Self {
+    pub fn new(
+        clock: &TestClock,
+        answers: impl Fn(usize) -> Answer + Send + Sync + 'static,
+    ) -> Self {
         Self {
             answers: Arc::new(answers),
             takes: Duration::ZERO,

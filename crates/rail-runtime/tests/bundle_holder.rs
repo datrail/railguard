@@ -1,4 +1,3 @@
-use std::sync::Mutex;
 use std::time::Duration;
 
 use rail_runtime::{BundleHolder, FetchError, Jitter, RailCenterBundles, RailCenterThread};
@@ -9,79 +8,70 @@ use tokio::time::Instant;
 
 use crate::bundles::{Answer, MINUTE, Script, answer, bundle, failed, held_hash, ok, start};
 use crate::common::{self, Reply, client, response, serve};
-use crate::holder::{Clock, until};
+use crate::holder::{TestClock, until};
 
 const LIMIT: Duration = Duration::from_secs(2);
 
+// A way of answering, called afresh for each fetch.
+type Answering = fn() -> Answer;
+
 // Every way of getting no usable bundle, a bundle Rail Center sent or not.
-fn unusable_answers() -> Vec<(&'static str, Answer)> {
+fn unusable_answers() -> Vec<(&'static str, Answering)> {
+    fn without(field: &str) -> Answer {
+        let mut body = bundle("v2", json!({}));
+        body.as_object_mut().unwrap().remove(field);
+        ok(&body)
+    }
     vec![
-        ("a 503", answer(StatusCode::SERVICE_UNAVAILABLE, b"")),
-        ("a 500", answer(StatusCode::INTERNAL_SERVER_ERROR, b"")),
-        ("a 404", answer(StatusCode::NOT_FOUND, b"")),
-        (
-            "a refused credential",
-            answer(StatusCode::UNAUTHORIZED, b""),
-        ),
-        ("a forbidden read", answer(StatusCode::FORBIDDEN, b"")),
-        (
-            "a connection failure",
-            Err(FetchError::Transport("connection refused".to_owned())),
-        ),
-        ("a deadline", failed()),
-        (
-            "a body that isn't JSON",
-            answer(StatusCode::OK, b"<html>nope</html>"),
-        ),
-        ("an empty body", answer(StatusCode::OK, b"")),
-        (
-            "a body that isn't UTF-8",
-            answer(StatusCode::OK, b"{\"\xff\":1}"),
-        ),
-        (
-            "a 202 carrying a good bundle",
+        ("a 503", || answer(StatusCode::SERVICE_UNAVAILABLE, b"")),
+        ("a 500", || answer(StatusCode::INTERNAL_SERVER_ERROR, b"")),
+        ("a 404", || answer(StatusCode::NOT_FOUND, b"")),
+        ("a refused credential", || {
+            answer(StatusCode::UNAUTHORIZED, b"")
+        }),
+        ("a forbidden read", || answer(StatusCode::FORBIDDEN, b"")),
+        ("a connection failure", || {
+            Err(FetchError::Transport("connection refused".to_owned()))
+        }),
+        ("a deadline", failed),
+        ("a body that isn't JSON", || {
+            answer(StatusCode::OK, b"<html>nope</html>")
+        }),
+        ("an empty body", || answer(StatusCode::OK, b"")),
+        ("a body that isn't UTF-8", || {
+            answer(StatusCode::OK, b"{\"\xff\":1}")
+        }),
+        ("a 202 carrying a good bundle", || {
             answer(
                 StatusCode::ACCEPTED,
                 bundle("v2", json!({})).to_string().as_bytes(),
-            ),
-        ),
-        ("a JSON array", ok(&json!([]))),
-        (
-            "another major",
-            ok(&bundle("v2", json!({"schema_version": "3.0"}))),
-        ),
-        (
-            "a version not MAJOR.MINOR",
-            ok(&bundle("v2", json!({"schema_version": "2.0.1"}))),
-        ),
-        (
-            "policies not a list",
-            ok(&bundle("v2", json!({"policies": "not a list"}))),
-        ),
-        ("no posture", {
-            let mut body = bundle("v2", json!({}));
-            body.as_object_mut().unwrap().remove("enforcement");
-            ok(&body)
+            )
         }),
-        (
-            "a posture outside the contract",
-            ok(&bundle("v2", json!({"enforcement": {"mode": "audit"}}))),
-        ),
-        ("no content_hash", {
-            let mut body = bundle("v2", json!({}));
-            body.as_object_mut().unwrap().remove("content_hash");
-            ok(&body)
+        ("a JSON array", || ok(&json!([]))),
+        ("another major", || {
+            ok(&bundle("v2", json!({"schema_version": "3.0"})))
         }),
+        ("a version not MAJOR.MINOR", || {
+            ok(&bundle("v2", json!({"schema_version": "2.0.1"})))
+        }),
+        ("policies not a list", || {
+            ok(&bundle("v2", json!({"policies": "not a list"})))
+        }),
+        ("no posture", || without("enforcement")),
+        ("a posture outside the contract", || {
+            ok(&bundle("v2", json!({"enforcement": {"mode": "audit"}})))
+        }),
+        ("no content_hash", || without("content_hash")),
     ]
 }
 
 #[tokio::test(start_paused = true)]
 async fn only_a_usable_answer_is_held_and_any_other_is_retried_as_a_failure() {
-    for ((label, first), (_, later)) in unusable_answers().into_iter().zip(unusable_answers()) {
-        let clock = Clock::new();
-        let answers = Mutex::new(vec![first, ok(&bundle("v1", json!({}))), later].into_iter());
-        let script = Script::new(&clock, move |_| {
-            answers.lock().unwrap().next().unwrap_or_else(failed)
+    for (label, unusable) in unusable_answers() {
+        let clock = TestClock::new();
+        let script = Script::new(&clock, move |n| match n {
+            1 => ok(&bundle("v1", json!({}))),
+            _ => unusable(),
         });
 
         let holder = start(&script, MINUTE);
@@ -101,7 +91,7 @@ async fn a_wait_ends_once_no_attempt_can_land_within_its_limit() {
         (3, Duration::ZERO, [0].as_slice()),
         (4, Duration::from_secs(1), &[0, 5]),
     ] {
-        let clock = Clock::new();
+        let clock = TestClock::new();
         let script = Script::new(&clock, |_| failed());
 
         let holder = start(&script, MINUTE);
@@ -119,7 +109,7 @@ async fn a_wait_ends_once_no_attempt_can_land_within_its_limit() {
 async fn a_wait_during_a_fetch_takes_its_answer_or_gives_up_at_its_limit() {
     // A fetch of 1 s lands within the 2 s; one of 10 s doesn't.
     for (takes, held, waited) in [(1, Some("v1"), 1), (10, None, 2)] {
-        let clock = Clock::new();
+        let clock = TestClock::new();
         let script = Script {
             takes: Duration::from_secs(takes),
             ..Script::new(&clock, |_| ok(&bundle("v1", json!({}))))
@@ -140,7 +130,7 @@ async fn a_wait_during_a_fetch_takes_its_answer_or_gives_up_at_its_limit() {
 #[tokio::test]
 async fn a_wait_on_another_runtime_is_woken_by_the_loop() {
     let thread = RailCenterThread::start().unwrap();
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let script = Script {
         takes: Duration::from_millis(100),
         ..Script::new(&clock, |_| ok(&bundle("v1", json!({}))))

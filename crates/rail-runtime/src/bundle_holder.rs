@@ -4,16 +4,14 @@ use std::time::Duration;
 use rail_policy::{
     CompiledBundle, EnforcementMode, Fallback, SchemaVersion, compile_bundle, parse_bundle,
 };
-use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::Value;
 use serde_json::error::Category;
 use tokio::runtime::Handle;
 
 use crate::bundle::BundleSource;
-use crate::client::{FetchError, Response};
+use crate::client::{FetchError, Response, read_ok};
 use crate::holder::{Holder, Jitter, Kind, MIN_REFRESH_INTERVAL, Schedule, Step, round_to_seconds};
-use crate::rail_center::{AUTH_MODE, AUTH_TOKEN};
 
 // The one `schema_version` major read: any minor of it is.
 const SCHEMA_MAJOR: u32 = 2;
@@ -99,7 +97,7 @@ struct Bundles<S> {
 
 // What one answer is: `Refused` blames the bundle Rail Center sent, `Failed` the fetch.
 enum Outcome {
-    // The bundle held, so there's none to compare when none is.
+    // The bundle held: an answer is only unchanged against one.
     Unchanged(Arc<HeldBundle>),
     Replaced {
         bundle: Arc<HeldBundle>,
@@ -244,25 +242,11 @@ struct Peek {
 }
 
 fn read_answer(held: Option<&Arc<HeldBundle>>, answer: Result<Response, FetchError>) -> Outcome {
-    let response = match answer {
-        Ok(response) => response,
-        Err(error) => return Outcome::Failed(error.to_string()),
+    let body = match read_ok(answer) {
+        Ok(body) => body,
+        Err(reason) => return Outcome::Failed(reason),
     };
-    if matches!(
-        response.status,
-        StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN
-    ) {
-        // Unlike Rail Center having a bad minute, this lasts until the configuration changes.
-        return Outcome::Failed(format!(
-            "Rail Center refused the credential ({}); every fetch fails this way until \
-             {AUTH_MODE} and {AUTH_TOKEN} are fixed",
-            response.status
-        ));
-    }
-    if response.status != StatusCode::OK {
-        return Outcome::Failed(format!("Rail Center answered {}", response.status));
-    }
-    let Ok(json) = std::str::from_utf8(&response.body) else {
+    let Ok(json) = std::str::from_utf8(&body) else {
         return Outcome::Failed("the response isn't UTF-8".to_owned());
     };
     let peek = match serde_json::from_str::<Peek>(json) {

@@ -5,14 +5,14 @@ use reqwest::StatusCode;
 use serde_json::{Value, json};
 
 use crate::bundles::{Answer, MINUTE, Script, TWO, answer, bundle, failed, ok, start};
-use crate::holder::Clock;
-use crate::logs::Logs;
+use crate::holder::TestClock;
+use crate::logs::{Logs, lines_with};
 
 // The log of a holder answered with `answers` in turn, once the last is fetched.
 async fn log_of(answers: Vec<Answer>) -> String {
     let logs = Logs::default();
     let _logging = logs.capture();
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let count = answers.len();
     let answers: Vec<_> = answers
         .into_iter()
@@ -28,10 +28,6 @@ async fn log_of(answers: Vec<Answer>) -> String {
     tokio::time::sleep(Duration::from_secs(1)).await;
 
     logs.text()
-}
-
-fn lines_with<'a>(logs: &'a str, text: &str) -> Vec<&'a str> {
-    logs.lines().filter(|line| line.contains(text)).collect()
 }
 
 fn enforcing(content_hash: &str, binding_fallback: &str, ticket_fallback: &str) -> Value {

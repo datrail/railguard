@@ -112,6 +112,15 @@ async fn only_200_is_read() {
 
         assert_eq!(error, format!("Rail Center answered {status}"));
     }
+    for status in ["401 Unauthorized", "403 Forbidden"] {
+        let error = refusal(answer(status, envelope("host-1", &[])).await);
+
+        assert!(
+            error.starts_with(&format!("Rail Center refused the credential ({status})"))
+                && error.contains("RAIL_AUTH_MODE and RAIL_AUTH_TOKEN"),
+            "{error}"
+        );
+    }
 }
 
 #[tokio::test]

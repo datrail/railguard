@@ -11,7 +11,7 @@ use reqwest::header::{
 use reqwest::{StatusCode, Url, redirect};
 use tokio::time::timeout;
 
-use crate::rail_center::{CenterUrl, RailCenterSettings};
+use crate::rail_center::{AUTH_MODE, AUTH_TOKEN, CenterUrl, RailCenterSettings};
 
 /// What one caller allows a fetch.
 #[derive(Clone, Copy, Debug)]
@@ -146,6 +146,21 @@ impl RailCenterClient {
         }
         let body = body.finish().map_err(|error| read_error(error, limits))?;
         Ok(Response { status, body })
+    }
+}
+
+/// The body of a 200, or why the answer has none.
+pub(crate) fn read_ok(answer: Result<Response, FetchError>) -> Result<Vec<u8>, String> {
+    let response = answer.map_err(|error| error.to_string())?;
+    match response.status {
+        StatusCode::OK => Ok(response.body),
+        // Unlike Rail Center having a bad minute, this lasts until the configuration changes.
+        StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => Err(format!(
+            "Rail Center refused the credential ({}); every fetch fails this way until \
+             {AUTH_MODE} and {AUTH_TOKEN} are fixed",
+            response.status
+        )),
+        status => Err(format!("Rail Center answered {status}")),
     }
 }
 

@@ -35,3 +35,8 @@ impl std::io::Write for Logs {
         Ok(())
     }
 }
+
+/// The lines of `logs` holding `text`.
+pub fn lines_with<'a>(logs: &'a str, text: &str) -> Vec<&'a str> {
+    logs.lines().filter(|line| line.contains(text)).collect()
+}

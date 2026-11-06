@@ -7,14 +7,14 @@ use rail_runtime::{
 use tokio::runtime::Handle;
 
 use crate::common::{Reply, client, response, serve};
-use crate::holder::{Clock, HOUR, Script, failed, start, ticket, token, until};
+use crate::holder::{HOUR, Script, TestClock, failed, start, ticket, token, until};
 use crate::logs::Logs;
 
 #[tokio::test(start_paused = true)]
 async fn a_panicking_fetch_is_a_failed_attempt_logged_without_its_message() {
     let logs = Logs::default();
     let _logging = logs.capture();
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let expiry = clock.at(900);
     let script = Script::new(&clock, move |n| match n {
         0 => ticket("a", expiry),
@@ -48,7 +48,7 @@ fn fingerprint(token: &str) -> String {
 async fn a_lapsed_answer_kept_out_is_logged_by_its_own_fingerprint() {
     let logs = Logs::default();
     let _logging = logs.capture();
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let (good, lapsed) = (clock.at(900), clock.at(0));
     let script = Script::new(&clock, move |n| {
         if n == 0 {
@@ -123,7 +123,7 @@ async fn a_hostile_answer_is_logged_escaped_once() {
 async fn each_answer_is_logged_for_what_it_did_to_the_ticket_held() {
     let logs = Logs::default();
     let _logging = logs.capture();
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let (first, second, lapsed, last) =
         (clock.at(900), clock.at(1800), clock.at(0), clock.at(5000));
     let script = Script::new(&clock, move |n| match n {
