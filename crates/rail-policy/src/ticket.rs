@@ -160,6 +160,52 @@ pub fn parse_jwt_ticket(
     check_expiry(claims, exp_epoch_seconds, now_epoch_seconds)
 }
 
+/// A JWKS as Rail Center publishes it, as the keys to verify signed tickets with: `None` where
+/// it isn't an object of `keys`, two entries share a `kid`, or none is usable.
+///
+/// A usable key is `OKP` `Ed25519`, with a string `kid` and an `x` of 32 bytes on the curve. An
+/// entry whose `use`, `key_ops` or `alg` is for something else is skipped, not refused, so Rail
+/// Center can publish keys for other purposes.
+pub fn parse_key_set(body: &[u8]) -> Option<HashMap<String, VerifyingKey>> {
+    let set = read_json(body)?;
+    let entries = set.get("keys")?.as_array()?;
+    // Over every entry, usable or not: a ticket naming a shared `kid` can't say which it meant.
+    let kids: Vec<Option<&Value>> = entries
+        .iter()
+        .filter_map(Value::as_object)
+        .map(|entry| entry.get("kid"))
+        .collect();
+    if (1..kids.len()).any(|at| kids[..at].contains(&kids[at])) {
+        return None;
+    }
+    let keys: HashMap<String, VerifyingKey> = entries
+        .iter()
+        .filter_map(Value::as_object)
+        .filter_map(read_key)
+        .collect();
+    (!keys.is_empty()).then_some(keys)
+}
+
+fn read_key(entry: &Map<String, Value>) -> Option<(String, VerifyingKey)> {
+    let is = |name: &str, value: &str| entry.get(name).and_then(Value::as_str) == Some(value);
+    let absent_or = |name: &str, value: &str| !entry.contains_key(name) || is(name, value);
+    let verifies = entry.get("key_ops").is_none_or(|ops| {
+        ops.as_array()
+            .is_some_and(|ops| ops.iter().any(|op| op.as_str() == Some("verify")))
+    });
+    let for_verifying = is("kty", "OKP")
+        && is("crv", "Ed25519")
+        && absent_or("use", "sig")
+        && absent_or("alg", "EdDSA")
+        && verifies;
+    if !for_verifying {
+        return None;
+    }
+    let kid = entry.get("kid")?.as_str()?;
+    let x: [u8; 32] = decode_base64(entry.get("x")?.as_str()?)?.try_into().ok()?;
+    Some((kid.to_owned(), VerifyingKey::from_bytes(&x).ok()?))
+}
+
 /// Either alphabet, padded or not: a trailing run of `=` is dropped, and nothing else is.
 fn decode_base64(text: &str) -> Option<Vec<u8>> {
     // The engine refuses any other byte, and a body of length 4n + 1.
