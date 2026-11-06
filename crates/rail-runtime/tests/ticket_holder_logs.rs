@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
 
 use rail_runtime::{
-    RailCenterTickets, TicketAnswer, TicketHolder, TicketQuery, TicketSettings, Unavailable,
+    Jitter, RailCenterTickets, TicketAnswer, TicketHolder, TicketQuery, TicketSettings,
 };
 use tokio::runtime::Handle;
 
@@ -11,21 +11,29 @@ use crate::holder::{Clock, HOUR, Script, failed, start, ticket, token, until};
 use crate::logs::Logs;
 
 #[tokio::test(start_paused = true)]
-async fn a_panicking_refresh_loop_is_logged() {
+async fn a_panicking_fetch_is_a_failed_attempt_logged_without_its_message() {
     let logs = Logs::default();
     let _logging = logs.capture();
     let clock = Clock::new();
-    let script = Script::new(&clock, |_| panic!("a defect in the fetch"));
+    let expiry = clock.at(900);
+    let script = Script::new(&clock, move |n| match n {
+        0 => ticket("a", expiry),
+        1 => panic!("a defect in the fetch"),
+        _ => failed(),
+    });
 
     let holder = start(&clock, &script, HOUR);
-    until(&clock, 1).await;
+    until(&clock, 455).await;
 
-    assert_eq!(token(&holder), Err(Unavailable::IssuerUnreachable));
+    // Kept through the panic at 450, and the next attempt backs off as after any failure.
+    assert_eq!(token(&holder), Ok("a".to_owned()));
+    assert_eq!(script.fetched_at(), [0, 450, 455]);
     let logs = logs.text();
     assert!(
-        logs.contains("the ticket refresh loop panicked; the ticket is no longer refreshed"),
+        logs.contains("a ticket refresh attempt panicked; keeping what's held"),
         "{logs}"
     );
+    assert!(!logs.contains("a defect in the fetch"), "{logs}");
 }
 
 fn fingerprint(token: &str) -> String {
@@ -83,7 +91,12 @@ async fn a_hostile_answer_is_logged_escaped_once() {
         }),
     };
 
-    let _holder = TicketHolder::start(&Handle::current(), source, Arc::new(SystemTime::now));
+    let _holder = TicketHolder::start(
+        &Handle::current(),
+        source,
+        Arc::new(SystemTime::now),
+        Jitter::random(),
+    );
     let deadline = Instant::now() + Duration::from_secs(10);
     let line = loop {
         let text = logs.text();

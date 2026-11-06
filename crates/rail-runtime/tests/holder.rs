@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use rail_runtime::{
-    OpaqueTicket, Secret, TicketAnswer, TicketHolder, TicketSource, Unavailable, WallClock,
+    Jitter, OpaqueTicket, Secret, TicketAnswer, TicketHolder, TicketSource, Unavailable, WallClock,
 };
 use tokio::runtime::Handle;
 use tokio::time::Instant;
@@ -38,7 +38,8 @@ impl Clock {
 
 pub type Answer = Result<TicketAnswer, String>;
 
-// Answers fetch n with `answers(n)`, recording when it came and the `sent_at` it was given.
+// Answers fetch n with `answers(n)`, `takes` after it starts, recording when it started and the
+// `sent_at` it was given.
 #[derive(Clone)]
 pub struct Script {
     pub answers: Arc<dyn Fn(usize) -> Answer + Send + Sync>,
@@ -46,6 +47,7 @@ pub struct Script {
     pub sent_at: Arc<Mutex<Vec<SystemTime>>>,
     pub started: Instant,
     pub refresh_interval: Duration,
+    pub takes: Duration,
 }
 
 impl Script {
@@ -56,6 +58,7 @@ impl Script {
             sent_at: Arc::default(),
             started: clock.started,
             refresh_interval: HOUR,
+            takes: Duration::ZERO,
         }
     }
 
@@ -72,6 +75,7 @@ impl TicketSource for Script {
             fetched_at.push(self.started.elapsed().as_secs());
             fetched_at.len()
         };
+        tokio::time::sleep(self.takes).await;
         (self.answers)(fetches - 1)
     }
 
@@ -91,12 +95,22 @@ pub fn failed() -> Answer {
     Err("Rail Center was silent for 10s".to_owned())
 }
 
+// With no jitter, so the times the fetches come are exact.
 pub fn start(clock: &Clock, script: &Script, refresh_interval: Duration) -> TicketHolder {
+    start_jittered(clock, script, refresh_interval, Jitter::new(|| 1.0))
+}
+
+pub fn start_jittered(
+    clock: &Clock,
+    script: &Script,
+    refresh_interval: Duration,
+    jitter: Jitter,
+) -> TicketHolder {
     let source = Script {
         refresh_interval,
         ..script.clone()
     };
-    TicketHolder::start(&Handle::current(), source, clock.wall())
+    TicketHolder::start(&Handle::current(), source, clock.wall(), jitter)
 }
 
 pub fn token(holder: &TicketHolder) -> Result<String, Unavailable> {

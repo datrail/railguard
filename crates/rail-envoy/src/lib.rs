@@ -24,7 +24,7 @@ use envoy_types::ext_authz::v3::pb::AuthorizationServer;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
 use rail_policy::sanitize;
 use rail_runtime::{
-    Level, RailCenterClient, RailCenterSettings, RailCenterTickets, Settings, Startup,
+    Jitter, Level, RailCenterClient, RailCenterSettings, RailCenterTickets, Settings, Startup,
     TicketHolder, TicketSettings, Variables,
 };
 use tokio::net::UnixListener;
@@ -166,7 +166,12 @@ fn start_tickets(
         client,
         settings: ticket,
     };
-    let tickets = TicketHolder::start(thread.runtime(), source, Arc::new(SystemTime::now));
+    let tickets = TicketHolder::start(
+        thread.runtime(),
+        source,
+        Arc::new(SystemTime::now),
+        Jitter::random(),
+    );
     Ok((thread, Arc::new(tickets)))
 }
 
