@@ -18,6 +18,9 @@ use crate::rail_center::{CenterUrl, RailCenterSettings};
 pub struct Limits {
     /// How long the fetch may take, its whole body included.
     pub deadline: Duration,
+    /// How long Rail Center may send nothing, for the response and then for each chunk of its
+    /// body, where the deadline is long enough to need it.
+    pub silence: Option<Duration>,
     /// The largest body read, counted after decoding.
     pub max_bytes: usize,
 }
@@ -33,6 +36,7 @@ pub struct Response {
 #[derive(Debug)]
 pub enum FetchError {
     Deadline(Duration),
+    Silent(Duration),
     TooLarge { max_bytes: usize },
     Encoding(String),
     BadGzip(String),
@@ -43,6 +47,7 @@ impl fmt::Display for FetchError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Deadline(deadline) => write!(f, "the fetch ran past its {deadline:?} deadline"),
+            Self::Silent(silence) => write!(f, "Rail Center was silent for {silence:?}"),
             Self::TooLarge { max_bytes } => {
                 write!(f, "the response is past the {max_bytes} bytes read")
             }
@@ -108,11 +113,8 @@ impl RailCenterClient {
     }
 
     async fn fetch(&self, url: Url, limits: Limits) -> Result<Response, FetchError> {
-        let mut response = self
-            .http
-            .get(url)
-            .send()
-            .await
+        let mut response = within(limits.silence, self.http.get(url).send())
+            .await?
             .map_err(|error| FetchError::Transport(describe(error)))?;
         if response
             .content_length()
@@ -133,9 +135,8 @@ impl RailCenterClient {
         } else {
             Body::Identity(capped)
         };
-        while let Some(chunk) = response
-            .chunk()
-            .await
+        while let Some(chunk) = within(limits.silence, response.chunk())
+            .await?
             .map_err(|error| FetchError::Transport(describe(error)))?
         {
             body.write_all(&chunk)
@@ -143,6 +144,16 @@ impl RailCenterClient {
         }
         let body = body.finish().map_err(|error| read_error(error, limits))?;
         Ok(Response { status, body })
+    }
+}
+
+// `future`, unless `silence` passes first.
+async fn within<F: Future>(silence: Option<Duration>, future: F) -> Result<F::Output, FetchError> {
+    match silence {
+        Some(silence) => timeout(silence, future)
+            .await
+            .map_err(|_| FetchError::Silent(silence)),
+        None => Ok(future.await),
     }
 }
 

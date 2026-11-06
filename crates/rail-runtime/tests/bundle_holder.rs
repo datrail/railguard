@@ -2,7 +2,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use rail_policy::{EnforcementMode, Fallback};
-use rail_runtime::{BundleHolder, FetchError, Jitter, RailCenterBundles, RailCenterThread};
+use rail_runtime::{
+    BundleHolder, BundleSource, FetchError, Jitter, RailCenterBundles, RailCenterThread,
+};
 use reqwest::StatusCode;
 use serde_json::json;
 use tokio::runtime::Handle;
@@ -480,4 +482,32 @@ async fn the_route_the_gateway_and_the_credential_travel_with_the_request() {
         request.contains("accept-encoding: gzip, identity\r\n"),
         "{request}"
     );
+}
+
+fn bundles(url: &str) -> RailCenterBundles {
+    RailCenterBundles {
+        client: client(url),
+        gateway_slug: "edge".to_owned(),
+    }
+}
+
+// On paused time the first timer due fires at once: the error names which, and when.
+#[tokio::test(start_paused = true)]
+async fn a_silent_rail_center_is_given_up_on_after_5_s() {
+    let server = serve(|_| Reply::Silent).await;
+
+    let error = bundles(&server.url).fetch().await.unwrap_err();
+
+    assert_eq!(error.to_string(), "Rail Center was silent for 5s");
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_dribbling_answer_is_given_up_on_after_30_s() {
+    let server =
+        serve(|_| Reply::Dribble(b"HTTP/1.1 200 OK\r\n\r\n".to_vec(), Duration::from_secs(1)))
+            .await;
+
+    let error = bundles(&server.url).fetch().await.unwrap_err();
+
+    assert_eq!(error.to_string(), "the fetch ran past its 30s deadline");
 }
