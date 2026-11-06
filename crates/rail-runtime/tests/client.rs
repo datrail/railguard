@@ -1,16 +1,17 @@
 use std::io::Write as _;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use flate2::Compression;
 use flate2::write::GzEncoder;
-use rail_runtime::{FetchError, Limits, RailCenterClient};
+use rail_runtime::{FetchError, Limits, RailCenterClient, RailCenterSettings};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 
 use crate::common::{Reply, TOKEN, client, response, serve, settings};
 
 const LIMITS: Limits = Limits {
-    attempt_timeout: Duration::from_secs(5),
     deadline: Duration::from_secs(10),
     max_bytes: 1024,
 };
@@ -98,7 +99,7 @@ async fn a_declared_length_past_the_cap_is_refused_unread() {
     })
     .await;
     let limits = Limits {
-        attempt_timeout: Duration::from_millis(200),
+        deadline: Duration::from_millis(200),
         ..LIMITS
     };
 
@@ -236,28 +237,6 @@ async fn identity_is_read_however_it_is_spelled() {
 }
 
 #[tokio::test]
-async fn a_silent_body_times_the_attempt_out() {
-    let server = serve(|_| {
-        Reply::Dribble(
-            b"HTTP/1.1 200 OK\r\n\r\n".to_vec(),
-            Duration::from_secs(3600),
-        )
-    })
-    .await;
-    let limits = Limits {
-        attempt_timeout: Duration::from_millis(200),
-        ..LIMITS
-    };
-
-    let error = client(&server.url)
-        .get("/v1/x", &[], limits)
-        .await
-        .unwrap_err();
-
-    assert!(matches!(error, FetchError::Timeout(_)), "{error:?}");
-}
-
-#[tokio::test]
 async fn a_dribbling_body_runs_into_the_deadline() {
     let server = serve(|_| {
         Reply::Dribble(
@@ -267,7 +246,6 @@ async fn a_dribbling_body_runs_into_the_deadline() {
     })
     .await;
     let limits = Limits {
-        attempt_timeout: Duration::from_millis(500),
         deadline: Duration::from_millis(300),
         max_bytes: 1 << 20,
     };
@@ -281,21 +259,7 @@ async fn a_dribbling_body_runs_into_the_deadline() {
 }
 
 #[tokio::test]
-async fn a_request_closed_unanswered_is_retried_once() {
-    let server = serve(|count| match count {
-        0 => Reply::Close,
-        _ => Reply::Raw(response("200 OK", &[], b"ok")),
-    })
-    .await;
-
-    let fetched = client(&server.url).get("/v1/x", &[], LIMITS).await.unwrap();
-
-    assert_eq!(fetched.body, b"ok");
-    assert_eq!(server.requests.lock().unwrap().len(), 2);
-}
-
-#[tokio::test]
-async fn a_second_unanswered_request_is_a_failure() {
+async fn a_request_closed_unanswered_is_a_failure_not_retried() {
     let server = serve(|_| Reply::Close).await;
 
     let error = client(&server.url)
@@ -304,7 +268,33 @@ async fn a_second_unanswered_request_is_a_failure() {
         .unwrap_err();
 
     assert!(matches!(error, FetchError::Transport(_)), "{error:?}");
-    assert_eq!(server.requests.lock().unwrap().len(), 2);
+    assert_eq!(server.requests.lock().unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn a_connection_is_reused_only_within_the_idle_timeout() {
+    let connections = Arc::new(AtomicUsize::new(0));
+    let opened = Arc::clone(&connections);
+    let ok = b"HTTP/1.1 200 OK\r\ncontent-length: 2\r\n\r\nok".to_vec();
+    let server = serve(move |_| {
+        opened.fetch_add(1, Ordering::SeqCst);
+        Reply::KeepAlive(ok.clone())
+    })
+    .await;
+    let settings = RailCenterSettings {
+        idle_timeout: Duration::from_millis(200),
+        ..settings(&server.url, Some(TOKEN))
+    };
+    let client = RailCenterClient::new(&settings).unwrap();
+
+    for pause in [Duration::ZERO, Duration::ZERO, Duration::from_millis(600)] {
+        tokio::time::sleep(pause).await;
+        let fetched = client.get("/v1/x", &[], LIMITS).await.unwrap();
+        assert_eq!(fetched.body, b"ok");
+    }
+
+    // The first two share a connection; the third, past the timeout, opens its own.
+    assert_eq!(connections.load(Ordering::SeqCst), 2);
 }
 
 #[tokio::test]
@@ -321,7 +311,7 @@ async fn no_failure_carries_the_credential_or_the_url() {
     let refused_url = format!("http://{}", refused.local_addr().unwrap());
     drop(refused);
     let limits = Limits {
-        attempt_timeout: Duration::from_millis(200),
+        deadline: Duration::from_millis(200),
         ..LIMITS
     };
 

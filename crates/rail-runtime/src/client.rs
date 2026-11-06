@@ -16,9 +16,7 @@ use crate::rail_center::{CenterUrl, RailCenterSettings};
 /// What one caller allows a fetch.
 #[derive(Clone, Copy, Debug)]
 pub struct Limits {
-    /// How long one attempt may wait for the response, and then for each chunk of its body.
-    pub attempt_timeout: Duration,
-    /// How long the whole fetch may take, its retry included.
+    /// How long the fetch may take, its whole body included.
     pub deadline: Duration,
     /// The largest body read, counted after decoding.
     pub max_bytes: usize,
@@ -35,7 +33,6 @@ pub struct Response {
 #[derive(Debug)]
 pub enum FetchError {
     Deadline(Duration),
-    Timeout(Duration),
     TooLarge { max_bytes: usize },
     Encoding(String),
     BadGzip(String),
@@ -46,7 +43,6 @@ impl fmt::Display for FetchError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Deadline(deadline) => write!(f, "the fetch ran past its {deadline:?} deadline"),
-            Self::Timeout(timeout) => write!(f, "Rail Center was silent for {timeout:?}"),
             Self::TooLarge { max_bytes } => {
                 write!(f, "the response is past the {max_bytes} bytes read")
             }
@@ -87,6 +83,7 @@ impl RailCenterClient {
             .tls_backend_preconfigured(tls_config())
             .no_proxy()
             .redirect(redirect::Policy::none())
+            .pool_idle_timeout(settings.idle_timeout)
             .default_headers(headers)
             .build()
             .map_err(|error| format!("the HTTP client can't be built: {}", describe(error)))?;
@@ -96,7 +93,7 @@ impl RailCenterClient {
         })
     }
 
-    /// `GET` `route`, retried once if no response was read: a pooled connection may have closed.
+    /// `GET` `route`, in one attempt: retrying is the caller's.
     pub async fn get(
         &self,
         route: &str,
@@ -104,31 +101,25 @@ impl RailCenterClient {
         limits: Limits,
     ) -> Result<Response, FetchError> {
         let url = self.url.endpoint(route, query);
-        let fetch = async {
-            match self.attempt(&url, limits).await {
-                Err(Attempt::Unsent(_)) => self.attempt(&url, limits).await,
-                outcome => outcome,
-            }
-            .map_err(FetchError::from)
-        };
-        timeout(limits.deadline, fetch)
+        timeout(limits.deadline, self.fetch(url, limits))
             .await
             .unwrap_or(Err(FetchError::Deadline(limits.deadline)))
     }
 
-    async fn attempt(&self, url: &Url, limits: Limits) -> Result<Response, Attempt> {
-        let mut response = timeout(limits.attempt_timeout, self.http.get(url.clone()).send())
+    async fn fetch(&self, url: Url, limits: Limits) -> Result<Response, FetchError> {
+        let mut response = self
+            .http
+            .get(url)
+            .send()
             .await
-            .map_err(|_| FetchError::Timeout(limits.attempt_timeout))?
-            .map_err(|error| Attempt::Unsent(describe(error)))?;
+            .map_err(|error| FetchError::Transport(describe(error)))?;
         if response
             .content_length()
             .is_some_and(|length| length > limits.max_bytes as u64)
         {
             return Err(FetchError::TooLarge {
                 max_bytes: limits.max_bytes,
-            }
-            .into());
+            });
         }
         let gzipped = is_gzipped(response.headers())?;
         let status = response.status();
@@ -141,9 +132,9 @@ impl RailCenterClient {
         } else {
             Body::Identity(capped)
         };
-        while let Some(chunk) = timeout(limits.attempt_timeout, response.chunk())
+        while let Some(chunk) = response
+            .chunk()
             .await
-            .map_err(|_| FetchError::Timeout(limits.attempt_timeout))?
             .map_err(|error| FetchError::Transport(describe(error)))?
         {
             body.write_all(&chunk)
@@ -155,7 +146,7 @@ impl RailCenterClient {
 }
 
 // Every value of every `Content-Encoding` line, so a second encoding can't hide behind a first.
-fn is_gzipped(headers: &HeaderMap) -> Result<bool, Attempt> {
+fn is_gzipped(headers: &HeaderMap) -> Result<bool, FetchError> {
     let mut gzipped = false;
     for line in headers.get_all(CONTENT_ENCODING) {
         let line = String::from_utf8_lossy(line.as_bytes());
@@ -163,7 +154,7 @@ fn is_gzipped(headers: &HeaderMap) -> Result<bool, Attempt> {
             if encoding.eq_ignore_ascii_case("gzip") && !gzipped {
                 gzipped = true;
             } else if !encoding.eq_ignore_ascii_case("identity") {
-                return Err(FetchError::Encoding(line.into_owned()).into());
+                return Err(FetchError::Encoding(line.into_owned()));
             }
         }
     }
@@ -211,34 +202,13 @@ impl Body {
     }
 }
 
-fn read_error(error: io::Error, limits: Limits) -> Attempt {
+fn read_error(error: io::Error, limits: Limits) -> FetchError {
     if error.kind() == io::ErrorKind::FileTooLarge {
         FetchError::TooLarge {
             max_bytes: limits.max_bytes,
         }
-        .into()
     } else {
-        FetchError::BadGzip(error.to_string()).into()
-    }
-}
-
-enum Attempt {
-    Unsent(String),
-    Failed(FetchError),
-}
-
-impl From<FetchError> for Attempt {
-    fn from(error: FetchError) -> Self {
-        Self::Failed(error)
-    }
-}
-
-impl From<Attempt> for FetchError {
-    fn from(attempt: Attempt) -> Self {
-        match attempt {
-            Attempt::Unsent(reason) => Self::Transport(reason),
-            Attempt::Failed(error) => error,
-        }
+        FetchError::BadGzip(error.to_string())
     }
 }
 

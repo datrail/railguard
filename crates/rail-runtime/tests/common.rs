@@ -23,6 +23,8 @@ pub enum Reply {
     Close,
     // Reads the request and never answers, holding the connection open.
     Silent,
+    // Answers every request on the connection with these bytes, keeping it open.
+    KeepAlive(Vec<u8>),
 }
 
 pub struct Server {
@@ -49,15 +51,9 @@ pub async fn serve(reply: impl Fn(usize) -> Reply + Send + Sync + 'static) -> Se
 }
 
 pub async fn answer(mut stream: TcpStream, reply: Reply, seen: &Mutex<Vec<String>>) {
-    let mut head = Vec::new();
-    let mut byte = [0];
-    while !head.ends_with(b"\r\n\r\n") {
-        if stream.read(&mut byte).await.unwrap_or(0) == 0 {
-            return;
-        }
-        head.push(byte[0]);
+    if !read_head(&mut stream, seen).await {
+        return;
     }
-    seen.lock().unwrap().push(String::from_utf8(head).unwrap());
     match reply {
         Reply::Raw(bytes) => {
             let _ = stream.write_all(&bytes).await;
@@ -74,7 +70,24 @@ pub async fn answer(mut stream: TcpStream, reply: Reply, seen: &Mutex<Vec<String
             std::future::pending::<()>().await;
             drop(stream);
         }
+        Reply::KeepAlive(bytes) => {
+            while stream.write_all(&bytes).await.is_ok() && read_head(&mut stream, seen).await {}
+        }
     }
+}
+
+// Reads one request's head into `seen`; false if the peer closed first.
+async fn read_head(stream: &mut TcpStream, seen: &Mutex<Vec<String>>) -> bool {
+    let mut head = Vec::new();
+    let mut byte = [0];
+    while !head.ends_with(b"\r\n\r\n") {
+        if stream.read(&mut byte).await.unwrap_or(0) == 0 {
+            return false;
+        }
+        head.push(byte[0]);
+    }
+    seen.lock().unwrap().push(String::from_utf8(head).unwrap());
+    true
 }
 
 pub fn response(status: &str, headers: &[&str], body: &[u8]) -> Vec<u8> {

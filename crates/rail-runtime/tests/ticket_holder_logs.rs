@@ -145,7 +145,7 @@ async fn each_answer_is_logged_for_what_it_did_to_the_ticket_held() {
         format!("ticket acquired fingerprint=\"{}\"", fingerprint("a")),
         format!("ticket rotated fingerprint=\"{}\"", fingerprint("b")),
         format!(
-            "ticket refresh failed; keeping the one held reason=\"Rail Center was silent for 10s\" \
+            "ticket refresh failed; keeping the one held reason=\"the fetch ran past its 10s deadline\" \
              fingerprint=\"{}\"",
             fingerprint("b")
         ),
