@@ -3,11 +3,9 @@ use std::time::Duration;
 
 use rail_runtime::{KeySetHolder, KeySource, RailCenterKeys};
 use reqwest::StatusCode;
-use tokio::io::AsyncWriteExt;
-use tokio::net::TcpListener;
 use tokio::time::Instant;
 
-use crate::common::{Reply, client, response, serve};
+use crate::common::{Reply, TOKEN, client, response, serve};
 use crate::holder::{Clock, until};
 use crate::keys::{
     AgingClock, Answer, LIMIT, Script, answer, failed, key_set, kids, named, ok, start, start_aging,
@@ -290,27 +288,27 @@ async fn a_refetch_that_brings_nothing_leaves_the_kid_unknown() {
 
 // Real time: the fetch goes over a socket, which paused time would race.
 #[tokio::test]
-async fn keys_are_fetched_only_over_https() {
-    let server = serve(|_| Reply::Raw(response("200 OK", &[], b"{}"))).await;
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let https = format!("https://{}", listener.local_addr().unwrap());
-    tokio::spawn(async move {
-        let (mut stream, _) = listener.accept().await.unwrap();
-        let _ = stream.write_all(b"HTTP/1.1 200 OK\r\n\r\n").await;
-    });
-
-    let plain = RailCenterKeys {
-        client: client(&server.url),
-    };
-    let tls = RailCenterKeys {
-        client: client(&https),
+async fn the_route_and_the_credential_travel_with_the_request() {
+    let body = key_set(&["a"]).to_string();
+    let server = serve(move |_| Reply::Raw(response("200 OK", &[], body.as_bytes()))).await;
+    let source = RailCenterKeys {
+        client: client(&format!("{}/rc/", server.url)),
     };
 
-    assert_eq!(
-        plain.fetch().await.unwrap_err(),
-        "RAIL_CENTER_URL is not https://, so no key set is fetched"
+    let fetched = source.fetch().await.unwrap();
+
+    assert_eq!(fetched.status, StatusCode::OK);
+    let requests = server.requests.lock().unwrap();
+    let request = requests[0].to_ascii_lowercase();
+    assert!(
+        request.starts_with("get /rc/v1/jwks.json http/1.1\r\n"),
+        "{request}"
     );
-    assert!(server.requests.lock().unwrap().is_empty());
-    // A plaintext answer fails the handshake, so TLS was attempted.
-    assert!(!tls.fetch().await.unwrap_err().contains("not https"));
+    assert!(
+        request.contains(&format!(
+            "authorization: bearer {}",
+            TOKEN.to_ascii_lowercase()
+        )),
+        "{request}"
+    );
 }

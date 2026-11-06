@@ -5,7 +5,7 @@
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, UNIX_EPOCH};
 
-use rail_runtime::{Clock, Jitter, KeySetHolder, KeySource, Response};
+use rail_runtime::{Clock, FetchError, Jitter, KeySetHolder, KeySource, Response};
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 use tokio::runtime::Handle;
@@ -18,7 +18,7 @@ const X: &str = "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg";
 
 pub const LIMIT: Duration = Duration::from_secs(2);
 
-pub type Answer = Result<Response, String>;
+pub type Answer = Result<Response, FetchError>;
 
 // Answers fetch n with `answers(n)`, `takes` after it starts, recording when it started.
 #[derive(Clone)]
@@ -81,7 +81,7 @@ pub fn answer(status: StatusCode, body: &[u8]) -> Answer {
 }
 
 pub fn failed() -> Answer {
-    Err("the fetch ran past its 10s deadline".to_owned())
+    Err(FetchError::Deadline(Duration::from_secs(10)))
 }
 
 // Both readings move with tokio's paused time, and `skip` moves them alone, as a suspended host.

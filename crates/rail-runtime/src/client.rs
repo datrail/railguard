@@ -102,10 +102,6 @@ impl RailCenterClient {
         })
     }
 
-    pub(crate) fn is_https(&self) -> bool {
-        self.url.is_https()
-    }
-
     /// `GET` `route`, in one attempt: retrying is the caller's.
     pub async fn get(
         &self,

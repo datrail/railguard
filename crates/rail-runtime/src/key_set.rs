@@ -10,7 +10,7 @@ use rail_policy::parse_key_set;
 use reqwest::StatusCode;
 use tokio::runtime::Handle;
 
-use crate::client::{Limits, RailCenterClient, Response};
+use crate::client::{FetchError, Limits, RailCenterClient, Response};
 use crate::clock::{Clock, Stamp};
 use crate::holder::{Holder, Jitter, Kind, MIN_REFRESH_INTERVAL, Schedule, Step, round_to_seconds};
 use crate::rail_center::{AUTH_MODE, AUTH_TOKEN};
@@ -36,25 +36,18 @@ const UNKNOWN_KID_SPACING: Duration = Duration::from_secs(30);
 
 /// Where key sets come from: Rail Center, or a test's script.
 pub trait KeySource: Send + Sync + 'static {
-    /// One fetch, whatever its status, or why there was no response.
-    fn fetch(&self) -> impl Future<Output = Result<Response, String>> + Send;
+    /// One fetch, whatever its status: what each means is the holder's.
+    fn fetch(&self) -> impl Future<Output = Result<Response, FetchError>> + Send;
 }
 
-/// This tenant's key set, fetched from Rail Center, and only over HTTPS.
+/// This tenant's key set, fetched from Rail Center.
 pub struct RailCenterKeys {
     pub client: RailCenterClient,
 }
 
 impl KeySource for RailCenterKeys {
-    async fn fetch(&self) -> Result<Response, String> {
-        // Keys are what tickets are trusted by, so never taken from the clear.
-        if !self.client.is_https() {
-            return Err("RAIL_CENTER_URL is not https://, so no key set is fetched".to_owned());
-        }
-        self.client
-            .get(ROUTE, &[], LIMITS)
-            .await
-            .map_err(|error| error.to_string())
+    async fn fetch(&self) -> Result<Response, FetchError> {
+        self.client.get(ROUTE, &[], LIMITS).await
     }
 }
 
@@ -134,7 +127,7 @@ enum Outcome {
 
 impl<S: KeySource> Kind for Keys<S> {
     type Held = Option<Arc<KeySet>>;
-    type Answer = Result<Response, String>;
+    type Answer = Result<Response, FetchError>;
     type Outcome = Outcome;
 
     const WHAT: &'static str = "signing key set";
@@ -198,8 +191,10 @@ impl<S: KeySource> Kind for Keys<S> {
     }
 }
 
-fn read_answer(answer: Result<Response, String>) -> Result<HashMap<String, VerifyingKey>, String> {
-    let response = answer?;
+fn read_answer(
+    answer: Result<Response, FetchError>,
+) -> Result<HashMap<String, VerifyingKey>, String> {
+    let response = answer.map_err(|error| error.to_string())?;
     if matches!(
         response.status,
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN
