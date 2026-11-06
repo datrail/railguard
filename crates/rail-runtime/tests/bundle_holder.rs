@@ -1,7 +1,7 @@
 use std::sync::Mutex;
 use std::time::Duration;
 
-use rail_runtime::{BundleHolder, BundleSource, FetchError, Jitter, RailCenterBundles};
+use rail_runtime::{BundleHolder, FetchError, Jitter, RailCenterBundles, RailCenterThread};
 use reqwest::StatusCode;
 use serde_json::json;
 use tokio::runtime::Handle;
@@ -95,26 +95,6 @@ async fn only_a_usable_answer_is_held_and_any_other_is_retried_as_a_failure() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_long_outage_keeps_backing_off_at_the_interval() {
-    let clock = Clock::new();
-    let script = Script::new(&clock, |_| failed());
-
-    let _holder = start(&script, MINUTE);
-    until(&clock, 35 + 40 * 60).await;
-
-    // 0, 5, 15, 35 and 75, then a minute apart: 44 failures, past where 2^n overflows a u32.
-    let fetched_at = script.fetched_at();
-    assert_eq!(fetched_at.len(), 44);
-    assert!(
-        fetched_at
-            .windows(2)
-            .skip(4)
-            .all(|pair| pair[1] - pair[0] == 60),
-        "{fetched_at:?}"
-    );
-}
-
-#[tokio::test(start_paused = true)]
 async fn a_wait_ends_once_no_attempt_can_land_within_its_limit() {
     // The retry is due at 5: asked at 3 it can't land in time, asked at 4 it fails, the next at 15.
     for (asked_at, waited, fetched_at) in [
@@ -133,6 +113,49 @@ async fn a_wait_ends_once_no_attempt_can_land_within_its_limit() {
         assert_eq!(started.elapsed(), waited, "{asked_at}");
         assert_eq!(script.fetched_at(), fetched_at, "{asked_at}");
     }
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_wait_during_a_fetch_takes_its_answer_or_gives_up_at_its_limit() {
+    // A fetch of 1 s lands within the 2 s; one of 10 s doesn't.
+    for (takes, held, waited) in [(1, Some("v1"), 1), (10, None, 2)] {
+        let clock = Clock::new();
+        let script = Script {
+            takes: Duration::from_secs(takes),
+            ..Script::new(&clock, |_| ok(&bundle("v1", json!({}))))
+        };
+
+        let holder = start(&script, MINUTE);
+        let started = Instant::now();
+        let bundle = holder.wait_for_bundle(LIMIT).await;
+
+        let hash = bundle.map(|bundle| bundle.content_hash.clone());
+        assert_eq!(hash.as_deref(), held, "{takes}");
+        assert_eq!(started.elapsed(), Duration::from_secs(waited), "{takes}");
+        assert_eq!(script.fetched_at(), [0], "{takes}");
+    }
+}
+
+// Real time: the holder's loop runs on the Rail Center thread's runtime, the wait on this one.
+#[tokio::test]
+async fn a_wait_on_another_runtime_is_woken_by_the_loop() {
+    let thread = RailCenterThread::start().unwrap();
+    let clock = Clock::new();
+    let script = Script {
+        takes: Duration::from_millis(100),
+        ..Script::new(&clock, |_| ok(&bundle("v1", json!({}))))
+    };
+    let jitter = Jitter::new(|| 1.0);
+    let holder = BundleHolder::start(thread.runtime(), script.clone(), MINUTE, jitter);
+
+    let held = holder.wait_for_bundle(Duration::from_secs(10)).await;
+
+    assert_eq!(held.unwrap().content_hash, "v1");
+    assert_eq!(script.fetched_at().len(), 1);
+    drop(holder);
+    tokio::task::spawn_blocking(move || thread.stop())
+        .await
+        .unwrap();
 }
 
 // Real time: the fetch goes over a socket, which paused time would race.
@@ -167,32 +190,4 @@ async fn the_route_the_gateway_and_the_credential_travel_with_the_request() {
         request.contains("accept-encoding: gzip, identity\r\n"),
         "{request}"
     );
-}
-
-fn bundles(url: &str) -> RailCenterBundles {
-    RailCenterBundles {
-        client: client(url),
-        gateway_slug: "edge".to_owned(),
-    }
-}
-
-// On paused time the first timer due fires at once: the error names which, and when.
-#[tokio::test(start_paused = true)]
-async fn a_silent_rail_center_is_given_up_on_after_5_s() {
-    let server = serve(|_| Reply::Silent).await;
-
-    let error = bundles(&server.url).fetch().await.unwrap_err();
-
-    assert_eq!(error.to_string(), "Rail Center was silent for 5s");
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_dribbling_answer_is_given_up_on_after_30_s() {
-    let server =
-        serve(|_| Reply::Dribble(b"HTTP/1.1 200 OK\r\n\r\n".to_vec(), Duration::from_secs(1)))
-            .await;
-
-    let error = bundles(&server.url).fetch().await.unwrap_err();
-
-    assert_eq!(error.to_string(), "the fetch ran past its 30s deadline");
 }

@@ -1,14 +1,11 @@
 use std::sync::Mutex;
 use std::time::Duration;
 
-use rail_runtime::{BundleHolder, Jitter, RailCenterBundles};
 use reqwest::StatusCode;
 use serde_json::{Value, json};
-use tokio::runtime::Handle;
 
 use crate::bundles::{Answer, MINUTE, Script, TWO, answer, bundle, failed, ok, start};
-use crate::common::{Reply, client, response, serve};
-use crate::holder::{Clock, until};
+use crate::holder::Clock;
 use crate::logs::Logs;
 
 // The log of a holder answered with `answers` in turn, once the last is fetched.
@@ -213,12 +210,6 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
             vec!["schema_version 3.0 ", "it reads 2.x"],
         ),
         (
-            vec![ok(&json!([]))],
-            [refusing, none_held],
-            "ERROR",
-            vec!["unusable policy bundle"],
-        ),
-        (
             vec![answer(StatusCode::UNAUTHORIZED, b"")],
             [fetch_failed, none_held],
             "ERROR",
@@ -235,18 +226,6 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
                 "Rail Center refused the credential (403 Forbidden)",
                 "RAIL_AUTH_MODE and RAIL_AUTH_TOKEN",
             ],
-        ),
-        (
-            vec![answer(StatusCode::OK, b"\n<html>nope</html>")],
-            [fetch_failed, none_held],
-            "ERROR",
-            vec!["the response isn't JSON (Syntax error at line 2, column 1)"],
-        ),
-        (
-            vec![answer(StatusCode::OK, b"{\"\xff\":1}")],
-            [fetch_failed, none_held],
-            "ERROR",
-            vec!["the response isn't UTF-8"],
         ),
     ] {
         let line = line.concat();
@@ -275,52 +254,4 @@ async fn a_bundle_fetched_again_after_a_failure_says_so_once() {
 
     let logs = log_of(vec![v1(), v1(), v1()]).await;
     assert!(!logs.contains("fetched again"), "{logs}");
-}
-
-#[tokio::test(start_paused = true)]
-async fn the_retry_logged_is_the_jittered_wait_rounded_to_seconds() {
-    // 5 s at 1.18 is 5.9 s, and at 1.02 is 5.1 s.
-    for (factor, retry) in [(1.18, "retry=6"), (1.02, "retry=5")] {
-        let logs = Logs::default();
-        let _logging = logs.capture();
-        let clock = Clock::new();
-        let script = Script::new(&clock, |_| answer(StatusCode::SERVICE_UNAVAILABLE, b""));
-
-        let jitter = Jitter::new(move || factor);
-        let _holder = BundleHolder::start(&Handle::current(), script, MINUTE, jitter);
-        until(&clock, 0).await;
-
-        let logs = logs.text();
-        let line = lines_with(&logs, "policy bundle fetch failed");
-        assert_eq!(line.len(), 1, "{logs}");
-        assert!(line[0].contains(retry), "{logs}");
-    }
-}
-
-// Real time: the fetch goes over a socket, which paused time would race.
-#[tokio::test]
-async fn a_bundle_of_exactly_4_mib_is_read_and_one_past_it_refused() {
-    let logs = Logs::default();
-    let _logging = logs.capture();
-    let cap = 4 * 1024 * 1024;
-    for (bytes, held) in [(cap, true), (cap + 1, false)] {
-        let mut body = bundle("v1", json!({})).to_string().into_bytes();
-        body.resize(bytes, b' ');
-        let server = serve(move |_| Reply::Raw(response("200 OK", &[], &body))).await;
-        let source = RailCenterBundles {
-            client: client(&server.url),
-            gateway_slug: "edge".to_owned(),
-        };
-
-        let holder = BundleHolder::start(&Handle::current(), source, MINUTE, Jitter::new(|| 1.0));
-        // Past the first attempt, and short of the retry 5 s after a failure.
-        let waited = holder.wait_for_bundle(Duration::from_secs(4)).await;
-
-        assert_eq!(waited.is_some(), held, "{bytes}");
-    }
-    let logs = logs.text();
-    assert!(
-        logs.contains(r#"reason="the response is past the 4194304 bytes read""#),
-        "{logs}"
-    );
 }

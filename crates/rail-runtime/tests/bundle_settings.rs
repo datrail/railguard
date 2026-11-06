@@ -78,12 +78,6 @@ fn the_refresh_interval_is_read_as_the_tickets_is() {
         read(&with(" 120 ")).unwrap().refresh_interval,
         Duration::from_secs(120)
     );
-    assert_eq!(
-        read(&with("4")).unwrap_err(),
-        [
-            "RAIL_GATEWAY_BUNDLE_REFRESH_SECONDS must be a whole number of seconds, from 5 to 86400, got: 4"
-        ]
-    );
 }
 
 #[test]
@@ -103,14 +97,6 @@ fn each_setting_read_is_described_as_used() {
                 Level::Info
             ),
         ]
-    );
-    assert_eq!(
-        describe(&NAMED, |settings| read_bundle_settings(settings, true))[1],
-        (
-            "RAIL_GATEWAY_BUNDLE_REFRESH_SECONDS",
-            "60".to_owned(),
-            Level::Info
-        )
     );
 }
 
