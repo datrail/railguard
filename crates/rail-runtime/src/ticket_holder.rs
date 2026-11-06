@@ -12,7 +12,7 @@ use crate::xrail::Unavailable;
 // Six doublings of the 5 s floor, as Python's proxy; the refresh interval caps it too.
 const MAX_BACKOFF: Duration = Duration::from_secs(320);
 
-/// The wall clock a ticket's `expires_at` is read against.
+/// The wall clock: what a ticket's `expires_at` is read against, and denials are stamped with.
 pub type WallClock = Arc<dyn Fn() -> SystemTime + Send + Sync>;
 
 // What the answers so far leave to present.

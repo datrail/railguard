@@ -3,10 +3,12 @@
 mod bundle_holder_logs;
 mod bundles;
 mod common;
+mod denials_logs;
 mod holder;
 mod key_set_logs;
 mod keys;
 mod logging;
 mod logs;
 mod scripted;
+mod sink;
 mod ticket_holder_logs;

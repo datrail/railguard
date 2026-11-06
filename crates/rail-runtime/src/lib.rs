@@ -5,6 +5,7 @@ mod bundle_holder;
 mod client;
 mod clock;
 mod config;
+mod denial;
 mod holder;
 mod key_set;
 pub mod logging;
@@ -22,6 +23,7 @@ pub use clock::{Clock, Stamp};
 pub use config::{
     ConfigErrors, EXIT_CODE, Entry, Level, Refused, Secret, Settings, Source, Startup, Variables,
 };
+pub use denial::{Denial, DenialReporter, DenialSink, DeniedBy, RailCenterDenials};
 pub use holder::Jitter;
 pub use key_set::{KeySet, KeySetHolder, KeySource, RailCenterKeys};
 pub use protected_hosts::{ProtectedHost, ProtectedHosts, read_protected_hosts};
