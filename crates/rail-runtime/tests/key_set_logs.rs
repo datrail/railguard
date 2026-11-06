@@ -1,7 +1,8 @@
 use reqwest::StatusCode;
+use serde_json::json;
 
 use crate::holder::{Clock, until};
-use crate::keys::{Answer, Script, answer, failed, ok, start};
+use crate::keys::{Answer, Script, answer, failed, key_set, ok, start};
 use crate::logs::Logs;
 
 // The log of a key set holder answered with `answers(n)`, up to `seconds`.
@@ -82,5 +83,40 @@ async fn a_refused_credential_says_so() {
         line[0].contains("Rail Center refused the credential (401 Unauthorized)")
             && line[0].contains("RAIL_AUTH_MODE and RAIL_AUTH_TOKEN"),
         "{logs}"
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_dropped_key_is_warned_of_with_its_kid_and_why_whether_or_not_one_is_left() {
+    // `y = 2` decodes to no point on the curve.
+    let bad =
+        json!({"kty": "OKP", "crv": "Ed25519", "kid": "bad", "x": format!("Ag{}", "A".repeat(41))});
+    let with_good = {
+        let mut set = key_set(&["a"]);
+        set["keys"].as_array_mut().unwrap().push(bad.clone());
+        set.to_string()
+    };
+    let alone = json!({ "keys": [bad] }).to_string();
+
+    let kept = log_until(0, move |_| answer(StatusCode::OK, with_good.as_bytes())).await;
+    let none = log_until(0, move |_| answer(StatusCode::OK, alone.as_bytes())).await;
+
+    for logs in [&kept, &none] {
+        let line = lines_with(logs, "dropping a signing key the key set holds");
+        assert_eq!(line.len(), 1, "{logs}");
+        assert!(
+            line[0].contains("WARN")
+                && line[0].contains(r#"kid="bad""#)
+                && line[0].contains(r#"reason="its x isn't a point on the Ed25519 curve""#),
+            "{logs}"
+        );
+    }
+    assert!(
+        lines_with(&kept, "holding signing keys")[0].contains(r#"kids="a""#),
+        "{kept}"
+    );
+    assert!(
+        lines_with(&none, "fetch failed")[0].contains(r#"reason="the set holds no usable key""#),
+        "{none}"
     );
 }

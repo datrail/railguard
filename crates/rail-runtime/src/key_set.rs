@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use ed25519_dalek::VerifyingKey;
-use rail_policy::parse_key_set;
+use rail_policy::{DroppedKey, parse_key_set};
 use reqwest::StatusCode;
 use tokio::runtime::Handle;
 
@@ -120,9 +120,17 @@ struct Keys<S> {
     clock: Clock,
 }
 
+// What one answer did, and the entries meant as keys it dropped.
 enum Outcome {
-    Replaced { set: Arc<KeySet>, changed: bool },
-    Failed(String),
+    Replaced {
+        set: Arc<KeySet>,
+        changed: bool,
+        dropped: Vec<DroppedKey>,
+    },
+    Failed {
+        reason: String,
+        dropped: Vec<DroppedKey>,
+    },
 }
 
 impl<S: KeySource> Kind for Keys<S> {
@@ -137,7 +145,8 @@ impl<S: KeySource> Kind for Keys<S> {
     }
 
     fn step(&self, held: &Self::Held, answer: Self::Answer) -> Step<Self::Held, Outcome> {
-        let outcome = match read_answer(answer) {
+        let (read, dropped) = read_answer(answer);
+        let outcome = match read {
             Ok(keys) => {
                 // A set aged out holds nothing, so the next one is news.
                 let previous = held.as_ref().filter(|set| is_fresh(set, &self.clock));
@@ -146,13 +155,17 @@ impl<S: KeySource> Kind for Keys<S> {
                     keys,
                     fetched_at: self.clock.now(),
                 });
-                Outcome::Replaced { set, changed }
+                Outcome::Replaced {
+                    set,
+                    changed,
+                    dropped,
+                }
             }
-            Err(reason) => Outcome::Failed(reason),
+            Err(reason) => Outcome::Failed { reason, dropped },
         };
         let next = match &outcome {
             Outcome::Replaced { set, .. } => Some(Some(Arc::clone(set))),
-            Outcome::Failed(_) => None,
+            Outcome::Failed { .. } => None,
         };
         Step {
             succeeded: next.is_some(),
@@ -163,53 +176,80 @@ impl<S: KeySource> Kind for Keys<S> {
 
     fn report(&self, outcome: Outcome, held: &Self::Held, _: bool, retry: Duration) {
         let retry = round_to_seconds(retry);
+        let (Outcome::Replaced { dropped, .. } | Outcome::Failed { dropped, .. }) = &outcome;
+        // At every fetch: Rail Center publishes none, so one is a fault, or not its answer.
+        for DroppedKey { kid, reason } in dropped {
+            tracing::warn!(
+                kid = kid.as_deref(),
+                reason,
+                "dropping a signing key the key set holds"
+            );
+        }
         match outcome {
             // On a change only: most refreshes say what the last one said.
-            Outcome::Replaced { set, changed: true } => {
+            Outcome::Replaced {
+                set, changed: true, ..
+            } => {
                 tracing::info!(kids = %format_kids(&set.keys), "holding signing keys");
             }
             Outcome::Replaced { set, .. } => {
                 tracing::debug!(kids = %format_kids(&set.keys), "signing keys unchanged");
             }
-            Outcome::Failed(reason) => match held.as_ref().filter(|set| is_fresh(set, &self.clock))
-            {
-                Some(set) => tracing::warn!(
-                    reason = %reason,
-                    kids = %format_kids(&set.keys),
-                    retry,
-                    "signing key set fetch failed; keeping the set held"
-                ),
-                // Only a later fetch ends this state.
-                None => tracing::error!(
-                    reason = %reason,
-                    retry,
-                    "signing key set fetch failed; none is held, so every signed ticket reads \
-                     bad_signature"
-                ),
-            },
+            Outcome::Failed { reason, .. } => {
+                match held.as_ref().filter(|set| is_fresh(set, &self.clock)) {
+                    Some(set) => tracing::warn!(
+                        reason = %reason,
+                        kids = %format_kids(&set.keys),
+                        retry,
+                        "signing key set fetch failed; keeping the set held"
+                    ),
+                    // Only a later fetch ends this state.
+                    None => tracing::error!(
+                        reason = %reason,
+                        retry,
+                        "signing key set fetch failed; none is held, so every signed ticket reads \
+                         bad_signature"
+                    ),
+                }
+            }
         }
     }
 }
 
+// The keys an answer brings, or why none, and the entries meant as keys it dropped.
 fn read_answer(
     answer: Result<Response, FetchError>,
-) -> Result<HashMap<String, VerifyingKey>, String> {
-    let response = answer.map_err(|error| error.to_string())?;
+) -> (
+    Result<HashMap<String, VerifyingKey>, String>,
+    Vec<DroppedKey>,
+) {
+    let response = match answer {
+        Ok(response) => response,
+        Err(error) => return (Err(error.to_string()), Vec::new()),
+    };
     if matches!(
         response.status,
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN
     ) {
-        return Err(format!(
+        let reason = format!(
             "Rail Center refused the credential ({}); every fetch fails this way until \
              {AUTH_MODE} and {AUTH_TOKEN} are fixed",
             response.status
-        ));
+        );
+        return (Err(reason), Vec::new());
     }
     if response.status != StatusCode::OK {
-        return Err(format!("Rail Center answered {}", response.status));
+        let reason = format!("Rail Center answered {}", response.status);
+        return (Err(reason), Vec::new());
     }
-    parse_key_set(&response.body)
-        .ok_or_else(|| "the set holds no usable Ed25519 key, or two entries share a kid".to_owned())
+    let Some(set) = parse_key_set(&response.body) else {
+        let reason = "the set isn't an object of keys, or two entries share a kid";
+        return (Err(reason.to_owned()), Vec::new());
+    };
+    if set.keys.is_empty() {
+        return (Err("the set holds no usable key".to_owned()), set.dropped);
+    }
+    (Ok(set.keys), set.dropped)
 }
 
 fn same_kids(a: &HashMap<String, VerifyingKey>, b: &HashMap<String, VerifyingKey>) -> bool {
