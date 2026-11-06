@@ -26,7 +26,7 @@ const DEFAULT_REFRESH_INTERVAL: Duration = Duration::from_secs(3600);
 // A named fetch answers with one ticket at most, so a body past this is a wrong one.
 const LIMITS: Limits = Limits {
     deadline: Duration::from_secs(10),
-    silence: None,
+    silence: Duration::from_secs(5),
     max_bytes: 256 * 1024,
 };
 

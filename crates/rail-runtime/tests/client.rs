@@ -11,7 +11,7 @@ use crate::common::{Reply, TOKEN, client, response, serve, settings};
 
 const LIMITS: Limits = Limits {
     deadline: Duration::from_secs(10),
-    silence: None,
+    silence: Duration::from_secs(5),
     max_bytes: 1024,
 };
 
@@ -247,7 +247,7 @@ async fn a_dribbling_body_runs_into_the_deadline() {
     let limits = Limits {
         deadline: Duration::from_millis(300),
         // Each byte comes well within it, so only the deadline ends the fetch.
-        silence: Some(Duration::from_millis(200)),
+        silence: Duration::from_millis(200),
         max_bytes: 1 << 20,
     };
 
@@ -266,7 +266,7 @@ async fn a_dribbling_body_runs_into_the_deadline() {
 #[tokio::test]
 async fn a_silence_ends_the_fetch_before_the_head_or_within_the_body() {
     let limits = Limits {
-        silence: Some(Duration::from_millis(200)),
+        silence: Duration::from_millis(200),
         ..LIMITS
     };
     for reply in [

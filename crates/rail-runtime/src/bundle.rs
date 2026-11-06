@@ -10,10 +10,10 @@ use crate::holder::MIN_REFRESH_INTERVAL;
 const ROUTE: &str = "/v1/policy-bundle";
 
 // The deadline covers a whole 4 MiB body on a slow link; a body past that is a fault, not a large
-// tenant, whose chain is a few dozen policies. A Rail Center gone quiet is given up on sooner.
+// tenant, whose chain is a few dozen policies.
 const LIMITS: Limits = Limits {
     deadline: Duration::from_secs(30),
-    silence: Some(Duration::from_secs(5)),
+    silence: Duration::from_secs(5),
     max_bytes: 4 * 1024 * 1024,
 };
 

@@ -19,8 +19,8 @@ pub struct Limits {
     /// How long the fetch may take, its whole body included.
     pub deadline: Duration,
     /// How long Rail Center may send nothing, for the response and then for each chunk of its
-    /// body, where the deadline is long enough to need it.
-    pub silence: Option<Duration>,
+    /// body: one gone quiet is given up on before the deadline.
+    pub silence: Duration,
     /// The largest body read, counted after decoding.
     pub max_bytes: usize,
 }
@@ -113,8 +113,9 @@ impl RailCenterClient {
     }
 
     async fn fetch(&self, url: Url, limits: Limits) -> Result<Response, FetchError> {
-        let mut response = within(limits.silence, self.http.get(url).send())
-            .await?
+        let mut response = timeout(limits.silence, self.http.get(url).send())
+            .await
+            .map_err(|_| FetchError::Silent(limits.silence))?
             .map_err(|error| FetchError::Transport(describe(error)))?;
         if response
             .content_length()
@@ -135,8 +136,9 @@ impl RailCenterClient {
         } else {
             Body::Identity(capped)
         };
-        while let Some(chunk) = within(limits.silence, response.chunk())
-            .await?
+        while let Some(chunk) = timeout(limits.silence, response.chunk())
+            .await
+            .map_err(|_| FetchError::Silent(limits.silence))?
             .map_err(|error| FetchError::Transport(describe(error)))?
         {
             body.write_all(&chunk)
@@ -144,16 +146,6 @@ impl RailCenterClient {
         }
         let body = body.finish().map_err(|error| read_error(error, limits))?;
         Ok(Response { status, body })
-    }
-}
-
-// `future`, unless `silence` passes first.
-async fn within<F: Future>(silence: Option<Duration>, future: F) -> Result<F::Output, FetchError> {
-    match silence {
-        Some(silence) => timeout(silence, future)
-            .await
-            .map_err(|_| FetchError::Silent(silence)),
-        None => Ok(future.await),
     }
 }
 
