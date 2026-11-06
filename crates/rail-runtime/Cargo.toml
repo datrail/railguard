@@ -1,6 +1,20 @@
 [package]
 name = "rail-runtime"
 edition = "2024"
+# Two test binaries, their modules beside them in `tests/`.
+autotests = false
+
+[lib]
+test = false
+doctest = false
+
+[[test]]
+name = "rail-runtime"
+path = "tests/main.rs"
+
+[[test]]
+name = "rail-runtime-logs"
+path = "tests/captured_logs.rs"
 
 [dependencies]
 arc-swap = "1"

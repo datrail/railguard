@@ -3,9 +3,7 @@ use std::time::Duration;
 use rail_runtime::{TicketAnswer, Unavailable};
 use tokio::time::sleep;
 
-mod holder;
-
-use holder::{Clock, HOUR, Script, failed, start, ticket, token, until};
+use crate::holder::{Clock, HOUR, Script, failed, start, ticket, token, until};
 
 #[tokio::test(start_paused = true)]
 async fn a_fetched_ticket_is_presented_from_the_first_fetch() {
@@ -22,7 +20,7 @@ async fn a_fetched_ticket_is_presented_from_the_first_fetch() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_failed_fetch_keeps_a_ticket_still_valid_until_it_lapses() {
+async fn a_failed_fetch_keeps_a_ticket_still_valid_until_it_lapses_and_expired_after() {
     let clock = Clock::new();
     let expiry = clock.at(100);
     let script = Script::new(&clock, move |n| {
@@ -37,7 +35,11 @@ async fn a_failed_fetch_keeps_a_ticket_still_valid_until_it_lapses() {
     until(&clock, 99).await;
     assert_eq!(token(&holder), Ok("a".to_owned()));
     until(&clock, 100).await;
+    assert_eq!(token(&holder), Err(Unavailable::Expired));
+    // A fetch after the lapse fails: the lapsed ticket is kept, so it still reads as expired.
+    until(&clock, 110).await;
 
+    assert!(script.fetched_at().iter().any(|&at| at > 100));
     assert_eq!(token(&holder), Err(Unavailable::Expired));
 }
 
@@ -91,26 +93,6 @@ async fn a_recovered_ticket_clears_the_reason() {
     until(&clock, 10).await;
 
     assert_eq!(token(&holder), Ok("a".to_owned()));
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_ticket_already_lapsed_never_replaces_one_still_valid() {
-    let clock = Clock::new();
-    let (good, lapsed) = (clock.at(900), clock.at(0));
-    let script = Script::new(&clock, move |n| {
-        if n == 0 {
-            ticket("a", good)
-        } else {
-            ticket("b", lapsed)
-        }
-    });
-
-    let holder = start(&clock, &script, HOUR);
-    until(&clock, 450).await;
-    assert_eq!(token(&holder), Ok("a".to_owned()));
-    until(&clock, 900).await;
-
-    assert_eq!(token(&holder), Err(Unavailable::Expired));
 }
 
 #[tokio::test(start_paused = true)]
@@ -276,7 +258,7 @@ async fn a_new_ticket_replaces_one_still_valid() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_lapsed_answer_while_a_ticket_holds_leaves_the_ramp_alone() {
+async fn a_lapsed_answer_never_replaces_a_ticket_still_valid_nor_moves_the_ramp() {
     let clock = Clock::new();
     let (good, lapsed) = (clock.at(40), clock.at(0));
     let script = Script::new(&clock, move |n| {
@@ -287,9 +269,12 @@ async fn a_lapsed_answer_while_a_ticket_holds_leaves_the_ramp_alone() {
         }
     });
 
-    let _holder = start(&clock, &script, HOUR);
+    let holder = start(&clock, &script, HOUR);
+    until(&clock, 39).await;
+    assert_eq!(token(&holder), Ok("a".to_owned()));
     until(&clock, 60).await;
 
+    assert_eq!(token(&holder), Err(Unavailable::Expired));
     // Held until 40, lapsed answers kept out; at 40 the lapsed one is stored and the ramp starts.
     assert_eq!(script.fetched_at(), [0, 20, 30, 35, 40, 50]);
 }
@@ -325,4 +310,45 @@ async fn a_lapsed_ticket_after_none_is_expired_not_not_found() {
     until(&clock, 10).await;
 
     assert_eq!(token(&holder), Err(Unavailable::Expired));
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_new_ticket_replaces_a_lapsed_one() {
+    let clock = Clock::new();
+    let (lapsed, good) = (clock.at(0), clock.at(900));
+    let script = Script::new(&clock, move |n| {
+        if n == 0 {
+            ticket("a", lapsed)
+        } else {
+            ticket("b", good)
+        }
+    });
+
+    let holder = start(&clock, &script, HOUR);
+    until(&clock, 0).await;
+    assert_eq!(token(&holder), Err(Unavailable::Expired));
+    until(&clock, 10).await;
+
+    assert_eq!(token(&holder), Ok("b".to_owned()));
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_same_ticket_again_takes_its_new_expiry_lapsed_or_not() {
+    let clock = Clock::new();
+    let (soon, later) = (clock.at(100), clock.at(1000));
+    let valid = Script::new(&clock, move |n| {
+        ticket("a", if n == 0 { soon } else { later })
+    });
+    let lapsed = clock.at(0);
+    let renewed = Script::new(&clock, move |n| {
+        ticket("a", if n == 0 { lapsed } else { later })
+    });
+
+    let valid = start(&clock, &valid, HOUR);
+    let renewed = start(&clock, &renewed, HOUR);
+    until(&clock, 150).await;
+
+    // Refetched at 50 and at 10, each past the expiry it first had.
+    assert_eq!(token(&valid), Ok("a".to_owned()));
+    assert_eq!(token(&renewed), Ok("a".to_owned()));
 }

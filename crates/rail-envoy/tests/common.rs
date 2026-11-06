@@ -1,11 +1,14 @@
 //! The real binary, run on a socket of its own.
-#![allow(dead_code)]
 
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
+
+// Every test runs in one process, so the pid alone doesn't keep their directories apart.
+static SOCKETS: AtomicUsize = AtomicUsize::new(0);
 
 /// A directory of its own for one test's socket, removed after.
 pub struct TempSocket {
@@ -15,7 +18,9 @@ pub struct TempSocket {
 
 impl TempSocket {
     pub fn new(test: &str) -> Self {
-        let dir = std::env::temp_dir().join(format!("rail-envoy-{}-{test}", std::process::id()));
+        let count = SOCKETS.fetch_add(1, Ordering::Relaxed);
+        let dir =
+            std::env::temp_dir().join(format!("rail-envoy-{}-{count}-{test}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir(&dir).unwrap();
         let path = dir.join("ext.sock");
@@ -36,6 +41,10 @@ pub fn rail_envoy(socket: &Path) -> Command {
         .env_clear()
         .env("RAIL_DISABLED", "true")
         .env("RAIL_EXT_SOCKET", socket);
+    // Under `cargo llvm-cov`, so the binary's coverage is counted, not left in the crate.
+    if let Some(profile) = std::env::var_os("LLVM_PROFILE_FILE") {
+        command.env("LLVM_PROFILE_FILE", profile);
+    }
     command
 }
 
@@ -43,8 +52,9 @@ pub fn rail_envoy(socket: &Path) -> Command {
 pub struct Server(pub Child);
 
 impl Server {
-    pub fn start(socket: &Path) -> Self {
-        let child = rail_envoy(socket)
+    /// `command` spawned, its log kept.
+    pub fn spawn(mut command: Command) -> Self {
+        let child = command
             .stdout(Stdio::null())
             .stderr(Stdio::piped())
             .spawn()
@@ -54,7 +64,12 @@ impl Server {
 
     /// Waits for the probe to pass, so the server is serving.
     pub fn start_serving(socket: &Path) -> Self {
-        let server = Self::start(socket);
+        Self::serve(rail_envoy(socket), socket)
+    }
+
+    /// `command` spawned, once the probe on `socket` passes.
+    pub fn serve(command: Command, socket: &Path) -> Self {
+        let server = Self::spawn(command);
         let deadline = Instant::now() + Duration::from_secs(10);
         while !probe(socket).status.success() {
             assert!(

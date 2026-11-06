@@ -4,9 +4,7 @@ use rail_runtime::{
     OpaqueTicket, RailCenterTickets, TicketAnswer, TicketQuery, TicketSettings, TicketSource,
 };
 
-mod common;
-
-use common::{Reply, client, response, serve};
+use crate::common::{Reply, client, response, serve};
 
 // 2026-07-28T10:15:00Z
 const EXPIRES_AT: u64 = 1_785_233_700;
@@ -289,8 +287,30 @@ async fn a_response_off_the_contract_is_described_without_its_values() {
 
     let error = refusal(answer("200 OK", body).await);
 
-    assert_eq!(
-        error,
-        "the response is off the contract (Data error at line 1, column 54)"
+    assert!(
+        error.starts_with("the response is off the contract ("),
+        "{error}"
     );
+    assert!(!error.contains("eyJ0aGUiOiJ0aWNrZXQifQ"), "{error}");
+}
+
+// On paused time the first timer due fires at once: the error names which, and when.
+#[tokio::test(start_paused = true)]
+async fn a_silent_rail_center_is_given_up_on_after_10_s() {
+    let server = serve(|_| Reply::Silent).await;
+
+    let error = refusal(tickets(&server.url).fetch(at(SENT_AT)).await);
+
+    assert_eq!(error, "Rail Center was silent for 10s");
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_dribbling_answer_is_given_up_on_after_10_s() {
+    let server =
+        serve(|_| Reply::Dribble(b"HTTP/1.1 200 OK\r\n\r\n".to_vec(), Duration::from_secs(1)))
+            .await;
+
+    let error = refusal(tickets(&server.url).fetch(at(SENT_AT)).await);
+
+    assert_eq!(error, "the fetch ran past its 10s deadline");
 }

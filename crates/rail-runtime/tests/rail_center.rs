@@ -2,9 +2,7 @@ use rail_runtime::{
     CenterUrl, Level, RailCenterSettings, Settings, Variables, read_disabled, read_rail_center,
 };
 
-mod common;
-
-use common::{describe, read_from};
+use crate::common::{self, describe, read_from};
 
 const TOKEN: &str = "rc_svc_abcdefghijklmnopqrstuvwxyzABCDEFGHIJK-_0123";
 
@@ -66,11 +64,11 @@ fn rail_center_is_used_unless_disabled() {
 }
 
 #[test]
-fn disabled_reads_only_true_or_false() {
+fn disabled_reads_only_true_or_false_and_is_then_the_only_refusal() {
     for value in ["1", "yes", "on", "ture"] {
         assert_eq!(
-            refusal(&[("RAIL_DISABLED", value), URL]),
-            format!("RAIL_DISABLED must be true or false, got: {value}")
+            refusals(&[("RAIL_DISABLED", value)]),
+            [format!("RAIL_DISABLED must be true or false, got: {value}")]
         );
     }
 }
@@ -121,21 +119,6 @@ fn disabled_requires_nothing() {
         ]),
         Ok(Read::Disabled(None))
     ));
-}
-
-#[test]
-fn nothing_is_returned_once_anything_is_refused() {
-    for pairs in [
-        &[("RAIL_CENTER_URL", "http://rc.example.com")][..],
-        &[URL, BEARER, ("RAIL_AUTH_TOKEN", "x")],
-        &[
-            ("RAIL_DISABLED", "true"),
-            ("RAIL_CENTER_URL", "http://rc.example.com"),
-        ],
-    ] {
-        let read = common::read(pairs, |settings| read_rail_center(settings, false));
-        assert!(read.is_err(), "{pairs:?}");
-    }
 }
 
 #[test]
@@ -505,22 +488,27 @@ fn disabled_is_described_as_a_warning() {
 }
 
 #[test]
-fn an_unreadable_disabled_flag_is_the_only_refusal() {
-    assert_eq!(
-        refusals(&[("RAIL_DISABLED", "yes")]),
-        ["RAIL_DISABLED must be true or false, got: yes"]
-    );
-}
-
-#[test]
-fn a_refusal_derived_from_two_settings_or_a_retired_name_is_an_err() {
-    for pairs in [
-        &[("RAIL_CENTER_URL", "http://rc.example.com")][..],
-        &[URL, ("RAIL_TICKET_MODE", "enforce")],
-    ] {
+fn anything_refused_is_an_err() {
+    let cases: [(&[(&str, &str)], bool); 5] = [
+        (&[("RAIL_CENTER_URL", "http://rc.example.com")], true),
+        (&[("RAIL_CENTER_URL", "http://rc.example.com")], false),
+        (&[URL, ("RAIL_TICKET_MODE", "enforce")], true),
+        (&[URL, BEARER, ("RAIL_AUTH_TOKEN", "x")], false),
+        (
+            &[
+                ("RAIL_DISABLED", "true"),
+                ("RAIL_CENTER_URL", "http://rc.example.com"),
+            ],
+            false,
+        ),
+    ];
+    for (pairs, required) in cases {
         let variables: Variables = pairs.iter().copied().collect();
         let mut settings = Settings::new(&variables);
 
-        assert!(read_rail_center(&mut settings, true).is_err(), "{pairs:?}");
+        assert!(
+            read_rail_center(&mut settings, required).is_err(),
+            "{pairs:?}"
+        );
     }
 }

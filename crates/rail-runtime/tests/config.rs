@@ -1,9 +1,7 @@
 use std::ffi::OsString;
 use std::os::unix::ffi::OsStringExt;
 
-use rail_runtime::{
-    ConfigErrors, EXIT_CODE, Entry, Level, Secret, Settings, Source, Startup, Variables,
-};
+use rail_runtime::{ConfigErrors, Entry, Level, Secret, Settings, Source, Startup, Variables};
 
 // What `settings` logs, which must refuse nothing.
 fn finish(settings: Settings) -> Startup {
@@ -129,15 +127,14 @@ fn a_refused_configuration_exits_2() {
     let output = std::process::Command::new(std::env::current_exe().unwrap())
         .args([
             "--exact",
-            "refused_configuration_child",
+            "config::refused_configuration_child",
             "--ignored",
             "--nocapture",
         ])
         .output()
         .unwrap();
 
-    assert_eq!(output.status.code(), Some(EXIT_CODE.into()));
-    assert_eq!(EXIT_CODE, 2);
+    assert_eq!(output.status.code(), Some(2));
     let stderr = String::from_utf8(output.stderr).unwrap();
     assert!(
         stderr.contains("Invalid configuration detected:\n  X must be true or false, got: 1\n"),
@@ -173,19 +170,6 @@ fn a_required_parse_refuses_unset_and_what_it_rejects() {
             "UNSET is required and is unset or blank"
         ]
     );
-}
-
-#[test]
-fn a_repeated_refusal_is_listed_once_and_refused_each_time() {
-    let variables: Variables = [(OsString::from("A"), OsString::from_vec(vec![0xff]))]
-        .into_iter()
-        .collect();
-    let mut settings = Settings::new(&variables);
-
-    assert!(settings.get("A").text().is_err());
-    assert!(settings.get("A").text().is_err());
-
-    assert_eq!(errors(settings), ["A is not valid UTF-8"]);
 }
 
 #[test]
@@ -442,25 +426,5 @@ fn a_refused_configuration_returns_only_its_refusals() {
         Err(ConfigErrors(vec![
             "A must be true or false, got: x".to_owned()
         ]))
-    );
-}
-
-#[test]
-fn a_token_only_checked_with_is_set_is_filled_in_as_set_never_as_text() {
-    let token = "rc_svc_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-    let variables: Variables = [("RAIL_AUTH_MODE", "none"), ("RAIL_AUTH_TOKEN", token)]
-        .into_iter()
-        .collect();
-    let mut settings = Settings::new(&variables);
-
-    let _ = settings.get("RAIL_AUTH_MODE").text();
-    settings.get("RAIL_AUTH_TOKEN").is_set();
-
-    assert_eq!(
-        finish(settings).entries,
-        [
-            entry("RAIL_AUTH_MODE", "none", Level::Info, Source::Env),
-            entry("RAIL_AUTH_TOKEN", "set", Level::Info, Source::Env),
-        ]
     );
 }

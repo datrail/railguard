@@ -1,6 +1,20 @@
 [package]
 name = "rail-envoy"
 edition = "2024"
+# One test binary, `tests/main.rs`, its modules beside it.
+autotests = false
+
+[lib]
+test = false
+doctest = false
+
+[[bin]]
+name = "rail-envoy"
+test = false
+
+[[test]]
+name = "rail-envoy"
+path = "tests/main.rs"
 
 [dependencies]
 envoy-types = "0.7"

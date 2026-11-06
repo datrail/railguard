@@ -28,6 +28,7 @@ fn test_keeps_what_shows() {
         "😀",
         "a\u{a0}b",
         r"a\u{a}b",
+        r#"a"b\c"#,
         "",
     ] {
         assert_eq!(sanitize(text).to_string(), text, "{text:?}");
@@ -47,11 +48,6 @@ fn test_cuts_past_255_characters() {
         sanitize(&escaped).to_string(),
         format!(r"{}\u{{a}}…", "a".repeat(254))
     );
-}
-
-#[test]
-fn test_keeps_quotes_and_backslashes_unless_quoting() {
-    assert_eq!(sanitize(r#"a"b\c"#).to_string(), r#"a"b\c"#);
 }
 
 #[test]

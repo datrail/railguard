@@ -1,4 +1,5 @@
 //! The local Rail Center the tests talk to, and settings read as a binary reads them.
+// Shared by both test binaries, and each uses only part of it.
 #![allow(dead_code)]
 
 use std::sync::{Arc, Mutex};
@@ -20,6 +21,8 @@ pub enum Reply {
     Dribble(Vec<u8>, Duration),
     // Closes without answering, as a pooled connection the peer dropped.
     Close,
+    // Reads the request and never answers, holding the connection open.
+    Silent,
 }
 
 pub struct Server {
@@ -67,6 +70,10 @@ pub async fn answer(mut stream: TcpStream, reply: Reply, seen: &Mutex<Vec<String
             }
         }
         Reply::Close => {}
+        Reply::Silent => {
+            std::future::pending::<()>().await;
+            drop(stream);
+        }
     }
 }
 

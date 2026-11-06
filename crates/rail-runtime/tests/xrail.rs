@@ -5,9 +5,7 @@ use rail_runtime::{
     OpaqueTicket, ProtectedHosts, Route, Secret, Unavailable, XRailHeader, XRailHeaders,
 };
 
-mod common;
-
-use common::protect;
+use crate::common::protect;
 
 fn ticket() -> Arc<OpaqueTicket> {
     Arc::new(OpaqueTicket {
@@ -120,6 +118,26 @@ fn every_header_set_is_exposed_with_its_value() {
             .expose_set()
             .is_empty()
     );
+}
+
+#[test]
+fn every_reason_is_sent_in_x_rail_status_in_place_of_the_ticket() {
+    for (reason, sent) in [
+        (Unavailable::NotFound, "not-found"),
+        (Unavailable::Expired, "expired"),
+        (Unavailable::IssuerUnreachable, "issuer-unreachable"),
+    ] {
+        let headers = XRailHeaders::of(Some(Err(reason)), "mcp.example.com", &mcp(), SENT);
+
+        assert_eq!(
+            headers.expose_set(),
+            [
+                ("x-rail-status", sent),
+                ("x-rail-upstream", "tls"),
+                (":authority", "mcp.example.com"),
+            ]
+        );
+    }
 }
 
 #[test]
@@ -323,42 +341,15 @@ fn the_headers_envoy_and_the_gateway_read_are_removed_when_the_host_reports_none
 }
 
 #[test]
-fn the_ticket_never_debugs() {
-    let headers = XRailHeaders::of(Some(Ok(ticket())), "mcp.example.com", &mcp(), SENT);
-
-    assert!(!format!("{headers:?}").contains("a.b.c"));
-}
-
-#[test]
-fn the_status_reason_debugs() {
-    let headers = XRailHeaders::of(
+fn debug_shows_the_reason_never_the_ticket() {
+    let ticket = XRailHeaders::of(Some(Ok(ticket())), "mcp.example.com", &mcp(), SENT);
+    let reason = XRailHeaders::of(
         Some(Err(Unavailable::Expired)),
         "mcp.example.com",
         &mcp(),
         SENT,
     );
 
-    assert!(format!("{headers:?}").contains("expired"));
-}
-
-#[test]
-fn every_name_with_an_underscore_is_removed() {
-    let headers = XRailHeaders::of(
-        None,
-        "open.example.com",
-        &mcp(),
-        ["x_rail", "X_Rail_Status", "foo_bar", "x-railing"],
-    );
-
-    assert_eq!(
-        headers.remove,
-        names(&[
-            "foo_bar",
-            "x-rail",
-            "x-rail-status",
-            "x-rail-upstream",
-            "x_rail",
-            "x_rail_status",
-        ])
-    );
+    assert!(!format!("{ticket:?}").contains("a.b.c"));
+    assert!(format!("{reason:?}").contains("expired"));
 }

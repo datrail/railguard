@@ -10,16 +10,24 @@ fn get_resolved(text: &str) -> Resolution {
     Resolution::Judged(Endpoint::Resolved(text.parse().unwrap()))
 }
 
+// The gateway reads the control ones as unrecognised; here a tool name is text, made safe where
+// it's logged.
 #[test]
 fn test_uses_every_part_of_the_key_verbatim() {
-    assert_eq!(
-        resolve("tools/call", Some("Track_Package")),
-        get_resolved("/mcp#tools/call#Track_Package")
-    );
-    assert_eq!(
-        resolve("tools/call", Some("orders.v2")),
-        get_resolved("/mcp#tools/call#orders.v2")
-    );
+    for tool_name in [
+        "Track_Package",
+        "orders.v2",
+        "track\npackage",
+        "track\u{1b}package",
+        "track\u{202e}package",
+        "track\u{2028}package",
+    ] {
+        assert_eq!(
+            resolve("tools/call", Some(tool_name)),
+            get_resolved(&format!("/mcp#tools/call#{tool_name}")),
+            "{tool_name:?}"
+        );
+    }
 }
 
 #[test]
@@ -69,43 +77,21 @@ fn test_reads_a_tools_call_naming_no_tool_as_unrecognised() {
     }
 }
 
-// The gateway reads these as unrecognised; here a tool name is text, made safe where it's logged.
 #[test]
-fn test_resolves_a_tool_name_with_any_character() {
-    for tool_name in [
-        "track\npackage",
-        "track\u{1b}package",
-        "track\u{202e}package",
-        "track\u{2028}package",
-    ] {
+fn test_reads_a_key_past_rail_centers_cap_in_characters_as_unrecognised() {
+    for c in ["t", "é"] {
+        let fits = c.repeat(255 - "/mcp#tools/call#".len());
         assert_eq!(
-            resolve("tools/call", Some(tool_name)),
-            get_resolved(&format!("/mcp#tools/call#{tool_name}")),
-            "{tool_name:?}"
+            resolve("tools/call", Some(&fits)),
+            get_resolved(&format!("/mcp#tools/call#{fits}")),
+            "{c}"
+        );
+        assert_eq!(
+            resolve("tools/call", Some(&format!("{fits}{c}"))),
+            Resolution::Judged(Endpoint::Unrecognised),
+            "{c}"
         );
     }
-}
-
-#[test]
-fn test_reads_a_key_past_rail_centers_cap_as_unrecognised() {
-    let fits = "t".repeat(255 - "/mcp#tools/call#".len());
-    assert_eq!(
-        resolve("tools/call", Some(&fits)),
-        get_resolved(&format!("/mcp#tools/call#{fits}"))
-    );
-    assert_eq!(
-        resolve("tools/call", Some(&format!("{fits}t"))),
-        Resolution::Judged(Endpoint::Unrecognised)
-    );
-}
-
-#[test]
-fn test_counts_the_cap_in_characters() {
-    let fits = "é".repeat(255 - "/mcp#tools/call#".len());
-    assert!(matches!(
-        resolve("tools/call", Some(&fits)),
-        Resolution::Judged(Endpoint::Resolved(_))
-    ));
 }
 
 #[test]

@@ -160,12 +160,26 @@ fn test_reports_what_only_the_writer_refuses() {
         check(json!({"path": "ticket.posture.admin", "op": "eq", "value": 1})),
         [(loc!["op"], OpNotForPath, Authoring)]
     );
+    assert_eq!(
+        check(json!({"path": "ticket.skills.agent_id", "op": "existing"})),
+        [(loc!["path"], UnknownPath, Authoring)]
+    );
+    // Header names are lowercased as Unicode, so `É` isn't the `é` a reader would look up.
+    assert_eq!(
+        check(json!({"path": "request.headers.É", "op": "existing"})),
+        [(loc!["path"], UnknownPath, Authoring)]
+    );
+    // 32 levels deep is accepted, 33 refused.
     let mut deep = json!(1);
-    for _ in 0..31 {
+    for _ in 0..30 {
         deep = json!([deep]);
     }
     assert_eq!(
-        check(json!({"path": "ticket.skills", "op": "in", "value": deep})),
+        check(json!({"path": "ticket.skills", "op": "in", "value": deep.clone()})),
+        []
+    );
+    assert_eq!(
+        check(json!({"path": "ticket.skills", "op": "in", "value": [deep]})),
         [(loc![], TooDeep, Authoring)]
     );
     // An unknown op may be a newer reader's, with a path only it knows.
@@ -174,25 +188,6 @@ fn test_reports_what_only_the_writer_refuses() {
         [
             (loc!["op"], UnknownOp, Authoring),
             (loc!["path"], ProblemCode::UnknownSource, Authoring)
-        ]
-    );
-}
-
-#[test]
-fn test_reports_every_problem_in_order() {
-    assert_eq!(
-        check(json!({"path": "ticket.nope", "op": "lt", "value": "x"})),
-        [
-            (
-                loc!["value"],
-                ProblemCode::OperandShape,
-                ProblemScope::Enforcement
-            ),
-            (
-                loc!["path"],
-                ProblemCode::UnknownPath,
-                ProblemScope::Authoring
-            )
         ]
     );
 }
@@ -240,16 +235,33 @@ fn test_quotes_input_safely() {
 
 #[test]
 fn test_refuses_a_malformed_schema() {
-    assert!(TicketClaimsSchema::from_value(&json!("string")).is_err());
-    assert!(TicketClaimsSchema::from_value(&json!({"a": "header"})).is_err());
-    assert!(TicketClaimsSchema::from_value(&json!({"a": 1})).is_err());
+    for (schema, refusal) in [
+        (json!("string"), "a ticket claims schema is an object"),
+        (json!(["string"]), "a ticket claims schema is an object"),
+        (
+            json!({"a": "header"}),
+            r#"kind "header": not string, number, bool or list"#,
+        ),
+        (json!({"a": 1}), "a ticket claims schema's leaves are kinds"),
+        (
+            json!({"a": ["string"]}),
+            "a ticket claims schema's leaves are kinds",
+        ),
+    ] {
+        assert_eq!(
+            TicketClaimsSchema::from_value(&schema).unwrap_err(),
+            refusal,
+            "{schema}"
+        );
+    }
 }
 
 #[test]
 fn test_allows_each_op_only_where_it_can_hold() {
     // Rail Center's `_OPS_FOR`, beside `existing` and `not_existing`, which every kind takes.
     let cases = [
-        ("ticket.posture", &[][..]),
+        ("ticket", &[][..]),
+        ("ticket.posture", &[]),
         ("ticket.posture.admin", &[]),
         ("ticket.agent_id", &["eq", "ne", "in", "matches"]),
         (
@@ -293,42 +305,6 @@ fn test_allows_each_op_only_where_it_can_hold() {
 }
 
 #[test]
-fn test_reads_the_ticket_root_as_an_object() {
-    assert_eq!(
-        check(json!({"path": "ticket", "op": "eq", "value": "x"})),
-        [(
-            loc!["op"],
-            ProblemCode::OpNotForPath,
-            ProblemScope::Authoring
-        )]
-    );
-}
-
-#[test]
-fn test_reads_nothing_past_a_leaf() {
-    assert_eq!(
-        check(json!({"path": "ticket.skills.agent_id", "op": "existing"})),
-        [(
-            loc!["path"],
-            ProblemCode::UnknownPath,
-            ProblemScope::Authoring
-        )]
-    );
-}
-
-#[test]
-fn test_lowercases_a_header_name_as_unicode() {
-    assert_eq!(
-        check(json!({"path": "request.headers.É", "op": "existing"})),
-        [(
-            loc!["path"],
-            ProblemCode::UnknownPath,
-            ProblemScope::Authoring
-        )]
-    );
-}
-
-#[test]
 fn test_reads_any_path_problem_as_authoring_beside_an_unknown_op() {
     use ProblemCode::{UnknownOp, UnknownPath, UnknownSource};
     use ProblemScope::Authoring;
@@ -350,45 +326,22 @@ fn test_reads_any_path_problem_as_authoring_beside_an_unknown_op() {
 
 #[test]
 fn test_reports_what_a_reader_parses_before_what_only_rail_center_checks() {
-    assert_eq!(
-        check(json!({"path": "ticket.agent_id", "op": "lt", "value": "x"})),
-        [
-            (
-                loc!["value"],
-                ProblemCode::OperandShape,
-                ProblemScope::Enforcement
-            ),
-            (
-                loc!["op"],
-                ProblemCode::OpNotForPath,
-                ProblemScope::Authoring
-            )
-        ]
-    );
-}
-
-#[test]
-fn test_refuses_a_ticket_claims_schema_that_isnt_an_object() {
-    assert_eq!(
-        TicketClaimsSchema::from_value(&json!(["string"])).unwrap_err(),
-        "a ticket claims schema is an object"
-    );
-    assert_eq!(
-        TicketClaimsSchema::from_value(&json!({"a": ["string"]})).unwrap_err(),
-        "a ticket claims schema's leaves are kinds"
-    );
-}
-
-#[test]
-fn test_accepts_a_condition_32_levels_deep() {
-    let mut deep = json!(1);
-    for _ in 0..30 {
-        deep = json!([deep]);
+    for (path, problem) in [
+        ("ticket.nope", (loc!["path"], ProblemCode::UnknownPath)),
+        ("ticket.agent_id", (loc!["op"], ProblemCode::OpNotForPath)),
+    ] {
+        assert_eq!(
+            check(json!({"path": path, "op": "lt", "value": "x"})),
+            [
+                (
+                    loc!["value"],
+                    ProblemCode::OperandShape,
+                    ProblemScope::Enforcement
+                ),
+                (problem.0, problem.1, ProblemScope::Authoring)
+            ]
+        );
     }
-    assert_eq!(
-        check(json!({"path": "ticket.skills", "op": "in", "value": deep})),
-        []
-    );
 }
 
 #[test]
