@@ -72,18 +72,51 @@ async fn the_holding_line_names_the_content_hash_the_schema_version_and_what_it_
 }
 
 #[tokio::test(start_paused = true)]
-async fn an_issuer_or_audience_not_a_string_is_warned_of_by_name() {
-    let held = bundle("v1", json!({"ticket_issuer": 1, "ticket_audience": "t"}));
-    let logs = log_of(vec![ok(&held)]).await;
+async fn each_issuer_or_audience_not_a_string_is_warned_of_by_name_once_per_bundle() {
+    let cases = [
+        (
+            json!({"ticket_issuer": 1, "ticket_audience": "t"}),
+            &["ticket_issuer"][..],
+        ),
+        (
+            json!({"ticket_issuer": "i", "ticket_audience": true}),
+            &["ticket_audience"],
+        ),
+        (
+            json!({"ticket_issuer": 1, "ticket_audience": true}),
+            &["ticket_issuer", "ticket_audience"],
+        ),
+        // The audience left null.
+        (json!({"ticket_issuer": 1}), &["ticket_issuer"]),
+        (json!({}), &[]),
+    ];
+    for (with, warned) in cases {
+        let held = bundle("v1", with.clone());
+        // Fetched twice: the second is unchanged, and says nothing again.
+        let logs = log_of(vec![ok(&held), ok(&held)]).await;
 
-    let lines = lines_with(&logs, "isn't a string");
-    assert_eq!(lines.len(), 1, "{logs}");
-    assert!(
-        lines[0].contains("WARN") && lines[0].contains(r#"field="ticket_issuer""#),
-        "{}",
-        lines[0]
-    );
-    assert!(lines[0].contains("wrong_audience"), "{}", lines[0]);
+        let lines = lines_with(&logs, "isn't a string");
+        let fields: Vec<String> = lines
+            .iter()
+            .map(|line| {
+                line.split("field=")
+                    .nth(1)
+                    .unwrap()
+                    .split(' ')
+                    .next()
+                    .unwrap()
+                    .to_owned()
+            })
+            .collect();
+        let expected: Vec<String> = warned.iter().map(|field| format!(r#""{field}""#)).collect();
+        assert_eq!(fields, expected, "{with}: {logs}");
+        assert!(
+            lines
+                .iter()
+                .all(|line| line.contains("WARN") && line.contains("wrong_audience")),
+            "{logs}"
+        );
+    }
 }
 
 #[tokio::test(start_paused = true)]

@@ -25,9 +25,10 @@ pub struct HeldBundle {
     pub content_hash: String,
     pub schema_version: SchemaVersion,
     pub posture: Posture,
-    /// The `iss` and `aud` a signed ticket for this tenant carries: without both, none is
-    /// accepted.
+    /// The `iss` a signed ticket for this tenant carries: without it and `ticket_audience`, none
+    /// is accepted.
     pub ticket_issuer: Option<String>,
+    /// The `aud` a signed ticket for this tenant carries.
     pub ticket_audience: Option<String>,
 }
 

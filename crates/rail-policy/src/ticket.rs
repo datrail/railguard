@@ -42,7 +42,7 @@ pub struct Ticket {
 }
 
 /// What a reader needs to accept a signed ticket, borrowed, so it's built for each call.
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 pub struct SignedTicketConfig<'a> {
     /// By `kid`.
     pub keys: &'a HashMap<String, VerifyingKey>,

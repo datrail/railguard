@@ -247,17 +247,22 @@ fn test_refuses_a_signature_for_a_weak_key() {
 #[test]
 fn test_reads_an_empty_issuer_or_audience_as_not_configured() {
     let key = SigningKey::from_bytes(&[7; 32]);
-    let header = URL_SAFE_NO_PAD.encode(json!({"alg": "EdDSA", "kid": "k"}).to_string());
-    let payload = json!({"exp": 60, "nbf": 0, "iss": "", "aud": ""}).to_string();
-    let ticket = _sign_ticket(&key, &header, &URL_SAFE_NO_PAD.encode(payload));
     let keys = HashMap::from([("k".to_string(), key.verifying_key())]);
-    let config = SignedTicketConfig {
-        keys: &keys,
-        issuer: Some(""),
-        audience: Some(""),
-    };
-    assert_eq!(
-        parse_jwt_ticket(&ticket, &config, 0),
-        TicketState::WrongAudience
-    );
+    let header = URL_SAFE_NO_PAD.encode(json!({"alg": "EdDSA", "kid": "k"}).to_string());
+    // Each ticket names exactly what the reader holds, so only the empty one refuses it.
+    for (issuer, audience) in [("", "a"), ("i", "")] {
+        let payload = json!({"exp": 60, "nbf": 0, "iss": issuer, "aud": audience}).to_string();
+        let ticket = _sign_ticket(&key, &header, &URL_SAFE_NO_PAD.encode(payload));
+        let config = SignedTicketConfig {
+            keys: &keys,
+            issuer: Some(issuer),
+            audience: Some(audience),
+        };
+
+        assert_eq!(
+            parse_jwt_ticket(&ticket, &config, 0),
+            TicketState::WrongAudience,
+            "{issuer:?} {audience:?}"
+        );
+    }
 }

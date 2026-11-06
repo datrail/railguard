@@ -119,7 +119,7 @@ fn test_reads_every_field_rail_center_publishes() {
 }
 
 #[test]
-fn test_reads_a_ticket_issuer_or_audience_not_named_as_unset_and_one_not_a_string_apart() {
+fn test_reads_an_absent_or_null_ticket_audience_as_unset_and_a_non_string_apart() {
     let named = r#""ticket_audience": "00000000-0000-4000-8000-0000000000aa""#;
     for (audience, read) in [
         ("", TicketClaim::Unset),

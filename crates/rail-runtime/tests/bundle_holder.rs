@@ -86,12 +86,12 @@ async fn only_a_usable_answer_is_held_and_any_other_is_retried_as_a_failure() {
 async fn the_issuer_and_audience_are_held_only_as_strings() {
     let named = json!({"ticket_issuer": "https://rc/tenants/t", "ticket_audience": "t"});
     for (label, with, held) in [
-        ("named", named, Some(("https://rc/tenants/t", "t"))),
-        ("null", json!({}), None),
+        ("named", named, (Some("https://rc/tenants/t"), Some("t"))),
+        ("null", json!({}), (None, None)),
         (
             "not a string",
             json!({"ticket_issuer": 1, "ticket_audience": true}),
-            None,
+            (None, None),
         ),
     ] {
         let clock = TestClock::new();
@@ -101,10 +101,10 @@ async fn the_issuer_and_audience_are_held_only_as_strings() {
         until(&clock, 0).await;
 
         let bundle = holder.snapshot().unwrap();
-        let read = bundle
-            .ticket_issuer
-            .as_deref()
-            .zip(bundle.ticket_audience.as_deref());
+        let read = (
+            bundle.ticket_issuer.as_deref(),
+            bundle.ticket_audience.as_deref(),
+        );
         assert_eq!(read, held, "{label}");
     }
 }
