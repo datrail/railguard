@@ -17,9 +17,6 @@ use tokio::time::{Instant, timeout_at};
 // Not settings: a lower floor would let a fleet hammer Rail Center.
 pub(crate) const MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(5);
 
-// Further than any wait, and near enough for an `Instant` to hold it.
-const FAR: Duration = Duration::from_secs(100 * 365 * 86_400);
-
 const MIN_JITTER: f64 = 0.8;
 const MAX_JITTER: f64 = 1.2;
 
@@ -137,7 +134,7 @@ impl<T: Send + Sync + 'static> Holder<T> {
     /// What's held once `holds` it, or once `limit` has passed, or at once if no attempt is in
     /// flight or due before then. It never starts a fetch, and is awaited on the caller's runtime.
     pub(crate) async fn wait_until(&self, holds: impl Fn(&T) -> bool, limit: Duration) -> Arc<T> {
-        let deadline = Instant::now() + limit.min(FAR);
+        let deadline = Instant::now() + limit;
         let mut progress = self.progress.clone();
         loop {
             // Before what's held: the loop stores a value before it says the attempt ended.
@@ -224,7 +221,7 @@ async fn run<K: Kind>(
             }
             wait
         };
-        publish.send_replace(Progress::NextAt(Instant::now() + wait.min(FAR)));
+        publish.send_replace(Progress::NextAt(Instant::now() + wait));
         tokio::time::sleep(wait).await;
     }
 }
@@ -253,7 +250,7 @@ fn next_wait(schedule: &Schedule, failures: u32, factor: f64) -> Duration {
             .saturating_mul(2_u32.saturating_pow(failures - 1))
             .min(schedule.max_delay),
     };
-    Duration::try_from_secs_f64(wait.as_secs_f64() * factor).unwrap_or(Duration::MAX)
+    wait.mul_f64(factor)
 }
 
 // Whole seconds, rounded: a jittered 5.9 s reads as 6.

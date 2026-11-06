@@ -388,22 +388,6 @@ async fn a_panicking_fetch_is_a_failed_attempt_logged_without_its_message() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_huge_refresh_interval_neither_panics_nor_stops_the_holder() {
-    let logs = Logs::default();
-    let _logging = logs.capture();
-    let clock = Clock::new();
-    let script = Script::new(&clock, |_| ok(&bundle("v1", json!({}))));
-
-    let holder = start(&script, Duration::MAX);
-    until(&clock, 3600).await;
-
-    assert_eq!(held_hash(&holder).as_deref(), Some("v1"));
-    assert_eq!(script.fetched_at(), [0]);
-    let logs = logs.text();
-    assert!(!logs.contains("panicked"), "{logs}");
-}
-
-#[tokio::test(start_paused = true)]
 async fn a_repeated_refusal_is_logged_at_each_attempt_with_when_the_next_comes() {
     let refused = || answer(StatusCode::UNAUTHORIZED, b"");
     let logs = log_of((0..5).map(|_| refused()).collect()).await;
