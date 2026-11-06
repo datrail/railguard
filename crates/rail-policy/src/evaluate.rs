@@ -20,10 +20,6 @@ impl Budget {
         Self { limit, steps: 0 }
     }
 
-    pub fn steps(&self) -> u64 {
-        self.steps
-    }
-
     fn charge(&mut self, steps: u64) -> Result<(), Refusal> {
         self.steps = self.steps.saturating_add(steps);
         if self.steps > self.limit {

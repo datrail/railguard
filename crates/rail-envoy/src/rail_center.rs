@@ -55,8 +55,7 @@ impl RailCenterThread {
     /// Stops the thread, dropping every task still on it.
     pub fn stop(self) {
         let _ = self.stop.send(());
-        if self.thread.join().is_err() {
-            tracing::error!("the Rail Center thread panicked");
-        }
+        // Its own code can't panic, and a task panicking on its runtime doesn't unwind it.
+        let _ = self.thread.join();
     }
 }

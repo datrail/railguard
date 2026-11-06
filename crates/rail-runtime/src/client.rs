@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use flate2::write::GzDecoder;
 use reqwest::header::{
-    ACCEPT, ACCEPT_ENCODING, AUTHORIZATION, CONTENT_ENCODING, HeaderMap, HeaderName, HeaderValue,
+    ACCEPT, ACCEPT_ENCODING, AUTHORIZATION, CONTENT_ENCODING, HeaderMap, HeaderValue,
 };
 use reqwest::{StatusCode, Url, redirect};
 use tokio::time::timeout;
@@ -73,14 +73,12 @@ pub struct RailCenterClient {
 impl RailCenterClient {
     pub fn new(settings: &RailCenterSettings) -> Result<Self, String> {
         let mut headers = HeaderMap::new();
-        headers.insert(ACCEPT, sendable(&ACCEPT, "application/json")?);
+        headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
         // Rail Center's frontend may compress of its own accord; gzip is decoded here, capped.
-        headers.insert(
-            ACCEPT_ENCODING,
-            sendable(&ACCEPT_ENCODING, "gzip, identity")?,
-        );
+        headers.insert(ACCEPT_ENCODING, HeaderValue::from_static("gzip, identity"));
         if let Some(token) = &settings.token {
-            let mut value = sendable(&AUTHORIZATION, &format!("Bearer {}", token.expose()))?;
+            let mut value = HeaderValue::from_str(&format!("Bearer {}", token.expose()))
+                .expect("the settings reader allows only URL-safe base64 in a token");
             // Kept out of reqwest's own Debug, as its `bearer_auth` does.
             value.set_sensitive(true);
             headers.insert(AUTHORIZATION, value);
@@ -253,22 +251,6 @@ fn tls_config() -> rustls::ClientConfig {
         .expect("ring supports the default protocol versions")
         .with_root_certificates(roots)
         .with_no_client_auth()
-}
-
-// A header value h11 would refuse quoting it is refused here, naming only the header.
-fn sendable(name: &HeaderName, value: &str) -> Result<HeaderValue, String> {
-    if let Some(offset) = value
-        .bytes()
-        .position(|byte| !(0x20..=0x7e).contains(&byte))
-    {
-        return Err(format!(
-            "the {name} header holds a byte at offset {offset} that can't go in a header value"
-        ));
-    }
-    if value.trim() != value {
-        return Err(format!("the {name} header is padded with whitespace"));
-    }
-    HeaderValue::from_str(value).map_err(|_| format!("the {name} header can't be sent"))
 }
 
 // The error and its causes, without the URL; the credential is only ever in a header.

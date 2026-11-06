@@ -117,10 +117,8 @@ async fn serve(config: Config, startup: &Startup) -> ExitCode {
         .serve_with_incoming_shutdown(UnixListenerStream::new(listener), stopping);
     let served = drain_until_deadline(server, drain_started).await;
     // Its stop blocks on a join, so it's kept off the async workers.
-    if let Some(thread) = rail_center
-        && let Err(error) = tokio::task::spawn_blocking(move || thread.stop()).await
-    {
-        tracing::error!(error = %error, "stopping the Rail Center thread failed");
+    if let Some(thread) = rail_center {
+        let _ = tokio::task::spawn_blocking(move || thread.stop()).await;
     }
     match served {
         Ok(()) => ExitCode::SUCCESS,

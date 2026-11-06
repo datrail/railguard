@@ -5,6 +5,7 @@ use rail_runtime::{
 };
 
 use crate::common::{Reply, client, response, serve};
+use crate::holder::HOUR;
 
 // 2026-07-28T10:15:00Z
 const EXPIRES_AT: u64 = 1_785_233_700;
@@ -20,7 +21,10 @@ fn query() -> TicketQuery {
 fn tickets(url: &str) -> RailCenterTickets {
     RailCenterTickets {
         client: client(url),
-        settings: TicketSettings::new(query()),
+        settings: TicketSettings {
+            query: query(),
+            refresh_interval: HOUR,
+        },
     }
 }
 

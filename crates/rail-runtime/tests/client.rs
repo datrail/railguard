@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use flate2::Compression;
 use flate2::write::GzEncoder;
-use rail_runtime::{FetchError, Limits, RailCenterClient, RailCenterSettings, Secret};
+use rail_runtime::{FetchError, Limits, RailCenterClient};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 
@@ -395,25 +395,4 @@ fn an_ambient_proxy_is_not_used() {
     // A name matching no test would pass with nothing run.
     assert!(stdout.contains("1 passed"), "{stdout}");
     assert!(output.status.success(), "{stdout}");
-}
-
-#[test]
-fn a_token_that_cant_go_in_a_header_is_refused_unquoted() {
-    let cases = [
-        (
-            "rc_svc_x\r\nX-Evil: 1",
-            "holds a byte at offset 15 that can't go in a header value",
-        ),
-        ("rc_svc_x ", "is padded with whitespace"),
-    ];
-    for (token, refusal) in cases {
-        let settings = RailCenterSettings {
-            token: Some(Secret::new(token.to_owned())),
-            ..settings("http://127.0.0.1:1", None)
-        };
-
-        let error = RailCenterClient::new(&settings).err().unwrap();
-
-        assert_eq!(error, format!("the authorization header {refusal}"));
-    }
 }

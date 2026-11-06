@@ -203,13 +203,17 @@ fn test_matches_a_hostile_pattern_in_one_scan() {
 #[test]
 fn test_charges_a_long_value_by_its_length() {
     let condition = json!({"path": "request.headers.x-a", "op": "matches", "value": "*"});
-    let mut budget = Budget::default();
+    let value = "a".repeat(6_400);
 
+    // 102 steps: refused at a limit of 101, held at 102.
     assert_eq!(
-        evaluate_on_header(condition, &"a".repeat(6_400), &mut budget),
+        evaluate_on_header(condition.clone(), &value, &mut Budget::new(101)),
+        Verdict::Refused(Refusal::BudgetExceeded)
+    );
+    assert_eq!(
+        evaluate_on_header(condition, &value, &mut Budget::new(102)),
         Verdict::Holds
     );
-    assert_eq!(budget.steps(), 102);
 }
 
 #[test]

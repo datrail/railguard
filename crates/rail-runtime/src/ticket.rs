@@ -41,15 +41,6 @@ pub struct TicketSettings {
     pub refresh_interval: Duration,
 }
 
-impl TicketSettings {
-    pub fn new(query: TicketQuery) -> Self {
-        Self {
-            query,
-            refresh_interval: DEFAULT_REFRESH_INTERVAL,
-        }
-    }
-}
-
 /// The ticket's settings, every one set judged, `None` if the host or sandbox is missing; both
 /// are required if `required`, which is whether Rail Center is used. Described only when read
 /// whole.
@@ -85,11 +76,11 @@ pub fn read_ticket_settings(
     let ticket = host_id
         .zip(sandbox_name)
         .map(|(host_id, sandbox_name)| TicketSettings {
-            refresh_interval,
-            ..TicketSettings::new(TicketQuery {
+            query: TicketQuery {
                 host_id: host_id.to_owned(),
                 sandbox_name: sandbox_name.to_owned(),
-            })
+            },
+            refresh_interval,
         });
     if let Some(ticket) = &ticket {
         settings.describe(HOST_ID, &ticket.query.host_id);

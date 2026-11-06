@@ -151,7 +151,7 @@ pub fn parse_jwt_ticket(
     let (Some(issuer), Some(audience)) = (issuer, audience) else {
         return TicketState::WrongAudience;
     };
-    if now_epoch_seconds < nbf_epoch_seconds.saturating_sub(NBF_ALLOWANCE_IN_SECONDS)
+    if now_epoch_seconds < nbf_epoch_seconds - NBF_ALLOWANCE_IN_SECONDS
         || claims.get("iss").and_then(Value::as_str) != Some(issuer)
         || claims.get("aud").and_then(Value::as_str) != Some(audience)
     {

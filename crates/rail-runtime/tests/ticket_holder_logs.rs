@@ -85,10 +85,13 @@ async fn a_hostile_answer_is_logged_escaped_once() {
     let server = serve(move |_| Reply::Raw(response("200 OK", &[], body.as_bytes()))).await;
     let source = RailCenterTickets {
         client: client(&server.url),
-        settings: TicketSettings::new(TicketQuery {
-            host_id: "host-1".to_owned(),
-            sandbox_name: "sandbox a".to_owned(),
-        }),
+        settings: TicketSettings {
+            query: TicketQuery {
+                host_id: "host-1".to_owned(),
+                sandbox_name: "sandbox a".to_owned(),
+            },
+            refresh_interval: HOUR,
+        },
     };
 
     let _holder = TicketHolder::start(
