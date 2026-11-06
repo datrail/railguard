@@ -1,9 +1,9 @@
 use reqwest::StatusCode;
 use serde_json::json;
 
-use crate::holder::{Clock, until};
+use crate::holder::{TestClock, until};
 use crate::keys::{Answer, Script, answer, failed, key_set, ok, start};
-use crate::logs::Logs;
+use crate::logs::{Logs, lines_with};
 
 // The log of a key set holder answered with `answers(n)`, up to `seconds`.
 async fn log_until(
@@ -12,17 +12,13 @@ async fn log_until(
 ) -> String {
     let logs = Logs::default();
     let _logging = logs.capture();
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let script = Script::new(&clock, answers);
 
     let _holder = start(&clock, &script);
     until(&clock, seconds).await;
 
     logs.text()
-}
-
-fn lines_with<'a>(logs: &'a str, text: &str) -> Vec<&'a str> {
-    logs.lines().filter(|line| line.contains(text)).collect()
 }
 
 #[tokio::test(start_paused = true)]
@@ -128,4 +124,21 @@ async fn a_dropped_key_is_warned_of_with_its_kid_and_why_whether_or_not_one_is_l
         lines_with(&none, "fetch failed")[0].contains(r#"reason="the set holds no usable key""#),
         "{none}"
     );
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_new_key_under_a_kid_held_is_news() {
+    // `y = 1`, a point on the curve, so another key than the vectors'.
+    let replaced = json!({"keys": [{
+        "kty": "OKP", "crv": "Ed25519", "kid": "a", "x": format!("AQ{}", "A".repeat(41)),
+    }]})
+    .to_string();
+    let logs = log_until(300, move |n| match n {
+        0 => ok(&["a"]),
+        _ => answer(StatusCode::OK, replaced.as_bytes()),
+    })
+    .await;
+
+    assert_eq!(lines_with(&logs, "holding signing keys").len(), 2, "{logs}");
+    assert!(lines_with(&logs, "dropping").is_empty(), "{logs}");
 }

@@ -18,48 +18,34 @@ fn settable() -> (Clock, Arc<Mutex<(SystemTime, Duration)>>) {
 }
 
 #[test]
-fn a_freeze_the_wall_clock_shows_is_counted() {
-    let (clock, readings) = settable();
-    let fetched = clock.now();
-    {
-        let mut readings = readings.lock().unwrap();
-        readings.0 += Duration::from_secs(3600);
-        readings.1 += Duration::from_secs(5);
+fn an_age_is_the_larger_of_the_two_clocks_time() {
+    // How far the wall and boot clocks move, as signed seconds, and the age that makes.
+    for (wall, boot, age) in [
+        // A freeze only the wall clock shows, then only the boot clock.
+        (3600, 5, 3600),
+        (5, 3600, 3600),
+        // A wall clock stepped back doesn't make a value fresher.
+        (-3600, 90, 90),
+    ] {
+        let (clock, readings) = settable();
+        let fetched = clock.now();
+        {
+            let mut readings = readings.lock().unwrap();
+            let by = |seconds: i64| Duration::from_secs(seconds.unsigned_abs());
+            readings.0 = if wall < 0 {
+                readings.0 - by(wall)
+            } else {
+                readings.0 + by(wall)
+            };
+            readings.1 += by(boot);
+        }
+
+        assert_eq!(
+            clock.now().duration_since(fetched),
+            Duration::from_secs(age),
+            "{wall} {boot}"
+        );
     }
-
-    assert_eq!(
-        clock.now().duration_since(fetched),
-        Duration::from_secs(3600)
-    );
-}
-
-#[test]
-fn a_freeze_the_boot_clock_shows_is_counted() {
-    let (clock, readings) = settable();
-    let fetched = clock.now();
-    {
-        let mut readings = readings.lock().unwrap();
-        readings.0 += Duration::from_secs(5);
-        readings.1 += Duration::from_secs(3600);
-    }
-
-    assert_eq!(
-        clock.now().duration_since(fetched),
-        Duration::from_secs(3600)
-    );
-}
-
-#[test]
-fn a_wall_clock_stepped_back_does_not_make_a_value_fresher() {
-    let (clock, readings) = settable();
-    let fetched = clock.now();
-    {
-        let mut readings = readings.lock().unwrap();
-        readings.0 -= Duration::from_secs(3600);
-        readings.1 += Duration::from_secs(90);
-    }
-
-    assert_eq!(clock.now().duration_since(fetched), Duration::from_secs(90));
 }
 
 #[test]

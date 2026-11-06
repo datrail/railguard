@@ -6,14 +6,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use ed25519_dalek::VerifyingKey;
-use rail_policy::{DroppedKey, parse_key_set};
-use reqwest::StatusCode;
+use rail_policy::{DroppedKey, ParsedKeySet, parse_key_set};
 use tokio::runtime::Handle;
 
-use crate::client::{FetchError, Limits, RailCenterClient, Response};
+use crate::client::{FetchError, Limits, RailCenterClient, Response, read_ok};
 use crate::clock::{Clock, Stamp};
 use crate::holder::{Holder, Jitter, Kind, MIN_REFRESH_INTERVAL, Schedule, Step, round_to_seconds};
-use crate::rail_center::{AUTH_MODE, AUTH_TOKEN};
 
 const ROUTE: &str = "/v1/jwks.json";
 
@@ -87,11 +85,7 @@ impl KeySetHolder {
     /// The set to verify with, or `None` if none was fetched or it's past its age, never
     /// waiting. The age is judged here, as it's read.
     pub fn keys(&self) -> Option<Arc<KeySet>> {
-        let held = self.holder.snapshot();
-        held.as_ref()
-            .as_ref()
-            .filter(|set| is_fresh(set, &self.clock))
-            .cloned()
+        fresh(&self.holder.snapshot(), &self.clock).cloned()
     }
 
     /// The set, once it holds `kid`. A `kid` not held asks for a refetch now, unless one started
@@ -99,8 +93,7 @@ impl KeySetHolder {
     /// published. It returns the set as it then is, which may still not hold `kid`.
     pub async fn wait_for_kid(&self, kid: &str, limit: Duration) -> Option<Arc<KeySet>> {
         let holds_kid = |held: &Option<Arc<KeySet>>| {
-            held.as_ref()
-                .is_some_and(|set| is_fresh(set, &self.clock) && set.keys.contains_key(kid))
+            fresh(held, &self.clock).is_some_and(|set| set.keys.contains_key(kid))
         };
         if !holds_kid(&self.holder.snapshot()) {
             self.holder.refetch_now(UNKNOWN_KID_SPACING);
@@ -110,8 +103,10 @@ impl KeySetHolder {
     }
 }
 
-fn is_fresh(set: &KeySet, clock: &Clock) -> bool {
-    clock.now().duration_since(set.fetched_at) <= MAX_AGE
+// The set held, while it's within its age.
+fn fresh<'a>(held: &'a Option<Arc<KeySet>>, clock: &Clock) -> Option<&'a Arc<KeySet>> {
+    held.as_ref()
+        .filter(|set| clock.now().duration_since(set.fetched_at) <= MAX_AGE)
 }
 
 struct Keys<S> {
@@ -120,16 +115,10 @@ struct Keys<S> {
 }
 
 // What one answer did, and the entries meant as keys it dropped.
-enum Outcome {
-    Replaced {
-        set: Arc<KeySet>,
-        changed: bool,
-        dropped: Vec<DroppedKey>,
-    },
-    Failed {
-        reason: String,
-        dropped: Vec<DroppedKey>,
-    },
+struct Outcome {
+    // The set now held and whether its keys changed, or why none replaced the one held.
+    read: Result<(Arc<KeySet>, bool), String>,
+    dropped: Vec<DroppedKey>,
 }
 
 impl<S: KeySource> Kind for Keys<S> {
@@ -144,58 +133,50 @@ impl<S: KeySource> Kind for Keys<S> {
     }
 
     fn step(&self, held: &Self::Held, answer: Self::Answer) -> Step<Self::Held, Outcome> {
-        let (read, dropped) = read_answer(answer);
-        let outcome = match read {
-            Ok(keys) => {
-                // A set aged out holds nothing, so the next one is news.
-                let previous = held.as_ref().filter(|set| is_fresh(set, &self.clock));
-                let changed = previous.is_none_or(|set| !same_kids(&set.keys, &keys));
-                let set = Arc::new(KeySet {
-                    keys,
-                    fetched_at: self.clock.now(),
-                });
-                Outcome::Replaced {
-                    set,
-                    changed,
-                    dropped,
-                }
+        let (keys, dropped) = match read_answer(answer) {
+            Ok(ParsedKeySet { keys, dropped }) if keys.is_empty() => {
+                (Err("the set holds no usable key".to_owned()), dropped)
             }
-            Err(reason) => Outcome::Failed { reason, dropped },
+            Ok(ParsedKeySet { keys, dropped }) => (Ok(keys), dropped),
+            Err(reason) => (Err(reason), Vec::new()),
         };
-        let next = match &outcome {
-            Outcome::Replaced { set, .. } => Some(Some(Arc::clone(set))),
-            Outcome::Failed { .. } => None,
-        };
+        let read = keys.map(|keys| {
+            // A set aged out holds nothing, so the next one is news.
+            let changed = fresh(held, &self.clock).is_none_or(|set| set.keys != keys);
+            let set = KeySet {
+                keys,
+                fetched_at: self.clock.now(),
+            };
+            (Arc::new(set), changed)
+        });
+        let next = read.as_ref().ok().map(|(set, _)| Some(Arc::clone(set)));
         Step {
             succeeded: next.is_some(),
             next,
-            outcome,
+            outcome: Outcome { read, dropped },
         }
     }
 
     fn report(&self, outcome: Outcome, held: &Self::Held, _: bool, retry: Duration) {
         let retry = round_to_seconds(retry);
-        let (Outcome::Replaced { dropped, .. } | Outcome::Failed { dropped, .. }) = &outcome;
         // At every fetch: Rail Center publishes none, so one is a fault, or not its answer.
-        for DroppedKey { kid, reason } in dropped {
+        for DroppedKey { kid, reason } in &outcome.dropped {
             tracing::warn!(
                 kid = kid.as_deref(),
                 reason,
                 "dropping a signing key the fetched set lists"
             );
         }
-        match outcome {
+        match outcome.read {
             // On a change only: most refreshes say what the last one said.
-            Outcome::Replaced {
-                set, changed: true, ..
-            } => {
+            Ok((set, true)) => {
                 tracing::info!(kids = %format_kids(&set.keys), "holding signing keys");
             }
-            Outcome::Replaced { set, .. } => {
+            Ok((set, false)) => {
                 tracing::debug!(kids = %format_kids(&set.keys), "signing keys unchanged");
             }
-            Outcome::Failed { reason, .. } => {
-                match held.as_ref().filter(|set| is_fresh(set, &self.clock)) {
+            Err(reason) => {
+                match fresh(held, &self.clock) {
                     Some(set) => tracing::warn!(
                         reason = %reason,
                         kids = %format_kids(&set.keys),
@@ -215,44 +196,11 @@ impl<S: KeySource> Kind for Keys<S> {
     }
 }
 
-// The keys an answer brings, or why none, and the entries meant as keys it dropped.
-fn read_answer(
-    answer: Result<Response, FetchError>,
-) -> (
-    Result<HashMap<String, VerifyingKey>, String>,
-    Vec<DroppedKey>,
-) {
-    let response = match answer {
-        Ok(response) => response,
-        Err(error) => return (Err(error.to_string()), Vec::new()),
-    };
-    if matches!(
-        response.status,
-        StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN
-    ) {
-        let reason = format!(
-            "Rail Center refused the credential ({}); every fetch fails this way until \
-             {AUTH_MODE} and {AUTH_TOKEN} are fixed",
-            response.status
-        );
-        return (Err(reason), Vec::new());
-    }
-    if response.status != StatusCode::OK {
-        let reason = format!("Rail Center answered {}", response.status);
-        return (Err(reason), Vec::new());
-    }
-    let Some(set) = parse_key_set(&response.body) else {
-        let reason = "the set isn't an object of keys, or two entries share a kid";
-        return (Err(reason.to_owned()), Vec::new());
-    };
-    if set.keys.is_empty() {
-        return (Err("the set holds no usable key".to_owned()), set.dropped);
-    }
-    (Ok(set.keys), set.dropped)
-}
-
-fn same_kids(a: &HashMap<String, VerifyingKey>, b: &HashMap<String, VerifyingKey>) -> bool {
-    a.len() == b.len() && a.keys().all(|kid| b.contains_key(kid))
+// The set an answer brings, or why none.
+fn read_answer(answer: Result<Response, FetchError>) -> Result<ParsedKeySet, String> {
+    let body = read_ok(answer)?;
+    parse_key_set(&body)
+        .ok_or_else(|| "the set isn't an object of keys, or two entries share a kid".to_owned())
 }
 
 // Sorted, so the same set reads the same in every line.

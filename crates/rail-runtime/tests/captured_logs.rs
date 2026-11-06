@@ -8,4 +8,5 @@ mod key_set_logs;
 mod keys;
 mod logging;
 mod logs;
+mod scripted;
 mod ticket_holder_logs;

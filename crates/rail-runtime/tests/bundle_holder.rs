@@ -9,11 +9,9 @@ use tokio::time::Instant;
 use crate::bundles::{Answer, MINUTE, Script, answer, bundle, failed, held_hash, ok, start};
 use crate::common::{self, Reply, client, response, serve};
 use crate::holder::{TestClock, until};
+use crate::scripted::Answering;
 
 const LIMIT: Duration = Duration::from_secs(2);
-
-// A way of answering, called afresh for each fetch.
-type Answering = fn() -> Answer;
 
 // Every way of getting no usable bundle, a bundle Rail Center sent or not.
 fn unusable_answers() -> Vec<(&'static str, Answering)> {

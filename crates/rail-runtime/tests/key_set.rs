@@ -1,15 +1,15 @@
-use std::sync::Mutex;
 use std::time::Duration;
 
-use rail_runtime::{Jitter, KeySetHolder, KeySource, RailCenterKeys, RailCenterThread};
+use rail_runtime::{Clock, Jitter, KeySetHolder, KeySource, RailCenterKeys, RailCenterThread};
 use reqwest::StatusCode;
 use tokio::time::Instant;
 
 use crate::common::{Reply, TOKEN, client, response, serve};
-use crate::holder::{Clock, until};
+use crate::holder::{TestClock, until};
 use crate::keys::{
-    AgingClock, Answer, LIMIT, Script, answer, failed, key_set, kids, named, ok, start, start_aging,
+    AgingClock, LIMIT, Script, answer, failed, key_set, kids, named, ok, start, start_aging,
 };
+use crate::scripted::Answering;
 
 // What waiting for `kid` returns, and how long it took.
 async fn timed_wait(holder: &KeySetHolder, kid: &str) -> (Option<Vec<String>>, Duration) {
@@ -24,7 +24,7 @@ async fn timed_wait(holder: &KeySetHolder, kid: &str) -> (Option<Vec<String>>, D
 
 #[tokio::test(start_paused = true)]
 async fn a_fetched_set_is_held() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let script = Script::new(&clock, |_| ok(&["a"]));
 
     let holder = start(&clock, &script);
@@ -36,7 +36,7 @@ async fn a_fetched_set_is_held() {
 
 #[tokio::test(start_paused = true)]
 async fn nothing_is_held_before_the_first_fetch() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let script = Script::new(&clock, |_| ok(&["a"]));
 
     let holder = start(&clock, &script);
@@ -45,53 +45,44 @@ async fn nothing_is_held_before_the_first_fetch() {
 }
 
 // Every way of getting no usable set.
-fn unusable_answers() -> Vec<(&'static str, Answer)> {
+fn unusable_answers() -> Vec<(&'static str, Answering)> {
     vec![
-        ("a 503", answer(StatusCode::SERVICE_UNAVAILABLE, b"")),
-        ("a 404", answer(StatusCode::NOT_FOUND, b"")),
-        (
-            "a refused credential",
-            answer(StatusCode::UNAUTHORIZED, b""),
-        ),
-        ("a forbidden read", answer(StatusCode::FORBIDDEN, b"")),
-        (
-            "a 404 carrying a set",
+        ("a 503", || answer(StatusCode::SERVICE_UNAVAILABLE, b"")),
+        ("a 404", || answer(StatusCode::NOT_FOUND, b"")),
+        ("a refused credential", || {
+            answer(StatusCode::UNAUTHORIZED, b"")
+        }),
+        ("a forbidden read", || answer(StatusCode::FORBIDDEN, b"")),
+        ("a 404 carrying a set", || {
             answer(
                 StatusCode::NOT_FOUND,
                 key_set(&["b"]).to_string().as_bytes(),
-            ),
-        ),
-        (
-            "a 203 carrying a set",
-            answer(
-                StatusCode::NON_AUTHORITATIVE_INFORMATION,
-                key_set(&["b"]).to_string().as_bytes(),
-            ),
-        ),
-        ("a body that isn't JSON", answer(StatusCode::OK, b"<html>")),
-        ("no usable key", answer(StatusCode::OK, b"{\"keys\": []}")),
-        ("a kid twice", ok(&["b", "b"])),
-        ("no response", failed()),
+            )
+        }),
+        ("a 203 carrying a set", || {
+            let set = key_set(&["b"]).to_string();
+            answer(StatusCode::NON_AUTHORITATIVE_INFORMATION, set.as_bytes())
+        }),
+        ("a body that isn't JSON", || {
+            answer(StatusCode::OK, b"<html>")
+        }),
+        ("no usable key", || {
+            answer(StatusCode::OK, b"{\"keys\": []}")
+        }),
+        ("a kid twice", || ok(&["b", "b"])),
+        ("no response", failed),
     ]
 }
 
 #[tokio::test(start_paused = true)]
 async fn no_usable_answer_replaces_the_set_held_nor_holds_one_first() {
-    let labels: Vec<&str> = unusable_answers().iter().map(|(label, _)| *label).collect();
-    for (at, label) in labels.into_iter().enumerate() {
-        // The answer for `label`, once, then failures.
-        let unusable = || {
-            let answer = Mutex::new(Some(unusable_answers().remove(at).1));
-            move || answer.lock().unwrap().take().unwrap_or_else(failed)
-        };
-        let clock = Clock::new();
-        let after_one = unusable();
+    for (label, unusable) in unusable_answers() {
+        let clock = TestClock::new();
         let warm = Script::new(
             &clock,
-            move |n| if n == 0 { ok(&["a"]) } else { after_one() },
+            move |n| if n == 0 { ok(&["a"]) } else { unusable() },
         );
-        let first = unusable();
-        let cold = Script::new(&clock, move |_| first());
+        let cold = Script::new(&clock, move |_| unusable());
 
         let warm_holder = start(&clock, &warm);
         let cold_holder = start(&clock, &cold);
@@ -105,7 +96,7 @@ async fn no_usable_answer_replaces_the_set_held_nor_holds_one_first() {
 
 #[tokio::test(start_paused = true)]
 async fn a_new_set_replaces_the_whole_set() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let script = Script::new(
         &clock,
         |n| if n == 0 { ok(&["a", "b"]) } else { ok(&["c"]) },
@@ -119,7 +110,7 @@ async fn a_new_set_replaces_the_whole_set() {
 
 #[tokio::test(start_paused = true)]
 async fn the_set_is_refetched_every_300_s_and_a_failure_backs_off_up_to_that() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let good = Script::new(&clock, |_| ok(&["a"]));
     let bad = Script::new(&clock, |_| failed());
 
@@ -133,7 +124,7 @@ async fn the_set_is_refetched_every_300_s_and_a_failure_backs_off_up_to_that() {
 
 #[tokio::test(start_paused = true)]
 async fn a_set_is_held_900_s_after_the_last_good_fetch_and_no_longer() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let script = Script::new(&clock, |n| if n == 0 { ok(&["a"]) } else { failed() });
 
     let holder = start(&clock, &script);
@@ -146,7 +137,7 @@ async fn a_set_is_held_900_s_after_the_last_good_fetch_and_no_longer() {
 
 #[tokio::test(start_paused = true)]
 async fn time_the_host_spent_suspended_ages_the_set() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let aging = AgingClock::new(&clock);
     let script = Script::new(&clock, |_| ok(&["a"]));
 
@@ -161,7 +152,7 @@ async fn time_the_host_spent_suspended_ages_the_set() {
 
 #[tokio::test(start_paused = true)]
 async fn an_unknown_kid_is_refetched_and_waited_for() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let script = Script {
         takes: Duration::from_secs(1),
         ..Script::new(
@@ -182,7 +173,7 @@ async fn an_unknown_kid_is_refetched_and_waited_for() {
 
 #[tokio::test(start_paused = true)]
 async fn a_held_kid_waits_for_nothing() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let script = Script::new(&clock, |_| ok(&["a"]));
 
     let holder = start(&clock, &script);
@@ -197,7 +188,7 @@ async fn a_held_kid_waits_for_nothing() {
 
 #[tokio::test(start_paused = true)]
 async fn unknown_kids_refetch_at_most_once_per_30_s_whatever_the_kid() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let script = Script::new(&clock, |_| ok(&["a"]));
 
     let holder = start(&clock, &script);
@@ -215,7 +206,7 @@ async fn unknown_kids_refetch_at_most_once_per_30_s_whatever_the_kid() {
 
 #[tokio::test(start_paused = true)]
 async fn the_30_s_count_from_when_the_last_attempt_started() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let script = Script {
         takes: Duration::from_secs(5),
         ..Script::new(&clock, |_| ok(&["a"]))
@@ -231,7 +222,7 @@ async fn the_30_s_count_from_when_the_last_attempt_started() {
 
 #[tokio::test(start_paused = true)]
 async fn concurrent_waits_share_one_refetch() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let script = Script {
         takes: Duration::from_secs(1),
         ..Script::new(&clock, |n| {
@@ -258,7 +249,7 @@ async fn concurrent_waits_share_one_refetch() {
 
 #[tokio::test(start_paused = true)]
 async fn a_wait_for_a_kid_takes_the_answer_of_an_attempt_in_flight() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let script = Script {
         takes: Duration::from_secs(1),
         ..Script::new(
@@ -279,7 +270,7 @@ async fn a_wait_for_a_kid_takes_the_answer_of_an_attempt_in_flight() {
 
 #[tokio::test(start_paused = true)]
 async fn with_none_held_an_unknown_kid_refetches_without_waiting_out_the_backoff() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let script = Script::new(&clock, |n| if n < 5 { failed() } else { ok(&["b"]) });
 
     let holder = start(&clock, &script);
@@ -295,7 +286,7 @@ async fn with_none_held_an_unknown_kid_refetches_without_waiting_out_the_backoff
 
 #[tokio::test(start_paused = true)]
 async fn a_refetch_that_brings_nothing_leaves_the_kid_unknown() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let script = Script::new(&clock, |n| if n == 0 { ok(&["a"]) } else { failed() });
 
     let holder = start(&clock, &script);
@@ -311,7 +302,7 @@ async fn a_refetch_that_brings_nothing_leaves_the_kid_unknown() {
 
 #[tokio::test(start_paused = true)]
 async fn a_set_past_its_age_is_refetched_for_a_kid_it_lists_and_gives_nothing_if_that_fails() {
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let script = Script::new(&clock, |n| if n == 0 { ok(&["a"]) } else { failed() });
 
     let holder = start(&clock, &script);
@@ -326,7 +317,7 @@ async fn a_set_past_its_age_is_refetched_for_a_kid_it_lists_and_gives_nothing_if
 #[tokio::test]
 async fn once_the_loop_is_gone_a_wait_returns_at_once() {
     let thread = RailCenterThread::start().unwrap();
-    let clock = Clock::new();
+    let clock = TestClock::new();
     let script = Script {
         takes: Duration::from_secs(3600),
         ..Script::new(&clock, |_| ok(&["a"]))
@@ -334,7 +325,7 @@ async fn once_the_loop_is_gone_a_wait_returns_at_once() {
     let holder = KeySetHolder::start(
         thread.runtime(),
         script,
-        rail_runtime::Clock::system(),
+        Clock::system(),
         Jitter::new(|| 1.0),
     );
     tokio::task::spawn_blocking(move || thread.stop())

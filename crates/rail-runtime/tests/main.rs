@@ -10,6 +10,7 @@ mod key_set;
 mod keys;
 mod protected_hosts;
 mod rail_center;
+mod scripted;
 mod ticket;
 mod ticket_holder;
 mod ticket_settings;

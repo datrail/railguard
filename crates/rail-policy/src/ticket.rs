@@ -186,20 +186,18 @@ pub struct DroppedKey {
 pub fn parse_key_set(body: &[u8]) -> Option<ParsedKeySet> {
     let set = read_json(body)?;
     let entries = set.get("keys")?.as_array()?;
-    // Over every entry, usable or not: a ticket naming a shared `kid` can't say which it meant.
-    // Each as its JSON text, and a `null` one as none, as a reader on another runtime sees it.
     let mut kids = HashSet::new();
-    for entry in entries.iter().filter_map(Value::as_object) {
-        let kid = entry.get("kid").filter(|kid| !kid.is_null());
-        if !kids.insert(kid.map(Value::to_string)) {
-            return None;
-        }
-    }
     let mut read = ParsedKeySet {
         keys: HashMap::new(),
         dropped: Vec::new(),
     };
     for entry in entries.iter().filter_map(Value::as_object) {
+        // Over every entry, usable or not: a ticket naming a shared `kid` can't say which it meant.
+        // Each as its JSON text, and a `null` one as none, as a reader on another runtime sees it.
+        let kid = entry.get("kid").filter(|kid| !kid.is_null());
+        if !kids.insert(kid.map(Value::to_string)) {
+            return None;
+        }
         match read_key(entry) {
             Entry::Other => {}
             Entry::Dropped(dropped) => read.dropped.push(dropped),
