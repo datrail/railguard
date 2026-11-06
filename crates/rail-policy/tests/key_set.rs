@@ -119,6 +119,12 @@ fn a_kid_shared_by_two_entries_refuses_the_set() {
     ] {
         assert_eq!(kids(&json!({"keys": entries})), None, "{entries}");
     }
+    // A number and a string are two kids, not one.
+    let entries = json!([entry(), with(json!({"kid": "7"})), with(json!({"kid": 7}))]);
+    assert_eq!(
+        kids(&json!({ "keys": entries })),
+        Some(vec!["7".to_owned(), KID.to_owned()])
+    );
 }
 
 #[test]
