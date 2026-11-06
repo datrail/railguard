@@ -9,6 +9,7 @@ use std::task::Poll;
 use std::time::Duration;
 
 use arc_swap::ArcSwap;
+use rail_policy::sanitize;
 use tokio::runtime::Handle;
 use tokio::sync::watch;
 use tokio::task::AbortHandle;
@@ -16,6 +17,9 @@ use tokio::time::{Instant, timeout_at};
 
 // Not settings: a lower floor would let a fleet hammer Rail Center.
 pub(crate) const MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(5);
+
+// A day: a ticket lives no longer, and a bundle polled less often is surely a mistake.
+const MAX_REFRESH_INTERVAL: Duration = Duration::from_secs(86_400);
 
 const MIN_JITTER: f64 = 0.8;
 const MAX_JITTER: f64 = 1.2;
@@ -55,6 +59,22 @@ pub(crate) struct Step<T, O> {
     /// A failure backs off; a success resumes the period.
     pub(crate) succeeded: bool,
     pub(crate) outcome: O,
+}
+
+/// A refresh interval as set: whole seconds, from the 5 s floor to a day.
+pub(crate) fn parse_refresh_interval(text: &str) -> Result<Duration, String> {
+    match text.parse::<u64>().map(Duration::from_secs) {
+        // The holder never refreshes faster, so a lower interval would be silently raised.
+        Ok(interval) if (MIN_REFRESH_INTERVAL..=MAX_REFRESH_INTERVAL).contains(&interval) => {
+            Ok(interval)
+        }
+        _ => Err(format!(
+            "must be a whole number of seconds, from {} to {}, got: {}",
+            MIN_REFRESH_INTERVAL.as_secs(),
+            MAX_REFRESH_INTERVAL.as_secs(),
+            sanitize(text)
+        )),
+    }
 }
 
 /// When a kind's attempts come, before the jitter and the 5 s floor.

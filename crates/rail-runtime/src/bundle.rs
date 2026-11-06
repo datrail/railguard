@@ -5,7 +5,7 @@ use rail_policy::sanitize;
 
 use crate::client::{FetchError, Limits, RailCenterClient, Response};
 use crate::config::{Refused, Settings};
-use crate::holder::MIN_REFRESH_INTERVAL;
+use crate::holder::parse_refresh_interval;
 
 const ROUTE: &str = "/v1/policy-bundle";
 
@@ -25,9 +25,6 @@ const MAX_GATEWAY_SLUG_CHARS: usize = 64;
 
 // A rule an operator changes reaches every gateway within a minute.
 const DEFAULT_REFRESH_INTERVAL: Duration = Duration::from_secs(60);
-
-// A day: longer is surely a mistake.
-const MAX_REFRESH_INTERVAL: Duration = Duration::from_secs(86_400);
 
 /// How this gateway's policy bundle is fetched and kept.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -50,21 +47,7 @@ pub fn read_bundle_settings(
         .parsed(parse_gateway_slug);
     let refresh = settings
         .get(BUNDLE_REFRESH_SECONDS)
-        .parsed(|text| match text.parse::<u64>() {
-            // The holder never refreshes faster, so a lower interval would be silently raised.
-            Ok(seconds)
-                if (MIN_REFRESH_INTERVAL..=MAX_REFRESH_INTERVAL)
-                    .contains(&Duration::from_secs(seconds)) =>
-            {
-                Ok(Duration::from_secs(seconds))
-            }
-            _ => Err(format!(
-                "must be a whole number of seconds, from {} to {}, got: {}",
-                MIN_REFRESH_INTERVAL.as_secs(),
-                MAX_REFRESH_INTERVAL.as_secs(),
-                sanitize(text)
-            )),
-        })
+        .parsed(parse_refresh_interval)
         .map(|refresh| refresh.unwrap_or(DEFAULT_REFRESH_INTERVAL));
     let (gateway_slug, refresh_interval) = (gateway_slug?, refresh?);
     let bundle = gateway_slug.map(|gateway_slug| BundleSettings {
