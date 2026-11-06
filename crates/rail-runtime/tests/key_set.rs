@@ -61,6 +61,13 @@ fn unusable_answers() -> Vec<(&'static str, Answer)> {
                 key_set(&["b"]).to_string().as_bytes(),
             ),
         ),
+        (
+            "a 203 carrying a set",
+            answer(
+                StatusCode::NON_AUTHORITATIVE_INFORMATION,
+                key_set(&["b"]).to_string().as_bytes(),
+            ),
+        ),
         ("a body that isn't JSON", answer(StatusCode::OK, b"<html>")),
         ("no usable key", answer(StatusCode::OK, b"{\"keys\": []}")),
         ("a kid twice", ok(&["b", "b"])),
@@ -194,8 +201,8 @@ async fn unknown_kids_refetch_at_most_once_per_30_s_whatever_the_kid() {
     let script = Script::new(&clock, |_| ok(&["a"]));
 
     let holder = start(&clock, &script);
-    // 10 s after the scheduled fetch, 10 after a forced one, then 30 after it.
-    for (at, kid) in [(10, "b"), (40, "b"), (50, "c"), (70, "d")] {
+    // 10 s after the scheduled fetch, 10 and 29 after a forced one, then 30 after it.
+    for (at, kid) in [(10, "b"), (40, "b"), (50, "c"), (69, "e"), (70, "d")] {
         until(&clock, at).await;
         assert_eq!(
             timed_wait(&holder, kid).await,
@@ -204,6 +211,22 @@ async fn unknown_kids_refetch_at_most_once_per_30_s_whatever_the_kid() {
     }
 
     assert_eq!(script.fetched_at(), [0, 40, 70]);
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_30_s_count_from_when_the_last_attempt_started() {
+    let clock = Clock::new();
+    let script = Script {
+        takes: Duration::from_secs(5),
+        ..Script::new(&clock, |_| ok(&["a"]))
+    };
+
+    let holder = start(&clock, &script);
+    // The first attempt ran from 0 to 5: 30 s after it started, 25 after it ended.
+    until(&clock, 30).await;
+    holder.wait_for_kid("b", LIMIT).await;
+
+    assert_eq!(script.fetched_at(), [0, 30]);
 }
 
 #[tokio::test(start_paused = true)]

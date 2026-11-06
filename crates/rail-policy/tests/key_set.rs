@@ -59,10 +59,12 @@ fn an_entry_for_another_purpose_is_skipped_without_a_word() {
         with(json!({"kid": "sign-only", "key_ops": ["sign"]})),
         with(json!({"kid": "rs", "alg": "RS256"})),
         with(json!({"kid": "x448", "crv": "X448"})),
+        with(json!({"kid": "ec", "kty": "EC"})),
+        with(json!({"kid": "ops-text", "key_ops": "verify"})),
         json!({"kty": "RSA", "kid": "rsa", "n": "AQAB", "e": "AQAB"}),
         json!("not an entry"),
     ];
-    let mut entries = vec![with(json!({"key_ops": ["verify"]}))];
+    let mut entries = vec![with(json!({"key_ops": ["sign", "verify"]}))];
     entries.extend(other.iter().cloned());
     let set = json!({ "keys": entries });
 
@@ -81,6 +83,7 @@ fn a_signing_key_that_cant_be_used_is_dropped_saying_why() {
         with(json!({"kid": "no-x", "x": null})),
         with(json!({"kid": "not-base64", "x": "!!"})),
         with(json!({"kid": "short", "x": URL_SAFE_NO_PAD.encode([0_u8; 31])})),
+        with(json!({"kid": "long", "x": URL_SAFE_NO_PAD.encode([0_u8; 33])})),
         with(json!({"kid": "off-curve", "x": URL_SAFE_NO_PAD.encode(not_on_curve)})),
     ]});
 
@@ -93,6 +96,7 @@ fn a_signing_key_that_cant_be_used_is_dropped_saying_why() {
             (some("no-x"), "its x isn't a string"),
             (some("not-base64"), "its x isn't base64"),
             (some("short"), "its x isn't 32 bytes"),
+            (some("long"), "its x isn't 32 bytes"),
             (
                 some("off-curve"),
                 "its x isn't a point on the Ed25519 curve"

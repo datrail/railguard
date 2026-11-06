@@ -27,12 +27,16 @@ fn lines_with<'a>(logs: &'a str, text: &str) -> Vec<&'a str> {
 
 #[tokio::test(start_paused = true)]
 async fn the_set_is_logged_when_its_kids_change_and_only_then() {
-    let logs = log_until(600, |n| if n < 2 { ok(&["b", "a"]) } else { ok(&["c"]) }).await;
+    // The same kids listed in another order, then one swapped, then one more.
+    let sets: [&[&str]; 4] = [&["b", "a"], &["a", "b"], &["a", "c"], &["a", "c", "d"]];
+    let logs = log_until(900, move |n| ok(sets[n])).await;
 
     let lines = lines_with(&logs, "holding signing keys");
-    assert_eq!(lines.len(), 2, "{logs}");
-    assert!(lines[0].contains(r#"kids="a, b""#), "{logs}");
-    assert!(lines[1].contains(r#"kids="c""#), "{logs}");
+    let logged: Vec<&str> = ["a, b", "a, c", "a, c, d"].to_vec();
+    assert_eq!(lines.len(), logged.len(), "{logs}");
+    for (line, kids) in lines.iter().zip(logged) {
+        assert!(line.contains(&format!("kids=\"{kids}\"")), "{line}");
+    }
 }
 
 #[tokio::test(start_paused = true)]
@@ -75,15 +79,20 @@ async fn a_set_past_its_age_is_logged_as_none_held_and_its_return_as_news() {
 
 #[tokio::test(start_paused = true)]
 async fn a_refused_credential_says_so() {
-    let logs = log_until(0, |_| answer(StatusCode::UNAUTHORIZED, b"")).await;
+    for (status, shown) in [
+        (StatusCode::UNAUTHORIZED, "401 Unauthorized"),
+        (StatusCode::FORBIDDEN, "403 Forbidden"),
+    ] {
+        let logs = log_until(0, move |_| answer(status, b"")).await;
 
-    let line = lines_with(&logs, "signing key set fetch failed");
-    assert_eq!(line.len(), 1, "{logs}");
-    assert!(
-        line[0].contains("Rail Center refused the credential (401 Unauthorized)")
-            && line[0].contains("RAIL_AUTH_MODE and RAIL_AUTH_TOKEN"),
-        "{logs}"
-    );
+        let line = lines_with(&logs, "signing key set fetch failed");
+        assert_eq!(line.len(), 1, "{logs}");
+        assert!(
+            line[0].contains(&format!("Rail Center refused the credential ({shown})"))
+                && line[0].contains("RAIL_AUTH_MODE and RAIL_AUTH_TOKEN"),
+            "{logs}"
+        );
+    }
 }
 
 #[tokio::test(start_paused = true)]
