@@ -73,19 +73,13 @@ impl Jitter {
         })
     }
 
-    /// The factor `factor` returns, held to 0.8–1.2.
+    /// The factor `factor` returns.
     pub fn new(factor: impl Fn() -> f64 + Send + Sync + 'static) -> Self {
         Self(Arc::new(factor))
     }
 
-    // A NaN reads as the lowest, since `clamp` would pass it through.
     fn factor(&self) -> f64 {
-        let factor = (self.0)();
-        if factor.is_nan() {
-            MIN_JITTER
-        } else {
-            factor.clamp(MIN_JITTER, MAX_JITTER)
-        }
+        (self.0)()
     }
 }
 
@@ -105,22 +99,10 @@ impl<T: Send + Sync + 'static> Holder<T> {
         jitter: Jitter,
     ) -> Self {
         let held = Arc::new(ArcSwap::from_pointee(initial));
-        let refresh = runtime.spawn(run(kind, Arc::clone(&held), schedule, jitter));
-        let abort = refresh.abort_handle();
-        // Attempts catch their panics, so this is a defect in the loop, which would end quietly.
-        runtime.spawn(async move {
-            if refresh.await.is_err_and(|error| error.is_panic()) {
-                tracing::error!(
-                    "the {} refresh loop panicked; the {} is no longer refreshed",
-                    K::WHAT,
-                    K::WHAT
-                );
-            }
-        });
-        Self {
-            held,
-            refresh: abort,
-        }
+        let refresh = runtime
+            .spawn(run(kind, Arc::clone(&held), schedule, jitter))
+            .abort_handle();
+        Self { held, refresh }
     }
 
     /// What's held now, never waiting.
@@ -157,7 +139,11 @@ async fn run<K: Kind>(kind: K, held: Arc<ArcSwap<K::Held>>, schedule: Schedule, 
             }
             None => {
                 failures = failures.saturating_add(1);
-                log_panic::<K>();
+                // Not the panic's message, which may quote what Rail Center sent.
+                tracing::error!(
+                    "a {} refresh attempt panicked; keeping what's held",
+                    K::WHAT
+                );
                 None
             }
         };
@@ -171,12 +157,12 @@ async fn run<K: Kind>(kind: K, held: Arc<ArcSwap<K::Held>>, schedule: Schedule, 
                 wait
             };
             // After the jitter, so a kind's cap is never exceeded.
-            let at_most = unwound::<K, _>(|| kind.wait_at_most(&held)).flatten();
-            let wait = at_most
+            let wait = kind
+                .wait_at_most(&held)
                 .map_or(wait, |at_most| wait.min(at_most))
                 .max(MIN_REFRESH_INTERVAL);
             if let Some(outcome) = outcome {
-                unwound::<K, _>(|| kind.report(outcome, &held, wait));
+                kind.report(outcome, &held, wait);
             }
             wait
         };
@@ -199,23 +185,6 @@ async fn attempt<K: Kind>(kind: &K, held: &ArcSwap<K::Held>) -> Option<Step<K::H
         )
         .await?;
     catch_unwind(AssertUnwindSafe(|| kind.step(&held.load(), answer))).ok()
-}
-
-// What `f` returns, or `None`, logged, if it panicked.
-fn unwound<K: Kind, R>(f: impl FnOnce() -> R) -> Option<R> {
-    let result = catch_unwind(AssertUnwindSafe(f)).ok();
-    if result.is_none() {
-        log_panic::<K>();
-    }
-    result
-}
-
-// Not the panic's message, which may quote what Rail Center sent.
-fn log_panic<K: Kind>() {
-    tracing::error!(
-        "a {} refresh attempt panicked; keeping what's held",
-        K::WHAT
-    );
 }
 
 // The period after a success, else the backoff; jittered.
