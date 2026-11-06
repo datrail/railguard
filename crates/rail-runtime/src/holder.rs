@@ -21,6 +21,9 @@ pub(crate) const MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(5);
 // A day: a ticket lives no longer, and a bundle polled less often is surely a mistake.
 const MAX_REFRESH_INTERVAL: Duration = Duration::from_secs(86_400);
 
+// 5 s doubled 15 times is past a day, the longest maximum delay, and the power can't overflow.
+const MAX_DOUBLINGS: u32 = 15;
+
 const MIN_JITTER: f64 = 0.8;
 const MAX_JITTER: f64 = 1.2;
 
@@ -205,15 +208,11 @@ async fn run<K: Kind>(
                 if let Some(next) = step.next {
                     held.store(Arc::new(next));
                 }
-                failures = if step.succeeded {
-                    0
-                } else {
-                    failures.saturating_add(1)
-                };
+                failures = if step.succeeded { 0 } else { failures + 1 };
                 Some(step.outcome)
             }
             None => {
-                failures = failures.saturating_add(1);
+                failures += 1;
                 // Not the panic's message, which may quote what Rail Center sent.
                 tracing::error!(
                     "a {} refresh attempt panicked; keeping what's held",
@@ -227,6 +226,7 @@ async fn run<K: Kind>(
             let wait = next_wait(&schedule, failures, jitter.factor());
             // A period runs from the start of the attempt, so a slow fetch doesn't shift the cadence.
             let wait = if failures == 0 {
+                // A fetch may outlast a short period: then the floor below applies.
                 wait.saturating_sub(took)
             } else {
                 wait
@@ -265,9 +265,7 @@ async fn attempt<K: Kind>(kind: &K, held: &ArcSwap<K::Held>) -> Option<Step<K::H
 fn next_wait(schedule: &Schedule, failures: u32, factor: f64) -> Duration {
     let wait = match failures {
         0 => schedule.period,
-        _ => schedule
-            .initial_delay
-            .saturating_mul(2_u32.saturating_pow(failures - 1))
+        _ => (schedule.initial_delay * 2_u32.pow((failures - 1).min(MAX_DOUBLINGS)))
             .min(schedule.max_delay),
     };
     wait.mul_f64(factor)

@@ -234,6 +234,26 @@ async fn a_failure_backs_off_from_5_s_up_to_the_interval_and_a_success_resumes_i
 }
 
 #[tokio::test(start_paused = true)]
+async fn a_long_outage_keeps_backing_off_at_the_interval() {
+    let clock = Clock::new();
+    let script = Script::new(&clock, |_| failed());
+
+    let _holder = start(&script, MINUTE);
+    until(&clock, 35 + 40 * 60).await;
+
+    // 0, 5, 15, 35 and 75, then a minute apart: 44 failures, past where 2^n overflows a u32.
+    let fetched_at = script.fetched_at();
+    assert_eq!(fetched_at.len(), 44);
+    assert!(
+        fetched_at
+            .windows(2)
+            .skip(4)
+            .all(|pair| pair[1] - pair[0] == 60),
+        "{fetched_at:?}"
+    );
+}
+
+#[tokio::test(start_paused = true)]
 async fn an_interval_under_5_s_is_raised_to_it() {
     let clock = Clock::new();
     // Back-to-back fetches would never let paused time advance, so fail rather than hang.
