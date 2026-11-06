@@ -6,6 +6,7 @@ mod holder;
 pub mod logging;
 mod protected_hosts;
 mod rail_center;
+mod rail_center_thread;
 mod ticket;
 mod ticket_holder;
 mod xrail;
@@ -17,6 +18,7 @@ pub use config::{
 pub use holder::Jitter;
 pub use protected_hosts::{ProtectedHost, ProtectedHosts, read_protected_hosts};
 pub use rail_center::{CenterUrl, RailCenterSettings, read_disabled, read_rail_center};
+pub use rail_center_thread::RailCenterThread;
 pub use ticket::{
     OpaqueTicket, RailCenterTickets, TicketAnswer, TicketQuery, TicketSettings, TicketSource,
     read_ticket_settings,
