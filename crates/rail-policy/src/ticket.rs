@@ -187,10 +187,11 @@ pub fn parse_key_set(body: &[u8]) -> Option<ParsedKeySet> {
     let set = read_json(body)?;
     let entries = set.get("keys")?.as_array()?;
     // Over every entry, usable or not: a ticket naming a shared `kid` can't say which it meant.
+    // A `null` one is none, as a reader on another runtime sees it.
     let kids: Vec<Option<&Value>> = entries
         .iter()
         .filter_map(Value::as_object)
-        .map(|entry| entry.get("kid"))
+        .map(|entry| entry.get("kid").filter(|kid| !kid.is_null()))
         .collect();
     if (1..kids.len()).any(|at| kids[..at].contains(&kids[at])) {
         return None;

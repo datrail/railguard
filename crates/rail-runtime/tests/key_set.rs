@@ -1,7 +1,7 @@
 use std::sync::Mutex;
 use std::time::Duration;
 
-use rail_runtime::{KeySetHolder, KeySource, RailCenterKeys};
+use rail_runtime::{Jitter, KeySetHolder, KeySource, RailCenterKeys, RailCenterThread};
 use reqwest::StatusCode;
 use tokio::time::Instant;
 
@@ -234,7 +234,7 @@ async fn concurrent_waits_share_one_refetch() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_refresh_in_flight_that_brings_the_kid_spares_a_second_fetch() {
+async fn a_wait_for_a_kid_takes_the_answer_of_an_attempt_in_flight() {
     let clock = Clock::new();
     let script = Script {
         takes: Duration::from_secs(1),
@@ -286,6 +286,49 @@ async fn a_refetch_that_brings_nothing_leaves_the_kid_unknown() {
     assert_eq!(script.fetched_at(), [0, 40]);
 }
 
+#[tokio::test(start_paused = true)]
+async fn a_set_past_its_age_is_refetched_for_a_kid_it_lists_and_gives_nothing_if_that_fails() {
+    let clock = Clock::new();
+    let script = Script::new(&clock, |n| if n == 0 { ok(&["a"]) } else { failed() });
+
+    let holder = start(&clock, &script);
+    // Aged out at 901; the last attempt, at 915, failed, and the next is due at 1215.
+    until(&clock, 950).await;
+
+    assert_eq!(timed_wait(&holder, "a").await, (None, Duration::ZERO));
+    assert_eq!(script.fetched_at().last(), Some(&950));
+}
+
+// Real time: the loop runs on the Rail Center thread's runtime, stopped under the waits.
+#[tokio::test]
+async fn once_the_loop_is_gone_a_wait_returns_at_once() {
+    let thread = RailCenterThread::start().unwrap();
+    let clock = Clock::new();
+    let script = Script {
+        takes: Duration::from_secs(3600),
+        ..Script::new(&clock, |_| ok(&["a"]))
+    };
+    let holder = KeySetHolder::start(
+        thread.runtime(),
+        script,
+        rail_runtime::Clock::system(),
+        Jitter::new(|| 1.0),
+    );
+    tokio::task::spawn_blocking(move || thread.stop())
+        .await
+        .unwrap();
+
+    let started = Instant::now();
+    let set = holder.wait_for_kid("a", Duration::from_secs(10)).await;
+
+    assert!(set.is_none());
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "{:?}",
+        started.elapsed()
+    );
+}
+
 // Real time: the fetch goes over a socket, which paused time would race.
 #[tokio::test]
 async fn the_route_and_the_credential_travel_with_the_request() {
@@ -311,4 +354,5 @@ async fn the_route_and_the_credential_travel_with_the_request() {
         )),
         "{request}"
     );
+    assert!(request.contains("cache-control: no-cache\r\n"), "{request}");
 }

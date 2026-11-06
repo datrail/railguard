@@ -4,7 +4,7 @@ use std::future::{Future, poll_fn};
 use std::hash::{BuildHasher, RandomState};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::pin::pin;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::task::Poll;
 use std::time::Duration;
 
@@ -127,7 +127,9 @@ enum Progress {
 /// A value fetched and refreshed on `runtime`; dropping it stops the refreshes.
 pub(crate) struct Holder<T> {
     held: Arc<ArcSwap<T>>,
-    progress: Arc<watch::Sender<Progress>>,
+    progress: watch::Receiver<Progress>,
+    // Weak, so the sender goes with the loop and a waiter sees the loop is gone.
+    publish: Weak<watch::Sender<Progress>>,
     refresh: AbortHandle,
 }
 
@@ -141,19 +143,16 @@ impl<T: Send + Sync + 'static> Holder<T> {
         jitter: Jitter,
     ) -> Self {
         let held = Arc::new(ArcSwap::from_pointee(initial));
-        let progress = Arc::new(watch::channel(Progress::InFlight).0);
+        let (publish, progress) = watch::channel(Progress::InFlight);
+        let publish = Arc::new(publish);
+        let weak = Arc::downgrade(&publish);
         let refresh = runtime
-            .spawn(run(
-                kind,
-                Arc::clone(&held),
-                Arc::clone(&progress),
-                schedule,
-                jitter,
-            ))
+            .spawn(run(kind, Arc::clone(&held), publish, schedule, jitter))
             .abort_handle();
         Self {
             held,
             progress,
+            publish: weak,
             refresh,
         }
     }
@@ -167,7 +166,7 @@ impl<T: Send + Sync + 'static> Holder<T> {
     /// flight or due before then. It never starts a fetch, and is awaited on the caller's runtime.
     pub(crate) async fn wait_until(&self, holds: impl Fn(&T) -> bool, limit: Duration) -> Arc<T> {
         let deadline = Instant::now() + limit;
-        let mut progress = self.progress.subscribe();
+        let mut progress = self.progress.clone();
         loop {
             // Before what's held: the loop stores a value before it says the attempt ended.
             let at = *progress.borrow_and_update();
@@ -192,9 +191,12 @@ impl<T: Send + Sync + 'static> Holder<T> {
     /// Brings the next attempt forward to now, unless one is in flight or the last started within
     /// `spacing`, the backoff notwithstanding. A reader then waits for it with `wait_until`.
     pub(crate) fn refetch_now(&self, spacing: Duration) {
+        let Some(publish) = self.publish.upgrade() else {
+            return;
+        };
         let now = Instant::now();
         // Read and changed under the watch's lock, so concurrent callers bring one attempt.
-        self.progress.send_if_modified(|progress| match progress {
+        publish.send_if_modified(|progress| match progress {
             Progress::NextAt { next, started } if *next > now && now - *started >= spacing => {
                 *next = now;
                 true

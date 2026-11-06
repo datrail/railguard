@@ -27,8 +27,7 @@ const LIMITS: Limits = Limits {
 // Rail Center publishes a scheduled key at least this long before it signs with it.
 const REFRESH_INTERVAL: Duration = Duration::from_secs(300);
 
-// Three refreshes, so one or two late don't refuse every signed ticket; and how long a withdrawn
-// key goes on verifying at a gateway that can't reach Rail Center.
+// How long a withdrawn key verifies at a gateway cut off from Rail Center: three refreshes.
 const MAX_AGE: Duration = Duration::from_secs(900);
 
 // For the whole holder, not per `kid`, since each unknown one may be invented.
@@ -182,7 +181,7 @@ impl<S: KeySource> Kind for Keys<S> {
             tracing::warn!(
                 kid = kid.as_deref(),
                 reason,
-                "dropping a signing key the key set holds"
+                "dropping a signing key the fetched set lists"
             );
         }
         match outcome {

@@ -102,7 +102,7 @@ async fn a_dropped_key_is_warned_of_with_its_kid_and_why_whether_or_not_one_is_l
     let none = log_until(0, move |_| answer(StatusCode::OK, alone.as_bytes())).await;
 
     for logs in [&kept, &none] {
-        let line = lines_with(logs, "dropping a signing key the key set holds");
+        let line = lines_with(logs, "dropping a signing key the fetched set lists");
         assert_eq!(line.len(), 1, "{logs}");
         assert!(
             line[0].contains("WARN")

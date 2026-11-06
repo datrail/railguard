@@ -115,6 +115,7 @@ fn a_kid_shared_by_two_entries_refuses_the_set() {
         json!([entry(), entry()]),
         json!([entry(), with(json!({"use": "enc"}))]),
         json!([entry(), without_kid(), without_kid()]),
+        json!([entry(), without_kid(), {"kty": "RSA", "kid": null}]),
     ] {
         assert_eq!(kids(&json!({"keys": entries})), None, "{entries}");
     }
