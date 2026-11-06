@@ -99,7 +99,6 @@ impl<S: TicketSource> Kind for Tickets<S> {
     fn wait_at_most(&self, held: &Held) -> Option<Duration> {
         held.ticket()
             .and_then(|ticket| ticket.expires_at.duration_since((self.now)()).ok())
-            .filter(|remaining| !remaining.is_zero())
             .map(|remaining| remaining / 2)
     }
 

@@ -172,9 +172,7 @@ async fn run<K: Kind>(kind: K, held: Arc<ArcSwap<K::Held>>, schedule: Schedule, 
 
 // One fetch and its step, `None` if either panicked.
 async fn attempt<K: Kind>(kind: &K, held: &ArcSwap<K::Held>) -> Option<Step<K::Held, K::Outcome>> {
-    // Built inside the catch too: a `fetch` may do work before returning its future.
-    let fetch = catch_unwind(AssertUnwindSafe(|| kind.fetch())).ok()?;
-    let mut fetch = pin!(fetch);
+    let mut fetch = pin!(kind.fetch());
     // A panicking future is never polled again: it's dropped as soon as this returns.
     let answer =
         poll_fn(
