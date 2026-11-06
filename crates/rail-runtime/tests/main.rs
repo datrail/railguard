@@ -2,6 +2,7 @@ mod bundle_holder;
 mod bundle_settings;
 mod bundles;
 mod client;
+mod clock;
 mod common;
 mod config;
 mod holder;

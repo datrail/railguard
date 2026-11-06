@@ -3,6 +3,7 @@
 mod bundle;
 mod bundle_holder;
 mod client;
+mod clock;
 mod config;
 mod holder;
 pub mod logging;
@@ -16,6 +17,7 @@ mod xrail;
 pub use bundle::{BundleSettings, BundleSource, RailCenterBundles, read_bundle_settings};
 pub use bundle_holder::{BundleHolder, HeldBundle, Posture};
 pub use client::{FetchError, Limits, RailCenterClient, Response};
+pub use clock::{Clock, Stamp};
 pub use config::{
     ConfigErrors, EXIT_CODE, Entry, Level, Refused, Secret, Settings, Source, Startup, Variables,
 };
