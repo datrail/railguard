@@ -197,3 +197,42 @@ fn a_span_field_is_quoted_too_when_created_and_when_recorded() {
         "{text}"
     );
 }
+
+// Run in a child process, since `init` sets the process's subscriber and panic hook.
+#[test]
+#[ignore = "run by a_panic_is_logged_through_the_formatter_its_message_only_if_literal"]
+fn panic_child() {
+    rail_runtime::logging::init();
+    let wire = "from the wire\nERROR forged";
+    let _ = std::panic::catch_unwind(|| panic!("{wire}"));
+    let _ = std::panic::catch_unwind(|| panic!("a literal message"));
+}
+
+#[test]
+fn a_panic_is_logged_through_the_formatter_its_message_only_if_literal() {
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "logging::panic_child",
+            "--ignored",
+            "--nocapture",
+        ])
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(), "{output:?}");
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    let file = file!();
+    assert!(
+        stderr.contains(&format!(
+            "a thread panicked; its message is withheld location=\"{file}:"
+        )),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains(&format!("a thread panicked location=\"{file}:"))
+            && stderr.contains("panic_message=\"a literal message\""),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("from the wire"), "{stderr}");
+}
