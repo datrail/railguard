@@ -60,7 +60,8 @@ impl fmt::Display for FetchError {
 impl std::error::Error for FetchError {}
 
 /// The one client every Rail Center call goes through: rustls with compiled-in roots, no proxy
-/// from the environment, no redirects, and a bounded body.
+/// from the environment, no redirects, and a bounded body. A clone shares the connection pool.
+#[derive(Clone)]
 pub struct RailCenterClient {
     http: reqwest::Client,
     url: CenterUrl,
