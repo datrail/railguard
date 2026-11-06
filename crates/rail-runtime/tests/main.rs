@@ -1,3 +1,4 @@
+mod bundle_settings;
 mod client;
 mod common;
 mod config;

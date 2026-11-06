@@ -1,5 +1,6 @@
 //! The IO: configuration, the log, and talking to Rail Center.
 
+mod bundle;
 mod client;
 mod config;
 mod holder;
@@ -11,6 +12,7 @@ mod ticket;
 mod ticket_holder;
 mod xrail;
 
+pub use bundle::{BundleSettings, BundleSource, RailCenterBundles, read_bundle_settings};
 pub use client::{FetchError, Limits, RailCenterClient, Response};
 pub use config::{
     ConfigErrors, EXIT_CODE, Entry, Level, Refused, Secret, Settings, Source, Startup, Variables,
