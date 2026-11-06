@@ -42,7 +42,9 @@ pub(crate) trait Kind: Send + Sync + 'static {
     fn step(&self, held: &Self::Held, answer: Self::Answer) -> Step<Self::Held, Self::Outcome>;
 
     /// A cap on the wait before the next attempt, from what's held, after a panic too.
-    fn wait_at_most(&self, held: &Self::Held) -> Option<Duration>;
+    fn wait_at_most(&self, _held: &Self::Held) -> Option<Duration> {
+        None
+    }
 
     /// Logs what a step did, once the wait before the next attempt is known; `after_failure` is
     /// whether the attempt before it failed, a panic included.

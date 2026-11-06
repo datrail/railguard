@@ -97,8 +97,9 @@ struct Bundles<S> {
     source: S,
 }
 
-// What one attempt did, for the log.
+// What one answer is: `Refused` blames the bundle Rail Center sent, `Failed` the fetch.
 enum Outcome {
+    // The bundle held, so there's none to compare when none is.
     Unchanged(Arc<HeldBundle>),
     Replaced {
         bundle: Arc<HeldBundle>,
@@ -108,8 +109,7 @@ enum Outcome {
         posture_moved: bool,
     },
     Refused(String),
-    CredentialRefused(String),
-    Unreachable(String),
+    Failed(String),
 }
 
 impl<S: BundleSource> Kind for Bundles<S> {
@@ -124,30 +124,10 @@ impl<S: BundleSource> Kind for Bundles<S> {
     }
 
     fn step(&self, held: &Held, answer: Self::Answer) -> Step<Held, Outcome> {
-        let current = held.as_ref();
-        let (next, outcome) = match read_answer(current, answer) {
-            Read::Unchanged(bundle) => (None, Outcome::Unchanged(bundle)),
-            Read::Replaced {
-                bundle,
-                enabled_policies,
-                bindings,
-            } => {
-                let posture_moved = current
-                    .is_none_or(|held| held.posture.as_logged() != bundle.posture.as_logged());
-                let bundle = Arc::new(bundle);
-                (
-                    Some(Some(Arc::clone(&bundle))),
-                    Outcome::Replaced {
-                        bundle,
-                        enabled_policies,
-                        bindings,
-                        posture_moved,
-                    },
-                )
-            }
-            Read::Unusable(reason) => (None, Outcome::Refused(reason)),
-            Read::CredentialRefused(reason) => (None, Outcome::CredentialRefused(reason)),
-            Read::Unreachable(reason) => (None, Outcome::Unreachable(reason)),
+        let outcome = read_answer(held.as_ref(), answer);
+        let next = match &outcome {
+            Outcome::Replaced { bundle, .. } => Some(Some(Arc::clone(bundle))),
+            _ => None,
         };
         let succeeded = matches!(outcome, Outcome::Unchanged(_) | Outcome::Replaced { .. });
         Step {
@@ -155,10 +135,6 @@ impl<S: BundleSource> Kind for Bundles<S> {
             succeeded,
             outcome,
         }
-    }
-
-    fn wait_at_most(&self, _: &Held) -> Option<Duration> {
-        None
     }
 
     fn report(&self, outcome: Outcome, held: &Held, after_failure: bool, retry: Duration) {
@@ -192,9 +168,7 @@ impl<S: BundleSource> Kind for Bundles<S> {
                 }
             }
             Outcome::Refused(reason) => log_refused(current, &reason, retry),
-            Outcome::CredentialRefused(reason) | Outcome::Unreachable(reason) => {
-                log_fetch_failed(current, &reason, retry);
-            }
+            Outcome::Failed(reason) => log_fetch_failed(current, &reason, retry),
         }
     }
 }
@@ -262,21 +236,6 @@ fn format_fallback(fallback: Fallback) -> &'static str {
     }
 }
 
-// What one answer is: `Unusable` blames the bundle Rail Center sent, `CredentialRefused` this
-// gateway's credential, `Unreachable` the way to Rail Center.
-enum Read {
-    // The bundle held, so there's none to compare when none is.
-    Unchanged(Arc<HeldBundle>),
-    Replaced {
-        bundle: HeldBundle,
-        enabled_policies: usize,
-        bindings: usize,
-    },
-    Unusable(String),
-    CredentialRefused(String),
-    Unreachable(String),
-}
-
 // The two fields read before the bundle is.
 #[derive(Default, Deserialize)]
 struct Peek {
@@ -284,34 +243,34 @@ struct Peek {
     schema_version: Option<Value>,
 }
 
-fn read_answer(held: Option<&Arc<HeldBundle>>, answer: Result<Response, FetchError>) -> Read {
+fn read_answer(held: Option<&Arc<HeldBundle>>, answer: Result<Response, FetchError>) -> Outcome {
     let response = match answer {
         Ok(response) => response,
-        Err(error) => return Read::Unreachable(error.to_string()),
+        Err(error) => return Outcome::Failed(error.to_string()),
     };
     if matches!(
         response.status,
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN
     ) {
         // Unlike Rail Center having a bad minute, this lasts until the configuration changes.
-        return Read::CredentialRefused(format!(
+        return Outcome::Failed(format!(
             "Rail Center refused the credential ({}); every fetch fails this way until \
              {AUTH_MODE} and {AUTH_TOKEN} are fixed",
             response.status
         ));
     }
     if response.status != StatusCode::OK {
-        return Read::Unreachable(format!("Rail Center answered {}", response.status));
+        return Outcome::Failed(format!("Rail Center answered {}", response.status));
     }
     let Ok(json) = std::str::from_utf8(&response.body) else {
-        return Read::Unreachable("the response isn't UTF-8".to_owned());
+        return Outcome::Failed("the response isn't UTF-8".to_owned());
     };
     let peek = match serde_json::from_str::<Peek>(json) {
         Ok(peek) => peek,
         // JSON, but not an object: `parse_bundle` says what it is.
         Err(error) if error.classify() == Category::Data => Peek::default(),
         Err(error) => {
-            return Read::Unreachable(format!(
+            return Outcome::Failed(format!(
                 "the response isn't JSON ({:?} error at line {}, column {})",
                 error.classify(),
                 error.line(),
@@ -324,18 +283,21 @@ fn read_answer(held: Option<&Arc<HeldBundle>>, answer: Result<Response, FetchErr
     if let Some(held) = held
         && hash == Some(held.content_hash.as_str())
     {
-        return Read::Unchanged(Arc::clone(held));
+        return Outcome::Unchanged(Arc::clone(held));
     }
     // Before the shape, so another major is refused for its version, not for what it holds.
     if let Some(Value::String(declared)) = &peek.schema_version
         && let Ok(version) = SchemaVersion::try_from(declared.clone())
         && version.major != SCHEMA_MAJOR
     {
-        return refuse_version(declared);
+        return Outcome::Refused(format!(
+            "schema_version {declared} is a bundle shape this gateway doesn't read; it reads \
+             {SCHEMA_MAJOR}.x"
+        ));
     }
     let bundle = match parse_bundle(json) {
         Ok(bundle) => bundle,
-        Err(error) => return Read::Unusable(error.to_string()),
+        Err(error) => return Outcome::Refused(error.to_string()),
     };
     let enabled_policies = bundle
         .policies
@@ -343,26 +305,20 @@ fn read_answer(held: Option<&Arc<HeldBundle>>, answer: Result<Response, FetchErr
         .filter(|policy| policy.enabled)
         .count();
     let bindings = bundle.bindings.len();
-    let compiled = compile_bundle(&bundle);
-    Read::Replaced {
-        bundle: HeldBundle {
-            compiled,
+    let posture = Posture {
+        mode: bundle.enforcement.mode,
+        binding_fallback: bundle.binding_fallback,
+        ticket_fallback: bundle.ticket_fallback,
+    };
+    Outcome::Replaced {
+        bundle: Arc::new(HeldBundle {
+            compiled: compile_bundle(&bundle),
             content_hash: bundle.content_hash,
             schema_version: bundle.schema_version,
-            posture: Posture {
-                mode: bundle.enforcement.mode,
-                binding_fallback: bundle.binding_fallback,
-                ticket_fallback: bundle.ticket_fallback,
-            },
-        },
+            posture,
+        }),
         enabled_policies,
         bindings,
+        posture_moved: held.is_none_or(|held| held.posture.as_logged() != posture.as_logged()),
     }
-}
-
-fn refuse_version(declared: &str) -> Read {
-    Read::Unusable(format!(
-        "schema_version {declared} is a bundle shape this gateway doesn't read; it reads \
-         {SCHEMA_MAJOR}.x"
-    ))
 }
