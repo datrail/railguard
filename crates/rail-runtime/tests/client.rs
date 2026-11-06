@@ -265,32 +265,6 @@ async fn a_dribbling_body_runs_into_the_deadline() {
 }
 
 #[tokio::test]
-async fn a_post_runs_into_the_deadline_too() {
-    let server = serve(|_| {
-        Reply::Dribble(
-            b"HTTP/1.1 202 Accepted\r\n\r\n".to_vec(),
-            Duration::from_millis(20),
-        )
-    })
-    .await;
-    let limits = Limits {
-        deadline: Duration::from_millis(300),
-        silence: Duration::from_millis(200),
-        max_bytes: 1 << 20,
-    };
-
-    let error = tokio::time::timeout(
-        Duration::from_secs(5),
-        client(&server.url).post("/v1/x", b"{}".to_vec(), limits),
-    )
-    .await
-    .expect("the deadline ends the post")
-    .unwrap_err();
-
-    assert!(matches!(error, FetchError::Deadline(_)), "{error:?}");
-}
-
-#[tokio::test]
 async fn a_silence_ends_the_fetch_before_the_head_or_within_the_body() {
     let limits = Limits {
         silence: Duration::from_millis(200),

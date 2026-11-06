@@ -173,23 +173,16 @@ impl DenialReporter {
         };
         let body = build_report(denial, (self.now)());
         let sink = Arc::clone(&self.sink);
-        let (policy, fallback, endpoint_key) = log_fields(denial);
-        let endpoint_key = endpoint_key.map(str::to_owned);
+        let denied_by = denial.denied_by;
+        let endpoint_key = endpoint_key(denial.endpoint).map(str::to_owned);
         self.runtime.spawn(async move {
-            match read_status(sink.send(body).await, StatusCode::ACCEPTED) {
-                Ok(_) => tracing::debug!(
-                    policy = policy.map(tracing::field::display),
-                    fallback,
-                    endpoint_key,
-                    "denial reported"
-                ),
-                Err(reason) => tracing::warn!(
+            if let Err(reason) = read_status(sink.send(body).await, StatusCode::ACCEPTED) {
+                tracing::warn!(
                     reason,
-                    policy = policy.map(tracing::field::display),
-                    fallback,
+                    ?denied_by,
                     endpoint_key,
                     "denial report failed; the call stays denied, and Rail Center doesn't list it"
-                ),
+                );
             }
             drop((permit, naming_no_policy));
         });
@@ -202,28 +195,14 @@ impl DenialReporter {
 
     fn drop_report(&self, denial: &Denial) {
         let dropped = self.dropped.fetch_add(1, Ordering::Relaxed) + 1;
-        let (policy, fallback, endpoint_key) = log_fields(denial);
         tracing::warn!(
-            policy = policy.map(tracing::field::display),
-            fallback,
-            endpoint_key,
-            in_flight = MAX_IN_FLIGHT - self.in_flight.available_permits(),
-            naming_no_policy = MAX_IN_FLIGHT_NAMING_NO_POLICY
-                - self.in_flight_naming_no_policy.available_permits(),
+            denied_by = ?denial.denied_by,
+            endpoint_key = endpoint_key(denial.endpoint),
             dropped,
             "dropping a denial report, with too many in flight; the call stays denied, and Rail \
              Center doesn't list it"
         );
     }
-}
-
-// The policy or fallback that denied, and the key, for the log.
-fn log_fields<'a>(denial: &Denial<'a>) -> (Option<Uuid>, Option<&'static str>, Option<&'a str>) {
-    let (policy, fallback) = match denial.denied_by {
-        DeniedBy::Policy(policy) => (Some(policy), None),
-        DeniedBy::Fallback(fallback) => (None, Some(fallback_name(fallback))),
-    };
-    (policy, fallback, endpoint_key(denial.endpoint))
 }
 
 fn build_report(denial: &Denial, now: std::time::SystemTime) -> Vec<u8> {
@@ -281,12 +260,5 @@ fn ticket_state(ticket: &TicketState) -> &'static str {
         TicketState::WrongAudience => "wrong_audience",
         TicketState::Expired => "expired",
         TicketState::Valid(_) => "valid",
-    }
-}
-
-fn fallback_name(fallback: FallbackDenial) -> &'static str {
-    match fallback {
-        FallbackDenial::Ticket => "ticket",
-        FallbackDenial::Binding => "binding",
     }
 }

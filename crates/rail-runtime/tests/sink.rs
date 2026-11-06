@@ -2,11 +2,11 @@
 // Shared by both test binaries, and each uses only part of it.
 #![allow(dead_code)]
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use rail_policy::{Endpoint, Ticket, TicketState};
-use rail_runtime::{DenialReporter, DenialSink, FetchError, Response};
+use rail_runtime::{Denial, DenialReporter, DenialSink, DeniedBy, FetchError, Response};
 use reqwest::StatusCode;
 use serde_json::Value;
 use tokio::runtime::Handle;
@@ -20,8 +20,17 @@ pub fn now() -> SystemTime {
     UNIX_EPOCH + Duration::from_secs(1_793_966_400) + Duration::from_micros(512_247)
 }
 
-pub fn resolved() -> Endpoint {
-    Endpoint::Resolved("/mcp#tools/call#getPrice".parse().unwrap())
+static RESOLVED: LazyLock<Endpoint> =
+    LazyLock::new(|| Endpoint::Resolved("/mcp#tools/call#getPrice".parse().unwrap()));
+
+// A denial of a call to a resolved endpoint with no ticket.
+pub fn denial(denied_by: DeniedBy) -> Denial<'static> {
+    Denial {
+        denied_by,
+        endpoint: &RESOLVED,
+        ticket: &TicketState::Absent,
+        claimed_status: None,
+    }
 }
 
 pub fn valid(claims: Value) -> TicketState {
@@ -34,24 +43,21 @@ pub fn valid(claims: Value) -> TicketState {
     }))
 }
 
-// A way of answering a report, called afresh for each.
-pub type Answering = fn() -> Result<Response, FetchError>;
-
 // Records each report, and answers once `release` lets it.
 #[derive(Clone)]
 pub struct Sink {
     pub reports: Arc<Mutex<Vec<Value>>>,
     pub release: Arc<Semaphore>,
-    pub answer: Answering,
+    pub answer: StatusCode,
 }
 
 impl Sink {
     // Answers 202 at once.
     pub fn accepting() -> Self {
-        Self::answering(|| accepted(StatusCode::ACCEPTED))
+        Self::answering(StatusCode::ACCEPTED)
     }
 
-    pub fn answering(answer: Answering) -> Self {
+    pub fn answering(answer: StatusCode) -> Self {
         Self {
             reports: Arc::default(),
             release: Arc::new(Semaphore::new(Semaphore::MAX_PERMITS)),
@@ -94,13 +100,9 @@ impl DenialSink for Sink {
             .unwrap()
             .push(serde_json::from_slice(&body).unwrap());
         self.release.acquire().await.unwrap().forget();
-        (self.answer)()
+        Ok(Response {
+            status: self.answer,
+            body: Vec::new(),
+        })
     }
-}
-
-pub fn accepted(status: StatusCode) -> Result<Response, FetchError> {
-    Ok(Response {
-        status,
-        body: Vec::new(),
-    })
 }
