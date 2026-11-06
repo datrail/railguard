@@ -199,11 +199,11 @@ async fn failures_while_a_ticket_holds_back_off_within_half_its_remaining_life()
     });
 
     let _holder = start(&clock, &script, HOUR);
-    until(&clock, 60).await;
+    until(&clock, 123).await;
 
-    // Fails at 20, 25 and 32.5: waits 5, then 7.5 (half of 15, under 10), then the floor; lapsed at
-    // 40, so 80 after the fifth failure, at 42.5.
-    assert_eq!(script.fetched_at(), [0, 20, 25, 32, 37, 42]);
+    // From 20, waits 5, then 7.5 (half of 15, under 10), then the floor twice; lapsed by 42.5, the
+    // fifth failure, so the ramp's 80 s.
+    assert_eq!(script.fetched_at(), [0, 20, 25, 32, 37, 42, 122]);
 }
 
 #[tokio::test(start_paused = true)]
@@ -429,5 +429,22 @@ async fn random_jitter_varies_within_a_fifth_of_the_period() {
     assert!(gaps.len() >= 40, "{gaps:?}");
     // Whole seconds, so a gap may read one under.
     assert!(gaps.iter().all(|gap| (479..=720).contains(gap)), "{gaps:?}");
-    assert!(gaps.iter().any(|gap| *gap != gaps[0]), "{gaps:?}");
+    assert!(gaps.iter().any(|gap| *gap < 599), "{gaps:?}");
+    assert!(gaps.iter().any(|gap| *gap > 601), "{gaps:?}");
+}
+
+#[tokio::test(start_paused = true)]
+async fn half_the_remaining_life_runs_from_the_end_of_a_slow_fetch_and_isnt_jittered_past() {
+    let clock = Clock::new();
+    let expiry = clock.at(800);
+    let script = Script {
+        takes: Duration::from_secs(10),
+        ..Script::new(&clock, move |_| ticket("a", expiry))
+    };
+
+    let _holder = start_jittered(&clock, &script, HOUR, Jitter::new(|| 1.2));
+    until(&clock, 405).await;
+
+    // Read at 10, 790 s left: half of it from there.
+    assert_eq!(script.fetched_at(), [0, 405]);
 }

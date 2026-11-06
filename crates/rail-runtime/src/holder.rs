@@ -13,7 +13,8 @@ use tokio::runtime::Handle;
 use tokio::task::AbortHandle;
 use tokio::time::Instant;
 
-use crate::ticket::MIN_REFRESH_INTERVAL;
+// Not settings: a lower floor would let a fleet hammer Rail Center.
+pub(crate) const MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(5);
 
 const MIN_JITTER: f64 = 0.8;
 const MAX_JITTER: f64 = 1.2;
@@ -32,6 +33,9 @@ pub(crate) trait Kind: Send + Sync + 'static {
     /// What `answer` does to `held`. A panic here, or in `fetch`, is a failed attempt.
     fn step(&self, held: &Self::Held, answer: Self::Answer) -> Step<Self::Held, Self::Outcome>;
 
+    /// A cap on the wait before the next attempt, from what's held, after a panic too.
+    fn wait_at_most(&self, held: &Self::Held) -> Option<Duration>;
+
     /// Logs what a step did, once the wait before the next attempt is known.
     fn report(&self, outcome: Self::Outcome, held: &Self::Held, next_attempt_in: Duration);
 }
@@ -42,8 +46,6 @@ pub(crate) struct Step<T, O> {
     pub(crate) next: Option<T>,
     /// A failure backs off; a success resumes the period.
     pub(crate) succeeded: bool,
-    /// Shortens the wait before the next attempt, never lengthens it.
-    pub(crate) at_most: Option<Duration>,
     pub(crate) outcome: O,
 }
 
@@ -141,7 +143,7 @@ async fn run<K: Kind>(kind: K, held: Arc<ArcSwap<K::Held>>, schedule: Schedule, 
         let started = Instant::now();
         let step = attempt(&kind, &held).await;
         let took = started.elapsed();
-        let (at_most, outcome) = match step {
+        let outcome = match step {
             Some(step) => {
                 if let Some(next) = step.next {
                     held.store(Arc::new(next));
@@ -151,35 +153,42 @@ async fn run<K: Kind>(kind: K, held: Arc<ArcSwap<K::Held>>, schedule: Schedule, 
                 } else {
                     failures.saturating_add(1)
                 };
-                (step.at_most, Some(step.outcome))
+                Some(step.outcome)
             }
             None => {
                 failures = failures.saturating_add(1);
-                // Not the panic's message, which may quote what Rail Center sent.
-                tracing::error!(
-                    "a {} refresh attempt panicked; keeping what's held",
-                    K::WHAT
-                );
-                (None, None)
+                log_panic::<K>();
+                None
             }
         };
-        let wait = next_wait(&schedule, failures, at_most, jitter.factor());
-        // A period runs from the start of the attempt, so a slow fetch doesn't shift the cadence.
-        let wait = if failures == 0 {
-            wait.saturating_sub(took).max(MIN_REFRESH_INTERVAL)
-        } else {
+        let wait = {
+            let held = held.load();
+            let wait = next_wait(&schedule, failures, jitter.factor());
+            // A period runs from the start of the attempt, so a slow fetch doesn't shift the cadence.
+            let wait = if failures == 0 {
+                wait.saturating_sub(took)
+            } else {
+                wait
+            };
+            // After the jitter, so a kind's cap is never exceeded.
+            let at_most = unwound::<K, _>(|| kind.wait_at_most(&held)).flatten();
+            let wait = at_most
+                .map_or(wait, |at_most| wait.min(at_most))
+                .max(MIN_REFRESH_INTERVAL);
+            if let Some(outcome) = outcome {
+                unwound::<K, _>(|| kind.report(outcome, &held, wait));
+            }
             wait
         };
-        if let Some(outcome) = outcome {
-            kind.report(outcome, &held.load(), wait);
-        }
         tokio::time::sleep(wait).await;
     }
 }
 
 // One fetch and its step, `None` if either panicked.
 async fn attempt<K: Kind>(kind: &K, held: &ArcSwap<K::Held>) -> Option<Step<K::Held, K::Outcome>> {
-    let mut fetch = pin!(kind.fetch());
+    // Built inside the catch too: a `fetch` may do work before returning its future.
+    let fetch = catch_unwind(AssertUnwindSafe(|| kind.fetch())).ok()?;
+    let mut fetch = pin!(fetch);
     // A panicking future is never polled again: it's dropped as soon as this returns.
     let answer =
         poll_fn(
@@ -192,14 +201,25 @@ async fn attempt<K: Kind>(kind: &K, held: &ArcSwap<K::Held>) -> Option<Step<K::H
     catch_unwind(AssertUnwindSafe(|| kind.step(&held.load(), answer))).ok()
 }
 
-// The wait before the next attempt: the period after a success, else the backoff; jittered, and
-// never under the floor.
-fn next_wait(
-    schedule: &Schedule,
-    failures: u32,
-    at_most: Option<Duration>,
-    factor: f64,
-) -> Duration {
+// What `f` returns, or `None`, logged, if it panicked.
+fn unwound<K: Kind, R>(f: impl FnOnce() -> R) -> Option<R> {
+    let result = catch_unwind(AssertUnwindSafe(f)).ok();
+    if result.is_none() {
+        log_panic::<K>();
+    }
+    result
+}
+
+// Not the panic's message, which may quote what Rail Center sent.
+fn log_panic<K: Kind>() {
+    tracing::error!(
+        "a {} refresh attempt panicked; keeping what's held",
+        K::WHAT
+    );
+}
+
+// The period after a success, else the backoff; jittered.
+fn next_wait(schedule: &Schedule, failures: u32, factor: f64) -> Duration {
     let wait = match failures {
         0 => schedule.period,
         _ => schedule
@@ -207,8 +227,5 @@ fn next_wait(
             .saturating_mul(2_u32.saturating_pow(failures - 1))
             .min(schedule.max_delay),
     };
-    let wait = at_most.map_or(wait, |at_most| wait.min(at_most));
-    Duration::try_from_secs_f64(wait.as_secs_f64() * factor)
-        .unwrap_or(Duration::MAX)
-        .max(MIN_REFRESH_INTERVAL)
+    Duration::try_from_secs_f64(wait.as_secs_f64() * factor).unwrap_or(Duration::MAX)
 }

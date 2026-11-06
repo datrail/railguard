@@ -5,8 +5,8 @@ use std::time::{Duration, SystemTime};
 use sha2::{Digest, Sha256};
 use tokio::runtime::Handle;
 
-use crate::holder::{Holder, Jitter, Kind, Schedule, Step};
-use crate::ticket::{MIN_REFRESH_INTERVAL, OpaqueTicket, TicketAnswer, TicketSource};
+use crate::holder::{Holder, Jitter, Kind, MIN_REFRESH_INTERVAL, Schedule, Step};
+use crate::ticket::{OpaqueTicket, TicketAnswer, TicketSource};
 use crate::xrail::Unavailable;
 
 // Six doublings of the 5 s floor, as Python's proxy; the refresh interval caps it too.
@@ -95,6 +95,14 @@ impl<S: TicketSource> Kind for Tickets<S> {
         step(held, answer, (self.now)())
     }
 
+    // Half the remaining life, so a short ticket is replaced before it lapses.
+    fn wait_at_most(&self, held: &Held) -> Option<Duration> {
+        held.ticket()
+            .and_then(|ticket| ticket.expires_at.duration_since((self.now)()).ok())
+            .filter(|remaining| !remaining.is_zero())
+            .map(|remaining| remaining / 2)
+    }
+
     fn report(&self, outcome: Outcome, held: &Held, retry: Duration) {
         log(
             &outcome,
@@ -105,8 +113,7 @@ impl<S: TicketSource> Kind for Tickets<S> {
     }
 }
 
-// What one answer, read at `at`, makes of the ticket held. Only a valid ticket is a success;
-// the next attempt comes within half the remaining life of the one held, if valid.
+// What one answer, read at `at`, makes of the ticket held. Only a valid ticket is a success.
 fn step(
     previous: &Held,
     answer: Result<TicketAnswer, String>,
@@ -151,18 +158,9 @@ fn step(
             (Some(Held::Ticket(Arc::new(ticket))), valid, outcome)
         }
     };
-    // Half the remaining life, so a short ticket is replaced before it lapses.
-    let at_most = next
-        .as_ref()
-        .unwrap_or(previous)
-        .ticket()
-        .and_then(|ticket| ticket.expires_at.duration_since(at).ok())
-        .filter(|remaining| !remaining.is_zero())
-        .map(|remaining| remaining / 2);
     Step {
         next,
         succeeded,
-        at_most,
         outcome,
     }
 }
