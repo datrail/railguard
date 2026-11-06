@@ -119,7 +119,7 @@ mod _native {
         issuer: Option<String>,
         audience: Option<String>,
     ) -> PyResult<String> {
-        let keys = keys
+        let keys: HashMap<String, VerifyingKey> = keys
             .into_iter()
             .map(|(kid, key)| {
                 let key = <[u8; 32]>::try_from(key.as_bytes())
@@ -133,9 +133,9 @@ mod _native {
             })
             .collect::<PyResult<_>>()?;
         let config = SignedTicketConfig {
-            keys,
-            issuer,
-            audience,
+            keys: &keys,
+            issuer: issuer.as_deref(),
+            audience: audience.as_deref(),
         };
         let state = parse_ticket(raw_ticket.unwrap_or(""), &config, now_epoch_seconds);
         let (state, claims) = match state {

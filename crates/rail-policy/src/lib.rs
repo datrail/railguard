@@ -12,7 +12,7 @@ mod ticket;
 
 pub use bundle::{
     Action, Binding, BindingMode, Bundle, EndpointKey, Enforcement, EnforcementMode, Fallback,
-    Policy, SchemaVersion, UnusableBundle, parse_bundle,
+    Policy, SchemaVersion, TicketClaim, UnusableBundle, parse_bundle,
 };
 pub use check::{
     ConditionProblem, LocationSegment, OperandShape, ProblemCode, ProblemScope, TicketClaimsSchema,

@@ -19,7 +19,7 @@ pub const MINUTE: Duration = Duration::from_secs(60);
 // A usable bundle, observing; `with` replaces or adds root fields.
 pub fn bundle(content_hash: &str, with: Value) -> Value {
     let mut bundle = json!({
-        "schema_version": "2.0",
+        "schema_version": "2.1",
         "content_hash": content_hash,
         "generated_at": "2026-07-28T20:41:07.512247Z",
         "enforcement": {"mode": "observe"},
@@ -34,6 +34,9 @@ pub fn bundle(content_hash: &str, with: Value) -> Value {
         "bindings": [],
         "binding_fallback": "block",
         "ticket_fallback": "pass",
+        // As while Rail Center signs no tickets.
+        "ticket_issuer": null,
+        "ticket_audience": null,
     });
     for (name, value) in with.as_object().cloned().unwrap_or_default() {
         bundle[name] = value;

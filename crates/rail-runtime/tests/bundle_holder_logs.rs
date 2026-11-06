@@ -72,6 +72,21 @@ async fn the_holding_line_names_the_content_hash_the_schema_version_and_what_it_
 }
 
 #[tokio::test(start_paused = true)]
+async fn an_issuer_or_audience_not_a_string_is_warned_of_by_name() {
+    let held = bundle("v1", json!({"ticket_issuer": 1, "ticket_audience": "t"}));
+    let logs = log_of(vec![ok(&held)]).await;
+
+    let lines = lines_with(&logs, "isn't a string");
+    assert_eq!(lines.len(), 1, "{logs}");
+    assert!(
+        lines[0].contains("WARN") && lines[0].contains(r#"field="ticket_issuer""#),
+        "{}",
+        lines[0]
+    );
+    assert!(lines[0].contains("wrong_audience"), "{}", lines[0]);
+}
+
+#[tokio::test(start_paused = true)]
 async fn the_posture_is_logged_whenever_what_traffic_meets_moves() {
     let none = bundle("v-none", json!({"enforcement": {"mode": "none"}}));
     let observing = |content_hash, binding_fallback| {
