@@ -1,4 +1,6 @@
+mod bundle_holder;
 mod bundle_settings;
+mod bundles;
 mod client;
 mod common;
 mod config;

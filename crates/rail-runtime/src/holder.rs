@@ -10,8 +10,9 @@ use std::time::Duration;
 
 use arc_swap::ArcSwap;
 use tokio::runtime::Handle;
+use tokio::sync::watch;
 use tokio::task::AbortHandle;
-use tokio::time::Instant;
+use tokio::time::{Instant, timeout_at};
 
 // Not settings: a lower floor would let a fleet hammer Rail Center.
 pub(crate) const MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(5);
@@ -31,7 +32,7 @@ pub(crate) trait Kind: Send + Sync + 'static {
     fn fetch(&self) -> impl Future<Output = Self::Answer> + Send;
 
     /// What `answer` does to `held`. A panic here, or polling `fetch`, is a failed attempt.
-    fn step(&self, held: &Self::Held, answer: Self::Answer) -> Step<Self::Held, Self::Outcome>;
+    fn step(&mut self, held: &Self::Held, answer: Self::Answer) -> Step<Self::Held, Self::Outcome>;
 
     /// A cap on the wait before the next attempt, from what's held, after a panic too.
     fn wait_at_most(&self, held: &Self::Held) -> Option<Duration>;
@@ -83,9 +84,18 @@ impl Jitter {
     }
 }
 
+// Where the loop is, for a reader deciding whether waiting can bring anything.
+#[derive(Clone, Copy)]
+enum Progress {
+    InFlight,
+    // `None`: past what an `Instant` holds.
+    NextAt(Option<Instant>),
+}
+
 /// A value fetched and refreshed on `runtime`; dropping it stops the refreshes.
 pub(crate) struct Holder<T> {
     held: Arc<ArcSwap<T>>,
+    progress: watch::Receiver<Progress>,
     refresh: AbortHandle,
 }
 
@@ -99,15 +109,51 @@ impl<T: Send + Sync + 'static> Holder<T> {
         jitter: Jitter,
     ) -> Self {
         let held = Arc::new(ArcSwap::from_pointee(initial));
+        let (publish, progress) = watch::channel(Progress::InFlight);
         let refresh = runtime
-            .spawn(run(kind, Arc::clone(&held), schedule, jitter))
+            .spawn(run(kind, Arc::clone(&held), publish, schedule, jitter))
             .abort_handle();
-        Self { held, refresh }
+        Self {
+            held,
+            progress,
+            refresh,
+        }
     }
 
     /// What's held now, never waiting.
     pub(crate) fn snapshot(&self) -> Arc<T> {
         self.held.load_full()
+    }
+
+    /// What's held once `holds` it, or once `limit` has passed, or at once if no attempt is in
+    /// flight or due before then. It never starts a fetch, and is awaited on the caller's runtime.
+    pub(crate) async fn wait_until(&self, holds: impl Fn(&T) -> bool, limit: Duration) -> Arc<T> {
+        let deadline = Instant::now().checked_add(limit);
+        let mut progress = self.progress.clone();
+        loop {
+            // Before what's held: the loop stores a value before it says the attempt ended.
+            let at = *progress.borrow_and_update();
+            let held = self.snapshot();
+            let attempt_due = match (at, deadline) {
+                (Progress::InFlight, _) => true,
+                (Progress::NextAt(None), _) => false,
+                (Progress::NextAt(Some(_)), None) => true,
+                (Progress::NextAt(Some(next)), Some(deadline)) => next < deadline,
+            };
+            if holds(&held) || !attempt_due {
+                return held;
+            }
+            let changed = match deadline {
+                Some(deadline) => timeout_at(deadline, progress.changed())
+                    .await
+                    .is_ok_and(|changed| changed.is_ok()),
+                None => progress.changed().await.is_ok(),
+            };
+            // The limit passed, or the loop is gone.
+            if !changed {
+                return self.snapshot();
+            }
+        }
     }
 }
 
@@ -118,12 +164,19 @@ impl<T> Drop for Holder<T> {
 }
 
 // The one writer.
-async fn run<K: Kind>(kind: K, held: Arc<ArcSwap<K::Held>>, schedule: Schedule, jitter: Jitter) {
+async fn run<K: Kind>(
+    mut kind: K,
+    held: Arc<ArcSwap<K::Held>>,
+    publish: watch::Sender<Progress>,
+    schedule: Schedule,
+    jitter: Jitter,
+) {
     // Failed attempts since the last success.
     let mut failures: u32 = 0;
     loop {
+        publish.send_replace(Progress::InFlight);
         let started = Instant::now();
-        let step = attempt(&kind, &held).await;
+        let step = attempt(&mut kind, &held).await;
         let took = started.elapsed();
         let outcome = match step {
             Some(step) => {
@@ -166,22 +219,27 @@ async fn run<K: Kind>(kind: K, held: Arc<ArcSwap<K::Held>>, schedule: Schedule, 
             }
             wait
         };
+        publish.send_replace(Progress::NextAt(Instant::now().checked_add(wait)));
         tokio::time::sleep(wait).await;
     }
 }
 
 // One fetch and its step, `None` if either panicked.
-async fn attempt<K: Kind>(kind: &K, held: &ArcSwap<K::Held>) -> Option<Step<K::Held, K::Outcome>> {
-    let mut fetch = pin!(kind.fetch());
-    // A panicking future is never polled again: it's dropped as soon as this returns.
-    let answer =
+async fn attempt<K: Kind>(
+    kind: &mut K,
+    held: &ArcSwap<K::Held>,
+) -> Option<Step<K::Held, K::Outcome>> {
+    let answer = {
+        let mut fetch = pin!(kind.fetch());
+        // A panicking future is never polled again: it's dropped as soon as this returns.
         poll_fn(
             |context| match catch_unwind(AssertUnwindSafe(|| fetch.as_mut().poll(context))) {
                 Ok(poll) => poll.map(Some),
                 Err(_) => Poll::Ready(None),
             },
         )
-        .await?;
+        .await?
+    };
     catch_unwind(AssertUnwindSafe(|| kind.step(&held.load(), answer))).ok()
 }
 

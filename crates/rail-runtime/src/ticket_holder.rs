@@ -91,7 +91,7 @@ impl<S: TicketSource> Kind for Tickets<S> {
         self.source.fetch((self.now)())
     }
 
-    fn step(&self, held: &Held, answer: Self::Answer) -> Step<Held, Outcome> {
+    fn step(&mut self, held: &Held, answer: Self::Answer) -> Step<Held, Outcome> {
         step(held, answer, (self.now)())
     }
 
