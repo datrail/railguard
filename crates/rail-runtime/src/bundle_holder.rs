@@ -12,7 +12,7 @@ use tokio::runtime::Handle;
 
 use crate::bundle::BundleSource;
 use crate::client::{FetchError, Response};
-use crate::holder::{Holder, Jitter, Kind, MIN_REFRESH_INTERVAL, Schedule, Step};
+use crate::holder::{Holder, Jitter, Kind, MIN_REFRESH_INTERVAL, Schedule, Step, round_to_seconds};
 use crate::rail_center::{AUTH_MODE, AUTH_TOKEN};
 
 // The one `schema_version` major read: any minor of it is.
@@ -71,10 +71,7 @@ impl BundleHolder {
             initial_delay: MIN_REFRESH_INTERVAL,
             max_delay: refresh_interval,
         };
-        let kind = Bundles {
-            source,
-            failing: false,
-        };
+        let kind = Bundles { source };
         Self {
             holder: Holder::start(runtime, kind, None, schedule, jitter),
         }
@@ -98,16 +95,11 @@ impl BundleHolder {
 
 struct Bundles<S> {
     source: S,
-    // Whether the last attempt failed, so the next good one says so.
-    failing: bool,
 }
 
 // What one attempt did, for the log.
 enum Outcome {
-    Unchanged {
-        bundle: Arc<HeldBundle>,
-        recovered: bool,
-    },
+    Unchanged(Arc<HeldBundle>),
     Replaced {
         bundle: Arc<HeldBundle>,
         enabled_policies: usize,
@@ -131,16 +123,10 @@ impl<S: BundleSource> Kind for Bundles<S> {
         self.source.fetch()
     }
 
-    fn step(&mut self, held: &Held, answer: Self::Answer) -> Step<Held, Outcome> {
+    fn step(&self, held: &Held, answer: Self::Answer) -> Step<Held, Outcome> {
         let current = held.as_ref();
         let (next, outcome) = match read_answer(current, answer) {
-            Read::Unchanged(bundle) => (
-                None,
-                Outcome::Unchanged {
-                    bundle,
-                    recovered: self.failing,
-                },
-            ),
+            Read::Unchanged(bundle) => (None, Outcome::Unchanged(bundle)),
             Read::Replaced {
                 bundle,
                 enabled_policies,
@@ -163,11 +149,7 @@ impl<S: BundleSource> Kind for Bundles<S> {
             Read::CredentialRefused(reason) => (None, Outcome::CredentialRefused(reason)),
             Read::Unreachable(reason) => (None, Outcome::Unreachable(reason)),
         };
-        let succeeded = matches!(
-            outcome,
-            Outcome::Unchanged { .. } | Outcome::Replaced { .. }
-        );
-        self.failing = !succeeded;
+        let succeeded = matches!(outcome, Outcome::Unchanged(_) | Outcome::Replaced { .. });
         Step {
             next,
             succeeded,
@@ -179,21 +161,18 @@ impl<S: BundleSource> Kind for Bundles<S> {
         None
     }
 
-    fn report(&self, outcome: Outcome, held: &Held, retry: Duration) {
+    fn report(&self, outcome: Outcome, held: &Held, after_failure: bool, retry: Duration) {
         let current = held.as_ref();
-        let retry = retry.as_secs();
+        let retry = round_to_seconds(retry);
         match outcome {
-            Outcome::Unchanged {
-                bundle,
-                recovered: true,
-            } => tracing::info!(
+            // Said once, so a recovery shows without a line every poll.
+            Outcome::Unchanged(bundle) if after_failure => tracing::info!(
                 content_hash = %bundle.content_hash,
                 "policy bundle fetched again, unchanged"
             ),
-            Outcome::Unchanged {
-                bundle,
-                recovered: false,
-            } => tracing::debug!(content_hash = %bundle.content_hash, "policy bundle unchanged"),
+            Outcome::Unchanged(bundle) => {
+                tracing::debug!(content_hash = %bundle.content_hash, "policy bundle unchanged");
+            }
             Outcome::Replaced {
                 bundle,
                 enabled_policies,

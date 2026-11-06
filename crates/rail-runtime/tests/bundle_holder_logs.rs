@@ -447,6 +447,47 @@ async fn a_bundle_fetched_again_after_a_failure_says_so_once() {
     assert!(!logs.contains("fetched again"), "{logs}");
 }
 
+#[tokio::test(start_paused = true)]
+async fn an_unchanged_bundle_after_a_panicking_attempt_says_it_was_fetched_again() {
+    let logs = Logs::default();
+    let _logging = logs.capture();
+    let clock = Clock::new();
+    let script = Script::new(&clock, |n| {
+        if n == 1 {
+            panic!("a defect in the fetch")
+        } else {
+            ok(&bundle("v1", json!({})))
+        }
+    });
+
+    let _holder = start(&script, MINUTE);
+    until(&clock, 65).await;
+
+    let logs = logs.text();
+    assert_eq!(
+        lines_with(&logs, "policy bundle fetched again, unchanged").len(),
+        1,
+        "{logs}"
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_retry_logged_is_the_jittered_wait_rounded_to_seconds() {
+    let logs = Logs::default();
+    let _logging = logs.capture();
+    let clock = Clock::new();
+    let script = Script::new(&clock, |_| answer(StatusCode::SERVICE_UNAVAILABLE, b""));
+
+    // 5 s at 1.18 is 5.9 s.
+    let _holder = BundleHolder::start(&Handle::current(), script, MINUTE, Jitter::new(|| 1.18));
+    until(&clock, 0).await;
+
+    let logs = logs.text();
+    let line = lines_with(&logs, "policy bundle fetch failed");
+    assert_eq!(line.len(), 1, "{logs}");
+    assert!(line[0].contains("retry=6"), "{logs}");
+}
+
 // Real time: the fetch goes over a socket, which paused time would race.
 #[tokio::test]
 async fn a_bundle_of_exactly_4_mib_is_read_and_one_past_it_refused() {

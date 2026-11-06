@@ -17,6 +17,9 @@ use tokio::time::{Instant, timeout_at};
 // Not settings: a lower floor would let a fleet hammer Rail Center.
 pub(crate) const MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(5);
 
+// Further than any wait, and near enough for an `Instant` to hold it.
+const FAR: Duration = Duration::from_secs(100 * 365 * 86_400);
+
 const MIN_JITTER: f64 = 0.8;
 const MAX_JITTER: f64 = 1.2;
 
@@ -32,13 +35,20 @@ pub(crate) trait Kind: Send + Sync + 'static {
     fn fetch(&self) -> impl Future<Output = Self::Answer> + Send;
 
     /// What `answer` does to `held`. A panic here, or polling `fetch`, is a failed attempt.
-    fn step(&mut self, held: &Self::Held, answer: Self::Answer) -> Step<Self::Held, Self::Outcome>;
+    fn step(&self, held: &Self::Held, answer: Self::Answer) -> Step<Self::Held, Self::Outcome>;
 
     /// A cap on the wait before the next attempt, from what's held, after a panic too.
     fn wait_at_most(&self, held: &Self::Held) -> Option<Duration>;
 
-    /// Logs what a step did, once the wait before the next attempt is known.
-    fn report(&self, outcome: Self::Outcome, held: &Self::Held, next_attempt_in: Duration);
+    /// Logs what a step did, once the wait before the next attempt is known; `after_failure` is
+    /// whether the attempt before it failed, a panic included.
+    fn report(
+        &self,
+        outcome: Self::Outcome,
+        held: &Self::Held,
+        after_failure: bool,
+        next_attempt_in: Duration,
+    );
 }
 
 /// What one attempt decided.
@@ -88,8 +98,7 @@ impl Jitter {
 #[derive(Clone, Copy)]
 enum Progress {
     InFlight,
-    // `None`: past what an `Instant` holds.
-    NextAt(Option<Instant>),
+    NextAt(Instant),
 }
 
 /// A value fetched and refreshed on `runtime`; dropping it stops the refreshes.
@@ -128,29 +137,24 @@ impl<T: Send + Sync + 'static> Holder<T> {
     /// What's held once `holds` it, or once `limit` has passed, or at once if no attempt is in
     /// flight or due before then. It never starts a fetch, and is awaited on the caller's runtime.
     pub(crate) async fn wait_until(&self, holds: impl Fn(&T) -> bool, limit: Duration) -> Arc<T> {
-        let deadline = Instant::now().checked_add(limit);
+        let deadline = Instant::now() + limit.min(FAR);
         let mut progress = self.progress.clone();
         loop {
             // Before what's held: the loop stores a value before it says the attempt ended.
             let at = *progress.borrow_and_update();
             let held = self.snapshot();
-            let attempt_due = match (at, deadline) {
-                (Progress::InFlight, _) => true,
-                (Progress::NextAt(None), _) => false,
-                (Progress::NextAt(Some(_)), None) => true,
-                (Progress::NextAt(Some(next)), Some(deadline)) => next < deadline,
+            let attempt_due = match at {
+                Progress::InFlight => true,
+                Progress::NextAt(next) => next < deadline,
             };
             if holds(&held) || !attempt_due {
                 return held;
             }
-            let changed = match deadline {
-                Some(deadline) => timeout_at(deadline, progress.changed())
-                    .await
-                    .is_ok_and(|changed| changed.is_ok()),
-                None => progress.changed().await.is_ok(),
-            };
             // The limit passed, or the loop is gone.
-            if !changed {
+            if !timeout_at(deadline, progress.changed())
+                .await
+                .is_ok_and(|changed| changed.is_ok())
+            {
                 return self.snapshot();
             }
         }
@@ -165,7 +169,7 @@ impl<T> Drop for Holder<T> {
 
 // The one writer.
 async fn run<K: Kind>(
-    mut kind: K,
+    kind: K,
     held: Arc<ArcSwap<K::Held>>,
     publish: watch::Sender<Progress>,
     schedule: Schedule,
@@ -176,7 +180,8 @@ async fn run<K: Kind>(
     loop {
         publish.send_replace(Progress::InFlight);
         let started = Instant::now();
-        let step = attempt(&mut kind, &held).await;
+        let after_failure = failures > 0;
+        let step = attempt(&kind, &held).await;
         let took = started.elapsed();
         let outcome = match step {
             Some(step) => {
@@ -215,31 +220,27 @@ async fn run<K: Kind>(
                 .map_or(wait, |at_most| wait.min(at_most))
                 .max(MIN_REFRESH_INTERVAL);
             if let Some(outcome) = outcome {
-                kind.report(outcome, &held, wait);
+                kind.report(outcome, &held, after_failure, wait);
             }
             wait
         };
-        publish.send_replace(Progress::NextAt(Instant::now().checked_add(wait)));
+        publish.send_replace(Progress::NextAt(Instant::now() + wait.min(FAR)));
         tokio::time::sleep(wait).await;
     }
 }
 
 // One fetch and its step, `None` if either panicked.
-async fn attempt<K: Kind>(
-    kind: &mut K,
-    held: &ArcSwap<K::Held>,
-) -> Option<Step<K::Held, K::Outcome>> {
-    let answer = {
-        let mut fetch = pin!(kind.fetch());
-        // A panicking future is never polled again: it's dropped as soon as this returns.
+async fn attempt<K: Kind>(kind: &K, held: &ArcSwap<K::Held>) -> Option<Step<K::Held, K::Outcome>> {
+    let mut fetch = pin!(kind.fetch());
+    // A panicking future is never polled again: it's dropped as soon as this returns.
+    let answer =
         poll_fn(
             |context| match catch_unwind(AssertUnwindSafe(|| fetch.as_mut().poll(context))) {
                 Ok(poll) => poll.map(Some),
                 Err(_) => Poll::Ready(None),
             },
         )
-        .await?
-    };
+        .await?;
     catch_unwind(AssertUnwindSafe(|| kind.step(&held.load(), answer))).ok()
 }
 
@@ -253,4 +254,9 @@ fn next_wait(schedule: &Schedule, failures: u32, factor: f64) -> Duration {
             .min(schedule.max_delay),
     };
     Duration::try_from_secs_f64(wait.as_secs_f64() * factor).unwrap_or(Duration::MAX)
+}
+
+// Whole seconds, rounded: a jittered 5.9 s reads as 6.
+pub(crate) fn round_to_seconds(wait: Duration) -> u64 {
+    wait.as_secs() + u64::from(wait.subsec_millis() >= 500)
 }

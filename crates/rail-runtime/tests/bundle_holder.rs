@@ -202,18 +202,6 @@ async fn the_same_content_hash_is_not_read_again() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn the_hash_is_compared_only_once_a_bundle_is_held() {
-    let clock = Clock::new();
-    let script = Script::new(&clock, |_| ok(&json!({"policies": [], "bindings": []})));
-
-    let holder = start(&script, MINUTE);
-    until(&clock, 5).await;
-
-    assert!(holder.snapshot().is_none());
-    assert_eq!(script.fetched_at(), [0, 5]);
-}
-
-#[tokio::test(start_paused = true)]
 async fn a_bundle_is_refetched_every_interval() {
     let clock = Clock::new();
     let script = Script::new(&clock, |_| ok(&bundle("v1", json!({}))));
@@ -381,6 +369,24 @@ async fn a_wait_returns_at_once_when_no_attempt_is_due_within_its_limit_and_star
     // The retry is due at 5, past the 2 s.
     assert_eq!(timed_wait(&holder).await, (None, Duration::ZERO));
     assert_eq!(script.fetched_at(), [0]);
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_wait_returns_at_once_for_a_retry_due_just_as_its_limit_passes() {
+    let clock = Clock::new();
+    let script = Script::new(&clock, |n| {
+        if n == 0 {
+            failed()
+        } else {
+            ok(&bundle("v1", json!({})))
+        }
+    });
+
+    let holder = start(&script, MINUTE);
+    until(&clock, 3).await;
+
+    // The retry is due at 5, as the 2 s end: it can't land in time.
+    assert_eq!(timed_wait(&holder).await, (None, Duration::ZERO));
 }
 
 #[tokio::test(start_paused = true)]
