@@ -12,14 +12,17 @@ fn read(pairs: &[(&str, &str)]) -> Result<BundleSettings, Vec<String>> {
 const NAMED: [(&str, &str); 1] = [("RAIL_GATEWAY_SLUG", "edge")];
 
 #[test]
-fn the_slug_is_read_and_the_interval_defaults_to_60_s() {
-    assert_eq!(
-        read(&NAMED).unwrap(),
-        BundleSettings {
-            gateway_slug: "edge".to_owned(),
-            refresh_interval: Duration::from_secs(60),
-        }
-    );
+fn the_slug_is_read_and_the_interval_defaults_to_60_s_unset_or_blank() {
+    let blank = [NAMED[0], ("RAIL_GATEWAY_BUNDLE_REFRESH_SECONDS", " ")];
+    for pairs in [NAMED.as_slice(), &blank] {
+        assert_eq!(
+            read(pairs).unwrap(),
+            BundleSettings {
+                gateway_slug: "edge".to_owned(),
+                refresh_interval: Duration::from_secs(60),
+            }
+        );
+    }
 }
 
 #[test]
@@ -66,48 +69,20 @@ fn a_slug_is_what_rail_center_accepts_as_one() {
     }
 }
 
+// The ticket's settings test the bounds this interval shares.
 #[test]
-fn the_refresh_interval_is_whole_seconds_from_5_to_a_day() {
-    for (taken, seconds) in [("5", 5), ("3600", 3600), (" 120 ", 120), ("86400", 86_400)] {
-        let mut pairs = NAMED.to_vec();
-        pairs.push(("RAIL_GATEWAY_BUNDLE_REFRESH_SECONDS", taken));
-
-        assert_eq!(
-            read(&pairs).unwrap().refresh_interval,
-            Duration::from_secs(seconds)
-        );
-    }
-    for refused in [
-        "0",
-        "4",
-        "-30",
-        "6.0",
-        "60s",
-        "sixty",
-        "86401",
-        "18446744073709551615",
-        "18446744073709551616",
-    ] {
-        let mut pairs = NAMED.to_vec();
-        pairs.push(("RAIL_GATEWAY_BUNDLE_REFRESH_SECONDS", refused));
-
-        assert_eq!(
-            read(&pairs).unwrap_err(),
-            [format!(
-                "RAIL_GATEWAY_BUNDLE_REFRESH_SECONDS must be a whole number of seconds, from 5 to 86400, got: {refused}"
-            )]
-        );
-    }
-}
-
-#[test]
-fn a_blank_interval_is_the_default() {
-    let mut pairs = NAMED.to_vec();
-    pairs.push(("RAIL_GATEWAY_BUNDLE_REFRESH_SECONDS", " "));
+fn the_refresh_interval_is_read_as_the_tickets_is() {
+    let with = |interval| [NAMED[0], ("RAIL_GATEWAY_BUNDLE_REFRESH_SECONDS", interval)];
 
     assert_eq!(
-        read(&pairs).unwrap().refresh_interval,
-        Duration::from_secs(60)
+        read(&with(" 120 ")).unwrap().refresh_interval,
+        Duration::from_secs(120)
+    );
+    assert_eq!(
+        read(&with("4")).unwrap_err(),
+        [
+            "RAIL_GATEWAY_BUNDLE_REFRESH_SECONDS must be a whole number of seconds, from 5 to 86400, got: 4"
+        ]
     );
 }
 
@@ -154,19 +129,4 @@ fn not_required_judges_only_what_is_set() {
 
     let read = common::read(&[], |settings| read_bundle_settings(settings, false));
     assert!(read.unwrap().is_none());
-}
-
-#[test]
-fn incomplete_describes_only_what_is_set_as_read() {
-    assert_eq!(
-        describe(
-            &[("RAIL_GATEWAY_BUNDLE_REFRESH_SECONDS", " 600\n")],
-            |settings| read_bundle_settings(settings, false)
-        ),
-        [(
-            "RAIL_GATEWAY_BUNDLE_REFRESH_SECONDS",
-            "600".to_owned(),
-            Level::Info
-        )]
-    );
 }

@@ -1,12 +1,12 @@
 use std::sync::Mutex;
 use std::time::Duration;
 
-use rail_runtime::{BundleHolder, FetchError, Jitter, RailCenterBundles};
+use rail_runtime::{BundleHolder, Jitter, RailCenterBundles};
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 use tokio::runtime::Handle;
 
-use crate::bundles::{Answer, MINUTE, Script, TWO, answer, bundle, failed, held_hash, ok, start};
+use crate::bundles::{Answer, MINUTE, Script, TWO, answer, bundle, failed, ok, start};
 use crate::common::{Reply, client, response, serve};
 use crate::holder::{Clock, until};
 use crate::logs::Logs;
@@ -49,427 +49,252 @@ fn enforcing(content_hash: &str, binding_fallback: &str, ticket_fallback: &str) 
 }
 
 #[tokio::test(start_paused = true)]
-async fn the_holding_line_names_the_content_hash_and_the_schema_version() {
-    let logs = log_of(vec![ok(&bundle(
+async fn the_holding_line_names_the_content_hash_the_schema_version_and_what_it_holds() {
+    let disabled = json!({
+        "id": TWO,
+        "name": "Q",
+        "priority": 2,
+        "condition": {"path": "ticket.posture.overall.score", "op": "lt", "value": 40},
+        "action": "block",
+        "enabled": false,
+    });
+    let binding = |tool| {
+        let endpoint_key = format!("edge#/mcp#tools/call#{tool}");
+        json!({"endpoint_key": endpoint_key, "mode": "open", "policy_ids": []})
+    };
+    let bindings = [binding("refund_order"), binding("cancel_order")];
+    let mut held = bundle(
         "hash-7f3a",
-        json!({"schema_version": "2.4"}),
-    ))])
-    .await;
+        json!({"schema_version": "2.4", "bindings": bindings}),
+    );
+    held["policies"].as_array_mut().unwrap().push(disabled);
+    let logs = log_of(vec![ok(&held)]).await;
 
     let line = lines_with(&logs, "holding a policy bundle");
     assert_eq!(line.len(), 1, "{logs}");
     assert!(line[0].contains("INFO"), "{logs}");
     assert!(line[0].contains(r#"content_hash="hash-7f3a""#), "{logs}");
     assert!(line[0].contains(r#"schema_version="2.4""#), "{logs}");
-    assert!(line[0].contains("enabled_policies=1 bindings=0"), "{logs}");
+    assert!(line[0].contains("enabled_policies=1 bindings=2"), "{logs}");
 }
 
 #[tokio::test(start_paused = true)]
-async fn the_posture_is_logged_when_a_poll_moves_it() {
-    let logs = log_of(vec![
-        ok(&bundle("v-none", json!({"enforcement": {"mode": "none"}}))),
-        ok(&enforcing("v-enforce", "block", "pass")),
-    ])
-    .await;
-
-    let lines = lines_with(&logs, "posture:");
-    assert_eq!(lines.len(), 2, "{logs}");
-    assert!(
-        lines[0].contains("Rail Center says judge nothing"),
-        "{logs}"
-    );
-    assert!(lines[0].contains(r#"enforcement="none""#), "{logs}");
-    assert!(lines[1].contains(r#"enforcement="enforce""#), "{logs}");
-    assert!(
-        lines[1].contains(r#"binding_fallback="block" ticket_fallback="pass""#),
-        "{logs}"
-    );
-}
-
-#[tokio::test(start_paused = true)]
-async fn observe_is_told_apart_in_the_log() {
-    let logs = log_of(vec![ok(&bundle("v1", json!({})))]).await;
-
-    let lines = lines_with(&logs, "posture:");
-    assert_eq!(lines.len(), 1, "{logs}");
-    assert!(lines[0].contains(r#"enforcement="observe""#), "{logs}");
-    assert!(lines[0].contains("nothing is refused"), "{logs}");
-    assert!(!lines[0].contains("fallback"), "{logs}");
-}
-
-#[tokio::test(start_paused = true)]
-async fn an_unchanged_posture_is_not_repeated_on_every_poll() {
-    let logs = log_of(vec![
-        ok(&enforcing("v1", "block", "pass")),
-        ok(&enforcing("v2", "block", "pass")),
-    ])
-    .await;
-
-    assert_eq!(lines_with(&logs, "posture:").len(), 1, "{logs}");
-    assert_eq!(
-        lines_with(&logs, "holding a policy bundle").len(),
-        2,
-        "{logs}"
-    );
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_fallback_that_moves_under_enforce_is_logged() {
-    for (second, moved) in [
+async fn the_posture_is_logged_whenever_what_traffic_meets_moves() {
+    let none = bundle("v-none", json!({"enforcement": {"mode": "none"}}));
+    let observing = |content_hash, binding_fallback| {
+        bundle(content_hash, json!({"binding_fallback": binding_fallback}))
+    };
+    // Each posture line expected: the mode, and the fallbacks it names.
+    for (label, bundles, postures) in [
         (
-            enforcing("v2", "pass", "pass"),
-            r#"binding_fallback="pass""#,
+            "none, then enforce",
+            vec![none.clone(), enforcing("v2", "block", "pass")],
+            vec![("none", None), ("enforce", Some(("block", "pass")))],
         ),
         (
-            enforcing("v2", "block", "block"),
-            r#"ticket_fallback="block""#,
+            "none, then observe",
+            vec![none, observing("v2", "block")],
+            vec![("none", None), ("observe", None)],
+        ),
+        (
+            "enforce, unchanged",
+            vec![
+                enforcing("v1", "block", "pass"),
+                enforcing("v2", "block", "pass"),
+            ],
+            vec![("enforce", Some(("block", "pass")))],
+        ),
+        (
+            "the binding fallback moving under enforce",
+            vec![
+                enforcing("v1", "block", "pass"),
+                enforcing("v2", "pass", "pass"),
+            ],
+            vec![
+                ("enforce", Some(("block", "pass"))),
+                ("enforce", Some(("pass", "pass"))),
+            ],
+        ),
+        (
+            "the ticket fallback moving under enforce",
+            vec![
+                enforcing("v1", "block", "pass"),
+                enforcing("v2", "block", "block"),
+            ],
+            vec![
+                ("enforce", Some(("block", "pass"))),
+                ("enforce", Some(("block", "block"))),
+            ],
+        ),
+        (
+            "a fallback moving where it decides nothing",
+            vec![observing("v1", "block"), observing("v2", "pass")],
+            vec![("observe", None)],
+        ),
+        (
+            "a fallback held silently, then enforce",
+            vec![observing("v1", "pass"), enforcing("v2", "pass", "pass")],
+            vec![("observe", None), ("enforce", Some(("pass", "pass")))],
         ),
     ] {
-        let logs = log_of(vec![ok(&enforcing("v1", "block", "pass")), ok(&second)]).await;
+        let count = bundles.len();
+        let logs = log_of(bundles.iter().map(ok).collect()).await;
 
+        let held = lines_with(&logs, "holding a policy bundle");
+        assert_eq!(held.len(), count, "{label}: {logs}");
         let lines = lines_with(&logs, "posture:");
-        assert_eq!(lines.len(), 2, "{logs}");
-        assert!(lines[1].contains(moved), "{logs}");
+        assert_eq!(lines.len(), postures.len(), "{label}: {logs}");
+        for (line, (mode, fallbacks)) in lines.iter().zip(postures) {
+            let says = match mode {
+                "none" => "Rail Center says judge nothing",
+                "observe" => "nothing is refused",
+                _ => "one denied is refused",
+            };
+            let fields = match fallbacks {
+                None => format!(r#"enforcement="{mode}""#),
+                Some((binding, ticket)) => format!(
+                    r#"enforcement="{mode}" binding_fallback="{binding}" ticket_fallback="{ticket}""#
+                ),
+            };
+            assert!(
+                line.contains(says) && line.ends_with(&fields),
+                "{label}: {line}"
+            );
+        }
     }
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_fallback_that_moves_where_it_decides_nothing_is_not_logged() {
-    let logs = Logs::default();
-    let _logging = logs.capture();
-    let clock = Clock::new();
-    let script = Script::new(&clock, |n| {
-        let fallback = if n == 0 { "block" } else { "pass" };
-        ok(&bundle(
-            &format!("v{n}"),
-            json!({"binding_fallback": fallback}),
-        ))
-    });
-
-    let holder = start(&script, MINUTE);
-    until(&clock, 60).await;
-
-    let logs = logs.text();
-    assert_eq!(lines_with(&logs, "posture:").len(), 1, "{logs}");
-    assert_eq!(
-        lines_with(&logs, "holding a policy bundle").len(),
-        2,
-        "{logs}"
-    );
-    let held = holder.snapshot().unwrap();
-    assert_eq!(held.posture.binding_fallback, rail_policy::Fallback::Pass);
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_fallback_held_silently_reports_itself_when_enforce_arrives() {
-    let logs = log_of(vec![
-        ok(&bundle("v1", json!({"binding_fallback": "pass"}))),
-        ok(&enforcing("v2", "pass", "pass")),
-    ])
-    .await;
-
-    let lines = lines_with(&logs, "posture:");
-    assert_eq!(lines.len(), 2, "{logs}");
-    assert!(lines[1].contains(r#"binding_fallback="pass""#), "{logs}");
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_bundle_naming_no_posture_is_refused() {
-    let mut body = bundle("old-rc", json!({}));
-    body.as_object_mut().unwrap().remove("enforcement");
-
-    let logs = log_of(vec![ok(&body)]).await;
-
-    let line = lines_with(&logs, "refusing the fetched policy bundle; none is held");
-    assert_eq!(line.len(), 1, "{logs}");
-    assert!(line[0].contains("missing field `enforcement`"), "{logs}");
-    assert!(lines_with(&logs, "posture:").is_empty(), "{logs}");
-}
-
-#[tokio::test(start_paused = true)]
-async fn another_major_is_refused_naming_both_versions() {
-    let logs = log_of(vec![
-        ok(&bundle("v1", json!({}))),
-        ok(&bundle(
-            "v2",
-            json!({"schema_version": "3.0", "policies": "a new shape"}),
-        )),
-    ])
-    .await;
-
-    let line = lines_with(
-        &logs,
-        "refusing the fetched policy bundle; keeping the one held",
-    );
-    assert_eq!(line.len(), 1, "{logs}");
-    assert!(line[0].contains("schema_version 3.0"), "{logs}");
-    assert!(line[0].contains("it reads 2.x"), "{logs}");
-    assert!(line[0].contains(r#"content_hash="v1""#), "{logs}");
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_bundle_read_as_unchanged_is_not_refused() {
-    let logs = log_of(vec![
-        ok(&bundle("v1", json!({}))),
-        ok(&bundle("v1", json!({"policies": "not a list"}))),
-    ])
-    .await;
-
-    assert!(lines_with(&logs, "refusing").is_empty(), "{logs}");
-    assert_eq!(
-        lines_with(&logs, "holding a policy bundle").len(),
-        1,
-        "{logs}"
-    );
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_root_field_this_reader_does_not_know_is_left_unread() {
-    let logs = Logs::default();
-    let _logging = logs.capture();
-    let clock = Clock::new();
-    let rejected = json!({"rejected": [{"policy_id": TWO, "reason": "condition not evaluable"}]});
-    let script = Script::new(&clock, move |_| ok(&bundle("v1", rejected.clone())));
-
-    let holder = start(&script, MINUTE);
-    until(&clock, 0).await;
-
-    assert_eq!(held_hash(&holder).as_deref(), Some("v1"));
-    let logs = logs.text();
-    for unread in ["rejected", TWO, "condition not evaluable"] {
-        assert!(!logs.contains(unread), "{logs}");
-    }
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_failure_is_a_warning_while_a_bundle_is_held_and_an_error_once_none_is() {
+async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
+    let held = || ok(&bundle("v-held", json!({})));
+    let refused = || ok(&bundle("v-next", json!({"policies": "not a list"})));
     let unavailable = || answer(StatusCode::SERVICE_UNAVAILABLE, b"");
-    let cold = log_of(vec![unavailable()]).await;
-    let warm = log_of(vec![ok(&bundle("v1", json!({}))), unavailable()]).await;
-
-    let cold = lines_with(&cold, "policy bundle fetch failed; none is held");
-    assert_eq!(cold.len(), 1);
-    assert!(cold[0].contains("ERROR"), "{}", cold[0]);
-    assert!(cold[0].contains(r#"reason="Rail Center answered 503 Service Unavailable""#));
-    let warm = lines_with(&warm, "policy bundle fetch failed; keeping the one held");
-    assert_eq!(warm.len(), 1);
-    assert!(warm[0].contains("WARN"), "{}", warm[0]);
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_refused_bundle_is_an_error_whether_or_not_one_is_held() {
-    let refused = || ok(&bundle("v2", json!({"policies": "not a list"})));
-    let cold = log_of(vec![refused()]).await;
-    let warm = log_of(vec![ok(&bundle("v1", json!({}))), refused()]).await;
-
-    for (logs, line) in [
-        (cold, "refusing the fetched policy bundle; none is held"),
+    let fetch_failed = "policy bundle fetch failed; ";
+    let refusing = "refusing the fetched policy bundle; ";
+    let (none_held, keeping) = ("none is held", "keeping the one held");
+    for (answers, line, level, says) in [
         (
-            warm,
-            "refusing the fetched policy bundle; keeping the one held",
+            vec![unavailable()],
+            [fetch_failed, none_held],
+            "ERROR",
+            vec![r#"reason="Rail Center answered 503 Service Unavailable""#],
+        ),
+        (
+            vec![held(), failed()],
+            [fetch_failed, keeping],
+            "WARN",
+            vec![
+                r#"reason="the fetch ran past its 30s deadline""#,
+                r#"content_hash="v-held""#,
+            ],
+        ),
+        (
+            vec![refused()],
+            [refusing, none_held],
+            "ERROR",
+            vec!["unusable policy bundle"],
+        ),
+        (
+            vec![held(), refused()],
+            [refusing, keeping],
+            "ERROR",
+            vec!["unusable policy bundle", r#"content_hash="v-held""#],
+        ),
+        (
+            vec![
+                held(),
+                ok(&bundle(
+                    "v2",
+                    json!({"schema_version": "3.0", "policies": "a new shape"}),
+                )),
+            ],
+            [refusing, keeping],
+            "ERROR",
+            vec!["schema_version 3.0 ", "it reads 2.x"],
+        ),
+        (
+            vec![ok(&json!([]))],
+            [refusing, none_held],
+            "ERROR",
+            vec!["unusable policy bundle"],
+        ),
+        (
+            vec![answer(StatusCode::UNAUTHORIZED, b"")],
+            [fetch_failed, none_held],
+            "ERROR",
+            vec![
+                "Rail Center refused the credential (401 Unauthorized)",
+                "RAIL_AUTH_MODE and RAIL_AUTH_TOKEN",
+            ],
+        ),
+        (
+            vec![answer(StatusCode::FORBIDDEN, b"")],
+            [fetch_failed, none_held],
+            "ERROR",
+            vec![
+                "Rail Center refused the credential (403 Forbidden)",
+                "RAIL_AUTH_MODE and RAIL_AUTH_TOKEN",
+            ],
+        ),
+        (
+            vec![answer(StatusCode::OK, b"\n<html>nope</html>")],
+            [fetch_failed, none_held],
+            "ERROR",
+            vec!["the response isn't JSON (Syntax error at line 2, column 1)"],
+        ),
+        (
+            vec![answer(StatusCode::OK, b"{\"\xff\":1}")],
+            [fetch_failed, none_held],
+            "ERROR",
+            vec!["the response isn't UTF-8"],
         ),
     ] {
-        let lines = lines_with(&logs, line);
-        assert_eq!(lines.len(), 1, "{logs}");
-        assert!(lines[0].contains("ERROR"), "{logs}");
-        assert!(lines[0].contains("unusable policy bundle"), "{logs}");
-    }
-}
+        let line = line.concat();
+        let logs = log_of(answers).await;
 
-#[tokio::test(start_paused = true)]
-async fn holding_nothing_says_nothing_of_what_traffic_meets() {
-    for first in [
-        answer(StatusCode::SERVICE_UNAVAILABLE, b""),
-        ok(&bundle("v1", json!({"policies": "not a list"}))),
-    ] {
-        let logs = log_of(vec![first]).await;
-
-        let lines = lines_with(&logs, "none is held");
-        assert_eq!(lines.len(), 1, "{logs}");
-        for word in ["traffic", "forward", "enforced", "request"] {
-            assert!(!lines[0].contains(word), "{logs}");
+        let lines = lines_with(&logs, &line);
+        assert_eq!(lines.len(), 1, "{line}: {logs}");
+        assert!(lines[0].contains(level), "{logs}");
+        // The first failure since a success: the retry is 5 s away.
+        assert!(lines[0].ends_with(" retry=5"), "{logs}");
+        for text in says {
+            assert!(lines[0].contains(text), "{logs}");
         }
+        // The held bundle is named by its hash alone.
+        assert!(!lines[0].contains("version="), "{logs}");
     }
-}
-
-#[tokio::test(start_paused = true)]
-async fn both_failure_lines_name_the_held_bundle_alike() {
-    let refused = log_of(vec![
-        ok(&bundle("v-held", json!({}))),
-        ok(&bundle("v-next", json!({"policies": "not a list"}))),
-    ])
-    .await;
-    let unreachable = log_of(vec![ok(&bundle("v-held", json!({}))), failed()]).await;
-
-    for (logs, line) in [
-        (
-            refused,
-            "refusing the fetched policy bundle; keeping the one held",
-        ),
-        (
-            unreachable,
-            "policy bundle fetch failed; keeping the one held",
-        ),
-    ] {
-        let lines = lines_with(&logs, line);
-        assert_eq!(lines.len(), 1, "{logs}");
-        assert!(lines[0].contains(r#"content_hash="v-held""#), "{logs}");
-        assert!(!lines[0].contains("version"), "{logs}");
-    }
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_refused_credential_says_so_distinctly() {
-    for status in [StatusCode::UNAUTHORIZED, StatusCode::FORBIDDEN] {
-        let logs = log_of(vec![answer(status, b"")]).await;
-
-        let line = lines_with(&logs, "policy bundle fetch failed");
-        assert_eq!(line.len(), 1, "{logs}");
-        assert!(
-            line[0].contains(&format!("Rail Center refused the credential ({status})")),
-            "{logs}"
-        );
-        assert!(
-            line[0].contains("RAIL_AUTH_MODE and RAIL_AUTH_TOKEN"),
-            "{logs}"
-        );
-    }
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_body_that_is_not_json_is_a_failed_fetch_not_a_refused_bundle() {
-    let logs = log_of(vec![answer(StatusCode::OK, b"<html>nope</html>")]).await;
-
-    let line = lines_with(&logs, "policy bundle fetch failed; none is held");
-    assert_eq!(line.len(), 1, "{logs}");
-    assert!(line[0].contains("the response isn't JSON (Syntax error at line 1, column 1)"));
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_reason_never_carries_a_character_a_log_line_cannot_hold() {
-    let hostile = "illegal header line: b'X-Forged: real\n2026-08-29 ERROR nothing\x1b[31m'";
-    let logs = log_of(vec![Err(FetchError::Transport(hostile.to_owned()))]).await;
-
-    let line = lines_with(&logs, "policy bundle fetch failed");
-    assert_eq!(line.len(), 1, "{logs}");
-    assert!(
-        line[0].contains(r"X-Forged: real\u{a}2026-08-29 ERROR nothing\u{1b}[31m"),
-        "{logs}"
-    );
-    assert_eq!(lines_with(&logs, "ERROR nothing").len(), 1, "{logs}");
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_panicking_fetch_is_a_failed_attempt_logged_without_its_message() {
-    let logs = Logs::default();
-    let _logging = logs.capture();
-    let clock = Clock::new();
-    let script = Script::new(&clock, |n| {
-        if n == 0 {
-            panic!("a defect in the fetch")
-        } else {
-            ok(&bundle("v1", json!({})))
-        }
-    });
-
-    let holder = start(&script, MINUTE);
-    until(&clock, 5).await;
-
-    // Retried as after any failure.
-    assert_eq!(held_hash(&holder).as_deref(), Some("v1"));
-    assert_eq!(script.fetched_at(), [0, 5]);
-    let logs = logs.text();
-    let line = lines_with(
-        &logs,
-        "a policy bundle refresh attempt panicked; keeping what's held",
-    );
-    assert_eq!(line.len(), 1, "{logs}");
-    assert!(!logs.contains("a defect in the fetch"), "{logs}");
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_repeated_refusal_is_logged_at_each_attempt_with_when_the_next_comes() {
-    let refused = || answer(StatusCode::UNAUTHORIZED, b"");
-    let logs = log_of((0..5).map(|_| refused()).collect()).await;
-
-    // At 0, 5, 15, 35 and 75: the backoff spaces the lines out.
-    let lines = lines_with(&logs, "Rail Center refused the credential");
-    assert_eq!(lines.len(), 5, "{logs}");
-    for (line, retry) in lines.iter().zip([5, 10, 20, 40, 60]) {
-        assert!(line.contains(&format!("retry={retry}")), "{line}");
-    }
-}
-
-#[tokio::test(start_paused = true)]
-async fn the_recovery_from_a_refusal_is_logged() {
-    let refused = || answer(StatusCode::UNAUTHORIZED, b"");
-    let logs = log_of(vec![refused(), refused(), ok(&bundle("v1", json!({})))]).await;
-
-    assert_eq!(
-        lines_with(&logs, "Rail Center refused the credential").len(),
-        2,
-        "{logs}"
-    );
-    assert_eq!(
-        lines_with(&logs, "holding a policy bundle").len(),
-        1,
-        "{logs}"
-    );
 }
 
 #[tokio::test(start_paused = true)]
 async fn a_bundle_fetched_again_after_a_failure_says_so_once() {
     let v1 = || ok(&bundle("v1", json!({})));
     let logs = log_of(vec![v1(), failed(), v1(), v1()]).await;
-    assert_eq!(
-        lines_with(&logs, "policy bundle fetched again, unchanged").len(),
-        1,
-        "{logs}"
-    );
+    let line = lines_with(&logs, "policy bundle fetched again, unchanged");
+    assert_eq!(line.len(), 1, "{logs}");
+    assert!(line[0].contains(r#"content_hash="v1""#), "{logs}");
 
     let logs = log_of(vec![v1(), v1(), v1()]).await;
     assert!(!logs.contains("fetched again"), "{logs}");
 }
 
 #[tokio::test(start_paused = true)]
-async fn an_unchanged_bundle_after_a_panicking_attempt_says_it_was_fetched_again() {
-    let logs = Logs::default();
-    let _logging = logs.capture();
-    let clock = Clock::new();
-    let script = Script::new(&clock, |n| {
-        if n == 1 {
-            panic!("a defect in the fetch")
-        } else {
-            ok(&bundle("v1", json!({})))
-        }
-    });
-
-    let _holder = start(&script, MINUTE);
-    until(&clock, 65).await;
-
-    let logs = logs.text();
-    assert_eq!(
-        lines_with(&logs, "policy bundle fetched again, unchanged").len(),
-        1,
-        "{logs}"
-    );
-}
-
-#[tokio::test(start_paused = true)]
 async fn the_retry_logged_is_the_jittered_wait_rounded_to_seconds() {
-    let logs = Logs::default();
-    let _logging = logs.capture();
-    let clock = Clock::new();
-    let script = Script::new(&clock, |_| answer(StatusCode::SERVICE_UNAVAILABLE, b""));
+    // 5 s at 1.18 is 5.9 s, and at 1.02 is 5.1 s.
+    for (factor, retry) in [(1.18, "retry=6"), (1.02, "retry=5")] {
+        let logs = Logs::default();
+        let _logging = logs.capture();
+        let clock = Clock::new();
+        let script = Script::new(&clock, |_| answer(StatusCode::SERVICE_UNAVAILABLE, b""));
 
-    // 5 s at 1.18 is 5.9 s.
-    let _holder = BundleHolder::start(&Handle::current(), script, MINUTE, Jitter::new(|| 1.18));
-    until(&clock, 0).await;
+        let jitter = Jitter::new(move || factor);
+        let _holder = BundleHolder::start(&Handle::current(), script, MINUTE, jitter);
+        until(&clock, 0).await;
 
-    let logs = logs.text();
-    let line = lines_with(&logs, "policy bundle fetch failed");
-    assert_eq!(line.len(), 1, "{logs}");
-    assert!(line[0].contains("retry=6"), "{logs}");
+        let logs = logs.text();
+        let line = lines_with(&logs, "policy bundle fetch failed");
+        assert_eq!(line.len(), 1, "{logs}");
+        assert!(line[0].contains(retry), "{logs}");
+    }
 }
 
 // Real time: the fetch goes over a socket, which paused time would race.

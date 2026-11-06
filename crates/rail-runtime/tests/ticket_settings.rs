@@ -74,7 +74,15 @@ fn the_refresh_interval_is_whole_seconds_from_5_to_a_day() {
             Duration::from_secs(seconds)
         );
     }
-    for refused in ["0", "4", "-1", "1.5", "1h", "86401", "18446744073709551615"] {
+    for refused in [
+        "0",
+        "4",
+        "-1",
+        "1.5",
+        "60s",
+        "86401",
+        "18446744073709551615",
+    ] {
         let mut pairs = NAMED.to_vec();
         pairs.push(("RAIL_TICKET_REFRESH_SECONDS", refused));
 

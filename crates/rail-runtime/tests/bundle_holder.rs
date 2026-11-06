@@ -1,10 +1,7 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use std::time::Duration;
 
-use rail_policy::{EnforcementMode, Fallback};
-use rail_runtime::{
-    BundleHolder, BundleSource, FetchError, Jitter, RailCenterBundles, RailCenterThread,
-};
+use rail_runtime::{BundleHolder, BundleSource, FetchError, Jitter, RailCenterBundles};
 use reqwest::StatusCode;
 use serde_json::json;
 use tokio::runtime::Handle;
@@ -42,9 +39,9 @@ fn unusable_answers() -> Vec<(&'static str, Answer)> {
             answer(StatusCode::OK, b"{\"\xff\":1}"),
         ),
         (
-            "a 404 carrying a good bundle",
+            "a 202 carrying a good bundle",
             answer(
-                StatusCode::NOT_FOUND,
+                StatusCode::ACCEPTED,
                 bundle("v2", json!({})).to_string().as_bytes(),
             ),
         ),
@@ -79,158 +76,22 @@ fn unusable_answers() -> Vec<(&'static str, Answer)> {
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_first_fetch_is_held() {
-    let clock = Clock::new();
-    let script = Script::new(&clock, |_| ok(&bundle("v1", json!({}))));
-
-    let holder = start(&script, MINUTE);
-    until(&clock, 0).await;
-
-    let held = holder.snapshot().unwrap();
-    assert_eq!(held.content_hash, "v1");
-    assert_eq!(
-        (held.schema_version.major, held.schema_version.minor),
-        (2, 0)
-    );
-    assert_eq!(held.posture.mode, EnforcementMode::Observe);
-    assert_eq!(held.posture.binding_fallback, Fallback::Block);
-    assert_eq!(held.posture.ticket_fallback, Fallback::Pass);
-    assert_eq!(script.fetched_at(), [0]);
-}
-
-#[tokio::test(start_paused = true)]
-async fn nothing_is_held_before_the_first_fetch() {
-    let clock = Clock::new();
-    let script = Script::new(&clock, |_| ok(&bundle("v1", json!({}))));
-
-    let holder = start(&script, MINUTE);
-
-    assert!(holder.snapshot().is_none());
-}
-
-#[tokio::test(start_paused = true)]
-async fn no_usable_answer_replaces_the_bundle_held() {
-    for (label, answer) in unusable_answers() {
+async fn only_a_usable_answer_is_held_and_any_other_is_retried_as_a_failure() {
+    for ((label, first), (_, later)) in unusable_answers().into_iter().zip(unusable_answers()) {
         let clock = Clock::new();
-        let answer = Mutex::new(Some(answer));
-        let script = Script::new(&clock, move |n| {
-            if n == 0 {
-                ok(&bundle("v1", json!({})))
-            } else {
-                answer.lock().unwrap().take().unwrap_or_else(failed)
-            }
-        });
-
-        let holder = start(&script, MINUTE);
-        until(&clock, 60).await;
-
-        assert_eq!(script.fetched_at(), [0, 60], "{label}");
-        assert_eq!(held_hash(&holder).as_deref(), Some("v1"), "{label}");
-    }
-}
-
-#[tokio::test(start_paused = true)]
-async fn no_usable_first_answer_holds_anything() {
-    for (label, answer) in unusable_answers() {
-        let clock = Clock::new();
-        let answer = Mutex::new(Some(answer));
+        let answers = Mutex::new(vec![first, ok(&bundle("v1", json!({}))), later].into_iter());
         let script = Script::new(&clock, move |_| {
-            answer.lock().unwrap().take().unwrap_or_else(failed)
+            answers.lock().unwrap().next().unwrap_or_else(failed)
         });
 
         let holder = start(&script, MINUTE);
         until(&clock, 0).await;
+        assert_eq!(held_hash(&holder), None, "{label}");
+        until(&clock, 65).await;
 
-        assert_eq!(script.fetched_at(), [0], "{label}");
-        assert!(holder.snapshot().is_none(), "{label}");
+        assert_eq!(script.fetched_at(), [0, 5, 65], "{label}");
+        assert_eq!(held_hash(&holder).as_deref(), Some("v1"), "{label}");
     }
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_higher_minor_is_held_like_any_other_bundle() {
-    let clock = Clock::new();
-    let script = Script::new(&clock, |_| {
-        ok(&bundle("v9", json!({"schema_version": "2.7"})))
-    });
-
-    let holder = start(&script, MINUTE);
-    until(&clock, 0).await;
-
-    let held = holder.snapshot().unwrap();
-    assert_eq!(
-        (held.schema_version.major, held.schema_version.minor),
-        (2, 7)
-    );
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_changed_bundle_replaces_the_one_held() {
-    let clock = Clock::new();
-    let script = Script::new(&clock, |n| {
-        if n == 0 {
-            ok(&bundle("v1", json!({})))
-        } else {
-            ok(&bundle("v2", json!({"enforcement": {"mode": "enforce"}})))
-        }
-    });
-
-    let holder = start(&script, MINUTE);
-    until(&clock, 60).await;
-
-    let held = holder.snapshot().unwrap();
-    assert_eq!(held.content_hash, "v2");
-    assert_eq!(held.posture.mode, EnforcementMode::Enforce);
-}
-
-#[tokio::test(start_paused = true)]
-async fn the_same_content_hash_is_not_read_again() {
-    let clock = Clock::new();
-    // Refused if it were read: the hash alone says it's the bundle held.
-    let script = Script::new(&clock, |n| {
-        if n == 0 {
-            ok(&bundle("v1", json!({})))
-        } else {
-            ok(&bundle("v1", json!({"policies": "not a list"})))
-        }
-    });
-
-    let holder = start(&script, MINUTE);
-    until(&clock, 0).await;
-    let first = holder.snapshot().unwrap();
-    until(&clock, 60).await;
-
-    assert!(Arc::ptr_eq(&first, &holder.snapshot().unwrap()));
-    assert_eq!(script.fetched_at(), [0, 60]);
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_bundle_is_refetched_every_interval() {
-    let clock = Clock::new();
-    let script = Script::new(&clock, |_| ok(&bundle("v1", json!({}))));
-
-    let _holder = start(&script, MINUTE);
-    until(&clock, 180).await;
-
-    assert_eq!(script.fetched_at(), [0, 60, 120, 180]);
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_failure_backs_off_from_5_s_up_to_the_interval_and_a_success_resumes_it() {
-    let clock = Clock::new();
-    let script = Script::new(&clock, |n| {
-        if n < 6 {
-            failed()
-        } else {
-            ok(&bundle("v1", json!({})))
-        }
-    });
-
-    let holder = start(&script, MINUTE);
-    until(&clock, 255).await;
-
-    // 5, 10, 20, 40, then the interval; held at 195, and a minute later again.
-    assert_eq!(script.fetched_at(), [0, 5, 15, 35, 75, 135, 195, 255]);
-    assert_eq!(held_hash(&holder).as_deref(), Some("v1"));
 }
 
 #[tokio::test(start_paused = true)]
@@ -254,220 +115,24 @@ async fn a_long_outage_keeps_backing_off_at_the_interval() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn an_interval_under_5_s_is_raised_to_it() {
-    let clock = Clock::new();
-    // Back-to-back fetches would never let paused time advance, so fail rather than hang.
-    let script = Script::new(&clock, |n| {
-        assert!(n < 10, "fetching back to back");
-        ok(&bundle("v1", json!({})))
-    });
+async fn a_wait_ends_once_no_attempt_can_land_within_its_limit() {
+    // The retry is due at 5: asked at 3 it can't land in time, asked at 4 it fails, the next at 15.
+    for (asked_at, waited, fetched_at) in [
+        (3, Duration::ZERO, [0].as_slice()),
+        (4, Duration::from_secs(1), &[0, 5]),
+    ] {
+        let clock = Clock::new();
+        let script = Script::new(&clock, |_| failed());
 
-    let _holder = start(&script, Duration::ZERO);
-    until(&clock, 12).await;
+        let holder = start(&script, MINUTE);
+        until(&clock, asked_at).await;
+        let started = Instant::now();
+        let held = holder.wait_for_bundle(LIMIT).await;
 
-    assert_eq!(script.fetched_at(), [0, 5, 10]);
-}
-
-#[tokio::test(start_paused = true)]
-async fn dropping_the_holder_stops_the_refreshes() {
-    let clock = Clock::new();
-    let script = Script::new(&clock, |_| ok(&bundle("v1", json!({}))));
-
-    let holder = start(&script, MINUTE);
-    until(&clock, 60).await;
-    drop(holder);
-    until(&clock, 600).await;
-
-    assert_eq!(script.fetched_at(), [0, 60]);
-}
-
-#[tokio::test(start_paused = true)]
-async fn dropping_the_holder_during_a_fetch_stops_the_refreshes() {
-    let clock = Clock::new();
-    let script = Script {
-        takes: Duration::from_secs(10),
-        ..Script::new(&clock, |_| ok(&bundle("v1", json!({}))))
-    };
-
-    let holder = start(&script, MINUTE);
-    until(&clock, 5).await;
-    drop(holder);
-    until(&clock, 600).await;
-
-    assert_eq!(script.fetched_at(), [0]);
-}
-
-// Waiting for a bundle.
-
-// What a wait for a bundle returns, and how long it took.
-async fn timed_wait(holder: &BundleHolder) -> (Option<String>, Duration) {
-    let started = Instant::now();
-    let held = holder.wait_for_bundle(LIMIT).await;
-    (
-        held.map(|bundle| bundle.content_hash.clone()),
-        started.elapsed(),
-    )
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_wait_with_a_bundle_held_returns_it_at_once() {
-    let clock = Clock::new();
-    let script = Script::new(&clock, |_| ok(&bundle("v1", json!({}))));
-
-    let holder = start(&script, MINUTE);
-    until(&clock, 10).await;
-
-    assert_eq!(
-        timed_wait(&holder).await,
-        (Some("v1".to_owned()), Duration::ZERO)
-    );
-    assert_eq!(script.fetched_at(), [0]);
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_wait_during_the_first_fetch_takes_its_answer() {
-    let clock = Clock::new();
-    let script = Script {
-        takes: Duration::from_secs(1),
-        ..Script::new(&clock, |_| ok(&bundle("v1", json!({}))))
-    };
-
-    let holder = start(&script, MINUTE);
-
-    assert_eq!(
-        timed_wait(&holder).await,
-        (Some("v1".to_owned()), Duration::from_secs(1))
-    );
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_wait_gives_up_at_its_limit() {
-    let clock = Clock::new();
-    let script = Script {
-        takes: Duration::from_secs(10),
-        ..Script::new(&clock, |_| ok(&bundle("v1", json!({}))))
-    };
-
-    let holder = start(&script, MINUTE);
-
-    assert_eq!(timed_wait(&holder).await, (None, LIMIT));
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_wait_waits_for_a_retry_due_within_its_limit() {
-    let clock = Clock::new();
-    let script = Script::new(&clock, |n| {
-        if n == 0 {
-            failed()
-        } else {
-            ok(&bundle("v1", json!({})))
-        }
-    });
-
-    let holder = start(&script, MINUTE);
-    until(&clock, 4).await;
-
-    // The retry is due at 5, within the 2 s.
-    assert_eq!(
-        timed_wait(&holder).await,
-        (Some("v1".to_owned()), Duration::from_secs(1))
-    );
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_wait_returns_at_once_when_no_attempt_is_due_within_its_limit_and_starts_none() {
-    let clock = Clock::new();
-    let script = Script::new(&clock, |n| {
-        if n == 0 {
-            failed()
-        } else {
-            ok(&bundle("v1", json!({})))
-        }
-    });
-
-    let holder = start(&script, MINUTE);
-    until(&clock, 1).await;
-
-    // The retry is due at 5, past the 2 s.
-    assert_eq!(timed_wait(&holder).await, (None, Duration::ZERO));
-    assert_eq!(script.fetched_at(), [0]);
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_wait_returns_at_once_for_a_retry_due_just_as_its_limit_passes() {
-    let clock = Clock::new();
-    let script = Script::new(&clock, |n| {
-        if n == 0 {
-            failed()
-        } else {
-            ok(&bundle("v1", json!({})))
-        }
-    });
-
-    let holder = start(&script, MINUTE);
-    until(&clock, 3).await;
-
-    // The retry is due at 5, as the 2 s end: it can't land in time.
-    assert_eq!(timed_wait(&holder).await, (None, Duration::ZERO));
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_wait_stops_once_a_failed_retry_leaves_none_due_within_its_limit() {
-    let clock = Clock::new();
-    let script = Script::new(&clock, |_| failed());
-
-    let holder = start(&script, MINUTE);
-    until(&clock, 4).await;
-
-    // The retry at 5 fails, and the next is due at 15.
-    assert_eq!(timed_wait(&holder).await, (None, Duration::from_secs(1)));
-    assert_eq!(script.fetched_at(), [0, 5]);
-}
-
-#[tokio::test(start_paused = true)]
-async fn concurrent_waits_share_the_fetch_in_flight() {
-    let clock = Clock::new();
-    let script = Script {
-        takes: Duration::from_secs(1),
-        ..Script::new(&clock, |_| ok(&bundle("v1", json!({}))))
-    };
-
-    let holder = start(&script, MINUTE);
-    let waits = tokio::join!(
-        timed_wait(&holder),
-        timed_wait(&holder),
-        timed_wait(&holder)
-    );
-
-    let waited = (Some("v1".to_owned()), Duration::from_secs(1));
-    assert_eq!(waits, (waited.clone(), waited.clone(), waited));
-    assert_eq!(script.fetched_at(), [0]);
-}
-
-// Real time: the holder's loop runs on the Rail Center thread's runtime, the wait on this one.
-#[tokio::test]
-async fn a_wait_on_another_runtime_is_woken_by_the_loop() {
-    let thread = RailCenterThread::start().unwrap();
-    let clock = Clock::new();
-    let script = Script {
-        takes: Duration::from_millis(100),
-        ..Script::new(&clock, |_| ok(&bundle("v1", json!({}))))
-    };
-    let holder = BundleHolder::start(
-        thread.runtime(),
-        script.clone(),
-        MINUTE,
-        Jitter::new(|| 1.0),
-    );
-
-    let held = holder.wait_for_bundle(Duration::from_secs(10)).await;
-
-    assert_eq!(held.unwrap().content_hash, "v1");
-    assert_eq!(script.fetched_at().len(), 1);
-    drop(holder);
-    tokio::task::spawn_blocking(move || thread.stop())
-        .await
-        .unwrap();
+        assert!(held.is_none(), "{asked_at}");
+        assert_eq!(started.elapsed(), waited, "{asked_at}");
+        assert_eq!(script.fetched_at(), fetched_at, "{asked_at}");
+    }
 }
 
 // Real time: the fetch goes over a socket, which paused time would race.

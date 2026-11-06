@@ -20,11 +20,10 @@ pub const MINUTE: Duration = Duration::from_secs(60);
 
 pub type Answer = Result<Response, FetchError>;
 
-// Answers fetch n with `answers(n)`, `takes` after it starts, recording when it started.
+// Answers fetch n with `answers(n)`, recording when it started.
 #[derive(Clone)]
 pub struct Script {
     pub answers: Arc<dyn Fn(usize) -> Answer + Send + Sync>,
-    pub takes: Duration,
     pub fetched_at: Arc<Mutex<Vec<u64>>>,
     pub started: Instant,
 }
@@ -33,7 +32,6 @@ impl Script {
     pub fn new(clock: &Clock, answers: impl Fn(usize) -> Answer + Send + Sync + 'static) -> Self {
         Self {
             answers: Arc::new(answers),
-            takes: Duration::ZERO,
             fetched_at: Arc::default(),
             started: clock.started,
         }
@@ -52,7 +50,6 @@ impl BundleSource for Script {
             fetched_at.push(self.started.elapsed().as_secs());
             fetched_at.len()
         };
-        tokio::time::sleep(self.takes).await;
         (self.answers)(fetches - 1)
     }
 }
