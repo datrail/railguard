@@ -1,6 +1,4 @@
 use std::io::Write as _;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use flate2::Compression;
@@ -250,10 +248,14 @@ async fn a_dribbling_body_runs_into_the_deadline() {
         max_bytes: 1 << 20,
     };
 
-    let error = client(&server.url)
-        .get("/v1/x", &[], limits)
-        .await
-        .unwrap_err();
+    // Bounded here too, so a deadline missing from the body fails the test rather than hanging it.
+    let error = tokio::time::timeout(
+        Duration::from_secs(5),
+        client(&server.url).get("/v1/x", &[], limits),
+    )
+    .await
+    .expect("the deadline ends the fetch")
+    .unwrap_err();
 
     assert!(matches!(error, FetchError::Deadline(_)), "{error:?}");
 }
@@ -273,12 +275,11 @@ async fn a_request_closed_unanswered_is_a_failure_not_retried() {
 
 #[tokio::test]
 async fn a_connection_is_reused_only_within_the_idle_timeout() {
-    let connections = Arc::new(AtomicUsize::new(0));
-    let opened = Arc::clone(&connections);
-    let ok = b"HTTP/1.1 200 OK\r\ncontent-length: 2\r\n\r\nok".to_vec();
-    let server = serve(move |_| {
-        opened.fetch_add(1, Ordering::SeqCst);
-        Reply::KeepAlive(ok.clone())
+    // Each connection answers with its number.
+    let server = serve(|connection| {
+        Reply::KeepAlive(
+            format!("HTTP/1.1 200 OK\r\ncontent-length: 1\r\n\r\n{connection}").into_bytes(),
+        )
     })
     .await;
     let settings = RailCenterSettings {
@@ -287,14 +288,15 @@ async fn a_connection_is_reused_only_within_the_idle_timeout() {
     };
     let client = RailCenterClient::new(&settings).unwrap();
 
+    let mut answered_on = Vec::new();
     for pause in [Duration::ZERO, Duration::ZERO, Duration::from_millis(600)] {
         tokio::time::sleep(pause).await;
         let fetched = client.get("/v1/x", &[], LIMITS).await.unwrap();
-        assert_eq!(fetched.body, b"ok");
+        answered_on.push(String::from_utf8(fetched.body).unwrap());
     }
 
     // The first two share a connection; the third, past the timeout, opens its own.
-    assert_eq!(connections.load(Ordering::SeqCst), 2);
+    assert_eq!(answered_on, ["0", "0", "1"]);
 }
 
 #[tokio::test]

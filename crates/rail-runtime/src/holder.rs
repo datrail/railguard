@@ -30,7 +30,7 @@ pub(crate) trait Kind: Send + Sync + 'static {
 
     fn fetch(&self) -> impl Future<Output = Self::Answer> + Send;
 
-    /// What `answer` does to `held`. A panic here, or in `fetch`, is a failed attempt.
+    /// What `answer` does to `held`. A panic here, or polling `fetch`, is a failed attempt.
     fn step(&self, held: &Self::Held, answer: Self::Answer) -> Step<Self::Held, Self::Outcome>;
 
     /// A cap on the wait before the next attempt, from what's held, after a panic too.
