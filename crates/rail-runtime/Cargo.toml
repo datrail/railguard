@@ -18,6 +18,8 @@ path = "tests/captured_logs.rs"
 
 [dependencies]
 arc-swap = "1"
+# The key type rail-policy's SignedTicketConfig holds, so its major version.
+ed25519-dalek = { version = "3", default-features = false }
 flate2 = "1"
 rail-policy = { path = "../rail-policy" }
 # No system proxy, no platform verifier, no decoding: the roots are compiled in, the provider is

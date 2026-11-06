@@ -6,6 +6,8 @@ mod clock;
 mod common;
 mod config;
 mod holder;
+mod key_set;
+mod keys;
 mod protected_hosts;
 mod rail_center;
 mod ticket;

@@ -120,13 +120,14 @@ impl Jitter {
 #[derive(Clone, Copy)]
 enum Progress {
     InFlight,
-    NextAt(Instant),
+    // `started`: when the attempt that just ended began.
+    NextAt { next: Instant, started: Instant },
 }
 
 /// A value fetched and refreshed on `runtime`; dropping it stops the refreshes.
 pub(crate) struct Holder<T> {
     held: Arc<ArcSwap<T>>,
-    progress: watch::Receiver<Progress>,
+    progress: Arc<watch::Sender<Progress>>,
     refresh: AbortHandle,
 }
 
@@ -140,9 +141,15 @@ impl<T: Send + Sync + 'static> Holder<T> {
         jitter: Jitter,
     ) -> Self {
         let held = Arc::new(ArcSwap::from_pointee(initial));
-        let (publish, progress) = watch::channel(Progress::InFlight);
+        let progress = Arc::new(watch::channel(Progress::InFlight).0);
         let refresh = runtime
-            .spawn(run(kind, Arc::clone(&held), publish, schedule, jitter))
+            .spawn(run(
+                kind,
+                Arc::clone(&held),
+                Arc::clone(&progress),
+                schedule,
+                jitter,
+            ))
             .abort_handle();
         Self {
             held,
@@ -160,14 +167,14 @@ impl<T: Send + Sync + 'static> Holder<T> {
     /// flight or due before then. It never starts a fetch, and is awaited on the caller's runtime.
     pub(crate) async fn wait_until(&self, holds: impl Fn(&T) -> bool, limit: Duration) -> Arc<T> {
         let deadline = Instant::now() + limit;
-        let mut progress = self.progress.clone();
+        let mut progress = self.progress.subscribe();
         loop {
             // Before what's held: the loop stores a value before it says the attempt ended.
             let at = *progress.borrow_and_update();
             let held = self.snapshot();
             let attempt_due = match at {
                 Progress::InFlight => true,
-                Progress::NextAt(next) => next < deadline,
+                Progress::NextAt { next, .. } => next < deadline,
             };
             if holds(&held) || !attempt_due {
                 return held;
@@ -181,6 +188,20 @@ impl<T: Send + Sync + 'static> Holder<T> {
             }
         }
     }
+
+    /// Brings the next attempt forward to now, unless one is in flight or the last started within
+    /// `spacing`, the backoff notwithstanding. A reader then waits for it with `wait_until`.
+    pub(crate) fn refetch_now(&self, spacing: Duration) {
+        let now = Instant::now();
+        // Read and changed under the watch's lock, so concurrent callers bring one attempt.
+        self.progress.send_if_modified(|progress| match progress {
+            Progress::NextAt { next, started } if *next > now && now - *started >= spacing => {
+                *next = now;
+                true
+            }
+            _ => false,
+        });
+    }
 }
 
 impl<T> Drop for Holder<T> {
@@ -193,10 +214,11 @@ impl<T> Drop for Holder<T> {
 async fn run<K: Kind>(
     kind: K,
     held: Arc<ArcSwap<K::Held>>,
-    publish: watch::Sender<Progress>,
+    publish: Arc<watch::Sender<Progress>>,
     schedule: Schedule,
     jitter: Jitter,
 ) {
+    let mut progress = publish.subscribe();
     // Failed attempts since the last success.
     let mut failures: u32 = 0;
     loop {
@@ -243,8 +265,23 @@ async fn run<K: Kind>(
             }
             wait
         };
-        publish.send_replace(Progress::NextAt(Instant::now() + wait));
-        tokio::time::sleep(wait).await;
+        publish.send_replace(Progress::NextAt {
+            next: Instant::now() + wait,
+            started,
+        });
+        sleep_until_due(&mut progress).await;
+    }
+}
+
+// Until the next attempt is due, which `refetch_now` may bring forward.
+async fn sleep_until_due(progress: &mut watch::Receiver<Progress>) {
+    loop {
+        let Progress::NextAt { next, .. } = *progress.borrow_and_update() else {
+            return;
+        };
+        if timeout_at(next, progress.changed()).await.is_err() {
+            return;
+        }
     }
 }
 

@@ -1029,6 +1029,7 @@ name = "rail-runtime"
 version = "0.0.0"
 dependencies = [
  "arc-swap",
+ "ed25519-dalek",
  "flate2",
  "rail-policy",
  "reqwest",
