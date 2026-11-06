@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
-use rail_policy::{Decision, Endpoint, FallbackDenial, Outcome, TicketState};
+use rail_policy::{Decision, Endpoint, FallbackDenial, Outcome, TicketState, sanitize};
 use reqwest::StatusCode;
 use serde::Serialize;
 use time::OffsetDateTime;
@@ -34,9 +34,6 @@ const MAX_IN_FLIGHT: usize = 64;
 // A fallback denial needs nothing from the caller, so its reports can't take the whole budget
 // from those naming a policy.
 const MAX_IN_FLIGHT_NAMING_NO_POLICY: usize = 16;
-
-// The caller's text, stored by Rail Center unbounded: a status is a few words, past this a payload.
-const MAX_CLAIMED_STATUS_CHARS: usize = 255;
 
 /// Where reports go: Rail Center, or a test's script.
 pub trait DenialSink: Send + Sync + 'static {
@@ -119,18 +116,28 @@ struct Metadata {
     fallback: Option<FallbackDenial>,
 }
 
-// The sink's `send`, its type erased so the reporter isn't generic.
-type Post = Arc<
-    dyn Fn(Vec<u8>) -> Pin<Box<dyn Future<Output = Result<Response, FetchError>> + Send>>
-        + Send
-        + Sync,
->;
+// A sink with its future boxed, so the reporter holds any sink without being generic.
+trait ErasedSink: Send + Sync {
+    fn send(
+        &self,
+        body: Vec<u8>,
+    ) -> Pin<Box<dyn Future<Output = Result<Response, FetchError>> + Send + '_>>;
+}
+
+impl<S: DenialSink> ErasedSink for S {
+    fn send(
+        &self,
+        body: Vec<u8>,
+    ) -> Pin<Box<dyn Future<Output = Result<Response, FetchError>> + Send + '_>> {
+        Box::pin(DenialSink::send(self, body))
+    }
+}
 
 /// Sends each denial report on its own task, at most 64 at once and 16 of them naming no policy;
 /// a report past either cap is dropped and counted. Rail Center gets one attempt at each.
 pub struct DenialReporter {
     runtime: Handle,
-    post: Post,
+    sink: Arc<dyn ErasedSink>,
     now: WallClock,
     in_flight: Arc<Semaphore>,
     in_flight_naming_no_policy: Arc<Semaphore>,
@@ -140,14 +147,9 @@ pub struct DenialReporter {
 impl DenialReporter {
     /// Reports go to `sink` on `runtime`, each stamped by `now`.
     pub fn new(runtime: &Handle, sink: impl DenialSink, now: WallClock) -> Self {
-        let sink = Arc::new(sink);
-        let post: Post = Arc::new(move |body| {
-            let sink = Arc::clone(&sink);
-            Box::pin(async move { sink.send(body).await })
-        });
         Self {
             runtime: runtime.clone(),
-            post,
+            sink: Arc::new(sink),
             now,
             in_flight: Arc::new(Semaphore::new(MAX_IN_FLIGHT)),
             in_flight_naming_no_policy: Arc::new(Semaphore::new(MAX_IN_FLIGHT_NAMING_NO_POLICY)),
@@ -170,11 +172,11 @@ impl DenialReporter {
             return self.drop_report(denial);
         };
         let body = build_report(denial, (self.now)());
-        let post = Arc::clone(&self.post);
+        let sink = Arc::clone(&self.sink);
         let (policy, fallback, endpoint_key) = log_fields(denial);
         let endpoint_key = endpoint_key.map(str::to_owned);
         self.runtime.spawn(async move {
-            match read_status(post(body).await, StatusCode::ACCEPTED) {
+            match read_status(sink.send(body).await, StatusCode::ACCEPTED) {
                 Ok(_) => tracing::debug!(
                     policy = policy.map(tracing::field::display),
                     fallback,
@@ -246,7 +248,8 @@ fn build_report(denial: &Denial, now: std::time::SystemTime) -> Vec<u8> {
             ticket_state: ticket_state(denial.ticket),
             claimed_status: denial
                 .claimed_status
-                .map(|claimed| claimed.chars().take(MAX_CLAIMED_STATUS_CHARS).collect()),
+                // The caller's text, which Rail Center stores unbounded and shows on its dashboard.
+                .map(|claimed| sanitize(claimed).to_string()),
             fallback,
         },
     };

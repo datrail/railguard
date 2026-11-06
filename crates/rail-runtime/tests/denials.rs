@@ -149,11 +149,15 @@ async fn a_ticket_id_is_sent_canonical_and_only_when_it_reads_as_a_uuid() {
 }
 
 #[tokio::test]
-async fn a_claimed_status_is_reported_apart_cut_at_255_characters() {
+async fn a_claimed_status_is_reported_apart_made_safe_to_show() {
     let long = "é".repeat(300);
     for (claimed, reported) in [
         ("not-found", "not-found".to_owned()),
-        (long.as_str(), "é".repeat(255)),
+        (
+            "not-found\n2026 WARN forged",
+            r"not-found\u{a}2026 WARN forged".to_owned(),
+        ),
+        (long.as_str(), format!("{}…", "é".repeat(255))),
     ] {
         let endpoint = resolved();
         let report = report_of(Denial {
