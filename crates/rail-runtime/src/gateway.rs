@@ -66,23 +66,23 @@ impl Answer {
 
 /// One call's judgement, with everything it reads: gathered where the call arrives, run where
 /// the work can take its time.
-pub struct Unit<'a, B> {
-    pub call: &'a Call<B>,
+pub(crate) struct Unit<'a, B> {
+    pub(crate) call: &'a Call<B>,
     /// The call's `x-rail`, decoded once where it arrived.
-    pub ticket: DecodedTicket,
-    pub bundle: &'a HeldBundle,
+    pub(crate) ticket: DecodedTicket,
+    pub(crate) bundle: &'a HeldBundle,
     /// Verifies a signed ticket, with the bundle's issuer and audience. None held reads
     /// `bad_signature`.
-    pub keys: Option<&'a KeySet>,
-    pub now_epoch_seconds: i64,
-    pub settings: UnitSettings,
+    pub(crate) keys: Option<&'a KeySet>,
+    pub(crate) now_epoch_seconds: i64,
+    pub(crate) settings: UnitSettings,
     /// Set once nobody waits for the answer: the judgement ends at its next step, reporting nothing.
-    pub stop: Arc<AtomicBool>,
+    pub(crate) stop: Arc<AtomicBool>,
 }
 
 /// Judges `unit`'s call against its bundle. A denial acted on goes to `report`, which mustn't
 /// wait.
-pub fn judge_call<B: AsRef<[u8]>>(unit: Unit<B>, report: &dyn Fn(&Denial)) -> Answer {
+pub(crate) fn judge_call<B: AsRef<[u8]>>(unit: Unit<B>, report: &dyn Fn(&Denial)) -> Answer {
     let Unit {
         call,
         ticket,
@@ -99,6 +99,9 @@ pub fn judge_call<B: AsRef<[u8]>>(unit: Unit<B>, report: &dyn Fn(&Denial)) -> An
         }
         Resolution::Judged(endpoint) => endpoint,
     };
+    if stop.load(Ordering::Relaxed) {
+        return Answer::Forward;
+    }
     let named = name(&endpoint);
     let Some(mode) = bundle.posture.mode.judging_mode() else {
         tracing::info!(endpoint = named, "forwarded unjudged, at enforcement none");
@@ -122,8 +125,8 @@ pub fn judge_call<B: AsRef<[u8]>>(unit: Unit<B>, report: &dyn Fn(&Denial)) -> An
     };
     let mut budget = Budget::new(settings.step_limit).stopped_by(Arc::clone(&stop));
     let outcome = judge(&bundle.compiled, &environment, mode, &mut budget);
-    // Its answer was given without it, so what it concluded is neither acted on nor logged.
-    if stop.load(Ordering::Relaxed) {
+    // Claims the answer, unless it was given without this judgement: then nothing is acted on.
+    if stop.swap(true, Ordering::AcqRel) {
         return Answer::Forward;
     }
     log_outcome(&outcome, mode, named, ticket_state(&ticket));
@@ -147,7 +150,7 @@ pub fn judge_call<B: AsRef<[u8]>>(unit: Unit<B>, report: &dyn Fn(&Denial)) -> An
 
 /// The call's `x-rail`, decoded: none is absent, and two are undecodable, since hosts collapse
 /// repeated headers differently.
-pub fn decode_x_rail<B>(call: &Call<B>) -> DecodedTicket {
+pub(crate) fn decode_x_rail<B>(call: &Call<B>) -> DecodedTicket {
     let mut values = values(call, XRAIL);
     match (values.next(), values.next()) {
         (None, _) => DecodedTicket::Read(TicketState::Absent),

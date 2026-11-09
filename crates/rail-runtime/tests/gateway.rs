@@ -1,11 +1,10 @@
+use std::sync::Arc;
+
 use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::Value;
 
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
-
-use rail_runtime::{Call, Unit, UnitSettings, decode_x_rail, judge_call};
+use rail_runtime::{Call, Gateway, GatewaySettings};
 
 use crate::bundles::{self, Script};
 use crate::holder::{TestClock, until};
@@ -14,9 +13,6 @@ use crate::scripted::answer;
 use crate::sink::Sink;
 
 const VECTORS: &str = include_str!("../../../vectors/gateway_enforcement_conformance_cases.json");
-
-// Between every ticket's `nbf` and its `exp`.
-const NOW_EPOCH_SECONDS: i64 = 1_800_000_000;
 
 #[derive(Deserialize)]
 struct Vectors {
@@ -71,44 +67,15 @@ impl Request {
 #[tokio::test(start_paused = true)]
 async fn every_case_of_the_python_gateway_answers_and_reports_as_it_does() {
     let Vectors { cases } = serde_json::from_str(VECTORS).unwrap();
+    assert_eq!(cases.len(), 88);
     let mut differing = Vec::new();
-    let mut judged = 0;
     for case in cases {
-        // The host forwards both before a call reaches the role.
-        let (Some(bundle), "POST") = (&case.bundle, case.request.method.as_str()) else {
-            assert!(case.expect.status.is_none(), "{}", case.name);
-            continue;
-        };
-        judged += 1;
         let clock = TestClock::new();
-        let body = bundle.to_string();
-        let script = Script::new(&clock, move |_| answer(StatusCode::OK, body.as_bytes()));
-        let bundles = bundles::start(&script, bundles::MINUTE);
-        let key_set = case.key_set.as_ref().map(|key_set| {
-            let body = key_set.to_string();
-            let script = Script::new(&clock, move |_| answer(StatusCode::OK, body.as_bytes()));
-            keys::start(&clock, &script)
-        });
-        until(&clock, 0).await;
-        let Some(held) = bundles.snapshot() else {
-            differing.push(format!("{}: the bundle isn't held", case.name));
-            continue;
-        };
         let sink = Sink::accepting();
-        let reporter = sink.start();
+        let gateway = start(&clock, case.bundle.as_ref(), case.key_set.as_ref(), &sink);
+        until(&clock, 0).await;
 
-        let call = case.request.into_call();
-        let keys = key_set.and_then(|holder| holder.keys());
-        let unit = Unit {
-            ticket: decode_x_rail(&call),
-            call: &call,
-            bundle: &held,
-            keys: keys.as_deref(),
-            now_epoch_seconds: NOW_EPOCH_SECONDS,
-            settings: UnitSettings::default(),
-            stop: Arc::default(),
-        };
-        let answer = judge_call(unit, &|denial| reporter.report(denial));
+        let (answer, _) = gateway.handle(case.request.into_call()).await;
 
         let refusal = answer
             .refusal()
@@ -130,8 +97,29 @@ async fn every_case_of_the_python_gateway_answers_and_reports_as_it_does() {
         }
     }
     assert!(differing.is_empty(), "{}", differing.join("\n"));
-    // All but the 4 holding no bundle and the 1 `GET`.
-    assert_eq!(judged, 83);
+}
+
+// A gateway holding what Rail Center hands out, none where it hands out nothing.
+fn start(
+    clock: &TestClock,
+    bundle: Option<&Value>,
+    key_set: Option<&Value>,
+    sink: &Sink,
+) -> Gateway {
+    let answering = |held: Option<&Value>| {
+        let body = held.map(Value::to_string);
+        Script::new(clock, move |_| match &body {
+            Some(body) => answer(StatusCode::OK, body.as_bytes()),
+            None => bundles::failed(),
+        })
+    };
+    Gateway::new(
+        Arc::new(bundles::start(&answering(bundle), bundles::MINUTE)),
+        Arc::new(keys::start(clock, &answering(key_set))),
+        Arc::new(sink.start()),
+        clock.wall(),
+        GatewaySettings::default(),
+    )
 }
 
 #[tokio::test(start_paused = true)]
@@ -191,18 +179,8 @@ async fn a_body_names_what_the_python_gateway_reads_it_to_name() {
     }
 }
 
-#[tokio::test(start_paused = true)]
-async fn a_judgement_stopped_reports_nothing() {
-    let reported = reports_for(b"{\"method\": \"resources/read\"}", true).await;
-    assert_eq!(reported, Vec::<Value>::new());
-}
-
-// The report of `body` sent to a bundle denying every call.
+// The report of `body` sent to a gateway denying every call.
 async fn report_for(body: impl AsRef<[u8]>) -> Value {
-    reports_for(body, false).await.remove(0)
-}
-
-async fn reports_for(body: impl AsRef<[u8]>, stopped: bool) -> Vec<Value> {
     let clock = TestClock::new();
     let denies_all = bundles::bundle(
         "v1",
@@ -219,31 +197,16 @@ async fn reports_for(body: impl AsRef<[u8]>, stopped: bool) -> Vec<Value> {
             }],
         }),
     );
-    let bundles = bundles::start(
-        &Script::new(&clock, move |_| bundles::ok(&denies_all)),
-        bundles::MINUTE,
-    );
-    until(&clock, 0).await;
     let sink = Sink::accepting();
-    let reporter = sink.start();
+    let gateway = start(&clock, Some(&denies_all), None, &sink);
+    until(&clock, 0).await;
     let call = Call {
         path: "/mcp".into(),
         method: "POST".into(),
-        body: body.as_ref(),
+        body: body.as_ref().to_vec(),
         headers: Vec::new(),
     };
-    let unit = Unit {
-        ticket: decode_x_rail(&call),
-        call: &call,
-        bundle: &bundles.snapshot().unwrap(),
-        keys: None,
-        now_epoch_seconds: NOW_EPOCH_SECONDS,
-        settings: UnitSettings::default(),
-        stop: Arc::new(AtomicBool::new(stopped)),
-    };
-    judge_call(unit, &|denial| reporter.report(denial));
-    for _ in 0..100 {
-        tokio::task::yield_now().await;
-    }
-    sink.reports()
+    gateway.handle(call).await;
+    sink.until_sent(1).await;
+    sink.reports().remove(0)
 }

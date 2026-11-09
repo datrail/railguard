@@ -27,7 +27,7 @@ pub use config::{
     ConfigErrors, EXIT_CODE, Entry, Level, Refused, Secret, Settings, Source, Startup, Variables,
 };
 pub use denial::{Denial, DenialReporter, DenialSink, DeniedBy, RailCenterDenials};
-pub use gateway::{Answer, Call, Unit, UnitSettings, decode_x_rail, judge_call};
+pub use gateway::{Answer, Call, UnitSettings};
 pub use gateway_call::{Gateway, GatewaySettings};
 pub use holder::Jitter;
 pub use key_set::{KeySet, KeySetHolder, KeySource, RailCenterKeys};

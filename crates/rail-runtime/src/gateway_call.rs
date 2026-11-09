@@ -79,7 +79,10 @@ impl Gateway {
         if call.method != "POST" {
             return (Answer::Forward, call);
         }
-        let deadline = Instant::now() + self.settings.deadline;
+        let now = Instant::now();
+        let deadline = now
+            .checked_add(self.settings.deadline)
+            .unwrap_or(now + MAX_DEADLINE);
         let within =
             |limit: Duration| limit.min(deadline.saturating_duration_since(Instant::now()));
         let Some(bundle) = self.bundles.wait_for_bundle(within(MAX_WAIT)).await else {
@@ -99,13 +102,15 @@ impl Gateway {
             tracing::error!(?answer, "{why}; the call went unjudged");
             answer
         };
-        let Ok(place) = timeout_at(deadline, Arc::clone(&self.places).acquire_owned()).await else {
+        let Ok(Ok(place)) = timeout_at(deadline, Arc::clone(&self.places).acquire_owned()).await
+        else {
             return (unjudged("its deadline passed waiting to be judged"), call);
         };
         let call = Arc::new(call);
         let stop = Arc::new(AtomicBool::new(false));
+        let _stop_if_dropped = StopOnDrop(Arc::clone(&stop));
         let now_epoch_seconds = epoch_seconds((self.now)());
-        let worker = {
+        let mut worker = {
             let (call, bundle, stop) = (Arc::clone(&call), Arc::clone(&bundle), Arc::clone(&stop));
             let (reporter, settings) = (Arc::clone(&self.reporter), self.settings.unit);
             spawn_blocking(move || {
@@ -122,18 +127,38 @@ impl Gateway {
                 judge_call(unit, &|denial| reporter.report(denial))
             })
         };
-        let answer = match timeout_at(deadline, worker).await {
-            Ok(Ok(answer)) => answer,
-            // Not the panic's message, which may quote the call.
-            Ok(Err(_)) => unjudged("judging it panicked"),
+        let finished = match timeout_at(deadline, &mut worker).await {
+            Ok(finished) => finished,
+            // Unless the worker claimed the answer first, with only its report left to make.
+            Err(_) if stop.swap(true, Ordering::AcqRel) => worker.await,
             Err(_) => {
-                stop.store(true, Ordering::Relaxed);
-                unjudged("its deadline passed while it was judged")
+                return (
+                    unjudged("its deadline passed while it was judged"),
+                    unwrap(call),
+                );
             }
         };
-        // Copied only where the deadline passed, with a worker still reading it.
-        (answer, Arc::unwrap_or_clone(call))
+        // Not a panic's message, which may quote the call.
+        let answer = finished.unwrap_or_else(|_| unjudged("judging it panicked"));
+        (answer, unwrap(call))
     }
+}
+
+// The deadline a setting past any `Instant` stands for.
+const MAX_DEADLINE: Duration = Duration::from_secs(86_400);
+
+// Stops the judgement once the call is answered or dropped: nobody waits for it then.
+struct StopOnDrop(Arc<AtomicBool>);
+
+impl Drop for StopOnDrop {
+    fn drop(&mut self) {
+        self.0.store(true, Ordering::Relaxed);
+    }
+}
+
+// Copied only where the deadline passed, with a worker still reading it.
+fn unwrap<B: Clone>(call: Arc<Call<B>>) -> Call<B> {
+    Arc::unwrap_or_clone(call)
 }
 
 // A signed ticket can only be accepted from a bundle naming the tenant's issuer and audience.
