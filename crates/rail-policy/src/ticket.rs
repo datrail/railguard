@@ -52,35 +52,85 @@ pub struct SignedTicketConfig<'a> {
     pub audience: Option<&'a str>,
 }
 
-/// Reads either kind of ticket. A `.` is outside both base64 alphabets, so only a signed ticket
-/// holds one. The caller handles the header as for `parse_base64_ticket`.
+/// An `x-rail` value decoded, its signature and claims not yet checked: owned, so it can travel
+/// with a call to wherever it's judged. No `Debug`, which would print the ticket.
+pub enum DecodedTicket {
+    /// Unsigned, its payload read: only its expiry is left to check.
+    Unsigned {
+        claims: Map<String, Value>,
+        exp_epoch_seconds: i64,
+    },
+    /// Signed, its parts decoded and its header checked.
+    Signed(SignedTicket),
+    /// Already what it reads as.
+    Read(TicketState),
+}
+
+/// A signed ticket's parts, decoded, its signature not yet checked.
+pub struct SignedTicket {
+    /// The first two parts exactly as received, which the signature covers.
+    signed: String,
+    kid: Option<String>,
+    payload: Vec<u8>,
+    signature: Vec<u8>,
+}
+
+/// Decodes either kind of ticket. A `.` is outside both base64 alphabets, so only a signed
+/// ticket holds one. The caller reads a missing header as `Absent`, and a repeated one as
+/// `Undecodable`.
+pub fn decode_ticket(value: &str) -> DecodedTicket {
+    if value.contains('.') {
+        return decode_signed(value);
+    }
+    match decode_unsigned(value) {
+        Ok((claims, exp_epoch_seconds)) => DecodedTicket::Unsigned {
+            claims,
+            exp_epoch_seconds,
+        },
+        Err(state) => DecodedTicket::Read(state),
+    }
+}
+
+impl DecodedTicket {
+    /// The key a signed ticket names, if it names one as a string.
+    pub fn kid(&self) -> Option<&str> {
+        match self {
+            Self::Signed(ticket) => ticket.kid.as_deref(),
+            Self::Unsigned { .. } | Self::Read(_) => None,
+        }
+    }
+
+    /// The checks left: for a signed ticket the signature, then its claims; the first failure wins.
+    pub fn verify(self, config: &SignedTicketConfig, now_epoch_seconds: i64) -> TicketState {
+        match self {
+            Self::Unsigned {
+                claims,
+                exp_epoch_seconds,
+            } => check_expiry(claims, exp_epoch_seconds, now_epoch_seconds),
+            Self::Signed(ticket) => ticket.verify(config, now_epoch_seconds),
+            Self::Read(state) => state,
+        }
+    }
+}
+
+/// Reads either kind of ticket: `decode_ticket`, then `verify`.
 pub fn parse_ticket(
     value: &str,
     config: &SignedTicketConfig,
     now_epoch_seconds: i64,
 ) -> TicketState {
-    if value.contains('.') {
-        return parse_jwt_ticket(value, config, now_epoch_seconds);
-    }
-    parse_base64_ticket(value, now_epoch_seconds)
+    decode_ticket(value).verify(config, now_epoch_seconds)
 }
 
 /// Reads an unsigned ticket. The caller reads a missing header as `Absent`, and a repeated one
 /// as `Undecodable`.
 pub fn parse_base64_ticket(value: &str, now_epoch_seconds: i64) -> TicketState {
-    if value.is_empty() {
-        return TicketState::Absent;
+    match decode_unsigned(value) {
+        Ok((claims, exp_epoch_seconds)) => {
+            check_expiry(claims, exp_epoch_seconds, now_epoch_seconds)
+        }
+        Err(state) => state,
     }
-    let Some(payload) = decode_base64(value).and_then(|bytes| read_json(&bytes)) else {
-        return TicketState::Undecodable;
-    };
-    let Value::Object(claims) = payload else {
-        return TicketState::Malformed;
-    };
-    let Some(exp_epoch_seconds) = claims.get("exp").and_then(read_seconds) else {
-        return TicketState::Malformed;
-    };
-    check_expiry(claims, exp_epoch_seconds, now_epoch_seconds)
 }
 
 /// Reads a signed ticket: first failure wins, and nothing in the payload is read until the
@@ -90,15 +140,36 @@ pub fn parse_jwt_ticket(
     config: &SignedTicketConfig,
     now_epoch_seconds: i64,
 ) -> TicketState {
+    decode_signed(value).verify(config, now_epoch_seconds)
+}
+
+fn decode_unsigned(value: &str) -> Result<(Map<String, Value>, i64), TicketState> {
     if value.is_empty() {
-        return TicketState::Absent;
+        return Err(TicketState::Absent);
+    }
+    let Some(payload) = decode_base64(value).and_then(|bytes| read_json(&bytes)) else {
+        return Err(TicketState::Undecodable);
+    };
+    let Value::Object(claims) = payload else {
+        return Err(TicketState::Malformed);
+    };
+    let Some(exp_epoch_seconds) = claims.get("exp").and_then(read_seconds) else {
+        return Err(TicketState::Malformed);
+    };
+    Ok((claims, exp_epoch_seconds))
+}
+
+fn decode_signed(value: &str) -> DecodedTicket {
+    let read = DecodedTicket::Read;
+    if value.is_empty() {
+        return read(TicketState::Absent);
     }
     let parts: Vec<&str> = value.split('.').collect();
     let [header, payload, signature] = parts[..] else {
-        return TicketState::Undecodable;
+        return read(TicketState::Undecodable);
     };
     if parts.contains(&"") {
-        return TicketState::Undecodable;
+        return read(TicketState::Undecodable);
     }
     // The signature covers the first two parts exactly as received.
     let signed = &value[..value.len() - signature.len() - 1];
@@ -107,54 +178,68 @@ pub fn parse_jwt_ticket(
         decode_base64(payload),
         decode_base64(signature),
     ) else {
-        return TicketState::Undecodable;
+        return read(TicketState::Undecodable);
     };
     let Some(header @ Value::Object(_)) = read_json(&header) else {
-        return TicketState::Undecodable;
+        return read(TicketState::Undecodable);
     };
 
     // Always Ed25519. If a ticket could choose its algorithm, a forged one could choose `none`.
     if header["alg"] != "EdDSA" || header.get("crit").is_some() {
-        return TicketState::BadSignature;
+        return read(TicketState::BadSignature);
     }
-    let Some(key) = header["kid"].as_str().and_then(|kid| config.keys.get(kid)) else {
-        return TicketState::BadSignature;
-    };
-    let Ok(signature) = Signature::from_slice(&signature) else {
-        return TicketState::BadSignature;
-    };
-    // Strict, so a weak key in the set can't be used to forge a ticket.
-    if key.verify_strict(signed.as_bytes(), &signature).is_err() {
-        return TicketState::BadSignature;
-    }
+    DecodedTicket::Signed(SignedTicket {
+        signed: signed.to_owned(),
+        kid: header["kid"].as_str().map(str::to_owned),
+        payload,
+        signature,
+    })
+}
 
-    let Some(payload) = read_json(&payload) else {
-        return TicketState::Undecodable;
-    };
-    let Value::Object(claims) = payload else {
-        return TicketState::Malformed;
-    };
-    let (Some(exp_epoch_seconds), Some(nbf_epoch_seconds)) = (
-        claims.get("exp").and_then(read_seconds),
-        claims.get("nbf").and_then(read_seconds),
-    ) else {
-        return TicketState::Malformed;
-    };
+impl SignedTicket {
+    fn verify(self, config: &SignedTicketConfig, now_epoch_seconds: i64) -> TicketState {
+        let Some(key) = self.kid.as_deref().and_then(|kid| config.keys.get(kid)) else {
+            return TicketState::BadSignature;
+        };
+        let Ok(signature) = Signature::from_slice(&self.signature) else {
+            return TicketState::BadSignature;
+        };
+        // Strict, so a weak key in the set can't be used to forge a ticket.
+        if key
+            .verify_strict(self.signed.as_bytes(), &signature)
+            .is_err()
+        {
+            return TicketState::BadSignature;
+        }
 
-    // Genuine, so not `BadSignature`, but with nothing to compare against it isn't for us either.
-    // An empty one would match a ticket carrying `iss: ""`.
-    let issuer = config.issuer.filter(|issuer| !issuer.is_empty());
-    let audience = config.audience.filter(|audience| !audience.is_empty());
-    let (Some(issuer), Some(audience)) = (issuer, audience) else {
-        return TicketState::WrongAudience;
-    };
-    if now_epoch_seconds < nbf_epoch_seconds - NBF_ALLOWANCE_IN_SECONDS
-        || claims.get("iss").and_then(Value::as_str) != Some(issuer)
-        || claims.get("aud").and_then(Value::as_str) != Some(audience)
-    {
-        return TicketState::WrongAudience;
+        let Some(payload) = read_json(&self.payload) else {
+            return TicketState::Undecodable;
+        };
+        let Value::Object(claims) = payload else {
+            return TicketState::Malformed;
+        };
+        let (Some(exp_epoch_seconds), Some(nbf_epoch_seconds)) = (
+            claims.get("exp").and_then(read_seconds),
+            claims.get("nbf").and_then(read_seconds),
+        ) else {
+            return TicketState::Malformed;
+        };
+
+        // Genuine, so not `BadSignature`, but with nothing to compare against it isn't for us either.
+        // An empty one would match a ticket carrying `iss: ""`.
+        let issuer = config.issuer.filter(|issuer| !issuer.is_empty());
+        let audience = config.audience.filter(|audience| !audience.is_empty());
+        let (Some(issuer), Some(audience)) = (issuer, audience) else {
+            return TicketState::WrongAudience;
+        };
+        if now_epoch_seconds < nbf_epoch_seconds - NBF_ALLOWANCE_IN_SECONDS
+            || claims.get("iss").and_then(Value::as_str) != Some(issuer)
+            || claims.get("aud").and_then(Value::as_str) != Some(audience)
+        {
+            return TicketState::WrongAudience;
+        }
+        check_expiry(claims, exp_epoch_seconds, now_epoch_seconds)
     }
-    check_expiry(claims, exp_epoch_seconds, now_epoch_seconds)
 }
 
 /// A key set as read: the keys to verify signed tickets with, and the entries meant as keys that
