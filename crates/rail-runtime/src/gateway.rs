@@ -69,14 +69,14 @@ impl Answer {
 
 /// One call's judgement, with everything it reads: gathered where the call arrives, run where
 /// the work can take its time.
-pub(crate) struct Unit<'a, B> {
-    pub(crate) call: &'a Call<B>,
+pub(crate) struct Unit<B> {
+    pub(crate) call: Arc<Call<B>>,
     /// The call's `x-rail`, decoded once where it arrived.
     pub(crate) ticket: DecodedTicket,
-    pub(crate) bundle: &'a HeldBundle,
+    pub(crate) bundle: Arc<HeldBundle>,
     /// Verifies a signed ticket, with the bundle's issuer and audience. None held reads
     /// `bad_signature`.
-    pub(crate) keys: Option<&'a KeySet>,
+    pub(crate) keys: Option<Arc<KeySet>>,
     pub(crate) now_epoch_seconds: i64,
     pub(crate) settings: UnitSettings,
     /// Set once nobody waits for the answer: the judgement ends at its next step, reporting nothing.
@@ -111,7 +111,7 @@ pub(crate) fn judge_call<B: AsRef<[u8]>>(unit: Unit<B>, report: &dyn Fn(&Denial)
     };
     let no_keys = HashMap::new();
     let config = SignedTicketConfig {
-        keys: keys.map_or(&no_keys, |set| &set.keys),
+        keys: keys.as_ref().map_or(&no_keys, |set| &set.keys),
         issuer: bundle.ticket_issuer.as_deref(),
         audience: bundle.ticket_audience.as_deref(),
     };
@@ -140,7 +140,7 @@ pub(crate) fn judge_call<B: AsRef<[u8]>>(unit: Unit<B>, report: &dyn Fn(&Denial)
             denied_by,
             endpoint: &endpoint,
             ticket: &ticket,
-            claimed_status: one_value(call, XRAIL_STATUS),
+            claimed_status: one_value(&call, XRAIL_STATUS),
         });
         return Answer::Deny;
     }

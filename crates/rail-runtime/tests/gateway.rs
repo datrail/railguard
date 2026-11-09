@@ -134,78 +134,59 @@ async fn a_body_names_what_the_python_gateway_reads_it_to_name() {
         r#"{{"method": "tools/call", "params": {{"name": "a", "q": "\"{}"}}}}"#,
         "[".repeat(300)
     );
-    let resolved = Some("/mcp#tools/call#a");
+    let resolved = "/mcp#tools/call#a";
     for (body, named) in [
-        (deep(256), resolved),
-        (deep(257), None),
-        (quoted, resolved),
+        (deep(256).into_bytes(), resolved),
+        (deep(257).into_bytes(), "unrecognised"),
+        (quoted.into_bytes(), resolved),
         (
             r#"{"method": 1e400, "method": "tools/call", "params": {"name": "c"}, "params": {"name": 1e400, "name": "a"}}"#
                 .into(),
             resolved,
         ),
-        (r#"{"method": "tools/call", "params": "a\/b"}"#.into(), None),
+        (r#"{"method": "tools/call", "params": "a\/b"}"#.into(), "unrecognised"),
         // Keys a string can't hold, which the Python gateway reads past.
         (r#"{"\ud800": 0, "method": "tools/call", "params": {"\udfff": 1, "name": "a"}}"#.into(), resolved),
-        (r#"{"method": "tools/call", "params": {"name": "a"}} {}"#.into(), None),
+        (r#"{"method": "tools/call", "params": {"name": "a"}} {}"#.into(), "unrecognised"),
         (
             "\u{feff}{\"method\": \"tools/call\", \"params\": {\"name\": \"a\"}}".into(),
             resolved,
         ),
         (
             r#"{"method": "tools/call", "params": {"name": 5}}"#.into(),
-            None,
+            "unrecognised",
         ),
         (
             r#"[{"method": "tools/call", "params": {"name": "a"}}]"#.into(),
-            None,
+            "unrecognised",
         ),
+        // Not UTF-8: Python's `json.loads` can't decode it either.
+        (
+            b"{\"method\": \"tools/call\", \"params\": {\"name\": \"a\xff\"}}".into(),
+            "unrecognised",
+        ),
+        // A method naming no tool keeps its key-less reading whatever `params` holds.
+        (r#"{"method": "resources/read", "params": [1]}"#.into(), "keyless"),
+        (r#"{"method": "resources/read", "params": 1e400}"#.into(), "keyless"),
     ] {
-        let reported = report_for(body.as_bytes()).await;
-        assert_eq!(reported["endpoint_key"].as_str(), named, "{body:.60}");
-    }
-    // Not UTF-8: Python's `json.loads` can't decode it either.
-    let reported =
-        report_for(b"{\"method\": \"tools/call\", \"params\": {\"name\": \"a\xff\"}}").await;
-    assert_eq!(reported["metadata"]["endpoint_resolution"], "unrecognised");
-    // A method naming no tool keeps its key-less reading whatever `params` holds.
-    for params in ["[1]", "1e400"] {
-        let reported = report_for(format!(
-            r#"{{"method": "resources/read", "params": {params}}}"#
-        ))
-        .await;
-        assert_eq!(
-            reported["metadata"]["endpoint_resolution"], "keyless",
-            "{params}"
-        );
+        let reported = report_for(&body).await;
+        let read = (reported["endpoint_key"].as_str())
+            .or(reported["metadata"]["endpoint_resolution"].as_str());
+        assert_eq!(read, Some(named), "{:.60}", String::from_utf8_lossy(&body));
     }
 }
 
 // The report of `body` sent to a gateway denying every call.
-async fn report_for(body: impl AsRef<[u8]>) -> Value {
+async fn report_for(body: &[u8]) -> Value {
     let clock = TestClock::new();
-    let denies_all = bundles::bundle(
-        "v1",
-        serde_json::json!({
-            "enforcement": {"mode": "enforce"},
-            "binding_fallback": "pass",
-            "policies": [{
-                "id": bundles::ONE,
-                "name": "P",
-                "priority": 1,
-                "condition": {"path": "ticket", "op": "not_existing"},
-                "action": "block",
-                "enabled": true,
-            }],
-        }),
-    );
+    let denying = bundles::denying_unticketed(serde_json::json!({}));
     let sink = Sink::accepting();
-    let gateway = start(&clock, Some(&denies_all), None, &sink);
+    let gateway = start(&clock, Some(&denying), None, &sink);
     until(&clock, 0).await;
     let call = Call {
         path: "/mcp".into(),
         method: "POST".into(),
-        body: body.as_ref().to_vec(),
+        body: body.to_vec(),
         headers: Vec::new(),
     };
     gateway.handle(call).await;

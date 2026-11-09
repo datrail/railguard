@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use rail_policy::Fallback;
 use rail_runtime::{Answer, Call, Gateway, GatewaySettings, UnitSettings};
-use serde_json::{Value, json};
+use serde_json::json;
 use tokio::time::Instant;
 use tokio::time::timeout;
 
@@ -17,29 +17,6 @@ use crate::sink::Sink;
 const NAMING_NEW: &str = "eyJhbGciOiAiRWREU0EiLCAia2lkIjogIm5ldyJ9.e30.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 // As `NAMING_NEW`, but `alg: none`.
 const NAMING_NEW_UNSIGNABLE: &str = "eyJhbGciOiAibm9uZSIsICJraWQiOiAibmV3In0.e30.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-
-// At `enforce`, denying every call; `with` replaces or adds root fields.
-fn denying_all(with: Value) -> Value {
-    let mut bundle = bundles::bundle(
-        "v1",
-        json!({
-            "enforcement": {"mode": "enforce"},
-            "binding_fallback": "pass",
-            "policies": [{
-                "id": bundles::ONE,
-                "name": "P",
-                "priority": 1,
-                "condition": {"path": "request.endpoint_key", "op": "not_existing"},
-                "action": "block",
-                "enabled": true,
-            }],
-        }),
-    );
-    for (name, value) in with.as_object().unwrap() {
-        bundle[name] = value.clone();
-    }
-    bundle
-}
 
 fn call(method: &str, x_rail: Option<&str>) -> Call<String> {
     Call {
@@ -133,7 +110,7 @@ async fn a_key_not_held_is_waited_for_only_where_the_bundle_can_accept_a_signed_
         (tenant, None, 1, 0),
     ] {
         let clock = TestClock::new();
-        let bundle = denying_all(with.clone());
+        let bundle = bundles::denying_unticketed(with.clone());
         let started = start(
             &clock,
             Script::new(&clock, move |_| bundles::ok(&bundle)),
@@ -182,10 +159,10 @@ async fn a_call_answered_unjudged_or_dropped_has_its_judgement_stopped() {
                 "enabled": true,
             })
         }));
-        let mut denying = denying_all(json!({}));
+        let mut denying = bundles::denying_unticketed(json!({}));
         denying["policies"][0]["priority"] = json!(SCANS + 1);
         policies.push(denying["policies"][0].take());
-        let bundle = denying_all(json!({"policies": policies}));
+        let bundle = bundles::denying_unticketed(json!({"policies": policies}));
         let settings = GatewaySettings {
             deadline,
             max_concurrent_judgements: NonZeroUsize::MIN,
@@ -229,21 +206,13 @@ async fn a_call_answered_unjudged_or_dropped_has_its_judgement_stopped() {
 
 #[tokio::test(start_paused = true)]
 async fn a_ticket_is_read_at_the_wall_clocks_time() {
-    let needs_ticket = json!({"policies": [{
-        "id": bundles::ONE,
-        "name": "P",
-        "priority": 1,
-        "condition": {"path": "ticket", "op": "not_existing"},
-        "action": "block",
-        "enabled": true,
-    }]});
     // `{"exp": 1800000000}`, the clock's start, and a second later.
     for (x_rail, answered) in [
         ("eyJleHAiOiAxODAwMDAwMDAwfQ", Answer::Deny),
         ("eyJleHAiOiAxODAwMDAwMDAxfQ", Answer::Forward),
     ] {
         let clock = TestClock::new();
-        let bundle = denying_all(needs_ticket.clone());
+        let bundle = bundles::denying_unticketed(json!({}));
         let started = start(
             &clock,
             Script::new(&clock, move |_| bundles::ok(&bundle)),

@@ -122,24 +122,20 @@ impl Gateway {
         let call = Arc::new(call);
         let stop = Arc::new(AtomicBool::new(false));
         let _stop_if_dropped = StopOnDrop(Arc::clone(&stop));
-        let now_epoch_seconds = epoch_seconds((self.now)());
-        let mut worker = {
-            let (call, bundle, stop) = (Arc::clone(&call), Arc::clone(&bundle), Arc::clone(&stop));
-            let (reporter, settings) = (Arc::clone(&self.reporter), self.settings.unit);
-            spawn_blocking(move || {
-                let _slot = slot;
-                let unit = Unit {
-                    call: &call,
-                    ticket,
-                    bundle: &bundle,
-                    keys: keys.as_deref(),
-                    now_epoch_seconds,
-                    settings,
-                    stop,
-                };
-                judge_call(unit, &|denial| reporter.report(denial))
-            })
+        let unit = Unit {
+            call: Arc::clone(&call),
+            ticket,
+            bundle: Arc::clone(&bundle),
+            keys,
+            now_epoch_seconds: epoch_seconds((self.now)()),
+            settings: self.settings.unit,
+            stop: Arc::clone(&stop),
         };
+        let reporter = Arc::clone(&self.reporter);
+        let mut worker = spawn_blocking(move || {
+            let _slot = slot;
+            judge_call(unit, &|denial| reporter.report(denial))
+        });
         let finished = match timeout_at(deadline, &mut worker).await {
             Ok(finished) => finished,
             // Unless the worker claimed the answer first, with only its report left to make.

@@ -44,6 +44,29 @@ pub fn bundle(content_hash: &str, with: Value) -> Value {
     bundle
 }
 
+// At `enforce`, denying every call without a valid ticket; `with` replaces or adds root fields.
+pub fn denying_unticketed(with: Value) -> Value {
+    let mut bundle = bundle(
+        "v1",
+        json!({
+            "enforcement": {"mode": "enforce"},
+            "binding_fallback": "pass",
+            "policies": [{
+                "id": ONE,
+                "name": "P",
+                "priority": 1,
+                "condition": {"path": "ticket", "op": "not_existing"},
+                "action": "block",
+                "enabled": true,
+            }],
+        }),
+    );
+    for (name, value) in with.as_object().unwrap() {
+        bundle[name] = value.clone();
+    }
+    bundle
+}
+
 pub fn ok(body: &Value) -> Answer {
     answer(StatusCode::OK, body.to_string().as_bytes())
 }

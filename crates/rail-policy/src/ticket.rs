@@ -56,10 +56,7 @@ pub struct SignedTicketConfig<'a> {
 /// with a call to wherever it's judged. No `Debug`, which would print the ticket.
 pub enum DecodedTicket {
     /// Unsigned, its payload read: only its expiry is left to check.
-    Unsigned {
-        claims: Map<String, Value>,
-        exp_epoch_seconds: i64,
-    },
+    Unsigned(Ticket),
     /// Signed, its parts decoded and its header checked.
     Signed(SignedTicket),
     /// Already what it reads as.
@@ -82,13 +79,7 @@ pub fn decode_ticket(value: &str) -> DecodedTicket {
     if value.contains('.') {
         return decode_signed(value);
     }
-    match decode_unsigned(value) {
-        Ok((claims, exp_epoch_seconds)) => DecodedTicket::Unsigned {
-            claims,
-            exp_epoch_seconds,
-        },
-        Err(state) => DecodedTicket::Read(state),
-    }
+    decode_unsigned(value).map_or_else(DecodedTicket::Read, DecodedTicket::Unsigned)
 }
 
 impl DecodedTicket {
@@ -103,10 +94,7 @@ impl DecodedTicket {
     /// The checks left: for a signed ticket the signature, then its claims; the first failure wins.
     pub fn verify(self, config: &SignedTicketConfig, now_epoch_seconds: i64) -> TicketState {
         match self {
-            Self::Unsigned {
-                claims,
-                exp_epoch_seconds,
-            } => check_expiry(claims, exp_epoch_seconds, now_epoch_seconds),
+            Self::Unsigned(ticket) => check_expiry(ticket, now_epoch_seconds),
             Self::Signed(ticket) => ticket.verify(config, now_epoch_seconds),
             Self::Read(state) => state,
         }
@@ -126,9 +114,7 @@ pub fn parse_ticket(
 /// as `Undecodable`.
 pub fn parse_base64_ticket(value: &str, now_epoch_seconds: i64) -> TicketState {
     match decode_unsigned(value) {
-        Ok((claims, exp_epoch_seconds)) => {
-            check_expiry(claims, exp_epoch_seconds, now_epoch_seconds)
-        }
+        Ok(ticket) => check_expiry(ticket, now_epoch_seconds),
         Err(state) => state,
     }
 }
@@ -143,7 +129,7 @@ pub fn parse_jwt_ticket(
     decode_signed(value).verify(config, now_epoch_seconds)
 }
 
-fn decode_unsigned(value: &str) -> Result<(Map<String, Value>, i64), TicketState> {
+fn decode_unsigned(value: &str) -> Result<Ticket, TicketState> {
     if value.is_empty() {
         return Err(TicketState::Absent);
     }
@@ -156,7 +142,10 @@ fn decode_unsigned(value: &str) -> Result<(Map<String, Value>, i64), TicketState
     let Some(exp_epoch_seconds) = claims.get("exp").and_then(read_seconds) else {
         return Err(TicketState::Malformed);
     };
-    Ok((claims, exp_epoch_seconds))
+    Ok(Ticket {
+        exp_epoch_seconds,
+        claims,
+    })
 }
 
 fn decode_signed(value: &str) -> DecodedTicket {
@@ -238,7 +227,11 @@ impl SignedTicket {
         {
             return TicketState::WrongAudience;
         }
-        check_expiry(claims, exp_epoch_seconds, now_epoch_seconds)
+        let ticket = Ticket {
+            exp_epoch_seconds,
+            claims,
+        };
+        check_expiry(ticket, now_epoch_seconds)
     }
 }
 
@@ -369,16 +362,9 @@ fn read_seconds(value: &Value) -> Option<i64> {
     Some(seconds as i64)
 }
 
-fn check_expiry(
-    claims: Map<String, Value>,
-    exp_epoch_seconds: i64,
-    now_epoch_seconds: i64,
-) -> TicketState {
-    if now_epoch_seconds >= exp_epoch_seconds {
+fn check_expiry(ticket: Ticket, now_epoch_seconds: i64) -> TicketState {
+    if now_epoch_seconds >= ticket.exp_epoch_seconds {
         return TicketState::Expired;
     }
-    TicketState::Valid(Box::new(Ticket {
-        exp_epoch_seconds,
-        claims,
-    }))
+    TicketState::Valid(Box::new(ticket))
 }

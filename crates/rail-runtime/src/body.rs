@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use std::fmt;
 
 use rail_policy::{Endpoint, Resolution, resolve_endpoint};
-use serde::de::{Deserializer, MapAccess, Visitor};
+use serde::de::{DeserializeSeed, Deserializer, MapAccess, Visitor};
 use serde_json::value::RawValue;
 
 // Past this, a body names nothing: as the Python gateway, so a call judged there is judged here.
@@ -109,7 +109,7 @@ impl<'de> Visitor<'de> for Members {
 
     fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
         let mut members = Vec::new();
-        while let Some(Key(key)) = map.next_key()? {
+        while let Some(key) = map.next_key_seed(KeyBytes)? {
             members.push((key, map.next_value()?));
         }
         Ok(members)
@@ -117,36 +117,37 @@ impl<'de> Visitor<'de> for Members {
 }
 
 // A key as bytes, so one holding a lone surrogate escape fails nothing, as in Python.
-struct Key<'a>(Cow<'a, [u8]>);
+struct KeyBytes;
 
-impl<'de> serde::Deserialize<'de> for Key<'de> {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        deserializer.deserialize_bytes(KeyBytes)
+impl<'de> DeserializeSeed<'de> for KeyBytes {
+    type Value = Cow<'de, [u8]>;
+
+    fn deserialize<D: Deserializer<'de>>(self, deserializer: D) -> Result<Self::Value, D::Error> {
+        deserializer.deserialize_bytes(self)
     }
 }
 
-struct KeyBytes;
-
 impl<'de> Visitor<'de> for KeyBytes {
-    type Value = Key<'de>;
+    type Value = Cow<'de, [u8]>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         formatter.write_str("a key")
     }
 
     fn visit_borrowed_bytes<E: serde::de::Error>(self, key: &'de [u8]) -> Result<Self::Value, E> {
-        Ok(Key(Cow::Borrowed(key)))
+        Ok(Cow::Borrowed(key))
     }
 
     fn visit_bytes<E: serde::de::Error>(self, key: &[u8]) -> Result<Self::Value, E> {
-        Ok(Key(Cow::Owned(key.to_vec())))
+        Ok(Cow::Owned(key.to_vec()))
     }
 
+    // Not called by serde_json today; kept so a key handed over as text still reads.
     fn visit_borrowed_str<E: serde::de::Error>(self, key: &'de str) -> Result<Self::Value, E> {
-        Ok(Key(Cow::Borrowed(key.as_bytes())))
+        Ok(Cow::Borrowed(key.as_bytes()))
     }
 
     fn visit_str<E: serde::de::Error>(self, key: &str) -> Result<Self::Value, E> {
-        Ok(Key(Cow::Owned(key.as_bytes().to_vec())))
+        Ok(Cow::Owned(key.as_bytes().to_vec()))
     }
 }
