@@ -1,10 +1,12 @@
 //! The gateway role: one call judged against the bundle held, with no IO but the denial it reports.
 
 use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use rail_policy::{
-    Budget, DEFAULT_STEP_LIMIT, Decision, Endpoint, Environment, Headers, JudgingMode, Outcome,
-    Resolution, SignedTicketConfig, TicketState, judge, parse_ticket,
+    Budget, DEFAULT_STEP_LIMIT, Decision, DecodedTicket, Endpoint, Environment, Headers,
+    JudgingMode, Outcome, Resolution, SignedTicketConfig, TicketState, decode_ticket, judge,
 };
 
 use crate::bundle_holder::HeldBundle;
@@ -62,16 +64,34 @@ impl Answer {
     }
 }
 
-/// Judges `call` against `bundle`, a signed ticket against `keys` and the bundle's issuer and
-/// audience, at `now_epoch_seconds`. A denial acted on goes to `report`, which mustn't wait.
-pub fn judge_call<B: AsRef<[u8]>>(
-    call: &Call<B>,
-    bundle: &HeldBundle,
-    keys: Option<&KeySet>,
-    now_epoch_seconds: i64,
-    settings: &UnitSettings,
-    report: &dyn Fn(&Denial),
-) -> Answer {
+/// One call's judgement, with everything it reads: gathered where the call arrives, run where
+/// the work can take its time.
+pub struct Unit<'a, B> {
+    pub call: &'a Call<B>,
+    /// The call's `x-rail`, decoded once where it arrived.
+    pub ticket: DecodedTicket,
+    pub bundle: &'a HeldBundle,
+    /// Verifies a signed ticket, with the bundle's issuer and audience. None held reads
+    /// `bad_signature`.
+    pub keys: Option<&'a KeySet>,
+    pub now_epoch_seconds: i64,
+    pub settings: UnitSettings,
+    /// Set once nobody waits for the answer: the judgement ends at its next step, reporting nothing.
+    pub stop: Arc<AtomicBool>,
+}
+
+/// Judges `unit`'s call against its bundle. A denial acted on goes to `report`, which mustn't
+/// wait.
+pub fn judge_call<B: AsRef<[u8]>>(unit: Unit<B>, report: &dyn Fn(&Denial)) -> Answer {
+    let Unit {
+        call,
+        ticket,
+        bundle,
+        keys,
+        now_epoch_seconds,
+        settings,
+        stop,
+    } = unit;
     let endpoint = match resolve_body(&call.path, call.body.as_ref()) {
         Resolution::Discovery => {
             tracing::info!("forwarded a session message, unjudged");
@@ -84,7 +104,13 @@ pub fn judge_call<B: AsRef<[u8]>>(
         tracing::info!(endpoint = named, "forwarded unjudged, at enforcement none");
         return Answer::Forward;
     };
-    let ticket = read_ticket(call, bundle, keys, now_epoch_seconds);
+    let no_keys = HashMap::new();
+    let config = SignedTicketConfig {
+        keys: keys.map_or(&no_keys, |set| &set.keys),
+        issuer: bundle.ticket_issuer.as_deref(),
+        audience: bundle.ticket_audience.as_deref(),
+    };
+    let ticket = ticket.verify(&config, now_epoch_seconds);
     let headers = Headers::from_lines(call.headers.iter().map(|(name, value)| (name, value)));
     let environment = Environment {
         ticket: match &ticket {
@@ -94,14 +120,13 @@ pub fn judge_call<B: AsRef<[u8]>>(
         endpoint: &endpoint,
         headers: &headers,
     };
-    let outcome = judge(
-        &bundle.compiled,
-        &environment,
-        mode,
-        &mut Budget::new(settings.step_limit),
-    );
-    let ticket_named = ticket_state(&ticket);
-    log_outcome(&outcome, mode, named, ticket_named);
+    let mut budget = Budget::new(settings.step_limit).stopped_by(Arc::clone(&stop));
+    let outcome = judge(&bundle.compiled, &environment, mode, &mut budget);
+    // Its answer was given without it, so what it concluded is neither acted on nor logged.
+    if stop.load(Ordering::Relaxed) {
+        return Answer::Forward;
+    }
+    log_outcome(&outcome, mode, named, ticket_state(&ticket));
     if mode == JudgingMode::Observe {
         return Answer::Forward;
     }
@@ -120,26 +145,15 @@ pub fn judge_call<B: AsRef<[u8]>>(
     }
 }
 
-// Every `x-rail` value: none is absent, and two are refused, since hosts collapse them differently.
-fn read_ticket<B>(
-    call: &Call<B>,
-    bundle: &HeldBundle,
-    keys: Option<&KeySet>,
-    now_epoch_seconds: i64,
-) -> TicketState {
+/// The call's `x-rail`, decoded: none is absent, and two are undecodable, since hosts collapse
+/// repeated headers differently.
+pub fn decode_x_rail<B>(call: &Call<B>) -> DecodedTicket {
     let mut values = values(call, XRAIL);
-    let value = match (values.next(), values.next()) {
-        (None, _) => return TicketState::Absent,
-        (Some(value), None) => value,
-        (Some(_), Some(_)) => return TicketState::Undecodable,
-    };
-    let no_keys = HashMap::new();
-    let config = SignedTicketConfig {
-        keys: keys.map_or(&no_keys, |set| &set.keys),
-        issuer: bundle.ticket_issuer.as_deref(),
-        audience: bundle.ticket_audience.as_deref(),
-    };
-    parse_ticket(value, &config, now_epoch_seconds)
+    match (values.next(), values.next()) {
+        (None, _) => DecodedTicket::Read(TicketState::Absent),
+        (Some(value), None) => decode_ticket(value),
+        (Some(_), Some(_)) => DecodedTicket::Read(TicketState::Undecodable),
+    }
 }
 
 fn values<'a, B>(call: &'a Call<B>, header: &'a str) -> impl Iterator<Item = &'a str> {

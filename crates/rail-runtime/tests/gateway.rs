@@ -2,7 +2,10 @@ use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::Value;
 
-use rail_runtime::{Call, UnitSettings, judge_call};
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+
+use rail_runtime::{Call, Unit, UnitSettings, decode_x_rail, judge_call};
 
 use crate::bundles::{self, Script};
 use crate::holder::{TestClock, until};
@@ -94,14 +97,18 @@ async fn every_case_of_the_python_gateway_answers_and_reports_as_it_does() {
         let sink = Sink::accepting();
         let reporter = sink.start();
 
-        let answer = judge_call(
-            &case.request.into_call(),
-            &held,
-            key_set.and_then(|holder| holder.keys()).as_deref(),
-            NOW_EPOCH_SECONDS,
-            &UnitSettings::default(),
-            &|denial| reporter.report(denial),
-        );
+        let call = case.request.into_call();
+        let keys = key_set.and_then(|holder| holder.keys());
+        let unit = Unit {
+            ticket: decode_x_rail(&call),
+            call: &call,
+            bundle: &held,
+            keys: keys.as_deref(),
+            now_epoch_seconds: NOW_EPOCH_SECONDS,
+            settings: UnitSettings::default(),
+            stop: Arc::default(),
+        };
+        let answer = judge_call(unit, &|denial| reporter.report(denial));
 
         let refusal = answer
             .refusal()
@@ -184,8 +191,18 @@ async fn a_body_names_what_the_python_gateway_reads_it_to_name() {
     }
 }
 
+#[tokio::test(start_paused = true)]
+async fn a_judgement_stopped_reports_nothing() {
+    let reported = reports_for(b"{\"method\": \"resources/read\"}", true).await;
+    assert_eq!(reported, Vec::<Value>::new());
+}
+
 // The report of `body` sent to a bundle denying every call.
 async fn report_for(body: impl AsRef<[u8]>) -> Value {
+    reports_for(body, false).await.remove(0)
+}
+
+async fn reports_for(body: impl AsRef<[u8]>, stopped: bool) -> Vec<Value> {
     let clock = TestClock::new();
     let denies_all = bundles::bundle(
         "v1",
@@ -215,14 +232,18 @@ async fn report_for(body: impl AsRef<[u8]>) -> Value {
         body: body.as_ref(),
         headers: Vec::new(),
     };
-    judge_call(
-        &call,
-        &bundles.snapshot().unwrap(),
-        None,
-        NOW_EPOCH_SECONDS,
-        &UnitSettings::default(),
-        &|denial| reporter.report(denial),
-    );
-    sink.until_sent(1).await;
-    sink.reports().remove(0)
+    let unit = Unit {
+        ticket: decode_x_rail(&call),
+        call: &call,
+        bundle: &bundles.snapshot().unwrap(),
+        keys: None,
+        now_epoch_seconds: NOW_EPOCH_SECONDS,
+        settings: UnitSettings::default(),
+        stop: Arc::new(AtomicBool::new(stopped)),
+    };
+    judge_call(unit, &|denial| reporter.report(denial));
+    for _ in 0..100 {
+        tokio::task::yield_now().await;
+    }
+    sink.reports()
 }
