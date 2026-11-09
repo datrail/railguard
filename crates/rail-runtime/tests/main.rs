@@ -6,6 +6,7 @@ mod clock;
 mod common;
 mod config;
 mod denials;
+mod gateway;
 mod holder;
 mod key_set;
 mod keys;

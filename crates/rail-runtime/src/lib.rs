@@ -6,9 +6,11 @@ mod client;
 mod clock;
 mod config;
 mod denial;
+mod gateway;
 mod holder;
 mod key_set;
 pub mod logging;
+mod message;
 mod protected_hosts;
 mod rail_center;
 mod rail_center_thread;
@@ -24,6 +26,7 @@ pub use config::{
     ConfigErrors, EXIT_CODE, Entry, Level, Refused, Secret, Settings, Source, Startup, Variables,
 };
 pub use denial::{Denial, DenialReporter, DenialSink, DeniedBy, RailCenterDenials};
+pub use gateway::{Answer, Call, UnitSettings, judge_call};
 pub use holder::Jitter;
 pub use key_set::{KeySet, KeySetHolder, KeySource, RailCenterKeys};
 pub use protected_hosts::{ProtectedHost, ProtectedHosts, read_protected_hosts};
