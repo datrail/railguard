@@ -1,5 +1,5 @@
 [workspace]
 resolver = "3"
-members = ["crates/rail-envoy", "crates/rail-policy", "crates/rail-policy-py", "crates/rail-runtime"]
+members = ["crates/rail-envoy", "crates/rail-grpc-host", "crates/rail-policy", "crates/rail-policy-py", "crates/rail-runtime"]
 # Keeps pyo3 out of everyday builds.
-default-members = ["crates/rail-envoy", "crates/rail-policy", "crates/rail-runtime"]
+default-members = ["crates/rail-envoy", "crates/rail-grpc-host", "crates/rail-policy", "crates/rail-runtime"]

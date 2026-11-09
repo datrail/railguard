@@ -1,0 +1,18 @@
+[package]
+name = "rail-grpc-host"
+edition = "2024"
+
+[lib]
+test = false
+doctest = false
+
+[dependencies]
+rail-policy = { path = "../rail-policy" }
+tokio = { version = "1", features = ["macros", "signal", "sync", "time"] }
+tracing = "0.1"
+# The channel is the probe's client.
+tonic = { version = "0.14", default-features = false, features = ["channel"] }
+tonic-health = { version = "0.14", default-features = false }
+
+[lints.rust]
+unsafe_code = "forbid"

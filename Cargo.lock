@@ -991,10 +991,22 @@ name = "rail-envoy"
 version = "0.0.0"
 dependencies = [
  "envoy-types",
+ "rail-grpc-host",
  "rail-policy",
  "rail-runtime",
  "tokio",
  "tokio-stream",
+ "tonic",
+ "tonic-health",
+ "tracing",
+]
+
+[[package]]
+name = "rail-grpc-host"
+version = "0.0.0"
+dependencies = [
+ "rail-policy",
+ "tokio",
  "tonic",
  "tonic-health",
  "tracing",

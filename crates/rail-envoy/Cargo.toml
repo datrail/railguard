@@ -18,14 +18,18 @@ path = "tests/main.rs"
 
 [dependencies]
 envoy-types = "0.7"
+rail-grpc-host = { path = "../rail-grpc-host" }
 rail-policy = { path = "../rail-policy" }
 rail-runtime = { path = "../rail-runtime" }
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 tokio-stream = { version = "0.1", features = ["net"] }
 tracing = "0.1"
-# The channel is the probe's client, over the unix socket.
-tonic = { version = "0.14", default-features = false, features = ["channel", "codegen", "router", "server"] }
+tonic = { version = "0.14", default-features = false, features = ["codegen", "router", "server"] }
 tonic-health = { version = "0.14", default-features = false }
+
+[dev-dependencies]
+# The tests' client.
+tonic = { version = "0.14", default-features = false, features = ["channel"] }
 
 [lints.rust]
 unsafe_code = "forbid"
