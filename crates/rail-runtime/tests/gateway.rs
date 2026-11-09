@@ -48,7 +48,7 @@ struct Expect {
 
 impl Request {
     // In the Python servicer's table test's order, the names cased otherwise, as a host may send them.
-    fn into_call(self) -> Call {
+    fn into_call(self) -> Call<String> {
         let headers = (self
             .x_rail
             .into_iter()
@@ -164,12 +164,16 @@ async fn a_body_names_what_the_python_gateway_reads_it_to_name() {
             None,
         ),
     ] {
-        let reported = report_for(&body).await;
+        let reported = report_for(body.as_bytes()).await;
         assert_eq!(reported["endpoint_key"].as_str(), named, "{body:.60}");
     }
+    // Not UTF-8: Python's `json.loads` can't decode it either.
+    let reported =
+        report_for(b"{\"method\": \"tools/call\", \"params\": {\"name\": \"a\xff\"}}").await;
+    assert_eq!(reported["metadata"]["endpoint_resolution"], "unrecognised");
     // A method naming no tool keeps its key-less reading whatever `params` holds.
     for params in ["[1]", "1e400"] {
-        let reported = report_for(&format!(
+        let reported = report_for(format!(
             r#"{{"method": "resources/read", "params": {params}}}"#
         ))
         .await;
@@ -181,7 +185,7 @@ async fn a_body_names_what_the_python_gateway_reads_it_to_name() {
 }
 
 // The report of `body` sent to a bundle denying every call.
-async fn report_for(body: &str) -> Value {
+async fn report_for(body: impl AsRef<[u8]>) -> Value {
     let clock = TestClock::new();
     let denies_all = bundles::bundle(
         "v1",
@@ -208,7 +212,7 @@ async fn report_for(body: &str) -> Value {
     let call = Call {
         path: "/mcp".into(),
         method: "POST".into(),
-        body: body.into(),
+        body: body.as_ref(),
         headers: Vec::new(),
     };
     judge_call(

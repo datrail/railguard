@@ -10,11 +10,11 @@ use serde_json::value::RawValue;
 // Past this, a body names nothing: as the Python gateway, so a call judged there is judged here.
 const MAX_NESTING: usize = 256;
 
-/// What `body`, sent to `path`, asks for. A body that isn't a JSON object, or nests past 256
-/// levels, names no endpoint this reader can key.
-pub(crate) fn resolve_body(path: &str, body: &str) -> Resolution {
+/// What `body`, sent to `path`, asks for. A body that isn't a JSON object in UTF-8, or nests past
+/// 256 levels, names no endpoint this reader can key; an encoded one is not decoded, as in Python.
+pub(crate) fn resolve_body(path: &str, body: &[u8]) -> Resolution {
     // Python's `json.loads` reads bytes past one UTF-8 BOM.
-    let body = body.strip_prefix('\u{feff}').unwrap_or(body);
+    let body = body.strip_prefix("\u{feff}".as_bytes()).unwrap_or(body);
     if nests_past(body, MAX_NESTING) {
         return Resolution::Judged(Endpoint::Unrecognised);
     }
@@ -24,17 +24,17 @@ pub(crate) fn resolve_body(path: &str, body: &str) -> Resolution {
     // A value of another type reads as absent, and a key repeated keeps its last, as in Python.
     let method = method.and_then(text);
     let name = params
-        .and_then(|params| last_values(params.get(), ["name"]))
+        .and_then(|params| last_values(params.get().as_bytes(), ["name"]))
         .and_then(|[name]| name)
         .and_then(text);
     resolve_endpoint(path, method.as_deref().unwrap_or(""), name.as_deref())
 }
 
 // Brackets outside strings: counted before parsing, as the Python gateway does.
-fn nests_past(body: &str, limit: usize) -> bool {
+fn nests_past(body: &[u8], limit: usize) -> bool {
     let mut depth = 0_usize;
     let (mut in_string, mut escaped) = (false, false);
-    for byte in body.bytes() {
+    for &byte in body {
         if in_string {
             match byte {
                 _ if escaped => escaped = false,
@@ -61,7 +61,7 @@ fn nests_past(body: &str, limit: usize) -> bool {
 
 // The last value of each of `keys` in an object, each only scanned, so no number in it is read.
 fn last_values<'a, const N: usize>(
-    json: &'a str,
+    json: &'a [u8],
     keys: [&'static str; N],
 ) -> Option<[Option<&'a RawValue>; N]> {
     struct Last<const N: usize>([&'static str; N]);
@@ -83,7 +83,7 @@ fn last_values<'a, const N: usize>(
             Ok(found)
         }
     }
-    let mut deserializer = serde_json::Deserializer::from_str(json);
+    let mut deserializer = serde_json::Deserializer::from_slice(json);
     let found = deserializer.deserialize_map(Last(keys)).ok()?;
     deserializer.end().ok()?;
     Some(found)

@@ -13,14 +13,14 @@ use crate::key_set::KeySet;
 use crate::message::resolve_body;
 use crate::xrail::{XRAIL, XRAIL_STATUS};
 
-/// One call, as the host received it.
+/// One call, as the host received it, its body in whatever the host holds bytes in.
 #[derive(Clone, Debug)]
-pub struct Call {
+pub struct Call<B> {
     /// Without the query, percent-decoded.
     pub path: String,
     /// Not read yet: the host passes anything but `POST` unjudged.
     pub method: String,
-    pub body: String,
+    pub body: B,
     /// Every header line as sent, `x-rail` and `x-rail-status` included.
     pub headers: Vec<(String, String)>,
 }
@@ -64,15 +64,15 @@ impl Answer {
 
 /// Judges `call` against `bundle`, a signed ticket against `keys` and the bundle's issuer and
 /// audience, at `now_epoch_seconds`. A denial acted on goes to `report`, which mustn't wait.
-pub fn judge_call(
-    call: &Call,
+pub fn judge_call<B: AsRef<[u8]>>(
+    call: &Call<B>,
     bundle: &HeldBundle,
     keys: Option<&KeySet>,
     now_epoch_seconds: i64,
     settings: &UnitSettings,
     report: &dyn Fn(&Denial),
 ) -> Answer {
-    let endpoint = match resolve_body(&call.path, &call.body) {
+    let endpoint = match resolve_body(&call.path, call.body.as_ref()) {
         Resolution::Discovery => {
             tracing::info!("forwarded a session message, unjudged");
             return Answer::Forward;
@@ -121,8 +121,8 @@ pub fn judge_call(
 }
 
 // Every `x-rail` value: none is absent, and two are refused, since hosts collapse them differently.
-fn read_ticket(
-    call: &Call,
+fn read_ticket<B>(
+    call: &Call<B>,
     bundle: &HeldBundle,
     keys: Option<&KeySet>,
     now_epoch_seconds: i64,
@@ -142,7 +142,7 @@ fn read_ticket(
     parse_ticket(value, &config, now_epoch_seconds)
 }
 
-fn values<'a>(call: &'a Call, header: &'a str) -> impl Iterator<Item = &'a str> {
+fn values<'a, B>(call: &'a Call<B>, header: &'a str) -> impl Iterator<Item = &'a str> {
     call.headers
         .iter()
         .filter(move |(name, _)| name.eq_ignore_ascii_case(header))
@@ -150,7 +150,7 @@ fn values<'a>(call: &'a Call, header: &'a str) -> impl Iterator<Item = &'a str> 
 }
 
 // A header's value if it was sent once: two claims aren't a claim.
-fn one_value<'a>(call: &'a Call, header: &'a str) -> Option<&'a str> {
+fn one_value<'a, B>(call: &'a Call<B>, header: &'a str) -> Option<&'a str> {
     let mut values = values(call, header);
     match (values.next(), values.next()) {
         (Some(value), None) => Some(value),
