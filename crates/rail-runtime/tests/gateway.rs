@@ -47,13 +47,13 @@ struct Expect {
 }
 
 impl Request {
-    // As the Python servicer's table test sends it: `x-rail`, then `x-rail-status`, then the rest.
+    // In the Python servicer's table test's order, the names cased otherwise, as a host may send them.
     fn into_call(self) -> Call {
         let headers = (self
             .x_rail
             .into_iter()
-            .map(|value| ("x-rail".to_owned(), value)))
-        .chain((self.x_rail_status.into_iter()).map(|value| ("x-rail-status".to_owned(), value)))
+            .map(|value| ("X-Rail".to_owned(), value)))
+        .chain((self.x_rail_status.into_iter()).map(|value| ("X-Rail-Status".to_owned(), value)))
         .chain(self.headers)
         .collect();
         Call {
@@ -69,12 +69,14 @@ impl Request {
 async fn every_case_of_the_python_gateway_answers_and_reports_as_it_does() {
     let Vectors { cases } = serde_json::from_str(VECTORS).unwrap();
     let mut differing = Vec::new();
+    let mut judged = 0;
     for case in cases {
         // The host forwards both before a call reaches the role.
         let (Some(bundle), "POST") = (&case.bundle, case.request.method.as_str()) else {
             assert!(case.expect.status.is_none(), "{}", case.name);
             continue;
         };
+        judged += 1;
         let clock = TestClock::new();
         let body = bundle.to_string();
         let script = Script::new(&clock, move |_| answer(StatusCode::OK, body.as_bytes()));
@@ -121,6 +123,8 @@ async fn every_case_of_the_python_gateway_answers_and_reports_as_it_does() {
         }
     }
     assert!(differing.is_empty(), "{}", differing.join("\n"));
+    // All but the 4 holding no bundle and the 1 `GET`.
+    assert_eq!(judged, 83);
 }
 
 #[tokio::test(start_paused = true)]
@@ -128,11 +132,11 @@ async fn a_body_names_what_the_python_gateway_reads_it_to_name() {
     let deep = |depth: usize| {
         let inner = "[".repeat(depth - 3) + &"]".repeat(depth - 3);
         format!(
-            r#"{{"method": "tools/call", "params": {{"name": "a", "arguments": {{"q": {inner}}}}}}}"#
+            r#"{{"method": "tools\/call", "params": {{"name": "a", "arguments": {{"q": {inner}, "r": {inner}}}}}}}"#
         )
     };
     let quoted = format!(
-        r#"{{"method": "tools/call", "params": {{"name": "a", "q": "{}"}}}}"#,
+        r#"{{"method": "tools/call", "params": {{"name": "a", "q": "\"{}"}}}}"#,
         "[".repeat(300)
     );
     let resolved = Some("/mcp#tools/call#a");
@@ -141,14 +145,12 @@ async fn a_body_names_what_the_python_gateway_reads_it_to_name() {
         (deep(257), None),
         (quoted, resolved),
         (
-            r#"{"method": "x", "method": "tools/call", "params": {"name": "b", "name": "a"}}"#
+            r#"{"method": 1e400, "method": "tools/call", "params": {"name": "c"}, "params": {"name": 1e400, "name": "a"}}"#
                 .into(),
             resolved,
         ),
-        (
-            r#"{"method": "tools\/call", "params": {"name": "a"}}"#.into(),
-            resolved,
-        ),
+        (r#"{"method": "tools/call", "params": "a\/b"}"#.into(), None),
+        (r#"{"method": "tools/call", "params": {"name": "a"}} {}"#.into(), None),
         (
             "\u{feff}{\"method\": \"tools/call\", \"params\": {\"name\": \"a\"}}".into(),
             resolved,
@@ -166,8 +168,16 @@ async fn a_body_names_what_the_python_gateway_reads_it_to_name() {
         assert_eq!(reported["endpoint_key"].as_str(), named, "{body:.60}");
     }
     // A method naming no tool keeps its key-less reading whatever `params` holds.
-    let reported = report_for(r#"{"method": "resources/read", "params": [1]}"#).await;
-    assert_eq!(reported["metadata"]["endpoint_resolution"], "keyless");
+    for params in ["[1]", "1e400"] {
+        let reported = report_for(&format!(
+            r#"{{"method": "resources/read", "params": {params}}}"#
+        ))
+        .await;
+        assert_eq!(
+            reported["metadata"]["endpoint_resolution"], "keyless",
+            "{params}"
+        );
+    }
 }
 
 // The report of `body` sent to a bundle denying every call.
