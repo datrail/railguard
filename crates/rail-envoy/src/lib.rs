@@ -20,6 +20,7 @@ use std::time::SystemTime;
 
 use envoy_types::ext_authz::v3::pb::AuthorizationServer;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
+use rail_grpc_host::Address;
 use rail_runtime::{
     Jitter, RailCenterClient, RailCenterSettings, RailCenterThread, RailCenterTickets, Settings,
     Startup, TicketHolder, TicketSettings, Variables,
@@ -47,7 +48,7 @@ pub async fn run() -> ExitCode {
         .unwrap_or_else(|errors| errors.exit());
     match std::env::args().nth(1).as_deref() {
         None => serve(config, &startup).await,
-        Some("probe") => rail_grpc_host::probe(&config.socket).await,
+        Some("probe") => rail_grpc_host::probe(&Address::Unix(config.socket.clone()), "").await,
         Some(argument) => {
             eprintln!("unknown argument {argument:?}; usage: rail-envoy [probe]");
             // A usage error shares the exit status of a refused configuration.

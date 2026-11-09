@@ -1,7 +1,9 @@
 //! The parts of a gRPC host process both binaries share: waiting for SIGTERM, draining the server
 //! until a deadline, and the probe, a health check over the server's own socket.
 
-use std::path::Path;
+use std::fmt;
+use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::pin::pin;
 use std::process::ExitCode;
 use std::time::Duration;
@@ -52,9 +54,27 @@ pub async fn terminated(mut terminate: Signal) {
     }
 }
 
+/// Where a server listens, for the probe to ask it.
+#[derive(Clone, Debug)]
+pub enum Address {
+    Unix(PathBuf),
+    Tcp(SocketAddr),
+}
+
+impl fmt::Display for Address {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Address::Unix(socket) => write!(f, "{}", socket.display()),
+            Address::Tcp(address) => write!(f, "{address}"),
+        }
+    }
+}
+
+/// Asks the server at `address` for `service`'s health, `""` being the server as a whole; prints
+/// the answer, and exits 0 only on SERVING.
 // A connection alone proves nothing: the kernel completes it from the backlog of a hung process.
-pub async fn probe(socket: &Path) -> ExitCode {
-    match tokio::time::timeout(PROBE_TIMEOUT, check_health(socket)).await {
+pub async fn probe(address: &Address, service: &str) -> ExitCode {
+    match tokio::time::timeout(PROBE_TIMEOUT, check_health(address, service)).await {
         Ok(Ok(WireStatus::Serving)) => {
             println!("serving");
             ExitCode::SUCCESS
@@ -66,7 +86,7 @@ pub async fn probe(socket: &Path) -> ExitCode {
         Ok(Err(error)) => {
             println!(
                 "can't check health on {}: {}",
-                sanitize(&socket.display().to_string()),
+                sanitize(&address.to_string()),
                 sanitize(&error)
             );
             ExitCode::FAILURE
@@ -74,7 +94,7 @@ pub async fn probe(socket: &Path) -> ExitCode {
         Err(_) => {
             println!(
                 "no answer on {} within {}s",
-                sanitize(&socket.display().to_string()),
+                sanitize(&address.to_string()),
                 PROBE_TIMEOUT.as_secs()
             );
             ExitCode::FAILURE
@@ -82,10 +102,12 @@ pub async fn probe(socket: &Path) -> ExitCode {
     }
 }
 
-// The server's health as a whole.
-async fn check_health(socket: &Path) -> Result<WireStatus, String> {
-    let endpoint = Endpoint::from_shared(format!("unix:{}", socket.display()))
-        .map_err(|error| error.to_string())?;
+async fn check_health(address: &Address, service: &str) -> Result<WireStatus, String> {
+    let uri = match address {
+        Address::Unix(socket) => format!("unix:{}", socket.display()),
+        Address::Tcp(address) => format!("http://{address}"),
+    };
+    let endpoint = Endpoint::from_shared(uri).map_err(|error| error.to_string())?;
     let channel =
         endpoint
             .connect()
@@ -95,7 +117,9 @@ async fn check_health(socket: &Path) -> Result<WireStatus, String> {
                 None => format!("can't connect: {error}"),
             })?;
     let response = HealthClient::new(channel)
-        .check(HealthCheckRequest::default())
+        .check(HealthCheckRequest {
+            service: service.to_owned(),
+        })
         .await
         .map_err(|status| format!("{:?}: {}", status.code(), status.message()))?;
     let status = response.into_inner().status;
