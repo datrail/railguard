@@ -5,6 +5,7 @@ use rail_runtime::{
 };
 
 use crate::common::{Reply, client, response, serve};
+use crate::holder::HOUR;
 
 // 2026-07-28T10:15:00Z
 const EXPIRES_AT: u64 = 1_785_233_700;
@@ -20,7 +21,10 @@ fn query() -> TicketQuery {
 fn tickets(url: &str) -> RailCenterTickets {
     RailCenterTickets {
         client: client(url),
-        settings: TicketSettings::new(query()),
+        settings: TicketSettings {
+            query: query(),
+            refresh_interval: HOUR,
+        },
     }
 }
 
@@ -294,14 +298,14 @@ async fn a_response_off_the_contract_is_described_without_its_values() {
     assert!(!error.contains("eyJ0aGUiOiJ0aWNrZXQifQ"), "{error}");
 }
 
-// On paused time the first timer due fires at once: the error names which, and when.
+// On paused time the deadline fires at once: the error names it, and when.
 #[tokio::test(start_paused = true)]
 async fn a_silent_rail_center_is_given_up_on_after_10_s() {
     let server = serve(|_| Reply::Silent).await;
 
     let error = refusal(tickets(&server.url).fetch(at(SENT_AT)).await);
 
-    assert_eq!(error, "Rail Center was silent for 10s");
+    assert_eq!(error, "the fetch ran past its 10s deadline");
 }
 
 #[tokio::test(start_paused = true)]

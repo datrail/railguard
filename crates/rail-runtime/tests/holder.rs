@@ -92,7 +92,7 @@ pub fn ticket(token: &str, expires_at: SystemTime) -> Answer {
 }
 
 pub fn failed() -> Answer {
-    Err("Rail Center was silent for 10s".to_owned())
+    Err("the fetch ran past its 10s deadline".to_owned())
 }
 
 // With no jitter, so the times the fetches come are exact.

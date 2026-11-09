@@ -1,4 +1,5 @@
 use std::fmt;
+use std::time::Duration;
 
 use reqwest::Url;
 
@@ -14,6 +15,9 @@ pub(crate) const AUTH_TOKEN: &str = "RAIL_AUTH_TOKEN";
 const TOKEN_PREFIX: &str = "rc_svc_";
 const TOKEN_SECRET_CHARS: usize = 43;
 
+// Under uvicorn's default 5 s keep-alive, which Rail Center's server runs with.
+const IDLE_TIMEOUT: Duration = Duration::from_secs(4);
+
 #[derive(Debug)]
 pub struct RailCenterSettings {
     pub url: CenterUrl,
@@ -21,6 +25,9 @@ pub struct RailCenterSettings {
     pub allow_http: bool,
     /// The `rc_svc_` token sent as a bearer credential, under `RAIL_AUTH_MODE=bearer`.
     pub token: Option<Secret>,
+    /// How long an idle connection is kept for reuse: under the server's keep-alive, so the server
+    /// doesn't close one as it's reused.
+    pub idle_timeout: Duration,
 }
 
 /// Whether `RAIL_DISABLED` is true.
@@ -79,6 +86,7 @@ pub fn read_rail_center(
         url,
         allow_http,
         token,
+        idle_timeout: IDLE_TIMEOUT,
     });
     if let Some(rail_center) = &rail_center {
         describe_rail_center(settings, rail_center);

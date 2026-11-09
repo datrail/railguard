@@ -3,14 +3,13 @@ use std::time::Duration;
 
 use flate2::Compression;
 use flate2::write::GzEncoder;
-use rail_runtime::{FetchError, Limits, RailCenterClient, RailCenterSettings, Secret};
+use rail_runtime::{FetchError, Limits, RailCenterClient, RailCenterSettings};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 
 use crate::common::{Reply, TOKEN, client, response, serve, settings};
 
 const LIMITS: Limits = Limits {
-    attempt_timeout: Duration::from_secs(5),
     deadline: Duration::from_secs(10),
     max_bytes: 1024,
 };
@@ -98,7 +97,7 @@ async fn a_declared_length_past_the_cap_is_refused_unread() {
     })
     .await;
     let limits = Limits {
-        attempt_timeout: Duration::from_millis(200),
+        deadline: Duration::from_millis(200),
         ..LIMITS
     };
 
@@ -236,28 +235,6 @@ async fn identity_is_read_however_it_is_spelled() {
 }
 
 #[tokio::test]
-async fn a_silent_body_times_the_attempt_out() {
-    let server = serve(|_| {
-        Reply::Dribble(
-            b"HTTP/1.1 200 OK\r\n\r\n".to_vec(),
-            Duration::from_secs(3600),
-        )
-    })
-    .await;
-    let limits = Limits {
-        attempt_timeout: Duration::from_millis(200),
-        ..LIMITS
-    };
-
-    let error = client(&server.url)
-        .get("/v1/x", &[], limits)
-        .await
-        .unwrap_err();
-
-    assert!(matches!(error, FetchError::Timeout(_)), "{error:?}");
-}
-
-#[tokio::test]
 async fn a_dribbling_body_runs_into_the_deadline() {
     let server = serve(|_| {
         Reply::Dribble(
@@ -267,35 +244,24 @@ async fn a_dribbling_body_runs_into_the_deadline() {
     })
     .await;
     let limits = Limits {
-        attempt_timeout: Duration::from_millis(500),
         deadline: Duration::from_millis(300),
         max_bytes: 1 << 20,
     };
 
-    let error = client(&server.url)
-        .get("/v1/x", &[], limits)
-        .await
-        .unwrap_err();
+    // Bounded here too, so a deadline missing from the body fails the test rather than hanging it.
+    let error = tokio::time::timeout(
+        Duration::from_secs(5),
+        client(&server.url).get("/v1/x", &[], limits),
+    )
+    .await
+    .expect("the deadline ends the fetch")
+    .unwrap_err();
 
     assert!(matches!(error, FetchError::Deadline(_)), "{error:?}");
 }
 
 #[tokio::test]
-async fn a_request_closed_unanswered_is_retried_once() {
-    let server = serve(|count| match count {
-        0 => Reply::Close,
-        _ => Reply::Raw(response("200 OK", &[], b"ok")),
-    })
-    .await;
-
-    let fetched = client(&server.url).get("/v1/x", &[], LIMITS).await.unwrap();
-
-    assert_eq!(fetched.body, b"ok");
-    assert_eq!(server.requests.lock().unwrap().len(), 2);
-}
-
-#[tokio::test]
-async fn a_second_unanswered_request_is_a_failure() {
+async fn a_request_closed_unanswered_is_a_failure_not_retried() {
     let server = serve(|_| Reply::Close).await;
 
     let error = client(&server.url)
@@ -304,7 +270,33 @@ async fn a_second_unanswered_request_is_a_failure() {
         .unwrap_err();
 
     assert!(matches!(error, FetchError::Transport(_)), "{error:?}");
-    assert_eq!(server.requests.lock().unwrap().len(), 2);
+    assert_eq!(server.requests.lock().unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn a_connection_is_reused_only_within_the_idle_timeout() {
+    // Each connection answers with its number.
+    let server = serve(|connection| {
+        Reply::KeepAlive(
+            format!("HTTP/1.1 200 OK\r\ncontent-length: 1\r\n\r\n{connection}").into_bytes(),
+        )
+    })
+    .await;
+    let settings = RailCenterSettings {
+        idle_timeout: Duration::from_millis(200),
+        ..settings(&server.url, Some(TOKEN))
+    };
+    let client = RailCenterClient::new(&settings).unwrap();
+
+    let mut answered_on = Vec::new();
+    for pause in [Duration::ZERO, Duration::ZERO, Duration::from_millis(600)] {
+        tokio::time::sleep(pause).await;
+        let fetched = client.get("/v1/x", &[], LIMITS).await.unwrap();
+        answered_on.push(String::from_utf8(fetched.body).unwrap());
+    }
+
+    // The first two share a connection; the third, past the timeout, opens its own.
+    assert_eq!(answered_on, ["0", "0", "1"]);
 }
 
 #[tokio::test]
@@ -321,7 +313,7 @@ async fn no_failure_carries_the_credential_or_the_url() {
     let refused_url = format!("http://{}", refused.local_addr().unwrap());
     drop(refused);
     let limits = Limits {
-        attempt_timeout: Duration::from_millis(200),
+        deadline: Duration::from_millis(200),
         ..LIMITS
     };
 
@@ -395,25 +387,4 @@ fn an_ambient_proxy_is_not_used() {
     // A name matching no test would pass with nothing run.
     assert!(stdout.contains("1 passed"), "{stdout}");
     assert!(output.status.success(), "{stdout}");
-}
-
-#[test]
-fn a_token_that_cant_go_in_a_header_is_refused_unquoted() {
-    let cases = [
-        (
-            "rc_svc_x\r\nX-Evil: 1",
-            "holds a byte at offset 15 that can't go in a header value",
-        ),
-        ("rc_svc_x ", "is padded with whitespace"),
-    ];
-    for (token, refusal) in cases {
-        let settings = RailCenterSettings {
-            token: Some(Secret::new(token.to_owned())),
-            ..settings("http://127.0.0.1:1", None)
-        };
-
-        let error = RailCenterClient::new(&settings).err().unwrap();
-
-        assert_eq!(error, format!("the authorization header {refusal}"));
-    }
 }

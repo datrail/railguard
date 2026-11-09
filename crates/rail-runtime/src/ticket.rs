@@ -25,7 +25,6 @@ const DEFAULT_REFRESH_INTERVAL: Duration = Duration::from_secs(3600);
 
 // A named fetch answers with one ticket at most, so a body past this is a wrong one.
 const LIMITS: Limits = Limits {
-    attempt_timeout: Duration::from_secs(10),
     deadline: Duration::from_secs(10),
     max_bytes: 256 * 1024,
 };
@@ -39,15 +38,6 @@ pub struct TicketSettings {
     pub query: TicketQuery,
     /// The longest a valid ticket goes unrefreshed; its own lifetime paces refreshes below it.
     pub refresh_interval: Duration,
-}
-
-impl TicketSettings {
-    pub fn new(query: TicketQuery) -> Self {
-        Self {
-            query,
-            refresh_interval: DEFAULT_REFRESH_INTERVAL,
-        }
-    }
 }
 
 /// The ticket's settings, every one set judged, `None` if the host or sandbox is missing; both
@@ -85,11 +75,11 @@ pub fn read_ticket_settings(
     let ticket = host_id
         .zip(sandbox_name)
         .map(|(host_id, sandbox_name)| TicketSettings {
-            refresh_interval,
-            ..TicketSettings::new(TicketQuery {
+            query: TicketQuery {
                 host_id: host_id.to_owned(),
                 sandbox_name: sandbox_name.to_owned(),
-            })
+            },
+            refresh_interval,
         });
     if let Some(ticket) = &ticket {
         settings.describe(HOST_ID, &ticket.query.host_id);

@@ -85,10 +85,13 @@ async fn a_hostile_answer_is_logged_escaped_once() {
     let server = serve(move |_| Reply::Raw(response("200 OK", &[], body.as_bytes()))).await;
     let source = RailCenterTickets {
         client: client(&server.url),
-        settings: TicketSettings::new(TicketQuery {
-            host_id: "host-1".to_owned(),
-            sandbox_name: "sandbox a".to_owned(),
-        }),
+        settings: TicketSettings {
+            query: TicketQuery {
+                host_id: "host-1".to_owned(),
+                sandbox_name: "sandbox a".to_owned(),
+            },
+            refresh_interval: HOUR,
+        },
     };
 
     let _holder = TicketHolder::start(
@@ -142,7 +145,7 @@ async fn each_answer_is_logged_for_what_it_did_to_the_ticket_held() {
         format!("ticket acquired fingerprint=\"{}\"", fingerprint("a")),
         format!("ticket rotated fingerprint=\"{}\"", fingerprint("b")),
         format!(
-            "ticket refresh failed; keeping the one held reason=\"Rail Center was silent for 10s\" \
+            "ticket refresh failed; keeping the one held reason=\"the fetch ran past its 10s deadline\" \
              fingerprint=\"{}\"",
             fingerprint("b")
         ),
