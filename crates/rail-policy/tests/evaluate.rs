@@ -1,3 +1,6 @@
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use rail_policy::{
     Budget, Condition, Endpoint, Environment, Headers, Refusal, Verdict, compile_condition,
     evaluate_condition,
@@ -178,6 +181,20 @@ fn test_refuses_an_in_or_a_match_past_the_step_limit_and_not_before() {
             "{condition} {steps}"
         );
     }
+}
+
+#[test]
+fn test_a_stopped_budget_refuses_at_its_next_step() {
+    let condition = json!({"path": "request.headers.x-a", "op": "eq", "value": "a"});
+    let stop = Arc::new(AtomicBool::new(false));
+    let evaluate = || {
+        let mut budget = Budget::default().stopped_by(Arc::clone(&stop));
+        evaluate_on_header(condition.clone(), "a", &mut budget)
+    };
+
+    assert_eq!(evaluate(), Verdict::Holds);
+    stop.store(true, Ordering::Relaxed);
+    assert_eq!(evaluate(), Verdict::Refused(Refusal::BudgetExceeded));
 }
 
 #[test]
