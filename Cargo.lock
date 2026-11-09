@@ -992,7 +992,6 @@ version = "0.0.0"
 dependencies = [
  "envoy-types",
  "rail-grpc-host",
- "rail-policy",
  "rail-runtime",
  "tokio",
  "tokio-stream",

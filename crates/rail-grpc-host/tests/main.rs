@@ -1,8 +1,9 @@
 use std::os::unix::net::UnixListener as StdUnixListener;
 use std::path::PathBuf;
+use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
-use rail_grpc_host::{Address, ask_health};
+use rail_grpc_host::{Address, ask_health, probe};
 use tokio::net::TcpListener;
 use tokio_stream::wrappers::TcpListenerStream;
 use tonic_health::ServingStatus;
@@ -31,7 +32,7 @@ impl Drop for TempSocket {
 }
 
 // Over TCP, as rail-apigee serves, each service asked by its name.
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn the_probe_asks_a_tcp_server_for_the_service_named() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = Address::Tcp(listener.local_addr().unwrap());
@@ -74,6 +75,7 @@ async fn the_probe_fails_with_nothing_listening() {
             "can't check health on {port}: can't connect: Connection refused (os error 111)"
         ))
     );
+    assert_eq!(probe(&port, "").await, ExitCode::FAILURE);
 }
 
 // The kernel completes the connection from the backlog, so only the request can tell.

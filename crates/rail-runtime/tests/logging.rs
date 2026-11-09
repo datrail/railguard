@@ -1,6 +1,9 @@
 use std::error::Error;
 use std::fmt;
 
+use rail_runtime::logging::log_settings;
+use rail_runtime::{Entry, Level, Source, Startup};
+
 use crate::logs::Logs;
 
 // The one line `log` writes, after its target.
@@ -195,6 +198,47 @@ fn a_span_field_is_quoted_too_when_created_and_when_recorded() {
             module_path!()
         )),
         "{text}"
+    );
+}
+
+// Each line after its timestamp: the level, target, message and fields.
+#[test]
+fn the_settings_are_logged_each_at_its_level_then_each_unread_name() {
+    let startup = Startup {
+        entries: vec![
+            Entry {
+                name: "RAIL_PORT",
+                value: "8080".to_owned(),
+                level: Level::Info,
+                source: Source::Default,
+            },
+            Entry {
+                name: "RAIL_DISABLED",
+                value: "true".to_owned(),
+                level: Level::Warn("nothing is fetched"),
+                source: Source::Env,
+            },
+        ],
+        unread: vec!["RAIL_TYPO".to_owned()],
+    };
+    let logs = Logs::default();
+    {
+        let _logging = logs.capture();
+        log_settings(&startup);
+    }
+
+    let text = logs.text();
+    let lines: Vec<_> = text
+        .lines()
+        .map(|line| line.split_once(' ').unwrap().1.trim_start())
+        .collect();
+    assert_eq!(
+        lines,
+        [
+            r#"INFO rail_runtime::logging: setting name="RAIL_PORT" value="8080" source="default""#,
+            r#"WARN rail_runtime::logging: setting name="RAIL_DISABLED" value="true" source="env" weakens="nothing is fetched""#,
+            r#"WARN rail_runtime::logging: set but not read name="RAIL_TYPO""#,
+        ]
     );
 }
 

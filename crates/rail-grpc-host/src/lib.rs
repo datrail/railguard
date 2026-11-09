@@ -1,5 +1,5 @@
 //! The parts of a gRPC host process both binaries share: waiting for SIGTERM, draining the server
-//! until a deadline, and the probe, a health check over the server's own socket.
+//! until a deadline, and the probe, a health check on the server's own address.
 
 use std::error::Error;
 use std::fmt;

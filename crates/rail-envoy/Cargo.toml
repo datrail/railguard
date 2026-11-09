@@ -19,9 +19,8 @@ path = "tests/main.rs"
 [dependencies]
 envoy-types = "0.7"
 rail-grpc-host = { path = "../rail-grpc-host" }
-rail-policy = { path = "../rail-policy" }
 rail-runtime = { path = "../rail-runtime" }
-tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync"] }
 tokio-stream = { version = "0.1", features = ["net"] }
 tracing = "0.1"
 tonic = { version = "0.14", default-features = false, features = ["codegen", "router", "server"] }
