@@ -3,6 +3,7 @@ use std::fmt;
 
 use serde::de::Error as _;
 use serde::{Deserialize, Deserializer};
+use serde_json::Value;
 use uuid::Uuid;
 
 use crate::condition::Condition;
@@ -25,6 +26,43 @@ pub struct Bundle {
     pub binding_fallback: Fallback,
     /// For a call with no usable ticket, asked first: `block` denies, `pass` goes on without it.
     pub ticket_fallback: Fallback,
+    /// The `iss` a signed ticket for this tenant carries (`2.1`).
+    #[serde(default, deserialize_with = "read_ticket_claim")]
+    pub ticket_issuer: TicketClaim,
+    /// The `aud` a signed ticket for this tenant carries (`2.1`).
+    #[serde(default, deserialize_with = "read_ticket_claim")]
+    pub ticket_audience: TicketClaim,
+}
+
+/// What a signed ticket's `iss` or `aud` must be, as the bundle names it. Without both, a reader
+/// accepts no signed ticket.
+#[derive(Debug, Default, PartialEq)]
+pub enum TicketClaim {
+    /// Absent, as before `2.1`, or `null`, while Rail Center signs no tickets.
+    #[default]
+    Unset,
+    Exactly(String),
+    /// Not a string: read as unset, not refused, since that only refuses signed tickets, where
+    /// refusing the bundle would keep every other change out. The caller warns.
+    NotAString,
+}
+
+impl TicketClaim {
+    /// The value to compare with, if it's set.
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            Self::Exactly(value) => Some(value),
+            Self::Unset | Self::NotAString => None,
+        }
+    }
+}
+
+fn read_ticket_claim<'de, D: Deserializer<'de>>(deserializer: D) -> Result<TicketClaim, D::Error> {
+    Ok(match Value::deserialize(deserializer)? {
+        Value::Null => TicketClaim::Unset,
+        Value::String(value) => TicketClaim::Exactly(value),
+        _ => TicketClaim::NotAString,
+    })
 }
 
 /// `MAJOR.MINOR`, digits only.

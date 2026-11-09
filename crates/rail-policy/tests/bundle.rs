@@ -1,6 +1,6 @@
 use rail_policy::{
     Action, BindingMode, Condition, EndpointKey, EnforcementMode, Fallback, Path, Predicate,
-    SchemaVersion, TicketPath, parse_bundle,
+    SchemaVersion, TicketClaim, TicketPath, parse_bundle,
 };
 use serde::Deserialize;
 use serde_json::value::RawValue;
@@ -9,7 +9,7 @@ use uuid::Uuid;
 const VECTORS: &str = include_str!("../../../vectors/parse_bundle_conformance_cases.json");
 
 const EXAMPLE: &str = r##"{
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "content_hash": "a3f1c09e7b2d4485",
   "generated_at": "2026-07-28T20:41:07.512247Z",
   "enforcement": { "mode": "observe" },
@@ -31,7 +31,9 @@ const EXAMPLE: &str = r##"{
     }
   ],
   "binding_fallback": "block",
-  "ticket_fallback": "pass"
+  "ticket_fallback": "pass",
+  "ticket_issuer": "https://rail-center.example.com/tenants/00000000-0000-4000-8000-0000000000aa",
+  "ticket_audience": "00000000-0000-4000-8000-0000000000aa"
 }"##;
 
 #[derive(Deserialize)]
@@ -81,12 +83,20 @@ fn test_vectors() {
 fn test_reads_every_field_rail_center_publishes() {
     let bundle = parse_bundle(EXAMPLE).unwrap();
 
-    let version = SchemaVersion { major: 2, minor: 0 };
+    let version = SchemaVersion { major: 2, minor: 1 };
     assert_eq!(bundle.schema_version, version);
     assert_eq!(bundle.content_hash, "a3f1c09e7b2d4485");
     assert_eq!(bundle.enforcement.mode, EnforcementMode::Observe);
     assert_eq!(bundle.binding_fallback, Fallback::Block);
     assert_eq!(bundle.ticket_fallback, Fallback::Pass);
+    assert_eq!(
+        bundle.ticket_issuer.as_str(),
+        Some("https://rail-center.example.com/tenants/00000000-0000-4000-8000-0000000000aa")
+    );
+    assert_eq!(
+        bundle.ticket_audience.as_str(),
+        Some("00000000-0000-4000-8000-0000000000aa")
+    );
 
     let policy = &bundle.policies[0];
     assert_eq!(policy.name, "P1");
@@ -106,6 +116,25 @@ fn test_reads_every_field_rail_center_publishes() {
     };
     assert_eq!(binding.endpoint_key, key);
     assert_eq!(binding.policy_ids, [policy.id]);
+}
+
+#[test]
+fn test_reads_an_absent_or_null_ticket_audience_as_unset_and_a_non_string_apart() {
+    let named = r#""ticket_audience": "00000000-0000-4000-8000-0000000000aa""#;
+    for (audience, read) in [
+        ("", TicketClaim::Unset),
+        (r#", "ticket_audience": null"#, TicketClaim::Unset),
+        (r#", "ticket_audience": 7"#, TicketClaim::NotAString),
+        (r#", "ticket_audience": ["a"]"#, TicketClaim::NotAString),
+    ] {
+        let bundle = EXAMPLE.replace(&format!(",\n  {named}"), audience);
+        assert!(!bundle.contains(named));
+
+        let bundle = parse_bundle(&bundle).unwrap();
+
+        assert_eq!(bundle.ticket_audience, read, "{audience}");
+        assert_eq!(bundle.ticket_audience.as_str(), None, "{audience}");
+    }
 }
 
 #[test]
@@ -139,7 +168,7 @@ fn test_reads_an_operand_as_the_nearest_double() {
 #[test]
 fn test_reads_a_version_of_two_numbers() {
     let read = |version: &str| {
-        let bundle = EXAMPLE.replace(r#""2.0""#, &format!(r#""{version}""#));
+        let bundle = EXAMPLE.replace(r#""2.1""#, &format!(r#""{version}""#));
         parse_bundle(&bundle).map(|bundle| bundle.schema_version)
     };
 

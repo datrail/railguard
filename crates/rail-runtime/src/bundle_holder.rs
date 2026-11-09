@@ -2,7 +2,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use rail_policy::{
-    CompiledBundle, EnforcementMode, Fallback, SchemaVersion, compile_bundle, parse_bundle,
+    CompiledBundle, EnforcementMode, Fallback, SchemaVersion, TicketClaim, compile_bundle,
+    parse_bundle,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -24,6 +25,11 @@ pub struct HeldBundle {
     pub content_hash: String,
     pub schema_version: SchemaVersion,
     pub posture: Posture,
+    /// The `iss` a signed ticket for this tenant carries: without it and `ticket_audience`, none
+    /// is accepted.
+    pub ticket_issuer: Option<String>,
+    /// The `aud` a signed ticket for this tenant carries.
+    pub ticket_audience: Option<String>,
 }
 
 /// How much of a verdict is acted on, and what the fallbacks decide, as the bundle says.
@@ -105,6 +111,8 @@ enum Outcome {
         bindings: usize,
         // On a change only: most polls say what the last one said.
         posture_moved: bool,
+        // The fields naming a ticket's `iss` or `aud` that aren't strings, held as unset.
+        not_strings: Vec<&'static str>,
     },
     Refused(String),
     Failed(String),
@@ -152,6 +160,7 @@ impl<S: BundleSource> Kind for Bundles<S> {
                 enabled_policies,
                 bindings,
                 posture_moved,
+                not_strings,
             } => {
                 let version = &bundle.schema_version;
                 tracing::info!(
@@ -163,6 +172,13 @@ impl<S: BundleSource> Kind for Bundles<S> {
                 );
                 if posture_moved {
                     log_posture(bundle.posture);
+                }
+                for field in not_strings {
+                    tracing::warn!(
+                        field,
+                        "the policy bundle's field isn't a string; held as unset, so every signed \
+                         ticket that verifies reads wrong_audience"
+                    );
                 }
             }
             Outcome::Refused(reason) => log_refused(current, &reason, retry),
@@ -289,6 +305,13 @@ fn read_answer(held: Option<&Arc<HeldBundle>>, answer: Result<Response, FetchErr
         .filter(|policy| policy.enabled)
         .count();
     let bindings = bundle.bindings.len();
+    let not_strings = [
+        ("ticket_issuer", &bundle.ticket_issuer),
+        ("ticket_audience", &bundle.ticket_audience),
+    ]
+    .into_iter()
+    .filter_map(|(field, claim)| (*claim == TicketClaim::NotAString).then_some(field))
+    .collect();
     let posture = Posture {
         mode: bundle.enforcement.mode,
         binding_fallback: bundle.binding_fallback,
@@ -300,9 +323,12 @@ fn read_answer(held: Option<&Arc<HeldBundle>>, answer: Result<Response, FetchErr
             content_hash: bundle.content_hash,
             schema_version: bundle.schema_version,
             posture,
+            ticket_issuer: bundle.ticket_issuer.as_str().map(str::to_owned),
+            ticket_audience: bundle.ticket_audience.as_str().map(str::to_owned),
         }),
         enabled_policies,
         bindings,
         posture_moved: held.is_none_or(|held| held.posture.as_logged() != posture.as_logged()),
+        not_strings,
     }
 }

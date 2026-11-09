@@ -93,8 +93,9 @@ fn test_base64_vectors() {
     let vectors: Vectors = serde_json::from_str(BASE64_VECTORS).unwrap();
     assert!(!vectors.cases.is_empty());
 
+    let no_keys = HashMap::new();
     let config = SignedTicketConfig {
-        keys: HashMap::new(),
+        keys: &no_keys,
         issuer: None,
         audience: None,
     };
@@ -124,28 +125,23 @@ fn test_jwt_vectors() {
         .try_into()
         .unwrap();
     let keys = HashMap::from([(vectors.kid, VerifyingKey::from_bytes(&key).unwrap())]);
-    let get_config = |reader: Option<&Reader>| match reader {
-        None => SignedTicketConfig {
-            keys: keys.clone(),
-            issuer: Some(vectors.issuer.clone()),
-            audience: Some(vectors.audience.clone()),
-        },
-        Some(reader) => SignedTicketConfig {
-            keys: if reader.holds_keys {
-                keys.clone()
-            } else {
-                HashMap::new()
-            },
-            issuer: reader.issuer.clone(),
-            audience: reader.audience.clone(),
-        },
-    };
-
+    let no_keys = HashMap::new();
     let failures: Vec<String> = vectors
         .cases
         .iter()
         .filter_map(|case| {
-            let config = get_config(case.reader.as_ref());
+            let config = match &case.reader {
+                None => SignedTicketConfig {
+                    keys: &keys,
+                    issuer: Some(&vectors.issuer),
+                    audience: Some(&vectors.audience),
+                },
+                Some(reader) => SignedTicketConfig {
+                    keys: if reader.holds_keys { &keys } else { &no_keys },
+                    issuer: reader.issuer.as_deref(),
+                    audience: reader.audience.as_deref(),
+                },
+            };
             let state = parse_jwt_ticket(&case.header, &config, case.now_in_seconds);
             // Every vector's header holds a `.`.
             assert_eq!(
@@ -160,8 +156,9 @@ fn test_jwt_vectors() {
 
 #[test]
 fn test_reads_an_empty_header_as_absent() {
+    let no_keys = HashMap::new();
     let config = SignedTicketConfig {
-        keys: HashMap::new(),
+        keys: &no_keys,
         issuer: None,
         audience: None,
     };
@@ -178,10 +175,11 @@ fn _sign_ticket(key: &SigningKey, header: &str, payload: &str) -> String {
 #[test]
 fn test_reads_padded_parts_in_either_alphabet() {
     let key = SigningKey::from_bytes(&[7; 32]);
+    let keys = HashMap::from([("k".to_string(), key.verifying_key())]);
     let config = SignedTicketConfig {
-        keys: HashMap::from([("k".to_string(), key.verifying_key())]),
-        issuer: Some("i".to_string()),
-        audience: Some("a".to_string()),
+        keys: &keys,
+        issuer: Some("i"),
+        audience: Some("a"),
     };
     // Padded, and in the standard alphabet: `???` encodes as `Pz8/`.
     let header = URL_SAFE.encode(json!({"alg": "EdDSA", "kid": "k"}).to_string());
@@ -199,8 +197,9 @@ fn test_reads_padded_parts_in_either_alphabet() {
 #[test]
 fn test_reads_a_signed_payload_that_is_not_an_object_as_malformed() {
     let key = SigningKey::from_bytes(&[7; 32]);
+    let keys = HashMap::from([("k".to_string(), key.verifying_key())]);
     let config = SignedTicketConfig {
-        keys: HashMap::from([("k".to_string(), key.verifying_key())]),
+        keys: &keys,
         issuer: None,
         audience: None,
     };
@@ -225,10 +224,11 @@ fn test_refuses_a_signature_for_a_weak_key() {
     let mut identity = [0; 32];
     identity[0] = 1;
     let key = VerifyingKey::from_bytes(&identity).unwrap();
+    let keys = HashMap::from([("k".to_string(), key)]);
     let config = SignedTicketConfig {
-        keys: HashMap::from([("k".to_string(), key)]),
-        issuer: Some("i".to_string()),
-        audience: Some("a".to_string()),
+        keys: &keys,
+        issuer: Some("i"),
+        audience: Some("a"),
     };
     let header = URL_SAFE_NO_PAD.encode(json!({"alg": "EdDSA", "kid": "k"}).to_string());
     let payload = json!({"exp": 60, "nbf": 0, "iss": "i", "aud": "a"}).to_string();
@@ -247,16 +247,22 @@ fn test_refuses_a_signature_for_a_weak_key() {
 #[test]
 fn test_reads_an_empty_issuer_or_audience_as_not_configured() {
     let key = SigningKey::from_bytes(&[7; 32]);
+    let keys = HashMap::from([("k".to_string(), key.verifying_key())]);
     let header = URL_SAFE_NO_PAD.encode(json!({"alg": "EdDSA", "kid": "k"}).to_string());
-    let payload = json!({"exp": 60, "nbf": 0, "iss": "", "aud": ""}).to_string();
-    let ticket = _sign_ticket(&key, &header, &URL_SAFE_NO_PAD.encode(payload));
-    let config = SignedTicketConfig {
-        keys: HashMap::from([("k".to_string(), key.verifying_key())]),
-        issuer: Some(String::new()),
-        audience: Some(String::new()),
-    };
-    assert_eq!(
-        parse_jwt_ticket(&ticket, &config, 0),
-        TicketState::WrongAudience
-    );
+    // Each ticket names exactly what the reader holds, so only the empty one refuses it.
+    for (issuer, audience) in [("", "a"), ("i", "")] {
+        let payload = json!({"exp": 60, "nbf": 0, "iss": issuer, "aud": audience}).to_string();
+        let ticket = _sign_ticket(&key, &header, &URL_SAFE_NO_PAD.encode(payload));
+        let config = SignedTicketConfig {
+            keys: &keys,
+            issuer: Some(issuer),
+            audience: Some(audience),
+        };
+
+        assert_eq!(
+            parse_jwt_ticket(&ticket, &config, 0),
+            TicketState::WrongAudience,
+            "{issuer:?} {audience:?}"
+        );
+    }
 }

@@ -41,15 +41,15 @@ pub struct Ticket {
     pub claims: Map<String, Value>,
 }
 
-/// What a reader needs to accept a signed ticket.
+/// What a reader needs to accept a signed ticket, borrowed, so it's built for each call.
 #[derive(Debug)]
-pub struct SignedTicketConfig {
+pub struct SignedTicketConfig<'a> {
     /// By `kid`.
-    pub keys: HashMap<String, VerifyingKey>,
-    /// `None` or empty where not configured, which accepts no signed ticket.
-    pub issuer: Option<String>,
+    pub keys: &'a HashMap<String, VerifyingKey>,
+    /// `None` or empty where not held, which accepts no signed ticket.
+    pub issuer: Option<&'a str>,
     /// As `issuer`.
-    pub audience: Option<String>,
+    pub audience: Option<&'a str>,
 }
 
 /// Reads either kind of ticket. A `.` is outside both base64 alphabets, so only a signed ticket
@@ -143,11 +143,8 @@ pub fn parse_jwt_ticket(
 
     // Genuine, so not `BadSignature`, but with nothing to compare against it isn't for us either.
     // An empty one would match a ticket carrying `iss: ""`.
-    let issuer = config.issuer.as_deref().filter(|issuer| !issuer.is_empty());
-    let audience = config
-        .audience
-        .as_deref()
-        .filter(|audience| !audience.is_empty());
+    let issuer = config.issuer.filter(|issuer| !issuer.is_empty());
+    let audience = config.audience.filter(|audience| !audience.is_empty());
     let (Some(issuer), Some(audience)) = (issuer, audience) else {
         return TicketState::WrongAudience;
     };
