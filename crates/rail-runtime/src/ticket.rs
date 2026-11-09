@@ -9,11 +9,9 @@ use time::macros::format_description;
 
 use crate::client::{Limits, RailCenterClient};
 use crate::config::{Refused, Secret, Settings};
+use crate::holder::MIN_REFRESH_INTERVAL;
 
 const ROUTE: &str = "/v1/tickets";
-
-// Not settings: a lower floor would let a fleet hammer Rail Center.
-pub(crate) const MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(5);
 
 pub(crate) const HOST_ID: &str = "RAIL_HOST_ID";
 pub(crate) const SANDBOX_NAME: &str = "RAIL_SANDBOX_NAME";

@@ -1,9 +1,9 @@
 use std::time::Duration;
 
-use rail_runtime::{TicketAnswer, Unavailable};
+use rail_runtime::{Jitter, TicketAnswer, Unavailable};
 use tokio::time::sleep;
 
-use crate::holder::{Clock, HOUR, Script, failed, start, ticket, token, until};
+use crate::holder::{Clock, HOUR, Script, failed, start, start_jittered, ticket, token, until};
 
 #[tokio::test(start_paused = true)]
 async fn a_fetched_ticket_is_presented_from_the_first_fetch() {
@@ -141,10 +141,10 @@ async fn repeated_failure_backs_off_to_a_ceiling() {
     let _holder = start(&clock, &script, HOUR);
     until(&clock, 1915).await;
 
-    // 10, 20, 40, 80, 160, 320, then 320 again: six doublings of 5 s.
+    // 5, 10, 20, 40, 80, 160, 320, then 320 again: six doublings of 5 s.
     assert_eq!(
         script.fetched_at(),
-        [0, 10, 30, 70, 150, 310, 630, 950, 1270, 1590, 1910]
+        [0, 5, 15, 35, 75, 155, 315, 635, 955, 1275, 1595, 1915]
     );
 }
 
@@ -158,7 +158,7 @@ async fn the_backoff_never_exceeds_the_interval_nor_goes_under_5_s() {
     let _floored = start(&clock, &floored, Duration::from_secs(1));
     until(&clock, 130).await;
 
-    assert_eq!(capped.fetched_at(), [0, 10, 30, 60, 90, 120]);
+    assert_eq!(capped.fetched_at(), [0, 5, 15, 35, 65, 95, 125]);
     assert_eq!(floored.fetched_at()[..4], [0, 5, 10, 15]);
 }
 
@@ -168,9 +168,9 @@ async fn no_ticket_backs_off_like_a_failure() {
     let script = Script::new(&clock, |_| Ok(TicketAnswer::NoTicket));
 
     let _holder = start(&clock, &script, HOUR);
-    until(&clock, 70).await;
+    until(&clock, 35).await;
 
-    assert_eq!(script.fetched_at(), [0, 10, 30, 70]);
+    assert_eq!(script.fetched_at(), [0, 5, 15, 35]);
 }
 
 #[tokio::test(start_paused = true)]
@@ -180,14 +180,14 @@ async fn rail_center_handing_out_lapsed_tickets_still_backs_off() {
     let script = Script::new(&clock, move |_| ticket("a", lapsed));
 
     let holder = start(&clock, &script, HOUR);
-    until(&clock, 70).await;
+    until(&clock, 35).await;
 
-    assert_eq!(script.fetched_at(), [0, 10, 30, 70]);
+    assert_eq!(script.fetched_at(), [0, 5, 15, 35]);
     assert_eq!(token(&holder), Err(Unavailable::Expired));
 }
 
 #[tokio::test(start_paused = true)]
-async fn failures_while_a_ticket_holds_leave_the_ramp_alone() {
+async fn failures_while_a_ticket_holds_back_off_within_half_its_remaining_life() {
     let clock = Clock::new();
     let expiry = clock.at(40);
     let script = Script::new(&clock, move |n| {
@@ -199,10 +199,11 @@ async fn failures_while_a_ticket_holds_leave_the_ramp_alone() {
     });
 
     let _holder = start(&clock, &script, HOUR);
-    until(&clock, 60).await;
+    until(&clock, 123).await;
 
-    // Held until 40: half-lives 20, 10, then the 5 s floor. Lapsed at 40: the ramp starts at 10.
-    assert_eq!(script.fetched_at(), [0, 20, 30, 35, 40, 50]);
+    // From 20, waits 5, then 7.5 (half of 15, under 10), then the floor twice; lapsed by 42.5, the
+    // fifth failure, so the ramp's 80 s.
+    assert_eq!(script.fetched_at(), [0, 20, 25, 32, 37, 42, 122]);
 }
 
 #[tokio::test(start_paused = true)]
@@ -217,10 +218,10 @@ async fn a_success_restarts_the_ramp() {
     });
 
     let _holder = start(&clock, &script, HOUR);
-    until(&clock, 90).await;
+    until(&clock, 75).await;
 
-    // Fails at 0, 10 and 30; at 70 a ticket lapsing within the floor; then the ramp from 10 again.
-    assert_eq!(script.fetched_at(), [0, 10, 30, 70, 75, 85]);
+    // Fails at 0, 5 and 15; at 35 a ticket lapsing within the floor; then the ramp from 5 again.
+    assert_eq!(script.fetched_at(), [0, 5, 15, 35, 40, 45, 55, 75]);
 }
 
 #[tokio::test(start_paused = true)]
@@ -229,11 +230,11 @@ async fn dropping_the_holder_stops_the_refreshes() {
     let script = Script::new(&clock, |_| failed());
 
     let holder = start(&clock, &script, HOUR);
-    until(&clock, 10).await;
+    until(&clock, 5).await;
     drop(holder);
     sleep(HOUR).await;
 
-    assert_eq!(script.fetched_at(), [0, 10]);
+    assert_eq!(script.fetched_at(), [0, 5]);
 }
 
 #[tokio::test(start_paused = true)]
@@ -258,7 +259,7 @@ async fn a_new_ticket_replaces_one_still_valid() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_lapsed_answer_never_replaces_a_ticket_still_valid_nor_moves_the_ramp() {
+async fn a_lapsed_answer_never_replaces_a_ticket_still_valid_and_backs_off() {
     let clock = Clock::new();
     let (good, lapsed) = (clock.at(40), clock.at(0));
     let script = Script::new(&clock, move |n| {
@@ -275,8 +276,8 @@ async fn a_lapsed_answer_never_replaces_a_ticket_still_valid_nor_moves_the_ramp(
     until(&clock, 60).await;
 
     assert_eq!(token(&holder), Err(Unavailable::Expired));
-    // Held until 40, lapsed answers kept out; at 40 the lapsed one is stored and the ramp starts.
-    assert_eq!(script.fetched_at(), [0, 20, 30, 35, 40, 50]);
+    // Lapsed answers kept out until 40, each a failure, as in the test above.
+    assert_eq!(script.fetched_at(), [0, 20, 25, 32, 37, 42]);
 }
 
 #[tokio::test(start_paused = true)]
@@ -351,4 +352,96 @@ async fn the_same_ticket_again_takes_its_new_expiry_lapsed_or_not() {
     // Refetched at 50 and at 10, each past the expiry it first had.
     assert_eq!(token(&valid), Ok("a".to_owned()));
     assert_eq!(token(&renewed), Ok("a".to_owned()));
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_period_runs_from_the_start_of_a_slow_fetch_and_never_under_5_s_after_it_ends() {
+    let clock = Clock::new();
+    let expiry = clock.at(86_400);
+    let slow = Script {
+        takes: Duration::from_secs(10),
+        ..Script::new(&clock, move |_| ticket("a", expiry))
+    };
+    let slower = Script {
+        takes: Duration::from_secs(598),
+        ..Script::new(&clock, move |_| ticket("a", expiry))
+    };
+
+    let _slow = start(&clock, &slow, Duration::from_secs(600));
+    let _slower = start(&clock, &slower, Duration::from_secs(600));
+    until(&clock, 1206).await;
+
+    assert_eq!(slow.fetched_at(), [0, 600, 1200]);
+    assert_eq!(slower.fetched_at(), [0, 603, 1206]);
+}
+
+#[tokio::test(start_paused = true)]
+async fn jitter_scales_every_wait_never_under_5_s() {
+    let clock = Clock::new();
+    let expiry = clock.at(86_400);
+    let succeeding = move |n: usize| {
+        if n == 0 {
+            failed()
+        } else {
+            ticket("a", expiry)
+        }
+    };
+    let cases: [(f64, [u64; 4]); 2] = [
+        // A failure's 5 s wait floored at 5, a period of 600 s scaled.
+        (0.8, [0, 5, 485, 965]),
+        (1.2, [0, 6, 726, 1446]),
+    ];
+
+    let scripts = cases.map(|(factor, _)| {
+        let script = Script::new(&clock, succeeding);
+        let holder = start_jittered(
+            &clock,
+            &script,
+            Duration::from_secs(600),
+            Jitter::new(move || factor),
+        );
+        (script, holder)
+    });
+    until(&clock, 1446).await;
+
+    for ((factor, expected), (script, _)) in cases.iter().zip(&scripts) {
+        assert_eq!(script.fetched_at()[..4], *expected, "{factor}");
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn random_jitter_varies_within_a_fifth_of_the_period() {
+    let clock = Clock::new();
+    let expiry = clock.at(86_400 * 30);
+    let script = Script::new(&clock, move |_| ticket("a", expiry));
+
+    let _holder = start_jittered(&clock, &script, Duration::from_secs(600), Jitter::random());
+    until(&clock, 600 * 50).await;
+
+    let fetched_at = script.fetched_at();
+    let gaps: Vec<u64> = fetched_at
+        .windows(2)
+        .map(|pair| pair[1] - pair[0])
+        .collect();
+    assert!(gaps.len() >= 40, "{gaps:?}");
+    // Whole seconds, so a gap may read one under.
+    assert!(gaps.iter().all(|gap| (479..=720).contains(gap)), "{gaps:?}");
+    assert!(gaps.iter().any(|gap| *gap < 599), "{gaps:?}");
+    assert!(gaps.iter().any(|gap| *gap > 601), "{gaps:?}");
+}
+
+#[tokio::test(start_paused = true)]
+async fn half_the_remaining_life_runs_from_the_end_of_a_slow_fetch_and_isnt_jittered_past() {
+    let clock = Clock::new();
+    let expiry = clock.at(800);
+    let script = Script {
+        takes: Duration::from_secs(10),
+        ..Script::new(&clock, move |_| ticket("a", expiry))
+    };
+
+    let _holder = start_jittered(&clock, &script, HOUR, Jitter::new(|| 1.2));
+    until(&clock, 405).await;
+
+    // Read at 10, 790 s left: half of it from there.
+    assert_eq!(script.fetched_at(), [0, 405]);
 }

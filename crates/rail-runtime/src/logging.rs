@@ -10,6 +10,7 @@
 
 use std::error::Error;
 use std::fmt::{self, Write};
+use std::panic::PanicHookInfo;
 
 use rail_policy::{escape_unquoted, sanitize_quoted};
 use tracing::field::{Field, Visit};
@@ -20,12 +21,25 @@ use tracing_subscriber::fmt::format::Writer;
 // Long enough to keep the root cause at the end of an error chain.
 const MAX_FIELD_CHARS: usize = 1024;
 
-/// Logs to stderr for the rest of the process, each field written by [`QuotedFields`].
+/// Logs to stderr for the rest of the process, each field written by [`QuotedFields`], panics
+/// included.
 pub fn init() {
     tracing_subscriber::fmt()
         .fmt_fields(QuotedFields)
         .with_writer(std::io::stderr)
         .init();
+    // The default hook writes a panic's message raw, outside the formatter.
+    std::panic::set_hook(Box::new(log_panic));
+}
+
+// A formatted message may quote what came from the wire, so only a literal one is logged.
+fn log_panic(info: &PanicHookInfo<'_>) {
+    let location = info.location().map(ToString::to_string);
+    let location = location.as_deref();
+    match info.payload().downcast_ref::<&'static str>() {
+        Some(&panic_message) => tracing::error!(location, panic_message, "a thread panicked"),
+        None => tracing::error!(location, "a thread panicked; its message is withheld"),
+    }
 }
 
 /// The field formatter [`init`] installs.
