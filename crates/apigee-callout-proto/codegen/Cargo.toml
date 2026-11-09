@@ -5,7 +5,6 @@
 [package]
 name = "apigee-callout-proto-codegen"
 edition = "2024"
-publish = false
 
 [dependencies]
 # Parses the .proto in Rust, so no protoc is needed.
