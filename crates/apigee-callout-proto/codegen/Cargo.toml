@@ -1,0 +1,13 @@
+# Run by hand when the .proto changes: `make proto`. Outside the workspace, so its dependencies
+# stay out of the build and its lockfile.
+[workspace]
+
+[package]
+name = "apigee-callout-proto-codegen"
+edition = "2024"
+publish = false
+
+[dependencies]
+# Parses the .proto in Rust, so no protoc is needed.
+protox = "0.9"
+tonic-prost-build = "0.14"
