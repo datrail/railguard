@@ -30,7 +30,10 @@ fn the_probe_fails_with_nothing_on_the_socket() {
 
     assert_eq!(output.status.code(), Some(1));
     assert!(
-        stdout(&output).starts_with("can't check health on "),
+        stdout(&output).starts_with(&format!(
+            "can't check health on {}: ",
+            socket.path.display()
+        )),
         "{output:?}"
     );
 }

@@ -1,7 +1,6 @@
 [package]
 name = "rail-grpc-host"
 edition = "2024"
-
 # One test binary, `tests/main.rs`.
 autotests = false
 
@@ -22,7 +21,7 @@ tonic = { version = "0.14", default-features = false, features = ["channel"] }
 tonic-health = { version = "0.14", default-features = false }
 
 [dev-dependencies]
-tokio = { version = "1", features = ["macros", "net", "rt-multi-thread"] }
+tokio = { version = "1", features = ["net", "rt-multi-thread"] }
 tokio-stream = { version = "0.1", features = ["net"] }
 tonic = { version = "0.14", default-features = false, features = ["router", "server"] }
 

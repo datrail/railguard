@@ -1,6 +1,7 @@
 //! The parts of a gRPC host process both binaries share: waiting for SIGTERM, draining the server
 //! until a deadline, and the probe, a health check over the server's own socket.
 
+use std::error::Error;
 use std::fmt;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -17,10 +18,10 @@ use tonic_health::pb::health_check_response::ServingStatus as WireStatus;
 use tonic_health::pb::health_client::HealthClient;
 
 // Envoy keeps its connections open, and an ext_proc stream lasts as long as its request.
-pub const SHUTDOWN_DEADLINE: Duration = Duration::from_secs(5);
+const SHUTDOWN_DEADLINE: Duration = Duration::from_secs(5);
 
 // Longer than any answer from a live server, and within the e2e health check's timeout.
-pub const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
+const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 
 // At the deadline the server is dropped; tonic's connection tasks end with the runtime, on exit.
 pub async fn drain_until_deadline(
@@ -108,14 +109,16 @@ async fn check_health(address: &Address, service: &str) -> Result<WireStatus, St
         Address::Tcp(address) => format!("http://{address}"),
     };
     let endpoint = Endpoint::from_shared(uri).map_err(|error| error.to_string())?;
-    let channel =
-        endpoint
-            .connect()
-            .await
-            .map_err(|error| match std::error::Error::source(&error) {
+    let channel = endpoint
+        .connect()
+        .await
+        // The innermost cause: over TCP, tonic wraps the IO error twice.
+        .map_err(|error| {
+            match std::iter::successors(error.source(), |&cause| cause.source()).last() {
                 Some(cause) => format!("can't connect: {cause}"),
                 None => format!("can't connect: {error}"),
-            })?;
+            }
+        })?;
     let response = HealthClient::new(channel)
         .check(HealthCheckRequest {
             service: service.to_owned(),
