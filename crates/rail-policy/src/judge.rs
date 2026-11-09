@@ -60,7 +60,7 @@ pub struct Outcome {
 }
 
 /// A fallback that denies a call. No policy is named.
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FallbackDenial {
     /// The call has no usable ticket, and `ticket_fallback` is `block`.

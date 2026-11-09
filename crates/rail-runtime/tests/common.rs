@@ -76,7 +76,8 @@ pub async fn answer(mut stream: TcpStream, reply: Reply, seen: &Mutex<Vec<String
     }
 }
 
-// Reads one request's head into `seen`; false if the peer closed first.
+// Reads one request, its head and any body it declares, into `seen`; false if the peer closed
+// first.
 async fn read_head(stream: &mut TcpStream, seen: &Mutex<Vec<String>>) -> bool {
     let mut head = Vec::new();
     let mut byte = [0];
@@ -86,7 +87,21 @@ async fn read_head(stream: &mut TcpStream, seen: &Mutex<Vec<String>>) -> bool {
         }
         head.push(byte[0]);
     }
-    seen.lock().unwrap().push(String::from_utf8(head).unwrap());
+    let mut request = String::from_utf8(head).unwrap();
+    let length = request
+        .lines()
+        .find_map(|line| {
+            line.to_ascii_lowercase()
+                .strip_prefix("content-length:")
+                .map(|n| n.trim().parse().unwrap())
+        })
+        .unwrap_or(0);
+    let mut body = vec![0; length];
+    if stream.read_exact(&mut body).await.is_err() {
+        return false;
+    }
+    request.push_str(&String::from_utf8(body).unwrap());
+    seen.lock().unwrap().push(request);
     true
 }
 

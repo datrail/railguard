@@ -6,9 +6,10 @@ use std::time::Duration;
 
 use flate2::write::GzDecoder;
 use reqwest::header::{
-    ACCEPT, ACCEPT_ENCODING, AUTHORIZATION, CACHE_CONTROL, CONTENT_ENCODING, HeaderMap, HeaderValue,
+    ACCEPT, ACCEPT_ENCODING, AUTHORIZATION, CACHE_CONTROL, CONTENT_ENCODING, CONTENT_TYPE,
+    HeaderMap, HeaderValue,
 };
-use reqwest::{StatusCode, Url, redirect};
+use reqwest::{RequestBuilder, StatusCode, redirect};
 use tokio::time::timeout;
 
 use crate::rail_center::{AUTH_MODE, AUTH_TOKEN, CenterUrl, RailCenterSettings};
@@ -109,13 +110,33 @@ impl RailCenterClient {
         limits: Limits,
     ) -> Result<Response, FetchError> {
         let url = self.url.endpoint(route, query);
-        timeout(limits.deadline, self.fetch(url, limits))
+        self.fetch(self.http.get(url), limits).await
+    }
+
+    /// `POST` `body`, JSON, to `route`, in one attempt: retrying is the caller's.
+    pub async fn post(
+        &self,
+        route: &str,
+        body: Vec<u8>,
+        limits: Limits,
+    ) -> Result<Response, FetchError> {
+        let url = self.url.endpoint(route, &[]);
+        let request = self
+            .http
+            .post(url)
+            .header(CONTENT_TYPE, "application/json")
+            .body(body);
+        self.fetch(request, limits).await
+    }
+
+    async fn fetch(&self, request: RequestBuilder, limits: Limits) -> Result<Response, FetchError> {
+        timeout(limits.deadline, self.read(request, limits))
             .await
             .unwrap_or(Err(FetchError::Deadline(limits.deadline)))
     }
 
-    async fn fetch(&self, url: Url, limits: Limits) -> Result<Response, FetchError> {
-        let mut response = timeout(limits.silence, self.http.get(url).send())
+    async fn read(&self, request: RequestBuilder, limits: Limits) -> Result<Response, FetchError> {
+        let mut response = timeout(limits.silence, request.send())
             .await
             .map_err(|_| FetchError::Silent(limits.silence))?
             .map_err(|error| FetchError::Transport(describe(error)))?;
@@ -153,9 +174,17 @@ impl RailCenterClient {
 
 /// The body of a 200, or why the answer has none.
 pub(crate) fn read_ok(answer: Result<Response, FetchError>) -> Result<Vec<u8>, String> {
+    read_status(answer, StatusCode::OK)
+}
+
+/// The body of an answer with status `expected`, or why the answer has none.
+pub(crate) fn read_status(
+    answer: Result<Response, FetchError>,
+    expected: StatusCode,
+) -> Result<Vec<u8>, String> {
     let response = answer.map_err(|error| error.to_string())?;
     match response.status {
-        StatusCode::OK => Ok(response.body),
+        status if status == expected => Ok(response.body),
         // Unlike Rail Center having a bad minute, this lasts until the configuration changes.
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => Err(format!(
             "Rail Center refused the credential ({}); every fetch fails this way until \
