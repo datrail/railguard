@@ -2,4 +2,4 @@
 
 The parts of a gRPC host process that `rail-envoy` and `rail-apigee` share: waiting for SIGTERM, draining the server until a deadline, and the health probe. `rail-runtime` stays free of gRPC.
 
-Its behaviour is tested through `rail-envoy`'s binary (`tests/health.rs`, `tests/shutdown.rs`), plus the probe over TCP here; give cargo-mutants `--test-package rail-grpc-host --test-package rail-envoy`. `rail-apigee`'s tests don't repeat them.
+The probe is tested here; the drain and the SIGTERM wait through `rail-envoy`'s binary (`tests/shutdown.rs`), so give cargo-mutants `--test-package rail-grpc-host --test-package rail-envoy`. `rail-apigee`'s tests don't repeat them.

@@ -73,33 +73,35 @@ impl fmt::Display for Address {
 
 /// Asks the server at `address` for `service`'s health, `""` being the server as a whole; prints
 /// the answer, and exits 0 only on SERVING.
-// A connection alone proves nothing: the kernel completes it from the backlog of a hung process.
 pub async fn probe(address: &Address, service: &str) -> ExitCode {
-    match tokio::time::timeout(PROBE_TIMEOUT, check_health(address, service)).await {
-        Ok(Ok(WireStatus::Serving)) => {
-            println!("serving");
+    match ask_health(address, service).await {
+        Ok(line) => {
+            println!("{line}");
             ExitCode::SUCCESS
         }
-        Ok(Ok(status)) => {
-            println!("not serving: {}", status.as_str_name());
+        Err(line) => {
+            println!("{line}");
             ExitCode::FAILURE
         }
-        Ok(Err(error)) => {
-            println!(
-                "can't check health on {}: {}",
-                sanitize(&address.to_string()),
-                sanitize(&error)
-            );
-            ExitCode::FAILURE
-        }
-        Err(_) => {
-            println!(
-                "no answer on {} within {}s",
-                sanitize(&address.to_string()),
-                PROBE_TIMEOUT.as_secs()
-            );
-            ExitCode::FAILURE
-        }
+    }
+}
+
+/// The line [`probe`] prints: `Ok` only on SERVING.
+// A connection alone proves nothing: the kernel completes it from the backlog of a hung process.
+pub async fn ask_health(address: &Address, service: &str) -> Result<String, String> {
+    match tokio::time::timeout(PROBE_TIMEOUT, check_health(address, service)).await {
+        Ok(Ok(WireStatus::Serving)) => Ok("serving".to_owned()),
+        Ok(Ok(status)) => Err(format!("not serving: {}", status.as_str_name())),
+        Ok(Err(error)) => Err(format!(
+            "can't check health on {}: {}",
+            sanitize(&address.to_string()),
+            sanitize(&error)
+        )),
+        Err(_) => Err(format!(
+            "no answer on {} within {}s",
+            sanitize(&address.to_string()),
+            PROBE_TIMEOUT.as_secs()
+        )),
     }
 }
 
