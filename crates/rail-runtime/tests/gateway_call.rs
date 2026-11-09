@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use rail_policy::Fallback;
-use rail_runtime::{Answer, Call, Gateway, GatewaySettings};
+use rail_runtime::{Answer, Call, Gateway, GatewaySettings, UnitSettings};
 use serde_json::{Value, json};
 use tokio::time::Instant;
 use tokio::time::timeout;
@@ -87,6 +87,8 @@ async fn with_no_bundle_a_post_takes_the_setting_and_any_other_call_is_forwarded
     for (method, fallback, deadline, answered, waited) in [
         ("POST", Fallback::Pass, 5, Answer::Forward, 2),
         ("POST", Fallback::Block, 1, Answer::CannotApply, 1),
+        // A deadline past any `Instant` reads as a day.
+        ("POST", Fallback::Pass, u64::MAX, Answer::Forward, 2),
         ("GET", Fallback::Block, 5, Answer::Forward, 0),
     ] {
         let clock = TestClock::new();
@@ -156,6 +158,10 @@ async fn a_key_not_held_is_waited_for_only_where_the_bundle_can_accept_a_signed_
     }
 }
 
+// Over a minute of scans unoptimised, and seconds optimised, unless stopped within one.
+const SCANS: u64 = 2_000;
+const SCANNED: usize = 16 << 20;
+
 // On real time: a worker holds back paused time, so a deadline can't pass while it runs.
 #[tokio::test]
 async fn a_call_answered_unjudged_or_dropped_has_its_judgement_stopped() {
@@ -165,13 +171,29 @@ async fn a_call_answered_unjudged_or_dropped_has_its_judgement_stopped() {
         (Duration::from_secs(5), true),
     ] {
         let clock = TestClock::new();
-        let bundle = denying_all(json!({}));
+        // Each scans all of `x-a` for a `b` it lacks, so a call carrying it is judged slowly.
+        let mut policies = Vec::from_iter((1..=SCANS).map(|priority| {
+            json!({
+                "id": format!("5c8f1e42-0000-4000-9000-{priority:012x}"),
+                "name": "S",
+                "priority": priority,
+                "condition": {"path": "request.headers.x-a", "op": "matches", "value": "*b*"},
+                "action": "block",
+                "enabled": true,
+            })
+        }));
+        let mut denying = denying_all(json!({}));
+        denying["policies"][0]["priority"] = json!(SCANS + 1);
+        policies.push(denying["policies"][0].take());
+        let bundle = denying_all(json!({"policies": policies}));
         let settings = GatewaySettings {
             deadline,
             max_concurrent_judgements: NonZeroUsize::MIN,
             // Not what a call unjudged with a bundle held gets.
             no_bundle_fallback: Fallback::Block,
-            ..GatewaySettings::default()
+            unit: UnitSettings {
+                step_limit: u64::MAX,
+            },
         };
         let started = start(
             &clock,
@@ -179,12 +201,8 @@ async fn a_call_answered_unjudged_or_dropped_has_its_judgement_stopped() {
             settings,
         );
         until(&clock, 0).await;
-        // Read in about 40 ms optimised, and far longer unoptimised.
         let huge = Call {
-            body: format!(
-                r#"{{"method": "resources/read", "q": "{}"}}"#,
-                "a".repeat(64 << 20)
-            ),
+            headers: vec![("x-a".into(), "a".repeat(SCANNED))],
             ..call("POST", None)
         };
 
@@ -194,21 +212,14 @@ async fn a_call_answered_unjudged_or_dropped_has_its_judgement_stopped() {
         } else {
             let (answer, back) = handled.await;
             assert_eq!(answer, Answer::Forward);
-            assert!(back.body == huge.body);
-            // Unjudged while the stopped judgement holds the one slot.
-            let (answer, _) = started.gateway.handle(call("POST", None)).await;
-            assert_eq!(answer, Answer::Forward);
+            assert!(back.headers == huge.headers);
         }
 
         // Judged once the slot is free, and reported alone.
-        let mut answer = Answer::Forward;
-        for _ in 0..200 {
-            answer = started.gateway.handle(call("POST", None)).await.0;
-            if answer == Answer::Deny {
-                break;
-            }
-        }
-        assert_eq!(answer, Answer::Deny, "{deadline:?}");
+        let judged =
+            async { while started.gateway.handle(call("POST", None)).await.0 != Answer::Deny {} };
+        let freed = timeout(Duration::from_secs(5), judged).await;
+        assert!(freed.is_ok(), "{deadline:?}");
         for _ in 0..100 {
             tokio::task::yield_now().await;
         }

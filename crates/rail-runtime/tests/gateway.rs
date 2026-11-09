@@ -145,6 +145,8 @@ async fn a_body_names_what_the_python_gateway_reads_it_to_name() {
             resolved,
         ),
         (r#"{"method": "tools/call", "params": "a\/b"}"#.into(), None),
+        // Keys a string can't hold, which the Python gateway reads past.
+        (r#"{"\ud800": 0, "method": "tools/call", "params": {"\udfff": 1, "name": "a"}}"#.into(), resolved),
         (r#"{"method": "tools/call", "params": {"name": "a"}} {}"#.into(), None),
         (
             "\u{feff}{\"method\": \"tools/call\", \"params\": {\"name\": \"a\"}}".into(),

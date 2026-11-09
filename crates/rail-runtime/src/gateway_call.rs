@@ -20,15 +20,20 @@ use crate::ticket_holder::WallClock;
 // The longest a call waits for a bundle, and for a key it names: each within the deadline too.
 const MAX_WAIT: Duration = Duration::from_secs(2);
 
+// The deadline a setting past any `Instant` stands for.
+const MAX_DEADLINE: Duration = Duration::from_secs(86_400);
+
 /// How the gateway handles each call.
 #[derive(Clone, Copy, Debug)]
 pub struct GatewaySettings {
-    /// From the call's arrival to its answer, the waits included.
+    /// From the call's arrival to its answer, the waits included. Any caller can spend both waits,
+    /// 4 s, so a deadline not well past that forwards its calls unjudged.
     pub deadline: Duration,
     /// How many calls are judged at once, each on a thread of its own.
     pub max_concurrent_judgements: NonZeroUsize,
     /// What a call gets while no bundle is held: `pass` forwards it, `block` answers 503.
     pub no_bundle_fallback: Fallback,
+    /// How each call is judged.
     pub unit: UnitSettings,
 }
 
@@ -55,6 +60,8 @@ pub struct Gateway {
 }
 
 impl Gateway {
+    /// Judges calls against what `bundles` and `key_sets` hold, denials reported to `reporter`,
+    /// tickets read at `now`.
     pub fn new(
         bundles: Arc<BundleHolder>,
         key_sets: Arc<KeySetHolder>,
@@ -92,8 +99,10 @@ impl Gateway {
             return (answer, call);
         };
         let ticket = decode_x_rail(&call);
+        // Only where a signed ticket can be read and accepted: any caller can name a key.
+        let judging = bundle.posture.mode != EnforcementMode::None;
         let keys = match ticket.kid() {
-            Some(kid) if names_tenant(&bundle) => {
+            Some(kid) if judging && names_tenant(&bundle) => {
                 self.key_sets.wait_for_kid(kid, within(MAX_WAIT)).await
             }
             _ => self.key_sets.keys(),
@@ -136,20 +145,20 @@ impl Gateway {
             // Unless the worker claimed the answer first, with only its report left to make.
             Err(_) if stop.swap(true, Ordering::AcqRel) => worker.await,
             Err(_) => {
-                return (
-                    unjudged("its deadline passed while it was judged"),
-                    unwrap(call),
-                );
+                let answer = unjudged("its deadline passed while it was judged");
+                // Copied, with the worker still reading it.
+                return (answer, Arc::unwrap_or_clone(call));
             }
         };
-        // Not a panic's message, which may quote the call.
-        let answer = finished.unwrap_or_else(|_| unjudged("judging it panicked"));
-        (answer, unwrap(call))
+        let answer = match finished {
+            Ok(answer) => answer,
+            Err(error) if error.is_cancelled() => unjudged("judging it was cancelled"),
+            // Not the panic's message, which may quote the call.
+            Err(_) => unjudged("judging it panicked"),
+        };
+        (answer, Arc::unwrap_or_clone(call))
     }
 }
-
-// The deadline a setting past any `Instant` stands for.
-const MAX_DEADLINE: Duration = Duration::from_secs(86_400);
 
 // Stops the judgement once the call is answered or dropped: nobody waits for it then.
 struct StopOnDrop(Arc<AtomicBool>);
@@ -158,11 +167,6 @@ impl Drop for StopOnDrop {
     fn drop(&mut self) {
         self.0.store(true, Ordering::Relaxed);
     }
-}
-
-// Copied only where the deadline passed, with a worker still reading it.
-fn unwrap<B: Clone>(call: Arc<Call<B>>) -> Call<B> {
-    Arc::unwrap_or_clone(call)
 }
 
 // A signed ticket can only be accepted from a bundle naming the tenant's issuer and audience.

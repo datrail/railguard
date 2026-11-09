@@ -9,19 +9,21 @@ use rail_policy::{
     JudgingMode, Outcome, Resolution, SignedTicketConfig, TicketState, decode_ticket, judge,
 };
 
+use crate::body::{JsonBody, decode_body, read_endpoint};
 use crate::bundle_holder::HeldBundle;
 use crate::denial::{Denial, DeniedBy, ticket_state};
 use crate::key_set::KeySet;
-use crate::message::resolve_body;
 use crate::xrail::{XRAIL, XRAIL_STATUS};
 
-/// One call, as the host received it, its body in whatever the host holds bytes in.
-#[derive(Clone, Debug)]
+/// One call, as the host received it, its body in whatever the host holds bytes in. No `Debug`,
+/// which would print its ticket and credentials.
+#[derive(Clone)]
 pub struct Call<B> {
     /// Without the query, percent-decoded.
     pub path: String,
-    /// Not read yet: the host passes anything but `POST` unjudged.
+    /// Only a `POST` is judged.
     pub method: String,
+    /// As sent.
     pub body: B,
     /// Every header line as sent, `x-rail` and `x-rail-status` included.
     pub headers: Vec<(String, String)>,
@@ -45,6 +47,7 @@ impl Default for UnitSettings {
 /// What the host does with a call.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Answer {
+    /// Passed on to the upstream.
     Forward,
     /// Denied by a policy or a fallback: 403.
     Deny,
@@ -92,16 +95,15 @@ pub(crate) fn judge_call<B: AsRef<[u8]>>(unit: Unit<B>, report: &dyn Fn(&Denial)
         settings,
         stop,
     } = unit;
-    let endpoint = match resolve_body(&call.path, call.body.as_ref()) {
+    let decoded = decode_body(call.body.as_ref());
+    let json = JsonBody::parse(&decoded);
+    let endpoint = match read_endpoint(&call.path, json.as_ref()) {
         Resolution::Discovery => {
             tracing::info!("forwarded a session message, unjudged");
             return Answer::Forward;
         }
         Resolution::Judged(endpoint) => endpoint,
     };
-    if stop.load(Ordering::Relaxed) {
-        return Answer::Forward;
-    }
     let named = name(&endpoint);
     let Some(mode) = bundle.posture.mode.judging_mode() else {
         tracing::info!(endpoint = named, "forwarded unjudged, at enforcement none");
