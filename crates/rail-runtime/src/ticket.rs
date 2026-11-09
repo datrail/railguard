@@ -35,7 +35,8 @@ const MAX_LIFETIME: Duration = Duration::from_secs(86_400 + 300);
 #[derive(Clone, Debug)]
 pub struct TicketSettings {
     pub query: TicketQuery,
-    /// The longest a valid ticket goes unrefreshed; its own lifetime paces refreshes below it.
+    /// The longest a valid ticket goes unrefreshed, before jitter; its own lifetime paces
+    /// refreshes below it.
     pub refresh_interval: Duration,
 }
 
@@ -126,7 +127,7 @@ pub trait TicketSource: Send + Sync + 'static {
         sent_at: SystemTime,
     ) -> impl Future<Output = Result<TicketAnswer, String>> + Send;
 
-    /// The longest a valid ticket goes unrefreshed.
+    /// The longest a valid ticket goes unrefreshed, before jitter.
     fn refresh_interval(&self) -> Duration;
 }
 

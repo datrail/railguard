@@ -18,6 +18,9 @@ use tokio::time::{Instant, timeout_at};
 // Not settings: a lower floor would let a fleet hammer Rail Center.
 pub(crate) const MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(5);
 
+// Six doublings of the 5 s floor, as Python's proxy; the refresh interval caps it too.
+pub(crate) const MAX_BACKOFF: Duration = Duration::from_secs(320);
+
 // A day: a ticket lives no longer, and a bundle polled less often is surely a mistake.
 const MAX_REFRESH_INTERVAL: Duration = Duration::from_secs(86_400);
 

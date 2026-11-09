@@ -83,6 +83,18 @@ async fn only_a_usable_answer_is_held_and_any_other_is_retried_as_a_failure() {
 }
 
 #[tokio::test(start_paused = true)]
+async fn the_backoff_stops_at_320_s_under_a_longer_interval() {
+    let clock = TestClock::new();
+    let script = Script::new(&clock, |_| failed());
+
+    let _holder = start(&script, Duration::from_secs(3600));
+    until(&clock, 955).await;
+
+    // 5, 10, 20, 40, 80, 160, 320, then 320 again.
+    assert_eq!(script.fetched_at(), [0, 5, 15, 35, 75, 155, 315, 635, 955]);
+}
+
+#[tokio::test(start_paused = true)]
 async fn the_issuer_and_audience_are_held_only_as_strings() {
     let named = json!({"ticket_issuer": "https://rc/tenants/t", "ticket_audience": "t"});
     for (label, with, held) in [
