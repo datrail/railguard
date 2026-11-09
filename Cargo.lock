@@ -996,6 +996,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "rail-apigee"
+version = "0.0.0"
+dependencies = [
+ "apigee-callout-proto",
+ "percent-encoding",
+ "prost",
+ "rail-grpc-host",
+ "rail-policy",
+ "rail-runtime",
+ "tokio",
+ "tokio-stream",
+ "tonic",
+ "tonic-health",
+ "tracing",
+]
+
+[[package]]
 name = "rail-envoy"
 version = "0.0.0"
 dependencies = [
