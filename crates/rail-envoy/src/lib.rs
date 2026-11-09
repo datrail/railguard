@@ -23,8 +23,8 @@ use envoy_types::ext_authz::v3::pb::AuthorizationServer;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
 use rail_policy::sanitize;
 use rail_runtime::{
-    Jitter, Level, RailCenterClient, RailCenterSettings, RailCenterThread, RailCenterTickets,
-    Settings, Startup, TicketHolder, TicketSettings, Variables,
+    Jitter, RailCenterClient, RailCenterSettings, RailCenterThread, RailCenterTickets, Settings,
+    Startup, TicketHolder, TicketSettings, Variables,
 };
 use tokio::net::UnixListener;
 use tokio::signal::unix::{Signal, SignalKind, signal};
@@ -69,7 +69,7 @@ pub async fn run() -> ExitCode {
 }
 
 async fn serve(config: Config, startup: &Startup) -> ExitCode {
-    log_settings(startup);
+    rail_runtime::logging::log_settings(startup);
     // SIGTERM is how a container is stopped; as PID 1 nothing handles it unless we do.
     let terminate = match signal(SignalKind::terminate()) {
         Ok(terminate) => terminate,
@@ -168,24 +168,6 @@ fn start_tickets(
         Jitter::random(),
     );
     Ok((thread, Arc::new(tickets)))
-}
-
-// Each setting as used, then each RAIL_ variable nothing read, likely a typo; never its value.
-fn log_settings(startup: &Startup) {
-    for entry in &startup.entries {
-        let source = entry.source.as_str();
-        match entry.level {
-            Level::Info => {
-                tracing::info!(name = %entry.name, value = %entry.value, source = %source, "setting");
-            }
-            Level::Warn(weakens) => {
-                tracing::warn!(name = %entry.name, value = %entry.value, source = %source, weakens, "setting");
-            }
-        }
-    }
-    for name in &startup.unread {
-        tracing::warn!(name = %name, "set but not read");
-    }
 }
 
 // A socket left by an earlier run is replaced; anything else at the path is refused.
