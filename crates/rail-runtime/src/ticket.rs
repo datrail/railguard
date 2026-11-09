@@ -1,15 +1,13 @@
 use std::future::Future;
 use std::time::{Duration, SystemTime};
 
-use rail_policy::sanitize;
-use reqwest::StatusCode;
 use serde::Deserialize;
 use time::PrimitiveDateTime;
 use time::macros::format_description;
 
-use crate::client::{Limits, RailCenterClient};
+use crate::client::{Limits, RailCenterClient, read_ok};
 use crate::config::{Refused, Secret, Settings};
-use crate::holder::MIN_REFRESH_INTERVAL;
+use crate::holder::parse_refresh_interval;
 
 const ROUTE: &str = "/v1/tickets";
 
@@ -26,6 +24,7 @@ const DEFAULT_REFRESH_INTERVAL: Duration = Duration::from_secs(3600);
 // A named fetch answers with one ticket at most, so a body past this is a wrong one.
 const LIMITS: Limits = Limits {
     deadline: Duration::from_secs(10),
+    silence: Duration::from_secs(5),
     max_bytes: 256 * 1024,
 };
 
@@ -59,17 +58,7 @@ pub fn read_ticket_settings(
         .text();
     let refresh = settings
         .get(TICKET_REFRESH_SECONDS)
-        .parsed(|text| match text.parse::<u64>() {
-            // The holder never refreshes faster, so a lower interval would be silently raised.
-            Ok(seconds) if Duration::from_secs(seconds) >= MIN_REFRESH_INTERVAL => {
-                Ok(Duration::from_secs(seconds))
-            }
-            _ => Err(format!(
-                "must be a whole number of seconds, at least {}, got: {}",
-                MIN_REFRESH_INTERVAL.as_secs(),
-                sanitize(text)
-            )),
-        })
+        .parsed(parse_refresh_interval)
         .map(|refresh| refresh.unwrap_or(DEFAULT_REFRESH_INTERVAL));
     let (host_id, sandbox_name, refresh_interval) = (host_id?, sandbox_name?, refresh?);
     let ticket = host_id
@@ -157,14 +146,8 @@ impl TicketSource for RailCenterTickets {
             ("host_id", query.host_id.as_str()),
             ("sandbox_name", query.sandbox_name.as_str()),
         ];
-        let response = client
-            .get(ROUTE, &params, LIMITS)
-            .await
-            .map_err(|error| error.to_string())?;
-        if response.status != StatusCode::OK {
-            return Err(format!("Rail Center answered {}", response.status));
-        }
-        let envelope: Envelope = serde_json::from_slice(&response.body).map_err(|error| {
+        let body = read_ok(client.get(ROUTE, &params, LIMITS).await)?;
+        let envelope: Envelope = serde_json::from_slice(&body).map_err(|error| {
             // Where, not what: serde's message can quote a value, and a value may be the ticket.
             format!(
                 "the response is off the contract ({:?} error at line {}, column {})",

@@ -9,12 +9,20 @@ use std::task::Poll;
 use std::time::Duration;
 
 use arc_swap::ArcSwap;
+use rail_policy::sanitize;
 use tokio::runtime::Handle;
+use tokio::sync::watch;
 use tokio::task::AbortHandle;
-use tokio::time::Instant;
+use tokio::time::{Instant, timeout_at};
 
 // Not settings: a lower floor would let a fleet hammer Rail Center.
 pub(crate) const MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(5);
+
+// A day: a ticket lives no longer, and a bundle polled less often is surely a mistake.
+const MAX_REFRESH_INTERVAL: Duration = Duration::from_secs(86_400);
+
+// 5 s doubled 15 times is past a day, the longest maximum delay, and the power can't overflow.
+const MAX_DOUBLINGS: u32 = 15;
 
 const MIN_JITTER: f64 = 0.8;
 const MAX_JITTER: f64 = 1.2;
@@ -34,10 +42,19 @@ pub(crate) trait Kind: Send + Sync + 'static {
     fn step(&self, held: &Self::Held, answer: Self::Answer) -> Step<Self::Held, Self::Outcome>;
 
     /// A cap on the wait before the next attempt, from what's held, after a panic too.
-    fn wait_at_most(&self, held: &Self::Held) -> Option<Duration>;
+    fn wait_at_most(&self, _held: &Self::Held) -> Option<Duration> {
+        None
+    }
 
-    /// Logs what a step did, once the wait before the next attempt is known.
-    fn report(&self, outcome: Self::Outcome, held: &Self::Held, next_attempt_in: Duration);
+    /// Logs what a step did, once the wait before the next attempt is known; `after_failure` is
+    /// whether the attempt before it failed, a panic included.
+    fn report(
+        &self,
+        outcome: Self::Outcome,
+        held: &Self::Held,
+        after_failure: bool,
+        next_attempt_in: Duration,
+    );
 }
 
 /// What one attempt decided.
@@ -47,6 +64,22 @@ pub(crate) struct Step<T, O> {
     /// A failure backs off; a success resumes the period.
     pub(crate) succeeded: bool,
     pub(crate) outcome: O,
+}
+
+/// A refresh interval as set: whole seconds, from the 5 s floor to a day.
+pub(crate) fn parse_refresh_interval(text: &str) -> Result<Duration, String> {
+    match text.parse::<u64>().map(Duration::from_secs) {
+        // The holder never refreshes faster, so a lower interval would be silently raised.
+        Ok(interval) if (MIN_REFRESH_INTERVAL..=MAX_REFRESH_INTERVAL).contains(&interval) => {
+            Ok(interval)
+        }
+        _ => Err(format!(
+            "must be a whole number of seconds, from {} to {}, got: {}",
+            MIN_REFRESH_INTERVAL.as_secs(),
+            MAX_REFRESH_INTERVAL.as_secs(),
+            sanitize(text)
+        )),
+    }
 }
 
 /// When a kind's attempts come, before the jitter and the 5 s floor.
@@ -83,9 +116,17 @@ impl Jitter {
     }
 }
 
+// Where the loop is, for a reader deciding whether waiting can bring anything.
+#[derive(Clone, Copy)]
+enum Progress {
+    InFlight,
+    NextAt(Instant),
+}
+
 /// A value fetched and refreshed on `runtime`; dropping it stops the refreshes.
 pub(crate) struct Holder<T> {
     held: Arc<ArcSwap<T>>,
+    progress: watch::Receiver<Progress>,
     refresh: AbortHandle,
 }
 
@@ -99,15 +140,46 @@ impl<T: Send + Sync + 'static> Holder<T> {
         jitter: Jitter,
     ) -> Self {
         let held = Arc::new(ArcSwap::from_pointee(initial));
+        let (publish, progress) = watch::channel(Progress::InFlight);
         let refresh = runtime
-            .spawn(run(kind, Arc::clone(&held), schedule, jitter))
+            .spawn(run(kind, Arc::clone(&held), publish, schedule, jitter))
             .abort_handle();
-        Self { held, refresh }
+        Self {
+            held,
+            progress,
+            refresh,
+        }
     }
 
     /// What's held now, never waiting.
     pub(crate) fn snapshot(&self) -> Arc<T> {
         self.held.load_full()
+    }
+
+    /// What's held once `holds` it, or once `limit` has passed, or at once if no attempt is in
+    /// flight or due before then. It never starts a fetch, and is awaited on the caller's runtime.
+    pub(crate) async fn wait_until(&self, holds: impl Fn(&T) -> bool, limit: Duration) -> Arc<T> {
+        let deadline = Instant::now() + limit;
+        let mut progress = self.progress.clone();
+        loop {
+            // Before what's held: the loop stores a value before it says the attempt ended.
+            let at = *progress.borrow_and_update();
+            let held = self.snapshot();
+            let attempt_due = match at {
+                Progress::InFlight => true,
+                Progress::NextAt(next) => next < deadline,
+            };
+            if holds(&held) || !attempt_due {
+                return held;
+            }
+            // The limit passed, or the loop is gone.
+            if !timeout_at(deadline, progress.changed())
+                .await
+                .is_ok_and(|changed| changed.is_ok())
+            {
+                return self.snapshot();
+            }
+        }
     }
 }
 
@@ -118,11 +190,19 @@ impl<T> Drop for Holder<T> {
 }
 
 // The one writer.
-async fn run<K: Kind>(kind: K, held: Arc<ArcSwap<K::Held>>, schedule: Schedule, jitter: Jitter) {
+async fn run<K: Kind>(
+    kind: K,
+    held: Arc<ArcSwap<K::Held>>,
+    publish: watch::Sender<Progress>,
+    schedule: Schedule,
+    jitter: Jitter,
+) {
     // Failed attempts since the last success.
     let mut failures: u32 = 0;
     loop {
+        publish.send_replace(Progress::InFlight);
         let started = Instant::now();
+        let after_failure = failures > 0;
         let step = attempt(&kind, &held).await;
         let took = started.elapsed();
         let outcome = match step {
@@ -130,15 +210,11 @@ async fn run<K: Kind>(kind: K, held: Arc<ArcSwap<K::Held>>, schedule: Schedule, 
                 if let Some(next) = step.next {
                     held.store(Arc::new(next));
                 }
-                failures = if step.succeeded {
-                    0
-                } else {
-                    failures.saturating_add(1)
-                };
+                failures = if step.succeeded { 0 } else { failures + 1 };
                 Some(step.outcome)
             }
             None => {
-                failures = failures.saturating_add(1);
+                failures += 1;
                 // Not the panic's message, which may quote what Rail Center sent.
                 tracing::error!(
                     "a {} refresh attempt panicked; keeping what's held",
@@ -152,6 +228,7 @@ async fn run<K: Kind>(kind: K, held: Arc<ArcSwap<K::Held>>, schedule: Schedule, 
             let wait = next_wait(&schedule, failures, jitter.factor());
             // A period runs from the start of the attempt, so a slow fetch doesn't shift the cadence.
             let wait = if failures == 0 {
+                // A fetch may outlast a short period: then the floor below applies.
                 wait.saturating_sub(took)
             } else {
                 wait
@@ -162,10 +239,11 @@ async fn run<K: Kind>(kind: K, held: Arc<ArcSwap<K::Held>>, schedule: Schedule, 
                 .map_or(wait, |at_most| wait.min(at_most))
                 .max(MIN_REFRESH_INTERVAL);
             if let Some(outcome) = outcome {
-                kind.report(outcome, &held, wait);
+                kind.report(outcome, &held, after_failure, wait);
             }
             wait
         };
+        publish.send_replace(Progress::NextAt(Instant::now() + wait));
         tokio::time::sleep(wait).await;
     }
 }
@@ -189,10 +267,13 @@ async fn attempt<K: Kind>(kind: &K, held: &ArcSwap<K::Held>) -> Option<Step<K::H
 fn next_wait(schedule: &Schedule, failures: u32, factor: f64) -> Duration {
     let wait = match failures {
         0 => schedule.period,
-        _ => schedule
-            .initial_delay
-            .saturating_mul(2_u32.saturating_pow(failures - 1))
+        _ => (schedule.initial_delay * 2_u32.pow((failures - 1).min(MAX_DOUBLINGS)))
             .min(schedule.max_delay),
     };
-    Duration::try_from_secs_f64(wait.as_secs_f64() * factor).unwrap_or(Duration::MAX)
+    wait.mul_f64(factor)
+}
+
+// Whole seconds, rounded: a jittered 5.9 s reads as 6.
+pub(crate) fn round_to_seconds(wait: Duration) -> u64 {
+    wait.as_secs() + u64::from(wait.subsec_millis() >= 500)
 }

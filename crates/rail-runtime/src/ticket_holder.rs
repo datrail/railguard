@@ -5,7 +5,7 @@ use std::time::{Duration, SystemTime};
 use sha2::{Digest, Sha256};
 use tokio::runtime::Handle;
 
-use crate::holder::{Holder, Jitter, Kind, MIN_REFRESH_INTERVAL, Schedule, Step};
+use crate::holder::{Holder, Jitter, Kind, MIN_REFRESH_INTERVAL, Schedule, Step, round_to_seconds};
 use crate::ticket::{OpaqueTicket, TicketAnswer, TicketSource};
 use crate::xrail::Unavailable;
 
@@ -102,7 +102,7 @@ impl<S: TicketSource> Kind for Tickets<S> {
             .map(|remaining| remaining / 2)
     }
 
-    fn report(&self, outcome: Outcome, held: &Held, retry: Duration) {
+    fn report(&self, outcome: Outcome, held: &Held, _: bool, retry: Duration) {
         log(
             &outcome,
             held.ticket().map(|ticket| &**ticket),
@@ -183,7 +183,7 @@ fn log(outcome: &Outcome, ticket: Option<&OpaqueTicket>, now: SystemTime, retry:
         .and_then(|ticket| ticket.expires_at.duration_since(now).ok())
         .unwrap_or_default()
         .as_secs();
-    let retry = retry.as_secs();
+    let retry = round_to_seconds(retry);
     match outcome {
         Outcome::Acquired => {
             tracing::info!(fingerprint, expires_in, "ticket acquired");

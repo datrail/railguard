@@ -11,13 +11,16 @@ use reqwest::header::{
 use reqwest::{StatusCode, Url, redirect};
 use tokio::time::timeout;
 
-use crate::rail_center::{CenterUrl, RailCenterSettings};
+use crate::rail_center::{AUTH_MODE, AUTH_TOKEN, CenterUrl, RailCenterSettings};
 
 /// What one caller allows a fetch.
 #[derive(Clone, Copy, Debug)]
 pub struct Limits {
     /// How long the fetch may take, its whole body included.
     pub deadline: Duration,
+    /// How long Rail Center may send nothing, for the response and then for each chunk of its
+    /// body: one gone quiet is given up on before the deadline.
+    pub silence: Duration,
     /// The largest body read, counted after decoding.
     pub max_bytes: usize,
 }
@@ -33,6 +36,7 @@ pub struct Response {
 #[derive(Debug)]
 pub enum FetchError {
     Deadline(Duration),
+    Silent(Duration),
     TooLarge { max_bytes: usize },
     Encoding(String),
     BadGzip(String),
@@ -43,6 +47,7 @@ impl fmt::Display for FetchError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Deadline(deadline) => write!(f, "the fetch ran past its {deadline:?} deadline"),
+            Self::Silent(silence) => write!(f, "Rail Center was silent for {silence:?}"),
             Self::TooLarge { max_bytes } => {
                 write!(f, "the response is past the {max_bytes} bytes read")
             }
@@ -60,7 +65,8 @@ impl fmt::Display for FetchError {
 impl std::error::Error for FetchError {}
 
 /// The one client every Rail Center call goes through: rustls with compiled-in roots, no proxy
-/// from the environment, no redirects, and a bounded body.
+/// from the environment, no redirects, and a bounded body. A clone shares the connection pool.
+#[derive(Clone)]
 pub struct RailCenterClient {
     http: reqwest::Client,
     url: CenterUrl,
@@ -107,11 +113,9 @@ impl RailCenterClient {
     }
 
     async fn fetch(&self, url: Url, limits: Limits) -> Result<Response, FetchError> {
-        let mut response = self
-            .http
-            .get(url)
-            .send()
+        let mut response = timeout(limits.silence, self.http.get(url).send())
             .await
+            .map_err(|_| FetchError::Silent(limits.silence))?
             .map_err(|error| FetchError::Transport(describe(error)))?;
         if response
             .content_length()
@@ -132,9 +136,9 @@ impl RailCenterClient {
         } else {
             Body::Identity(capped)
         };
-        while let Some(chunk) = response
-            .chunk()
+        while let Some(chunk) = timeout(limits.silence, response.chunk())
             .await
+            .map_err(|_| FetchError::Silent(limits.silence))?
             .map_err(|error| FetchError::Transport(describe(error)))?
         {
             body.write_all(&chunk)
@@ -142,6 +146,21 @@ impl RailCenterClient {
         }
         let body = body.finish().map_err(|error| read_error(error, limits))?;
         Ok(Response { status, body })
+    }
+}
+
+/// The body of a 200, or why the answer has none.
+pub(crate) fn read_ok(answer: Result<Response, FetchError>) -> Result<Vec<u8>, String> {
+    let response = answer.map_err(|error| error.to_string())?;
+    match response.status {
+        StatusCode::OK => Ok(response.body),
+        // Unlike Rail Center having a bad minute, this lasts until the configuration changes.
+        StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => Err(format!(
+            "Rail Center refused the credential ({}); every fetch fails this way until \
+             {AUTH_MODE} and {AUTH_TOKEN} are fixed",
+            response.status
+        )),
+        status => Err(format!("Rail Center answered {status}")),
     }
 }
 

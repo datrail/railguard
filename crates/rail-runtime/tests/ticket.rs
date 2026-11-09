@@ -112,6 +112,15 @@ async fn only_200_is_read() {
 
         assert_eq!(error, format!("Rail Center answered {status}"));
     }
+    for status in ["401 Unauthorized", "403 Forbidden"] {
+        let error = refusal(answer(status, envelope("host-1", &[])).await);
+
+        assert!(
+            error.starts_with(&format!("Rail Center refused the credential ({status})"))
+                && error.contains("RAIL_AUTH_MODE and RAIL_AUTH_TOKEN"),
+            "{error}"
+        );
+    }
 }
 
 #[tokio::test]
@@ -298,14 +307,14 @@ async fn a_response_off_the_contract_is_described_without_its_values() {
     assert!(!error.contains("eyJ0aGUiOiJ0aWNrZXQifQ"), "{error}");
 }
 
-// On paused time the deadline fires at once: the error names it, and when.
+// On paused time the first timer due fires at once: the error names which, and when.
 #[tokio::test(start_paused = true)]
-async fn a_silent_rail_center_is_given_up_on_after_10_s() {
+async fn a_silent_rail_center_is_given_up_on_after_5_s() {
     let server = serve(|_| Reply::Silent).await;
 
     let error = refusal(tickets(&server.url).fetch(at(SENT_AT)).await);
 
-    assert_eq!(error, "the fetch ran past its 10s deadline");
+    assert_eq!(error, "Rail Center was silent for 5s");
 }
 
 #[tokio::test(start_paused = true)]

@@ -11,6 +11,7 @@ use crate::common::{Reply, TOKEN, client, response, serve, settings};
 
 const LIMITS: Limits = Limits {
     deadline: Duration::from_secs(10),
+    silence: Duration::from_secs(5),
     max_bytes: 1024,
 };
 
@@ -245,6 +246,8 @@ async fn a_dribbling_body_runs_into_the_deadline() {
     .await;
     let limits = Limits {
         deadline: Duration::from_millis(300),
+        // Each byte comes well within it, so only the deadline ends the fetch.
+        silence: Duration::from_millis(200),
         max_bytes: 1 << 20,
     };
 
@@ -258,6 +261,32 @@ async fn a_dribbling_body_runs_into_the_deadline() {
     .unwrap_err();
 
     assert!(matches!(error, FetchError::Deadline(_)), "{error:?}");
+}
+
+#[tokio::test]
+async fn a_silence_ends_the_fetch_before_the_head_or_within_the_body() {
+    let limits = Limits {
+        silence: Duration::from_millis(200),
+        ..LIMITS
+    };
+    for reply in [
+        || Reply::Silent,
+        || {
+            Reply::Dribble(
+                b"HTTP/1.1 200 OK\r\n\r\n".to_vec(),
+                Duration::from_secs(3600),
+            )
+        },
+    ] {
+        let server = serve(move |_| reply()).await;
+
+        let error = client(&server.url)
+            .get("/v1/x", &[], limits)
+            .await
+            .unwrap_err();
+
+        assert!(matches!(error, FetchError::Silent(_)), "{error:?}");
+    }
 }
 
 #[tokio::test]

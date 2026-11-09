@@ -8,7 +8,6 @@
 //! drive.
 
 mod config;
-mod rail_center;
 mod services;
 mod xrail;
 
@@ -24,8 +23,8 @@ use envoy_types::ext_authz::v3::pb::AuthorizationServer;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
 use rail_policy::sanitize;
 use rail_runtime::{
-    Jitter, Level, RailCenterClient, RailCenterSettings, RailCenterTickets, Settings, Startup,
-    TicketHolder, TicketSettings, Variables,
+    Jitter, Level, RailCenterClient, RailCenterSettings, RailCenterThread, RailCenterTickets,
+    Settings, Startup, TicketHolder, TicketSettings, Variables,
 };
 use tokio::net::UnixListener;
 use tokio::signal::unix::{Signal, SignalKind, signal};
@@ -38,8 +37,6 @@ use tonic_health::pb::HealthCheckRequest;
 use tonic_health::pb::health_check_response::ServingStatus as WireStatus;
 use tonic_health::pb::health_client::HealthClient;
 use tonic_health::server::HealthReporter;
-
-use crate::rail_center::RailCenterThread;
 
 pub use crate::config::Config;
 pub use crate::services::Callouts;

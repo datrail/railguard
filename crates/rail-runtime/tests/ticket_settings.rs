@@ -64,22 +64,32 @@ fn a_name_past_rail_centers_bound_is_refused() {
 }
 
 #[test]
-fn the_refresh_interval_is_whole_seconds_from_5() {
-    let mut pairs = NAMED.to_vec();
-    pairs.push(("RAIL_TICKET_REFRESH_SECONDS", "600"));
-    assert_eq!(
-        read(&pairs).unwrap().refresh_interval,
-        Duration::from_secs(600)
-    );
+fn the_refresh_interval_is_whole_seconds_from_5_to_a_day() {
+    for (taken, seconds) in [("5", 5), ("600", 600), ("86400", 86_400)] {
+        let mut pairs = NAMED.to_vec();
+        pairs.push(("RAIL_TICKET_REFRESH_SECONDS", taken));
 
-    for refused in ["0", "4", "-1", "1.5", "1h"] {
+        assert_eq!(
+            read(&pairs).unwrap().refresh_interval,
+            Duration::from_secs(seconds)
+        );
+    }
+    for refused in [
+        "0",
+        "4",
+        "-1",
+        "1.5",
+        "60s",
+        "86401",
+        "18446744073709551615",
+    ] {
         let mut pairs = NAMED.to_vec();
         pairs.push(("RAIL_TICKET_REFRESH_SECONDS", refused));
 
         assert_eq!(
             read(&pairs).unwrap_err(),
             [format!(
-                "RAIL_TICKET_REFRESH_SECONDS must be a whole number of seconds, at least 5, got: {refused}"
+                "RAIL_TICKET_REFRESH_SECONDS must be a whole number of seconds, from 5 to 86400, got: {refused}"
             )]
         );
     }
