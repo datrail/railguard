@@ -1,4 +1,9 @@
-//! A call's body, read in stages: as sent, decoded, as JSON, and what it names.
+//! What an MCP request body names: its method and tool, read as the Python gateway reads them.
+//!
+//! Not parsed to a `Value`, which refuses a number past a double or a lone surrogate, nor to a derived
+//! struct, which refuses a repeated key or a key holding a lone surrogate: Python reads them all, so
+//! a caller sending one would hide the call's endpoint. Values are only scanned, and only the two
+//! strings read are parsed.
 
 use std::borrow::Cow;
 use std::fmt;
@@ -10,57 +15,41 @@ use serde_json::value::RawValue;
 // Past this, a body names nothing: as the Python gateway, so a call judged there is judged here.
 const MAX_NESTING: usize = 256;
 
-/// The bytes a reader reads. As sent for now: `Content-Encoding` isn't decoded, as in Python.
-pub(crate) fn decode_body(sent: &[u8]) -> Cow<'_, [u8]> {
-    Cow::Borrowed(sent)
-}
-
-/// A body read as one JSON object: its keys and the last value of each, values only scanned, so
-/// no number in them is read. Read as the Python gateway's `json.loads` reads it, where it matters.
-pub(crate) struct JsonBody<'a> {
-    // In order; a key repeated keeps its last value.
-    members: Vec<(Cow<'a, [u8]>, &'a RawValue)>,
-}
-
-impl<'a> JsonBody<'a> {
-    /// `None` for a body that isn't one JSON object in UTF-8, or nests past 256 levels.
-    pub(crate) fn parse(body: &'a [u8]) -> Option<Self> {
-        // Python's `json.loads` reads bytes past one UTF-8 BOM.
-        let body = body.strip_prefix("\u{feff}".as_bytes()).unwrap_or(body);
-        if nests_past(body, MAX_NESTING) {
-            return None;
-        }
-        Self::object(body)
+/// What `body`, as sent to `path`, asks for. One that isn't a JSON object in UTF-8, or nests past
+/// 256 levels, names no endpoint this reader can key; a `method` or `name` of another type reads as
+/// absent. `Content-Encoding` isn't decoded, as in Python.
+pub(crate) fn read_endpoint(path: &str, body: &[u8]) -> Resolution {
+    // Python's `json.loads` reads bytes past one UTF-8 BOM.
+    let body = body.strip_prefix("\u{feff}".as_bytes()).unwrap_or(body);
+    if nests_past(body, MAX_NESTING) {
+        return Resolution::Judged(Endpoint::Unrecognised);
     }
-
-    /// The value of `key`, its last if repeated.
-    pub(crate) fn get(&self, key: &str) -> Option<&'a RawValue> {
-        let key = key.as_bytes();
-        let (_, value) = self.members.iter().rev().find(|(name, _)| &**name == key)?;
-        Some(value)
-    }
-
-    fn object(json: &'a [u8]) -> Option<Self> {
-        let mut deserializer = serde_json::Deserializer::from_slice(json);
-        let members = deserializer.deserialize_map(Members).ok()?;
-        deserializer.end().ok()?;
-        Some(Self { members })
-    }
-}
-
-/// What a body sent to `path` asks for. One that isn't a JSON object names no endpoint this reader
-/// can key; a `method` or `name` of another type reads as absent, as in Python.
-pub(crate) fn read_endpoint(path: &str, body: Option<&JsonBody>) -> Resolution {
-    let Some(body) = body else {
+    let Some(message) = members(body) else {
         return Resolution::Judged(Endpoint::Unrecognised);
     };
-    let method = body.get("method").and_then(text);
-    let name = body
-        .get("params")
-        .and_then(|params| JsonBody::object(params.get().as_bytes()))
-        .and_then(|params| params.get("name"))
+    let method = last(&message, "method").and_then(text);
+    let name = last(&message, "params")
+        .and_then(|params| members(params.get().as_bytes()))
+        .and_then(|params| last(&params, "name"))
         .and_then(text);
     resolve_endpoint(path, method.as_deref().unwrap_or(""), name.as_deref())
+}
+
+// An object's keys and values, in order, each value only scanned.
+type Members<'a> = Vec<(Cow<'a, [u8]>, &'a RawValue)>;
+
+fn members(json: &[u8]) -> Option<Members<'_>> {
+    let mut deserializer = serde_json::Deserializer::from_slice(json);
+    let members = deserializer.deserialize_map(Object).ok()?;
+    deserializer.end().ok()?;
+    Some(members)
+}
+
+// A key repeated keeps its last value, as in Python.
+fn last<'a>(members: &Members<'a>, key: &str) -> Option<&'a RawValue> {
+    let key = key.as_bytes();
+    let (_, value) = members.iter().rev().find(|(name, _)| &**name == key)?;
+    Some(value)
 }
 
 // A string's text; `None` for any other value.
@@ -98,10 +87,10 @@ fn nests_past(body: &[u8], limit: usize) -> bool {
 }
 
 // Visits an object, keeping each key and its value as sent.
-struct Members;
+struct Object;
 
-impl<'de> Visitor<'de> for Members {
-    type Value = Vec<(Cow<'de, [u8]>, &'de RawValue)>;
+impl<'de> Visitor<'de> for Object {
+    type Value = Members<'de>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         formatter.write_str("an object")

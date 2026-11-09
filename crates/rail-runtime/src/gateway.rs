@@ -9,7 +9,7 @@ use rail_policy::{
     JudgingMode, Outcome, Resolution, SignedTicketConfig, TicketState, decode_ticket, judge,
 };
 
-use crate::body::{JsonBody, decode_body, read_endpoint};
+use crate::body::read_endpoint;
 use crate::bundle_holder::HeldBundle;
 use crate::denial::{Denial, DeniedBy, ticket_state};
 use crate::key_set::KeySet;
@@ -95,9 +95,7 @@ pub(crate) fn judge_call<B: AsRef<[u8]>>(unit: Unit<B>, report: &dyn Fn(&Denial)
         settings,
         stop,
     } = unit;
-    let decoded = decode_body(call.body.as_ref());
-    let json = JsonBody::parse(&decoded);
-    let endpoint = match read_endpoint(&call.path, json.as_ref()) {
+    let endpoint = match read_endpoint(&call.path, call.body.as_ref()) {
         Resolution::Discovery => {
             tracing::info!("forwarded a session message, unjudged");
             return Answer::Forward;
