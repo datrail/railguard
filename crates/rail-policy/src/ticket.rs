@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use base64::Engine;
 use base64::alphabet::URL_SAFE;
@@ -158,6 +158,102 @@ pub fn parse_jwt_ticket(
         return TicketState::WrongAudience;
     }
     check_expiry(claims, exp_epoch_seconds, now_epoch_seconds)
+}
+
+/// A key set as read: the keys to verify signed tickets with, and the entries meant as keys that
+/// can't be.
+#[derive(Debug, PartialEq)]
+pub struct ParsedKeySet {
+    /// By `kid`; empty where no entry is usable, which a reader counts as a failed fetch.
+    pub keys: HashMap<String, VerifyingKey>,
+    pub dropped: Vec<DroppedKey>,
+}
+
+/// An entry that claims to be an Ed25519 signing key, and isn't usable as one.
+#[derive(Debug, PartialEq)]
+pub struct DroppedKey {
+    /// Its `kid` as sent: the string, or the JSON of anything else.
+    pub kid: Option<String>,
+    pub reason: &'static str,
+}
+
+/// A JWKS as Rail Center publishes it: `None` where it isn't an object of `keys`, or two entries
+/// share a `kid`.
+///
+/// A usable key is `OKP` `Ed25519`, with a string `kid` and an `x` of 32 bytes on the curve. An
+/// entry whose `use`, `key_ops` or `alg` is for something else is skipped without a word, so Rail
+/// Center can publish keys for other purposes; one for signing that isn't usable is dropped.
+pub fn parse_key_set(body: &[u8]) -> Option<ParsedKeySet> {
+    let set = read_json(body)?;
+    let entries = set.get("keys")?.as_array()?;
+    let mut kids = HashSet::new();
+    let mut read = ParsedKeySet {
+        keys: HashMap::new(),
+        dropped: Vec::new(),
+    };
+    for entry in entries.iter().filter_map(Value::as_object) {
+        // Over every entry, usable or not: a ticket naming a shared `kid` can't say which it meant.
+        // Each as its JSON text, and a `null` one as none, as a reader on another runtime sees it.
+        let kid = entry.get("kid").filter(|kid| !kid.is_null());
+        if !kids.insert(kid.map(Value::to_string)) {
+            return None;
+        }
+        match read_key(entry) {
+            Entry::Other => {}
+            Entry::Dropped(dropped) => read.dropped.push(dropped),
+            Entry::Key(kid, key) => {
+                read.keys.insert(kid, key);
+            }
+        }
+    }
+    Some(read)
+}
+
+enum Entry {
+    // For another purpose.
+    Other,
+    Dropped(DroppedKey),
+    Key(String, VerifyingKey),
+}
+
+fn read_key(entry: &Map<String, Value>) -> Entry {
+    let is = |name: &str, value: &str| entry.get(name).and_then(Value::as_str) == Some(value);
+    let absent_or = |name: &str, value: &str| !entry.contains_key(name) || is(name, value);
+    let verifies = entry.get("key_ops").is_none_or(|ops| {
+        ops.as_array()
+            .is_some_and(|ops| ops.iter().any(|op| op.as_str() == Some("verify")))
+    });
+    let for_verifying = is("kty", "OKP")
+        && is("crv", "Ed25519")
+        && absent_or("use", "sig")
+        && absent_or("alg", "EdDSA")
+        && verifies;
+    if !for_verifying {
+        return Entry::Other;
+    }
+    let drop = |reason| {
+        let kid = entry.get("kid").map(|kid| match kid {
+            Value::String(kid) => kid.clone(),
+            kid => kid.to_string(),
+        });
+        Entry::Dropped(DroppedKey { kid, reason })
+    };
+    let Some(kid) = entry.get("kid").and_then(Value::as_str) else {
+        return drop("its kid isn't a string");
+    };
+    let Some(x) = entry.get("x").and_then(Value::as_str) else {
+        return drop("its x isn't a string");
+    };
+    let Some(x) = decode_base64(x) else {
+        return drop("its x isn't base64");
+    };
+    let Ok(x) = <[u8; 32]>::try_from(x) else {
+        return drop("its x isn't 32 bytes");
+    };
+    match VerifyingKey::from_bytes(&x) {
+        Ok(key) => Entry::Key(kid.to_owned(), key),
+        Err(_) => drop("its x isn't a point on the Ed25519 curve"),
+    }
 }
 
 /// Either alphabet, padded or not: a trailing run of `=` is dropped, and nothing else is.

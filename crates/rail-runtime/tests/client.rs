@@ -59,6 +59,7 @@ async fn a_get_reaches_the_route_under_the_base_with_the_credential() {
     )));
     assert!(request.contains("\r\naccept: application/json\r\n"));
     assert!(request.contains("\r\naccept-encoding: gzip, identity\r\n"));
+    assert!(request.contains("\r\ncache-control: no-cache\r\n"));
 }
 
 #[tokio::test]

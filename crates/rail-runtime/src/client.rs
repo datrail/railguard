@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use flate2::write::GzDecoder;
 use reqwest::header::{
-    ACCEPT, ACCEPT_ENCODING, AUTHORIZATION, CONTENT_ENCODING, HeaderMap, HeaderValue,
+    ACCEPT, ACCEPT_ENCODING, AUTHORIZATION, CACHE_CONTROL, CONTENT_ENCODING, HeaderMap, HeaderValue,
 };
 use reqwest::{StatusCode, Url, redirect};
 use tokio::time::timeout;
@@ -78,6 +78,8 @@ impl RailCenterClient {
         headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
         // Rail Center's frontend may compress of its own accord; gzip is decoded here, capped.
         headers.insert(ACCEPT_ENCODING, HeaderValue::from_static("gzip, identity"));
+        // A cache's stale answer would keep a withdrawn key or a changed policy in force.
+        headers.insert(CACHE_CONTROL, HeaderValue::from_static("no-cache"));
         if let Some(token) = &settings.token {
             let mut value = HeaderValue::from_str(&format!("Bearer {}", token.expose()))
                 .expect("the settings reader allows only URL-safe base64 in a token");

@@ -2,63 +2,19 @@
 // Shared by both test binaries, and each uses only part of it.
 #![allow(dead_code)]
 
-use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use rail_runtime::{BundleHolder, BundleSource, FetchError, Jitter, Response};
+use rail_runtime::{BundleHolder, FetchError, Jitter};
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 use tokio::runtime::Handle;
-use tokio::time::Instant;
 
-use crate::holder::TestClock;
+pub use crate::scripted::{Answer, Script, answer};
 
 pub const ONE: &str = "5c8f1e42-0000-4000-8000-0000000000a1";
 pub const TWO: &str = "5c8f1e42-0000-4000-8000-0000000000a2";
 
 pub const MINUTE: Duration = Duration::from_secs(60);
-
-pub type Answer = Result<Response, FetchError>;
-
-// Answers fetch n with `answers(n)`, `takes` after it starts, recording when it started.
-#[derive(Clone)]
-pub struct Script {
-    pub answers: Arc<dyn Fn(usize) -> Answer + Send + Sync>,
-    pub takes: Duration,
-    pub fetched_at: Arc<Mutex<Vec<u64>>>,
-    pub started: Instant,
-}
-
-impl Script {
-    pub fn new(
-        clock: &TestClock,
-        answers: impl Fn(usize) -> Answer + Send + Sync + 'static,
-    ) -> Self {
-        Self {
-            answers: Arc::new(answers),
-            takes: Duration::ZERO,
-            fetched_at: Arc::default(),
-            started: clock.started,
-        }
-    }
-
-    // When each fetch started, in whole seconds from the start.
-    pub fn fetched_at(&self) -> Vec<u64> {
-        self.fetched_at.lock().unwrap().clone()
-    }
-}
-
-impl BundleSource for Script {
-    async fn fetch(&self) -> Answer {
-        let fetches = {
-            let mut fetched_at = self.fetched_at.lock().unwrap();
-            fetched_at.push(self.started.elapsed().as_secs());
-            fetched_at.len()
-        };
-        tokio::time::sleep(self.takes).await;
-        (self.answers)(fetches - 1)
-    }
-}
 
 // A usable bundle, observing; `with` replaces or adds root fields.
 pub fn bundle(content_hash: &str, with: Value) -> Value {
@@ -87,13 +43,6 @@ pub fn bundle(content_hash: &str, with: Value) -> Value {
 
 pub fn ok(body: &Value) -> Answer {
     answer(StatusCode::OK, body.to_string().as_bytes())
-}
-
-pub fn answer(status: StatusCode, body: &[u8]) -> Answer {
-    Ok(Response {
-        status,
-        body: body.to_vec(),
-    })
 }
 
 pub fn failed() -> Answer {

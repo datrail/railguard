@@ -31,5 +31,6 @@ pub use judge::{
 };
 pub use sanitize::{escape_unquoted, sanitize, sanitize_quoted};
 pub use ticket::{
-    SignedTicketConfig, Ticket, TicketState, parse_base64_ticket, parse_jwt_ticket, parse_ticket,
+    DroppedKey, ParsedKeySet, SignedTicketConfig, Ticket, TicketState, parse_base64_ticket,
+    parse_jwt_ticket, parse_key_set, parse_ticket,
 };
