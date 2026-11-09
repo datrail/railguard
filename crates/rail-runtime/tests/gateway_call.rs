@@ -168,7 +168,7 @@ async fn a_call_answered_unjudged_or_dropped_has_its_judgement_stopped() {
         let bundle = denying_all(json!({}));
         let settings = GatewaySettings {
             deadline,
-            places: NonZeroUsize::MIN,
+            max_concurrent_judgements: NonZeroUsize::MIN,
             // Not what a call unjudged with a bundle held gets.
             no_bundle_fallback: Fallback::Block,
             ..GatewaySettings::default()
@@ -195,12 +195,12 @@ async fn a_call_answered_unjudged_or_dropped_has_its_judgement_stopped() {
             let (answer, back) = handled.await;
             assert_eq!(answer, Answer::Forward);
             assert!(back.body == huge.body);
-            // Unjudged while the stopped judgement holds the one place.
+            // Unjudged while the stopped judgement holds the one slot.
             let (answer, _) = started.gateway.handle(call("POST", None)).await;
             assert_eq!(answer, Answer::Forward);
         }
 
-        // Judged once the place is free, and reported alone.
+        // Judged once the slot is free, and reported alone.
         let mut answer = Answer::Forward;
         for _ in 0..200 {
             answer = started.gateway.handle(call("POST", None)).await.0;

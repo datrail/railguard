@@ -1,4 +1,4 @@
-//! One gateway call end to end: the waits, a place to judge it in, and an answer by its deadline.
+//! One gateway call end to end: the waits, a slot to judge it in, and an answer by its deadline.
 
 use std::num::NonZeroUsize;
 use std::sync::Arc;
@@ -26,7 +26,7 @@ pub struct GatewaySettings {
     /// From the call's arrival to its answer, the waits included.
     pub deadline: Duration,
     /// How many calls are judged at once, each on a thread of its own.
-    pub places: NonZeroUsize,
+    pub max_concurrent_judgements: NonZeroUsize,
     /// What a call gets while no bundle is held: `pass` forwards it, `block` answers 503.
     pub no_bundle_fallback: Fallback,
     pub unit: UnitSettings,
@@ -36,20 +36,21 @@ impl Default for GatewaySettings {
     fn default() -> Self {
         Self {
             deadline: Duration::from_secs(5),
-            places: available_parallelism().unwrap_or(NonZeroUsize::MIN),
+            max_concurrent_judgements: available_parallelism().unwrap_or(NonZeroUsize::MIN),
             no_bundle_fallback: Fallback::Pass,
             unit: UnitSettings::default(),
         }
     }
 }
 
-/// The gateway role for a host: each call judged within its deadline, at most `places` at once.
+/// The gateway role for a host: each call judged within its deadline, at most
+/// `max_concurrent_judgements` at once.
 pub struct Gateway {
     bundles: Arc<BundleHolder>,
     key_sets: Arc<KeySetHolder>,
     reporter: Arc<DenialReporter>,
     now: WallClock,
-    places: Arc<Semaphore>,
+    judgements: Arc<Semaphore>,
     settings: GatewaySettings,
 }
 
@@ -66,7 +67,7 @@ impl Gateway {
             key_sets,
             reporter,
             now,
-            places: Arc::new(Semaphore::new(settings.places.get())),
+            judgements: Arc::new(Semaphore::new(settings.max_concurrent_judgements.get())),
             settings,
         }
     }
@@ -102,9 +103,12 @@ impl Gateway {
             tracing::error!(?answer, "{why}; the call went unjudged");
             answer
         };
-        let Ok(Ok(place)) = timeout_at(deadline, Arc::clone(&self.places).acquire_owned()).await
+        let Ok(Ok(slot)) = timeout_at(deadline, Arc::clone(&self.judgements).acquire_owned()).await
         else {
-            return (unjudged("its deadline passed waiting to be judged"), call);
+            return (
+                unjudged("its deadline passed waiting for a free slot"),
+                call,
+            );
         };
         let call = Arc::new(call);
         let stop = Arc::new(AtomicBool::new(false));
@@ -114,7 +118,7 @@ impl Gateway {
             let (call, bundle, stop) = (Arc::clone(&call), Arc::clone(&bundle), Arc::clone(&stop));
             let (reporter, settings) = (Arc::clone(&self.reporter), self.settings.unit);
             spawn_blocking(move || {
-                let _place = place;
+                let _slot = slot;
                 let unit = Unit {
                     call: &call,
                     ticket,
