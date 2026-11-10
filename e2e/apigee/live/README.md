@@ -129,7 +129,9 @@ receives is what Apigee sent it. What they showed:
   call whose argument holds `ff` reaches `upstream` with `ef bf bd` in its
   place, judged and forwarded as such;
 - **a compressed body:** Apigee decompresses it before the callout. A
-  gzipped call naming `forbidden_tool` is denied by P2.
+  gzipped call naming `forbidden_tool` is denied by P2;
+- **a call just under rail-apigee's cap:** forwarded, so Apigee takes an
+  answer up to about 4 MiB, as the cap assumes.
 
 
 **Adding or changing an Apigee case:** run it here first, then on the
