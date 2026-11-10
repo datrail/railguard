@@ -20,10 +20,8 @@ jobs:
       # rustup installs the toolchain from rust-toolchain.toml on first use.
       # The cache is keyed by job, so this and check-python each keep their own.
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      - run: cargo fmt --check
-      - run: cargo clippy --locked --all-targets -- -D warnings
-      - run: cargo clippy --locked -p rail-policy-py -- -D warnings
-      - run: cargo test --locked
+      - run: make lint
+      - run: make test
       # The generated proto code is committed, so it must be what its .proto gives now.
       - run: make proto
       # Untracked files too, so a new generated file isn't missed.
