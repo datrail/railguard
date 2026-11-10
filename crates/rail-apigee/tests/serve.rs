@@ -138,7 +138,7 @@ async fn with_rail_center_disabled_it_is_ready_and_allows_every_call() {
 async fn a_request_at_the_limit_is_answered_and_one_past_it_refused() {
     let port = free_port();
     let mut command = rail_apigee(port);
-    command.env("RAIL_GATEWAY_GRPC_MAX_MESSAGE_MB", "1");
+    command.env("RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB", "1");
     let _server = tokio::task::block_in_place(|| serve(command, port));
     let limit = 1 << 20;
     let mut at_limit = call(&"a".repeat(limit));

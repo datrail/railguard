@@ -4,10 +4,14 @@ use rail_runtime::{
     read_log_level, read_rail_center,
 };
 
-const PORT: &str = "RAIL_GATEWAY_PORT";
+// The callout's settings are named for any host serving a callout, not the gateway's alone;
+// the retired names are the Python gateway's.
+const PORT: &str = "RAIL_CALLOUT_PORT";
+const RETIRED_PORT: &str = "RAIL_GATEWAY_PORT";
 const DEFAULT_PORT: u16 = 8080;
 
-const MAX_MESSAGE_MB: &str = "RAIL_GATEWAY_GRPC_MAX_MESSAGE_MB";
+const MAX_MESSAGE_MB: &str = "RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB";
+const RETIRED_MAX_MESSAGE_MB: &str = "RAIL_GATEWAY_GRPC_MAX_MESSAGE_MB";
 // Apigee X takes request bodies up to 10 MB, and gRPC's own default is 4 MB.
 const DEFAULT_MAX_MESSAGE_MB: usize = 16;
 // As Python's, so no setting it took is refused.
@@ -31,6 +35,14 @@ impl Config {
     /// the refusals.
     pub fn read(settings: &mut Settings) -> Result<Self, Refused> {
         let log_level = read_log_level(settings);
+        let retired = [
+            settings
+                .get(RETIRED_PORT)
+                .retired(&format!("{PORT} sets the port")),
+            settings
+                .get(RETIRED_MAX_MESSAGE_MB)
+                .retired(&format!("{MAX_MESSAGE_MB} sets the limit")),
+        ];
         let port = settings
             .get(PORT)
             .parsed(parse_port)
@@ -51,6 +63,7 @@ impl Config {
         let rail_center = read_rail_center(settings, enabled);
         let bundle = read_bundle_settings(settings, enabled);
         disabled?;
+        retired.into_iter().try_for_each(|retired| retired)?;
         let (log_level, port, max_message_mb, rail_center, bundle) =
             (log_level?, port?, max_message_mb?, rail_center?, bundle?);
         // Enabled, both are required, so both are Some.

@@ -25,7 +25,7 @@ pub fn rail_apigee(port: u16) -> Command {
     let mut command = isolate(env!("CARGO_BIN_EXE_rail-apigee"));
     command
         .env("RAIL_DISABLED", "true")
-        .env("RAIL_GATEWAY_PORT", port.to_string());
+        .env("RAIL_CALLOUT_PORT", port.to_string());
     command
 }
 

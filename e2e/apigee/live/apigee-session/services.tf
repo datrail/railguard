@@ -72,7 +72,7 @@ resource "google_cloud_run_v2_service" "callout" {
       }
 
       env {
-        name  = "RAIL_GATEWAY_PORT"
+        name  = "RAIL_CALLOUT_PORT"
         value = tostring(local.callout_port)
       }
       env {

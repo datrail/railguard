@@ -129,7 +129,7 @@ receives is what Apigee sent it:
   Apigee decompressed it before the callout;
 - **Apigee's own limit on a body:** an 11 and a 17 MiB call; Apigee's
   fault, against `RF-CalloutFailed` and rail-apigee's logs, says whether it
-  reached rail-apigee, whose `RAIL_GATEWAY_GRPC_MAX_MESSAGE_MB` is 16.
+  reached rail-apigee, whose `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB` is 16.
 
 **Adding or changing an Apigee case:** run it here first, then on the
 stand-in. These cases are the stand-in's specification, so a change to one
