@@ -49,7 +49,7 @@ services:
     <<: *callout
     environment:
       RAIL_CENTER_URL: http://rail-center:8080
-      RAIL_ALLOW_HTTP: "true"
+      RAIL_CENTER_ALLOW_HTTP: "true"
       RAIL_AUTH_MODE: bearer
       # A service token's shape; the stub serves the bundle to it alone.
       RAIL_AUTH_TOKEN: rc_svc_e2e-enforceAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
@@ -63,7 +63,7 @@ services:
     <<: *callout
     environment:
       RAIL_CENTER_URL: http://rail-center.invalid
-      RAIL_ALLOW_HTTP: "true"
+      RAIL_CENTER_ALLOW_HTTP: "true"
       RAIL_GATEWAY_SLUG: edge
       RAIL_GATEWAY_PORT: "9100"
 

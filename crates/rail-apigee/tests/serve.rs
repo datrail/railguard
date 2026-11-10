@@ -106,7 +106,7 @@ fn with_rail_center(port: u16, url: &str) -> Command {
     command.envs([
         ("RAIL_DISABLED", "false"),
         ("RAIL_CENTER_URL", url),
-        ("RAIL_ALLOW_HTTP", "true"),
+        ("RAIL_CENTER_ALLOW_HTTP", "true"),
         ("RAIL_GATEWAY_SLUG", "gw-1"),
     ]);
     command

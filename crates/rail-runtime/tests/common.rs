@@ -113,7 +113,7 @@ pub fn response(status: &str, headers: &[&str], body: &[u8]) -> Vec<u8> {
 }
 
 pub fn settings(url: &str, token: Option<&str>) -> RailCenterSettings {
-    let mut pairs = vec![("RAIL_CENTER_URL", url), ("RAIL_ALLOW_HTTP", "true")];
+    let mut pairs = vec![("RAIL_CENTER_URL", url), ("RAIL_CENTER_ALLOW_HTTP", "true")];
     if let Some(token) = token {
         pairs.extend([("RAIL_AUTH_MODE", "bearer"), ("RAIL_AUTH_TOKEN", token)]);
     }

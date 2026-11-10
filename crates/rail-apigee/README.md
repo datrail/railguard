@@ -10,7 +10,7 @@ On SIGTERM or Ctrl-C it drains for at most 5 s, then cuts the connections still 
 
 ## The image
 
-`docker build -f crates/rail-apigee/Dockerfile .` builds it, from the repository root: distroless, as uid 10001, serving on 8080. `RAIL_CENTER_URL` and `RAIL_GATEWAY_SLUG` are required unless `RAIL_DISABLED=true`; An `http://` `RAIL_CENTER_URL` is refused unless `RAIL_ALLOW_HTTP=true`. `RAIL_AUTH_MODE=bearer` with `RAIL_AUTH_TOKEN`, an `rc_svc_` service token, sends Rail Center a credential. For a health check, run `/rail-apigee probe`, or `/rail-apigee probe --ready` for readiness.
+`docker build -f crates/rail-apigee/Dockerfile .` builds it, from the repository root: distroless, as uid 10001, serving on 8080. `RAIL_CENTER_URL` and `RAIL_GATEWAY_SLUG` are required unless `RAIL_DISABLED=true`; An `http://` `RAIL_CENTER_URL` is refused unless `RAIL_CENTER_ALLOW_HTTP=true`. `RAIL_AUTH_MODE=bearer` with `RAIL_AUTH_TOKEN`, an `rc_svc_` service token, sends Rail Center a credential. For a health check, run `/rail-apigee probe`, or `/rail-apigee probe --ready` for readiness.
 
 ## The Apigee proxy
 

@@ -12,7 +12,7 @@ const COMPLETE: [(&str, &str); 10] = [
     ("RAIL_EXT_SOCKET", "/tmp/rail/ext.sock"),
     ("RAIL_DISABLED", "false"),
     ("RAIL_CENTER_URL", "http://rail-center.internal:8080"),
-    ("RAIL_ALLOW_HTTP", "true"),
+    ("RAIL_CENTER_ALLOW_HTTP", "true"),
     ("RAIL_AUTH_MODE", "bearer"),
     ("RAIL_AUTH_TOKEN", TOKEN),
     ("RAIL_HOST_ID", "host-1"),
@@ -52,7 +52,7 @@ fn disabled_describes_every_setting_set_though_its_group_is_incomplete() {
     let pairs = [
         ("RAIL_DISABLED", "true"),
         ("RAIL_TICKET_REFRESH_SECONDS", "600"),
-        ("RAIL_ALLOW_HTTP", "true"),
+        ("RAIL_CENTER_ALLOW_HTTP", "true"),
         ("RAIL_AUTH_MODE", "bearer"),
         ("RAIL_AUTH_TOKEN", TOKEN),
     ];
@@ -77,9 +77,9 @@ fn disabled_describes_every_setting_set_though_its_group_is_incomplete() {
                 Level::Warn("Rail Center isn't used: nothing is fetched from it")
             ),
             ("RAIL_PROXY_PROTECTED_HOSTS", "none".to_owned(), Level::Info),
-            ("RAIL_ALLOW_HTTP", "true".to_owned(), Level::Info),
             ("RAIL_AUTH_MODE", "bearer".to_owned(), Level::Info),
             ("RAIL_AUTH_TOKEN", "set".to_owned(), Level::Info),
+            ("RAIL_CENTER_ALLOW_HTTP", "true".to_owned(), Level::Info),
             ("RAIL_TICKET_REFRESH_SECONDS", "600".to_owned(), Level::Info),
         ]
     );
@@ -126,7 +126,7 @@ fn the_description_says_each_value_as_used_and_never_the_token() {
                 "http://rail-center.internal:8080",
                 Level::Warn("the credential and what Rail Center returns cross in the clear")
             ),
-            ("RAIL_ALLOW_HTTP", "true", Level::Info),
+            ("RAIL_CENTER_ALLOW_HTTP", "true", Level::Info),
             ("RAIL_AUTH_MODE", "bearer", Level::Info),
             ("RAIL_AUTH_TOKEN", "set", Level::Info),
             ("RAIL_HOST_ID", "host-1", Level::Info),

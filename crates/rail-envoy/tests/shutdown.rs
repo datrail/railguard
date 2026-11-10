@@ -32,7 +32,7 @@ fn with_rail_center_unreachable_it_serves_and_stops_at_once() {
     command.envs([
         ("RAIL_DISABLED", "false"),
         ("RAIL_CENTER_URL", "http://127.0.0.1:1"),
-        ("RAIL_ALLOW_HTTP", "true"),
+        ("RAIL_CENTER_ALLOW_HTTP", "true"),
         ("RAIL_HOST_ID", "host-1"),
         ("RAIL_SANDBOX_NAME", "sandbox-1"),
         ("RAIL_PROXY_PROTECTED_HOSTS", "mcp.example.com"),
