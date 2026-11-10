@@ -1,7 +1,7 @@
 """Checks rail-apigee on its own, then through the stand-in for an Apigee proxy running apiproxy/.
 
 Assertions read WireMock's request journals, not logs: a log says what rail-apigee believes it
-did, a journal says it happened.
+did, a journal says it happened. "live §9" is what the Python gateway's runs on real Apigee found.
 """
 
 import http.client
@@ -12,7 +12,7 @@ import urllib.parse
 import urllib.request
 
 import grpc
-from external_callout_pb2 import MessageContext, Request
+from external_callout_pb2 import MessageContext, Request, Strings
 from external_callout_pb2_grpc import ExternalCalloutServiceStub
 from grpc_health.v1 import health_pb2, health_pb2_grpc
 
@@ -301,9 +301,10 @@ def _check_health(target, service=""):
     return health_pb2.HealthCheckResponse.ServingStatus.Name(answer.status)
 
 
-def _process(target, verb, content=""):
+def _process(target, verb, content="", uri="/mcp", ticket=None):
     """The flow variables rail-apigee set."""
-    context = MessageContext(request=Request(verb=verb, uri="/mcp", content=content))
+    headers = {} if ticket is None else {"x-rail": Strings(strings=[ticket])}
+    context = MessageContext(request=Request(verb=verb, uri=uri, content=content, headers=headers))
     with grpc.insecure_channel(target) as channel:
         answer = ExternalCalloutServiceStub(channel).ProcessMessage(context, timeout=5)
     return {name: value.string for name, value in answer.additional_flow_variables.items()}
@@ -323,6 +324,15 @@ def _run_callout_cases():
     _expect(
         "the denial is reported, naming no policy", 1, _wait_for(_count_denials_naming_no_policy, 1)
     )
+
+    forbidden = json.dumps({**_CALL, "params": {"name": "forbidden_tool"}})
+    decoded = _process(_CALLOUT, "POST", forbidden, "/m%63p", _GOOD_TICKET)
+    _expect("a percent-encoded path is decoded, so P2 denies it", "403", decoded.get("rail.status"))
+    broken = json.dumps({**_CALL, "params": {"name": "broken_tool"}})
+    broken = _process(_CALLOUT, "POST", broken, ticket=_GOOD_TICKET)
+    _expect("a policy it can't apply is refused", "refuse", broken.get("rail.decision"))
+    _expect("with 503", "503", broken.get("rail.status"))
+    _expect("and the refusal's body", _CALLOUT_FAILED, broken.get("rail.body"))
 
     _start_block("unreachable: serves on the port it was given, and isn't ready")
     _expect("liveness on 9100", "SERVING", _check_health(_UNREACHABLE))
@@ -404,15 +414,21 @@ def _run_apigee_cases():
 
     # live §9 #2: Apigee splits the claim on its comma, so it reads as two and is dropped. No
     # real claim has a comma.
-    _start_block("enforce: a claimed status with a comma is dropped")
+    _start_block("enforce: a claimed status is recorded, and one with a comma dropped")
+    _reset_journals()
+    claimed = {"x-rail-status": "not-found", **_AGENT}
+    _expect("the call is refused 403", 403, _get_call_status(_ENFORCE, "track_package", claimed))
+    metadata = _wait_for_last_denial().get("metadata", {})
+    _expect("the denial reads no ticket", "absent", metadata.get("x-rail-status"))
+    _expect(
+        "and records a claim without a comma", "not-found", metadata.get("claimed-x-rail-status")
+    )
     _reset_journals()
     claimed = {"x-rail-status": "not-found, expired", **_AGENT}
     _expect("the call is refused 403", 403, _get_call_status(_ENFORCE, "track_package", claimed))
-    _expect(
-        "the denial records no claim",
-        "<none>",
-        _wait_for_last_denial().get("metadata", {}).get("claimed-x-rail-status", "<none>"),
-    )
+    metadata = _wait_for_last_denial().get("metadata", {})
+    _expect("the denial reads no ticket", "absent", metadata.get("x-rail-status"))
+    _expect("and records no claim", "<none>", metadata.get("claimed-x-rail-status", "<none>"))
 
     # live §9 #5: the endpoint key is the path without the query.
     _start_block("enforce: the query string stays out of the endpoint key")
@@ -451,6 +467,14 @@ def _run_apigee_cases():
     _expect("with RF-CalloutFailed's body", _CALLOUT_FAILED, body)
     _expect("nothing reached the upstream", 0, _count_upstream_requests())
 
+    # RF-Refuse answers rail.status: a policy that can't be applied, 503.
+    _start_block("enforce: a policy rail-apigee can't apply answers 503")
+    _reset_journals()
+    code, body = _call_tool(_ENFORCE, "broken_tool", headers=good)
+    _expect("the call is answered 503", 503, code)
+    _expect("with the refusal's body", _CALLOUT_FAILED, body)
+    _expect("nothing reached the upstream", 0, _count_upstream_requests())
+
     _start_block("no-callout: the proxy fails closed")
     _reset_journals()
     code, body = _call_tool(_NO_CALLOUT, "track_package", headers=good)
@@ -473,7 +497,8 @@ def _run_apigee_cases():
         "a call with no ticket is refused", 403, _get_call_status(_ENFORCE, "track_package", _AGENT)
     )
     _expect("only that call reached rail-apigee", 1, _wait_for(_count_denials_naming_no_policy, 1))
-    _expect("and it alone was reported", 1, _count_denials())
+    # Given time for a second report to arrive, were there one.
+    _expect("and it alone was reported", 1, _wait_for(_count_denials, 2, tries=8))
 
 
 def main():
