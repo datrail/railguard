@@ -87,9 +87,9 @@ cd ..
   if any environment is left in the organisation.
 - **Time:** a first `up` takes roughly 8 to 25 minutes, most of it the
   environment attaching to the instance, plus rail-apigee's release build
-  for linux/amd64 (8 with the build cached). `up` again on a running session redeploys what changed
-  (rail-apigee, a stub, the bundle) in about 3 minutes, so a fix can be
-  tried in the same session.
+  for linux/amd64 (8 with the build cached). `up` again on a running
+  session redeploys what changed (rail-apigee, a stub, the bundle) in about
+  3 minutes, so a fix can be tried in the same session.
 - **`up` waits** until a `GET` through `enforce` gets the upstream stub's 405
   six times in a row, 5 s apart, for up to 10 minutes: just after the first,
   the load balancer still answers some 502s. It then checks the stubs'

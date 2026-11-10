@@ -376,6 +376,15 @@ def _run_callout_cases():
     _expect("a policy it can't apply is refused", "refuse", broken.get("rail.decision"))
     _expect("with 503", "503", broken.get("rail.status"))
     _expect("and the refusal's body", _CALLOUT_FAILED, broken.get("rail.body"))
+    # Through Apigee, its answer failing there would look the same: only asked directly can
+    # the refusal be told apart.
+    large = _process(_CALLOUT, "POST", "x" * 5 * 1024 * 1024, ticket=_GOOD_TICKET)
+    _expect(
+        "a request whose answer Apigee couldn't take is refused",
+        "refuse",
+        large.get("rail.decision"),
+    )
+    _expect("with 503", "503", large.get("rail.status"))
 
     _start_block("unreachable: serves on the port it was given, and isn't ready")
     _expect("liveness on 9100", "SERVING", _check_health(_UNREACHABLE))
@@ -585,6 +594,15 @@ def _run_live_observations():
     # P2 names the tool, so only a decompressed body can match it.
     named_p2 = _wait_for(lambda: _count_denials_naming(_P2), 1)
     _report_seen("P2 denied it, so it was decompressed", "yes" if named_p2 else "no")
+
+    # Its answer is just under 4 MiB: forwarded only if Apigee takes the full 4 MiB.
+    _start_block("seen: a call just under rail-apigee's cap")
+    _clear_journals()
+    arguments = {"pad": "x" * (4 * 1024 * 1024 - 8 * 1024)}
+    payload = {**_CALL, "params": {"name": "track_package", "arguments": arguments}}
+    body = json.dumps(payload).encode()
+    code, answer = _send_raw_post(_ENFORCE, body, good, _UPLOAD_TIMEOUT_SECONDS)
+    _report_seen("the answer", f"{code} {answer[:200]}")
 
 
 def main():

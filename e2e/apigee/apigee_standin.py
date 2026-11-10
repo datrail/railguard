@@ -48,7 +48,8 @@ _CALLOUT_FAILED = (
 # The test-only policy, on the header the live harness's condition names.
 _OPERATOR_FAULT = ET.parse(os.environ["APIGEE_OPERATOR_FAULT"]).getroot()
 _OPERATOR_FAULT_HEADER = "x-e2e-operator-fault"
-# Apigee answers a body past its 10 MB itself, before any policy (seen live).
+# Apigee answers a body past its 10 MB itself, before any policy (seen live); 10 MiB here, as
+# only bodies well past it are sent.
 _MAX_BODY_BYTES = 10 * 1024 * 1024
 _TOO_BIG = (
     b'{"fault":{"faultstring":"Body buffer overflow",'

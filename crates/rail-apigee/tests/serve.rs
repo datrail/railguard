@@ -162,10 +162,12 @@ async fn a_request_at_the_limit_is_answered_and_one_past_it_refused() {
 async fn a_request_whose_answer_apigee_could_not_take_is_refused_unjudged() {
     let port = free_port();
     let server = tokio::task::block_in_place(|| serve(rail_apigee(port), port));
-    let mut at_limit = call(&"a".repeat(MAX_ANSWERED_BYTES));
-    let framing = at_limit.encoded_len() - MAX_ANSWERED_BYTES;
-    at_limit.request.as_mut().unwrap().content = "a".repeat(MAX_ANSWERED_BYTES - framing);
-    assert_eq!(at_limit.encoded_len(), MAX_ANSWERED_BYTES);
+    // Apigee's 4 MiB, less the answer's headroom.
+    let limit = (4 << 20) - 1024;
+    let mut at_limit = call(&"a".repeat(limit));
+    let framing = at_limit.encoded_len() - limit;
+    at_limit.request.as_mut().unwrap().content = "a".repeat(limit - framing);
+    assert_eq!(at_limit.encoded_len(), limit);
     let mut past_limit = at_limit.clone();
     past_limit.request.as_mut().unwrap().content.push('a');
     let mut client = client(port).await;
@@ -367,4 +369,20 @@ fn read_exit(mut server: Server) -> (Option<i32>, String) {
         .wait_for_exit(Duration::from_secs(10))
         .expect("the server never exited");
     (code, server.read_logs())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn with_rail_center_enabled_a_request_whose_answer_apigee_could_not_take_is_refused() {
+    let port = free_port();
+    let command = with_rail_center(port, "http://127.0.0.1:1");
+    let _server = tokio::task::block_in_place(|| serve(command, port));
+
+    let refused = client(port)
+        .await
+        .process_message(call(&"a".repeat(MAX_ANSWERED_BYTES)))
+        .await
+        .unwrap()
+        .into_inner();
+
+    assert_eq!(flow(&refused, "rail.status").as_deref(), Some("503"));
 }

@@ -6,11 +6,10 @@
 
 use std::sync::Arc;
 
-use prost::Message;
-
 use apigee_callout_proto::apigee::external_callout_service_server::ExternalCalloutService;
 use apigee_callout_proto::apigee::{FlowVariable, MessageContext, Strings, flow_variable};
 use percent_encoding::percent_decode_str;
+use prost::Message;
 use rail_runtime::{Answer, Call, Gateway, XRAIL, is_withheld_header};
 
 // The flow variables the Apigee proxy reads.
@@ -20,7 +19,7 @@ const BODY: &str = "rail.body";
 const ALLOW: &str = "allow";
 const REFUSE: &str = "refuse";
 
-/// The answer echoes the content, plus our flow variables and removals: a few hundred bytes.
+// The answer echoes the content, plus our flow variables and removals: a few hundred bytes.
 pub(crate) const SEND_HEADROOM_BYTES: usize = 1024;
 // Apigee takes a callout's answer of at most 4 MiB.
 const MAX_APIGEE_ANSWER_BYTES: usize = 4 * 1024 * 1024;
@@ -28,7 +27,8 @@ const MAX_APIGEE_ANSWER_BYTES: usize = 4 * 1024 * 1024;
 /// what Apigee takes. A larger one is refused unjudged, as Apigee would fail its answer.
 pub const MAX_ANSWERED_BYTES: usize = MAX_APIGEE_ANSWER_BYTES - SEND_HEADROOM_BYTES;
 
-/// The ExternalCallout service; with no gateway, Rail Center is disabled and every call allowed.
+/// The ExternalCallout service; with no gateway, Rail Center is disabled and every call it can
+/// answer allowed.
 #[derive(Clone)]
 pub struct Callout {
     pub gateway: Option<Arc<Gateway>>,
@@ -44,6 +44,7 @@ impl ExternalCalloutService for Callout {
         let bytes = context.encoded_len();
         if bytes > MAX_ANSWERED_BYTES {
             tracing::warn!(
+                message_id = context.message_id,
                 bytes,
                 limit = MAX_ANSWERED_BYTES,
                 "refused unjudged: Apigee takes an answer of at most 4 MiB, and it carries the request's content back"

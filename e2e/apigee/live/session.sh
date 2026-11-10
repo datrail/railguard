@@ -51,7 +51,7 @@ await_proxy() {
   terraform output -raw lb_cert > "$cert"
   url=$(terraform output -raw enforce_url)
   for _ in $(seq 120); do
-    body=$(curl -s --cacert "$cert" "$url" || true)
+    body=$(curl -s --max-time 10 --cacert "$cert" "$url" || true)
     if [[ "$body" == *"stream not offered"* ]]; then
       streak=$((streak + 1))
       if ((streak == 6)); then
