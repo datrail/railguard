@@ -1,4 +1,11 @@
+use std::collections::HashMap;
 use std::time::{Duration, Instant};
+
+use envoy_types::ext_authz::v3::pb::CheckRequest;
+use envoy_types::pb::envoy::service::auth::v3::AttributeContext;
+use envoy_types::pb::envoy::service::auth::v3::attribute_context::{HttpRequest, Request};
+use envoy_types::pb::envoy::service::auth::v3::authorization_client::AuthorizationClient;
+use tonic::transport::Endpoint;
 
 use rail_test_support::Server;
 
@@ -65,4 +72,72 @@ fn at_warn_the_binary_logs_its_warnings_and_no_info_line() {
         "{logs}"
     );
     assert!(!logs.contains(" INFO "), "{logs}");
+}
+
+fn check_request(host: &str, headers: &[(&str, &str)]) -> CheckRequest {
+    let headers: HashMap<String, String> = headers
+        .iter()
+        .map(|&(name, value)| (name.to_owned(), value.to_owned()))
+        .collect();
+    CheckRequest {
+        attributes: Some(AttributeContext {
+            request: Some(Request {
+                http: Some(HttpRequest {
+                    host: host.to_owned(),
+                    headers,
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+    }
+}
+
+// Each request's decision is logged at DEBUG, the binary's own level setting deciding it.
+#[tokio::test(flavor = "multi_thread")]
+async fn at_debug_each_request_is_logged_with_what_it_gets() {
+    let socket = TempSocket::new("debug");
+    let mut command = rail_envoy(&socket.path);
+    command
+        .env("RAIL_LOG_LEVEL", "debug")
+        .env("RAIL_PROXY_PROTECTED_HOSTS", "mcp.example.com");
+    let mut server = tokio::task::block_in_place(|| serve(command, &socket.path));
+    let channel = Endpoint::from_shared(format!("unix:{}", socket.path.display()))
+        .unwrap()
+        .connect()
+        .await
+        .unwrap();
+    let mut client = AuthorizationClient::new(channel);
+    for request in [
+        check_request("mcp.example.com", &[("x-rail", "forged")]),
+        check_request("other.example", &[]),
+    ] {
+        client.check(request).await.unwrap();
+    }
+
+    server.terminate();
+
+    let exit = tokio::task::block_in_place(|| server.wait_for_exit(Duration::from_secs(2)));
+    assert_eq!(exit, Some(Some(0)));
+    let logs = server.read_logs();
+    let decided = |host: &str| {
+        logs.lines()
+            .find(|line| {
+                line.contains("request headers decided")
+                    && line.contains(&format!(r#"authority="{host}""#))
+            })
+            .unwrap_or_else(|| panic!("{logs}"))
+            .to_owned()
+    };
+    let protected = decided("mcp.example.com");
+    assert!(
+        protected.contains(" DEBUG ")
+            && protected.contains(r#"callout="ext_authz""#)
+            && protected.contains(r#"upstream="tls""#)
+            && protected.contains(r#"removed="x-rail,x-rail-status""#),
+        "{protected}"
+    );
+    let other = decided("other.example");
+    assert!(!other.contains("upstream="), "{other}");
 }
