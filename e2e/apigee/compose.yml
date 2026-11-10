@@ -1,0 +1,103 @@
+# rail-apigee on its own, and behind a stand-in for an Apigee proxy running apiproxy/
+# (apigee_standin.py); run with `make e2e-apigee`.
+
+name: railguard-e2e-apigee
+
+x-wiremock: &wiremock
+  # Pinned by digest: a tag is mutable.
+  image: wiremock/wiremock:3.9.1@sha256:8fe02bc3f9b63deb1454d41750dbaf081adf4b3e8c74fd8e31f790bee5647b88
+  healthcheck:
+    test: ["CMD", "curl", "-sf", "http://localhost:8080/__admin/health"]
+    interval: 2s
+    timeout: 3s
+    retries: 15
+
+x-callout: &callout
+  build:
+    context: ../..
+    target: railguard-apigee
+  healthcheck:
+    test: ["CMD", "/rail-apigee", "probe"]
+    interval: 1s
+    # Past the probe's own 5 s, so its answer is the one recorded.
+    timeout: 6s
+    retries: 30
+
+# Python with gRPC and the ExternalCallout stubs, for the stand-in and the driver.
+x-python: &python
+  build:
+    context: .
+    dockerfile: python.Dockerfile
+    additional_contexts:
+      proto: ../../crates/apigee-callout-proto/proto
+  image: railguard-e2e-apigee-python
+
+services:
+  # Serves the bundle, by the token sent, the key set, and takes denials.
+  rail-center:
+    <<: *wiremock
+    volumes:
+      - ./rail-center-mappings:/home/wiremock/mappings:ro
+
+  # An MCP server.
+  upstream:
+    <<: *wiremock
+    volumes:
+      - ./upstream-mappings:/home/wiremock/mappings:ro
+
+  callout:
+    <<: *callout
+    environment:
+      RAIL_CENTER_URL: http://rail-center:8080
+      RAIL_ALLOW_HTTP: "true"
+      RAIL_AUTH_MODE: bearer
+      # A service token's shape; the stub serves the bundle to it alone.
+      RAIL_AUTH_TOKEN: rc_svc_e2e-enforceAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+      RAIL_GATEWAY_SLUG: edge
+      RAIL_GATEWAY_BUNDLE_REFRESH_SECONDS: "3600"
+    depends_on:
+      rail-center: {condition: service_healthy}
+
+  # On a port of its own, with a Rail Center it can't reach: it must still start, and serve there.
+  callout-unreachable:
+    <<: *callout
+    environment:
+      RAIL_CENTER_URL: http://rail-center.invalid
+      RAIL_ALLOW_HTTP: "true"
+      RAIL_GATEWAY_SLUG: edge
+      RAIL_GATEWAY_PORT: "9100"
+
+  # Two proxies: /mcp judged by the callout, and /no-callout, whose callout never resolves.
+  apigee:
+    <<: *python
+    environment:
+      APIGEE_PROXIES: /mcp=callout:8080,/no-callout=no-callout.invalid:8080
+      APIGEE_TARGET_URL: http://upstream:8080/mcp
+      # Past rail-apigee's 5 s deadline, as rail-apigee's README asks.
+      APIGEE_TIMEOUT_MS: "6000"
+      APIGEE_BUNDLE: /e2e/apiproxy
+      APIGEE_OPERATOR_FAULT: /e2e/RF-E2E-OperatorFault.xml
+    volumes:
+      - ./apigee_standin.py:/e2e/apigee_standin.py:ro
+      - ./RF-E2E-OperatorFault.xml:/e2e/RF-E2E-OperatorFault.xml:ro
+      - ./apiproxy:/e2e/apiproxy:ro
+    command: ["python", "-u", "/e2e/apigee_standin.py"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 8080))"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    depends_on:
+      callout: {condition: service_healthy}
+      upstream: {condition: service_healthy}
+
+  driver:
+    <<: *python
+    volumes:
+      - ./driver.py:/e2e/driver.py:ro
+    # Unbuffered, so each line shows as it's reached.
+    command: ["python", "-u", "/e2e/driver.py"]
+    depends_on:
+      callout: {condition: service_healthy}
+      callout-unreachable: {condition: service_healthy}
+      apigee: {condition: service_healthy}

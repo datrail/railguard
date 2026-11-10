@@ -1,4 +1,4 @@
-.PHONY: build test test-py fmt fmt-py lint lint-py check coverage proto e2e-envoy-images e2e-envoy e2e-down
+.PHONY: build test test-py fmt fmt-py lint lint-py check coverage proto e2e-envoy-images e2e-envoy e2e-apigee-images e2e-apigee e2e-down
 
 build:
 	cargo build --locked
@@ -46,6 +46,13 @@ e2e-envoy-images:
 # The result is the driver's exit code.
 e2e-envoy:
 	docker compose -f e2e/envoy/compose.yml up --build --force-recreate --abort-on-container-exit --exit-code-from driver
+
+e2e-apigee-images:
+	docker compose -f e2e/apigee/compose.yml build
+	docker compose -f e2e/apigee/compose.yml pull --ignore-buildable
+
+e2e-apigee:
+	docker compose -f e2e/apigee/compose.yml up --build --force-recreate --abort-on-container-exit --exit-code-from driver
 
 e2e-down:
 	docker compose -f e2e/$(STACK)/compose.yml down --volumes --remove-orphans
