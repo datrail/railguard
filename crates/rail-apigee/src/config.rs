@@ -10,8 +10,8 @@ const DEFAULT_PORT: u16 = 8080;
 const MAX_MESSAGE_MB: &str = "RAIL_GATEWAY_GRPC_MAX_MESSAGE_MB";
 // Apigee X takes request bodies up to 10 MB, and gRPC's own default is 4 MB.
 const DEFAULT_MAX_MESSAGE_MB: usize = 16;
-// Bounds each call's memory, and the parse a deadline can't stop.
-const MAX_MAX_MESSAGE_MB: usize = 16;
+// As Python's, so no setting it took is refused.
+const MAX_MAX_MESSAGE_MB: usize = 100;
 const MB: usize = 1024 * 1024;
 
 /// What this process runs with.

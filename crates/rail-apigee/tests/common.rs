@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 use apigee_callout_proto::apigee::external_callout_service_client::ExternalCalloutServiceClient;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
+use tokio::sync::watch;
 use tonic::transport::{Channel, Endpoint};
 
 /// A port nothing listens on, for the server to bind.
@@ -118,12 +119,31 @@ pub async fn client(port: u16) -> ExternalCalloutServiceClient<Channel> {
 /// Rail Center, answering the bundle route with `bundle`, the key set with no keys, and taking
 /// every denial report; `seen` holds each request line.
 pub struct RailCenter {
-    pub address: SocketAddr,
+    address: SocketAddr,
     pub seen: Arc<Mutex<Vec<String>>>,
+    bundle_held: watch::Sender<bool>,
 }
 
 impl RailCenter {
     pub async fn start(bundle: &'static str) -> Self {
+        Self::start_with(bundle, false).await
+    }
+
+    /// One that doesn't answer the bundle route until `release_bundle`.
+    pub async fn start_holding_bundle(bundle: &'static str) -> Self {
+        Self::start_with(bundle, true).await
+    }
+
+    pub fn url(&self) -> String {
+        format!("http://{}", self.address)
+    }
+
+    pub fn release_bundle(&self) {
+        self.bundle_held.send_replace(false);
+    }
+
+    async fn start_with(bundle: &'static str, held: bool) -> Self {
+        let (bundle_held, released) = watch::channel(held);
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
         let address = listener.local_addr().unwrap();
         let seen = Arc::new(Mutex::new(Vec::new()));
@@ -132,6 +152,7 @@ impl RailCenter {
             loop {
                 let (mut stream, _) = listener.accept().await.unwrap();
                 let log = Arc::clone(&log);
+                let mut released = released.clone();
                 tokio::spawn(async move {
                     let mut head = Vec::new();
                     while !head.ends_with(b"\r\n\r\n") {
@@ -154,6 +175,7 @@ impl RailCenter {
                     stream.read_exact(&mut body).await.unwrap();
                     let line = head.lines().next().unwrap().to_owned();
                     let reply = if line.starts_with("GET /v1/policy-bundle") {
+                        let _ = released.wait_for(|held| !held).await;
                         bundle
                     } else if line.starts_with("GET /v1/jwks.json") {
                         r#"{"keys": []}"#
@@ -169,6 +191,10 @@ impl RailCenter {
                 });
             }
         });
-        Self { address, seen }
+        Self {
+            address,
+            seen,
+            bundle_held,
+        }
     }
 }

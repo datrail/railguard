@@ -18,7 +18,7 @@ path = "tests/main.rs"
 
 [dependencies]
 apigee-callout-proto = { path = "../apigee-callout-proto" }
-# uvicorn's `unquote`, for the path.
+# Python's `unquote`, as uvicorn decodes the path.
 percent-encoding = "2"
 rail-grpc-host = { path = "../rail-grpc-host" }
 rail-policy = { path = "../rail-policy" }

@@ -40,7 +40,7 @@ impl ExternalCalloutService for Callout {
                 let call = Call {
                     path: read_path(&request.uri),
                     method: request.verb.clone(),
-                    // Moved in and back out: it can be 16 MiB.
+                    // Moved in and back out: it can be 100 MiB.
                     body: std::mem::take(&mut request.content),
                     headers,
                 };
@@ -54,7 +54,7 @@ impl ExternalCalloutService for Callout {
     }
 }
 
-/// The path of `uri`, without the query, percent-decoded as uvicorn's `unquote` does.
+/// The path of `uri`, without the query, percent-decoded as Python's `unquote` does.
 pub fn read_path(uri: &str) -> String {
     let path = uri.split_once('?').map_or(uri, |(path, _)| path);
     let path = percent_decode_str(path).decode_utf8_lossy();

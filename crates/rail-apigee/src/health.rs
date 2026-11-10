@@ -6,7 +6,7 @@ use std::sync::Arc;
 use rail_runtime::BundleHolder;
 use tokio::sync::Mutex;
 use tonic_health::ServingStatus;
-use tonic_health::pb::health_server::{Health, HealthServer};
+use tonic_health::pb::health_server::Health;
 use tonic_health::pb::{HealthCheckRequest, HealthCheckResponse};
 use tonic_health::server::{HealthReporter, HealthService};
 
@@ -25,7 +25,7 @@ pub struct Statuses {
 
 impl Statuses {
     /// Liveness SERVING, and readiness as `bundles` holds a bundle.
-    pub async fn start(bundles: Option<Arc<BundleHolder>>) -> (Self, HealthServer<Readiness>) {
+    pub async fn start(bundles: Option<Arc<BundleHolder>>) -> (Self, Readiness) {
         let reporter = HealthReporter::new();
         let statuses = Self {
             reporter: reporter.clone(),
@@ -41,7 +41,7 @@ impl Statuses {
             inner: HealthService::from_health_reporter(reporter),
             statuses: statuses.clone(),
         };
-        (statuses, HealthServer::new(service))
+        (statuses, service)
     }
 
     /// Both NOT_SERVING, for good.

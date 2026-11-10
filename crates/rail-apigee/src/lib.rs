@@ -4,7 +4,7 @@
 //! `rail-apigee` serves, with `grpc.health.v1` on the same port; `rail-apigee probe [--ready]`
 //! asks it for liveness or readiness, and exits 0 if it answers SERVING.
 //!
-//! The binary as a library: `run`, and the configuration and service it serves, which its tests
+//! The binary as a library: `run`, and the configuration and services it serves, which its tests
 //! drive.
 
 mod callout;
@@ -27,11 +27,11 @@ use tokio::net::TcpListener;
 use tokio::signal::unix::{SignalKind, signal};
 use tokio::sync::oneshot;
 use tokio_stream::wrappers::TcpListenerStream;
+use tonic_health::pb::health_server::HealthServer;
 
 pub use crate::callout::{Callout, build_answer, read_path};
 pub use crate::config::Config;
-pub use crate::health::READY;
-use crate::health::Statuses;
+pub use crate::health::{READY, Readiness, Statuses};
 
 // The answer echoes the content, plus our flow variables and removals: a few hundred bytes.
 const SEND_HEADROOM_BYTES: usize = 1024;
@@ -95,7 +95,7 @@ async fn serve(config: Config, startup: &Startup) -> ExitCode {
         None => (None, None, None),
     };
     let callout = Callout { gateway };
-    let (statuses, health_service) = Statuses::start(bundles).await;
+    let (statuses, readiness) = Statuses::start(bundles).await;
     tracing::info!(port = config.port, "serving the ExternalCallout service");
     let (draining, drain_started) = oneshot::channel();
     let stopping = async {
@@ -107,7 +107,7 @@ async fn serve(config: Config, startup: &Startup) -> ExitCode {
         .max_decoding_message_size(config.max_message_bytes)
         .max_encoding_message_size(config.max_message_bytes + SEND_HEADROOM_BYTES);
     let server = tonic::transport::Server::builder()
-        .add_service(health_service)
+        .add_service(HealthServer::new(readiness))
         .add_service(callout)
         .serve_with_incoming_shutdown(TcpListenerStream::new(listener), stopping);
     let served = rail_grpc_host::drain_until_deadline(server, drain_started).await;

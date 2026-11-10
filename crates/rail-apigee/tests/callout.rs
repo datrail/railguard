@@ -86,4 +86,15 @@ fn the_answer_removes_the_x_rail_headers_and_sets_the_decision() {
             ("rail.body", r#"{"error": "denied by policy"}"#),
         ])
     );
+    assert_eq!(
+        build_answer(received(), Answer::CannotApply),
+        expected(&[
+            ("rail.decision", "refuse"),
+            ("rail.status", "503"),
+            (
+                "rail.body",
+                r#"{"error": "policy ruleset cannot be applied"}"#
+            ),
+        ])
+    );
 }
