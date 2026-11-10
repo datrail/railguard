@@ -5,9 +5,7 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use rail_runtime::{
-    Level, RailCenterClient, RailCenterSettings, Refused, Settings, read_rail_center,
-};
+use rail_runtime::{RailCenterClient, RailCenterSettings, Refused, Settings, read_rail_center};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
@@ -130,19 +128,6 @@ pub fn read<T>(
     reader: impl FnOnce(&mut Settings) -> Result<T, Refused>,
 ) -> Result<T, Vec<String>> {
     rail_test_support::read(pairs, reader).map(|(read, _)| read)
-}
-
-/// Each entry `reader` logs of `pairs`, as (name, value, level); `pairs` must be accepted.
-pub fn describe<T>(
-    pairs: &[(&str, &str)],
-    reader: impl FnOnce(&mut Settings) -> Result<T, Refused>,
-) -> Vec<(&'static str, String, Level)> {
-    let (_, startup) = rail_test_support::read(pairs, reader).unwrap();
-    startup
-        .entries
-        .into_iter()
-        .map(|entry| (entry.name, entry.value, entry.level))
-        .collect()
 }
 
 pub fn client(url: &str) -> RailCenterClient {

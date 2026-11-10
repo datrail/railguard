@@ -2,7 +2,9 @@ use std::time::Duration;
 
 use rail_runtime::{BundleSettings, Level, read_bundle_settings};
 
-use crate::common::{self, describe};
+use rail_test_support::describe;
+
+use crate::common;
 
 fn read(pairs: &[(&str, &str)]) -> Result<BundleSettings, Vec<String>> {
     common::read(pairs, |settings| read_bundle_settings(settings, true))

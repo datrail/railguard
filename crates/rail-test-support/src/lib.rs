@@ -7,7 +7,8 @@ use std::process::{Child, Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
 use rail_runtime::{
-    ConfigErrors, ProtectedHosts, Refused, Settings, Startup, Variables, read_protected_hosts,
+    ConfigErrors, Level, ProtectedHosts, Refused, Settings, Startup, Variables,
+    read_protected_hosts,
 };
 
 /// What `reader` reads of `variables`, and what that logs, or every refusal.
@@ -29,6 +30,19 @@ pub fn read<T>(
 ) -> Result<(T, Startup), Vec<String>> {
     let variables: Variables = pairs.iter().copied().collect();
     read_from(&variables, reader)
+}
+
+/// Each entry `reader` logs of `pairs`, as (name, value, level); `pairs` must be accepted.
+pub fn describe<T>(
+    pairs: &[(&str, &str)],
+    reader: impl FnOnce(&mut Settings) -> Result<T, Refused>,
+) -> Vec<(&'static str, String, Level)> {
+    let (_, startup) = read(pairs, reader).unwrap();
+    startup
+        .entries
+        .into_iter()
+        .map(|entry| (entry.name, entry.value, entry.level))
+        .collect()
 }
 
 /// The protected hosts `value` lists, which must be accepted.

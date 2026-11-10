@@ -4,7 +4,9 @@ use rail_runtime::{
 
 use rail_test_support::read_from;
 
-use crate::common::{self, describe};
+use rail_test_support::describe;
+
+use crate::common;
 
 const TOKEN: &str = "rc_svc_abcdefghijklmnopqrstuvwxyzABCDEFGHIJK-_0123";
 
