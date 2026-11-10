@@ -1,9 +1,8 @@
 use std::path::PathBuf;
 
-use rail_runtime::logging::read_log_level;
 use rail_runtime::{
     ProtectedHosts, RailCenterSettings, Refused, Settings, TicketSettings, read_disabled,
-    read_protected_hosts, read_rail_center, read_ticket_settings,
+    read_log_level, read_protected_hosts, read_rail_center, read_ticket_settings,
 };
 
 const EXT_SOCKET: &str = "RAIL_EXT_SOCKET";
