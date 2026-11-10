@@ -142,3 +142,13 @@ async fn a_new_key_under_a_kid_held_is_news() {
     assert_eq!(lines_with(&logs, "holding signing keys").len(), 2, "{logs}");
     assert!(lines_with(&logs, "dropping").is_empty(), "{logs}");
 }
+
+#[tokio::test(start_paused = true)]
+async fn an_empty_set_is_said_once_at_info_and_never_as_a_failure() {
+    let logs = log_until(300, |_| answer(StatusCode::OK, b"{\"keys\": []}")).await;
+
+    let said = lines_with(&logs, "publishes no signing keys");
+    assert_eq!(said.len(), 1, "{logs}");
+    assert!(said[0].contains("INFO"), "{logs}");
+    assert!(!logs.contains("fetch failed"), "{logs}");
+}
