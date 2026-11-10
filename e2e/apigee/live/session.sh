@@ -42,19 +42,26 @@ build_images() {
 
 # The load balancer, the environment's attachment and new IAM grants each take
 # minutes to apply. The upstream stub answers a GET with 405 "stream not
-# offered"; anything else is something still starting.
+# offered"; anything else is something still starting. The load balancer
+# still answers some 502s after its first good answer, so it must give six in
+# a row.
 await_proxy() {
-  local cert url body
+  local cert url body streak=0
   cert=$(mktemp)
   terraform output -raw lb_cert > "$cert"
   url=$(terraform output -raw enforce_url)
-  for _ in $(seq 60); do
+  for _ in $(seq 120); do
     body=$(curl -s --cacert "$cert" "$url" || true)
     if [[ "$body" == *"stream not offered"* ]]; then
-      rm -f "$cert"
-      return 0
+      streak=$((streak + 1))
+      if ((streak == 6)); then
+        rm -f "$cert"
+        return 0
+      fi
+    else
+      streak=0
     fi
-    sleep 10
+    sleep 5
   done
   rm -f "$cert"
   echo "The enforce proxy still doesn't reach the upstream stub after 10 minutes. Last answer:" >&2

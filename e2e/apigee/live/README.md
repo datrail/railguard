@@ -85,14 +85,15 @@ cd ..
   balancer and three always-on Cloud Run instances add a few cents. It is
   billed from `up` until `down`, so **always end with `down`**, which fails
   if any environment is left in the organisation.
-- **Time:** a first `up` takes roughly 15 to 25 minutes, most of it the
+- **Time:** a first `up` takes roughly 8 to 25 minutes, most of it the
   environment attaching to the instance, plus rail-apigee's release build
-  for linux/amd64. `up` again on a running session redeploys what changed
+  for linux/amd64 (8 with the build cached). `up` again on a running session redeploys what changed
   (rail-apigee, a stub, the bundle) in about 3 minutes, so a fix can be
   tried in the same session.
-- **`up` waits** until a `GET` through `enforce` gets the upstream stub's 405,
-  for up to 10 minutes, then checks the stubs' `/__admin` refuses a call
-  without the password. If the wait times out, it prints the last answer:
+- **`up` waits** until a `GET` through `enforce` gets the upstream stub's 405
+  six times in a row, 5 s apart, for up to 10 minutes: just after the first,
+  the load balancer still answers some 502s. It then checks the stubs'
+  `/__admin` refuses a call without the password. If the wait times out, it prints the last answer:
   an Apigee fault there names what is wrong.
 
 ## What the driver checks
@@ -121,15 +122,17 @@ wants an ID token for those):
 
 Then it prints, as `seen` lines that pass or fail nothing, what only real
 Apigee can say. rail-apigee echoes the content it's sent, so what `upstream`
-receives is what Apigee sent it:
-- **content that isn't UTF-8:** a forwarded call whose argument holds the
-  byte `ff`; the bytes `upstream` received in its place say whether Apigee
-  sends a replacement character (`ef bf bd`), drops the byte, or sends it;
-- **a compressed body:** a gzipped call P2 denies; a 403 naming P2 means
-  Apigee decompressed it before the callout;
-- **Apigee's own limit on a body:** an 11 and a 17 MiB call; Apigee's
-  fault, against `RF-CalloutFailed` and rail-apigee's logs, says whether it
-  reached rail-apigee, whose `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB` is 16.
+receives is what Apigee sent it. What they showed:
+- **content that isn't UTF-8:** Apigee replaces the byte with U+FFFD. A
+  call whose argument holds `ff` reaches `upstream` with `ef bf bd` in its
+  place, judged and forwarded as such;
+- **a compressed body:** Apigee decompresses it before the callout. A
+  gzipped call naming `forbidden_tool` is denied by P2;
+- **Apigee's own limit on a body:** Apigee answers 11 and 17 MiB calls
+  itself, 413 `protocol.http.TooBigBody`, and neither reaches rail-apigee.
+  So `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`'s 16 can't be reached through
+  Apigee; a body from 4 MiB on fails at the callout's answer instead
+  (rail-apigee's README, Caveats).
 
 **Adding or changing an Apigee case:** run it here first, then on the
 stand-in. These cases are the stand-in's specification, so a change to one
