@@ -7,8 +7,10 @@ WORKDIR /src
 # The socket's directory, made here since the runtime image has no shell.
 RUN install -d -m 0750 /out/run/rail
 COPY . .
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/src/target \
+# Locked: two builds at once, as a compose file building it per service, would unpack a crate
+# into the shared cache together.
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,target=/src/target,sharing=locked \
     cargo build --release --locked -p rail-envoy && cp target/release/rail-envoy /out/
 
 FROM gcr.io/distroless/cc-debian12@sha256:e5d81ddde149641e2a9ba55be4545bc125c67de07508b03ba4c22e6eb0ded5aa AS railguard-envoy
