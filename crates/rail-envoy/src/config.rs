@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use rail_runtime::logging::read_log_level;
 use rail_runtime::{
     ProtectedHosts, RailCenterSettings, Refused, Settings, TicketSettings, read_disabled,
     read_protected_hosts, read_rail_center, read_ticket_settings,
@@ -11,6 +12,8 @@ const DEFAULT_SOCKET: &str = "/run/rail/ext.sock";
 /// What this process runs with.
 #[derive(Debug)]
 pub struct Config {
+    /// The level of this workspace's own log lines.
+    pub log_level: tracing::Level,
     pub socket: PathBuf,
     /// Where this proxy's ticket comes from; `None` when Rail Center is disabled.
     pub ticket: Option<(RailCenterSettings, TicketSettings)>,
@@ -22,6 +25,7 @@ impl Config {
     /// The configuration, every setting judged, or `Err` if anything is refused; `settings` keeps
     /// the refusals.
     pub fn read(settings: &mut Settings) -> Result<Self, Refused> {
+        let log_level = read_log_level(settings);
         let socket = settings
             .get(EXT_SOCKET)
             .parsed(|text| {
@@ -41,8 +45,8 @@ impl Config {
         let ticket = read_ticket_settings(settings, enabled);
         let protected_hosts = read_protected_hosts(settings, enabled);
         disabled?;
-        let (socket, rail_center, ticket, protected_hosts) =
-            (socket?, rail_center?, ticket?, protected_hosts?);
+        let (log_level, socket, rail_center, ticket, protected_hosts) =
+            (log_level?, socket?, rail_center?, ticket?, protected_hosts?);
         // Enabled, both are required, so both are Some.
         let ticket = enabled.then(|| {
             rail_center
@@ -50,6 +54,7 @@ impl Config {
                 .expect("both are required when Rail Center is used")
         });
         Ok(Self {
+            log_level,
             socket,
             ticket,
             protected_hosts,

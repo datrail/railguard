@@ -46,6 +46,7 @@ pub async fn run() -> ExitCode {
     let (config, startup) = settings
         .finish("RAIL_", config)
         .unwrap_or_else(|errors| errors.exit());
+    rail_runtime::logging::set_level(config.log_level);
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     let arguments: Vec<&str> = arguments.iter().map(String::as_str).collect();
     let local = Address::Tcp(SocketAddr::from((Ipv4Addr::LOCALHOST, config.port)));

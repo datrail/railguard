@@ -11,6 +11,7 @@ mod gateway_call;
 mod holder;
 mod key_set;
 mod keys;
+mod log_settings;
 mod protected_hosts;
 mod rail_center;
 mod scripted;

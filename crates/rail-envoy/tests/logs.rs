@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use rail_test_support::Server;
 
-use crate::common::{TempSocket, rail_envoy};
+use crate::common::{TempSocket, rail_envoy, serve};
 
 // The fields after the target, of the one line holding `needle`: the first ": " ends the target.
 fn find_fields<'a>(logs: &'a str, needle: &str) -> &'a str {
@@ -45,4 +45,24 @@ fn the_log_escapes_a_setting_value_and_an_unread_name() {
         find_fields(&logs, "set but not read"),
         r#"set but not read name="RAIL_TYPO\u{a}fake""#
     );
+}
+
+// The level is read with the other settings, so it applies only once they're read.
+#[test]
+fn at_warn_the_binary_logs_its_warnings_and_no_info_line() {
+    let socket = TempSocket::new("warn");
+    let mut command = rail_envoy(&socket.path);
+    command.env("RAIL_LOG_LEVEL", "warn");
+    let mut server = serve(command, &socket.path);
+
+    server.terminate();
+
+    assert_eq!(server.wait_for_exit(Duration::from_secs(2)), Some(Some(0)));
+    let logs = server.read_logs();
+    assert!(
+        logs.lines()
+            .any(|line| line.contains(" WARN ") && line.contains(r#"name="RAIL_DISABLED""#)),
+        "{logs}"
+    );
+    assert!(!logs.contains(" INFO "), "{logs}");
 }

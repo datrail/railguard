@@ -46,6 +46,7 @@ pub async fn run() -> ExitCode {
     let (config, startup) = settings
         .finish("RAIL_", config)
         .unwrap_or_else(|errors| errors.exit());
+    rail_runtime::logging::set_level(config.log_level);
     match std::env::args().nth(1).as_deref() {
         None => serve(config, &startup).await,
         Some("probe") => rail_grpc_host::probe(&Address::Unix(config.socket.clone()), "").await,

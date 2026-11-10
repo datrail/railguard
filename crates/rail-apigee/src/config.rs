@@ -1,4 +1,5 @@
 use rail_policy::sanitize;
+use rail_runtime::logging::read_log_level;
 use rail_runtime::{
     BundleSettings, RailCenterSettings, Refused, Settings, read_bundle_settings, read_disabled,
     read_rail_center,
@@ -17,6 +18,8 @@ const MB: usize = 1024 * 1024;
 /// What this process runs with.
 #[derive(Debug)]
 pub struct Config {
+    /// The level of this workspace's own log lines.
+    pub log_level: tracing::Level,
     pub port: u16,
     /// The largest gRPC message received, in bytes.
     pub max_message_bytes: usize,
@@ -28,6 +31,7 @@ impl Config {
     /// The configuration, every setting judged, or `Err` if anything is refused; `settings` keeps
     /// the refusals.
     pub fn read(settings: &mut Settings) -> Result<Self, Refused> {
+        let log_level = read_log_level(settings);
         let port = settings
             .get(PORT)
             .parsed(parse_port)
@@ -48,8 +52,8 @@ impl Config {
         let rail_center = read_rail_center(settings, enabled);
         let bundle = read_bundle_settings(settings, enabled);
         disabled?;
-        let (port, max_message_mb, rail_center, bundle) =
-            (port?, max_message_mb?, rail_center?, bundle?);
+        let (log_level, port, max_message_mb, rail_center, bundle) =
+            (log_level?, port?, max_message_mb?, rail_center?, bundle?);
         // Enabled, both are required, so both are Some.
         let rail_center = enabled.then(|| {
             rail_center
@@ -57,6 +61,7 @@ impl Config {
                 .expect("both are required when Rail Center is used")
         });
         Ok(Self {
+            log_level,
             port,
             max_message_bytes: max_message_mb * MB,
             rail_center,
