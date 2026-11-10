@@ -162,8 +162,10 @@ async fn a_request_at_the_limit_is_answered_and_one_past_it_refused() {
 async fn with_a_bundle_held_a_call_it_denies_is_refused_and_reported() {
     let rail_center = RailCenter::start(DENYING).await;
     let port = free_port();
-    let _server = tokio::task::block_in_place(|| {
-        let server = serve(with_rail_center(port, &rail_center.url()), port);
+    let mut command = with_rail_center(port, &rail_center.url());
+    command.env("RAIL_LOG_LEVEL", "debug");
+    let server = tokio::task::block_in_place(|| {
+        let server = serve(command, port);
         wait_until(|| probe(port, &["--ready"]).status.success());
         server
     });
@@ -189,6 +191,12 @@ async fn with_a_bundle_held_a_call_it_denies_is_refused_and_reported() {
                 .any(|line| line.starts_with("POST /v1/denials "))
         })
     });
+    server.terminate();
+    let (_, logs) = tokio::task::block_in_place(|| read_exit(server));
+    assert!(
+        logs.contains("DEBUG rail_runtime::denial: denial reported"),
+        "{logs}"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
