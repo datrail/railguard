@@ -249,6 +249,8 @@ fn init_child() {
     rail_runtime::logging::init();
     log::warn!(target: "reqwest::connect", "a library's warning");
     log::info!(target: "reqwest::connect", "a library's note");
+    rail_runtime::logging::set_level(tracing::Level::DEBUG);
+    log::debug!(target: "reqwest::connect", "a library's detail");
     let wire = "from the wire\nERROR forged";
     let _ = std::panic::catch_unwind(|| panic!("{wire}"));
     let _ = std::panic::catch_unwind(|| panic!("a literal message"));
@@ -277,8 +279,9 @@ fn init_logs_panics_through_the_formatter_and_libraries_from_warn() {
     );
     assert!(!stderr.contains("from the wire"), "{stderr}");
     assert!(
-        stderr.contains("WARN reqwest::connect: a library's warning"),
+        stderr.contains("WARN reqwest::connect: a library's warning\n"),
         "{stderr}"
     );
     assert!(!stderr.contains("a library's note"), "{stderr}");
+    assert!(!stderr.contains("a library's detail"), "{stderr}");
 }

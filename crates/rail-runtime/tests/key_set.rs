@@ -98,14 +98,21 @@ async fn an_empty_set_is_held_when_none_is_and_replaces_none() {
     let empty = || answer(StatusCode::OK, b"{\"keys\": []}");
     let warm = Script::new(&clock, move |n| if n == 0 { ok(&["a"]) } else { empty() });
     let cold = Script::new(&clock, move |_| empty());
+    let stale = Script::new(&clock, move |n| if n == 0 { ok(&["a"]) } else { empty() });
+    let aging = AgingClock::new(&clock);
 
     let warm_holder = start(&clock, &warm);
     let cold_holder = start(&clock, &cold);
+    let stale_holder = start_aging(&aging, &stale);
+    until(&clock, 10).await;
+    aging.skip(Duration::from_secs(900));
     until(&clock, 600).await;
 
     assert_eq!(kids(&cold_holder), named(&[]));
     assert_eq!(cold.fetched_at(), [0, 300, 600]);
     assert_eq!(kids(&warm_holder), named(&["a"]));
+    // A set past its age is none held.
+    assert_eq!(kids(&stale_holder), named(&[]));
 }
 
 #[tokio::test(start_paused = true)]

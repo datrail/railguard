@@ -121,12 +121,13 @@ impl RailCenter {
                         // A denial report, which Rail Center accepts.
                         ("202 Accepted", "{}")
                     };
-                    log.lock().unwrap().push(line);
                     let response = format!(
                         "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{reply}",
                         reply.len()
                     );
                     let _ = stream.write_all(response.as_bytes()).await;
+                    // Seen once answered, so a test waiting on it sees the caller's answer too.
+                    log.lock().unwrap().push(line);
                 });
             }
         });

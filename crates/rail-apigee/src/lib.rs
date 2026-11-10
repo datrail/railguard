@@ -1,8 +1,9 @@
 //! The Apigee host, in the gateway role: Apigee's ExternalCallout service over TCP, each request
 //! judged against the policy bundle held.
 //!
-//! `rail-apigee` (`rail` in its image) serves, with `grpc.health.v1` on the same port; `rail-apigee probe [--ready]`
-//! asks it for liveness or readiness, and exits 0 if it answers SERVING.
+//! `rail-apigee` (`rail` in its image) serves, with `grpc.health.v1` on the same port;
+//! `rail-apigee probe [--ready]` asks it for liveness or readiness, and exits 0 if it answers
+//! SERVING.
 //!
 //! The binary as a library: `run`, and the configuration and services it serves, which its tests
 //! drive.

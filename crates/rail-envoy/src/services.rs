@@ -139,15 +139,14 @@ fn log_request(callout: &'static str, authority: &str, headers: &XRailHeaders) {
         Some(XRailHeader::Status(reason)) => Some(*reason),
         _ => None,
     };
-    let removed = headers.remove.join(",");
     tracing::debug!(
         callout,
-        authority = %authority,
+        authority,
         set = headers.set.as_ref().map(XRailHeader::name),
         status,
         upstream = headers.route.as_ref().map(Route::upstream),
         connect = headers.route.as_ref().map(|route| route.authority.as_str()),
-        removed = %removed,
+        removed = %headers.remove.join(","),
         "request headers decided"
     );
 }

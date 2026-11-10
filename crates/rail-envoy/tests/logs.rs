@@ -99,9 +99,15 @@ fn check_request(host: &str, headers: &[(&str, &str)]) -> CheckRequest {
 async fn at_debug_each_request_is_logged_with_what_it_gets() {
     let socket = TempSocket::new("debug");
     let mut command = rail_envoy(&socket.path);
-    command
-        .env("RAIL_LOG_LEVEL", "debug")
-        .env("RAIL_PROXY_PROTECTED_HOSTS", "mcp.example.com");
+    command.envs([
+        ("RAIL_LOG_LEVEL", "debug"),
+        ("RAIL_DISABLED", "false"),
+        ("RAIL_CENTER_URL", "http://127.0.0.1:1"),
+        ("RAIL_CENTER_ALLOW_HTTP", "true"),
+        ("RAIL_HOST_ID", "host-1"),
+        ("RAIL_SANDBOX_NAME", "sandbox-1"),
+        ("RAIL_PROXY_PROTECTED_HOSTS", "mcp.example.com"),
+    ]);
     let mut server = tokio::task::block_in_place(|| serve(command, &socket.path));
     let channel = Endpoint::from_shared(format!("unix:{}", socket.path.display()))
         .unwrap()
@@ -134,10 +140,12 @@ async fn at_debug_each_request_is_logged_with_what_it_gets() {
     assert!(
         protected.contains(" DEBUG ")
             && protected.contains(r#"callout="ext_authz""#)
-            && protected.contains(r#"upstream="tls""#)
-            && protected.contains(r#"removed="x-rail,x-rail-status""#),
+            && protected.contains(r#"set="x-rail-status" status="issuer-unreachable""#)
+            && protected.contains(r#"upstream="tls" connect="mcp.example.com""#)
+            && protected.contains(r#"removed="x-rail""#),
         "{protected}"
     );
     let other = decided("other.example");
     assert!(!other.contains("upstream="), "{other}");
+    assert!(!logs.contains("forged"), "{logs}");
 }

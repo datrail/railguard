@@ -172,7 +172,9 @@ impl Visitor<'_> {
     }
 
     fn write_field(&mut self, field: Option<&Field>, value: impl fmt::Display) {
-        if self.result.is_err() {
+        // tracing-log's fields repeat the target and name the library's source.
+        let bridged = field.is_some_and(|field| field.name().starts_with("log."));
+        if self.result.is_err() || bridged {
             return;
         }
         self.result = self.try_write_field(field, value);

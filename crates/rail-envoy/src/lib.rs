@@ -1,8 +1,9 @@
 //! The Envoy host, in the proxy role: ext_authz and ext_proc on a unix socket Envoy shares. For
 //! now it allows every request, with this proxy's ticket in `x-rail` to a protected host.
 //!
-//! `rail-envoy` (`rail` in its image) serves, with `grpc.health.v1` on the same socket; `rail-envoy probe` asks it, and
-//! exits 0 if the server answers SERVING, for a container health check in an image with no shell.
+//! `rail-envoy` (`rail` in its image) serves, with `grpc.health.v1` on the same socket;
+//! `rail-envoy probe` asks it, and exits 0 if the server answers SERVING, for a container health
+//! check in an image with no shell.
 //!
 //! The binary as a library: `run`, and the configuration and callouts it serves, which its tests
 //! drive.
