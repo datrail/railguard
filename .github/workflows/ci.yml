@@ -26,7 +26,8 @@ jobs:
       - run: cargo test --locked
       # The generated proto code is committed, so it must be what its .proto gives now.
       - run: make proto
-      - run: git diff --exit-code
+      # Untracked files too, so a new generated file isn't missed.
+      - run: test -z "$(git status --porcelain)" || { git status --porcelain; exit 1; }
 
   check-python:
     name: check-python
