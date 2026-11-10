@@ -111,7 +111,9 @@ wants an ID token for those):
   split on a comma or sent on two header lines is `undecodable`; a claimed
   status with a comma is dropped; a query string stays out of the endpoint
   key; a body that isn't UTF-8 never reaches `upstream`; a 3.5 MiB call is
-  forwarded and a 5 MiB one fails closed (rail-apigee's README, Caveats);
+  forwarded, a 5 MiB one refused by rail-apigee, whose answer Apigee
+  couldn't take, and an 11 MiB one answered 413 by Apigee itself
+  (rail-apigee's README, Caveats);
 - a policy rail-apigee can't apply answers 503 with `RF-Refuse`;
 - `no-callout` answers 503 with `RF-CalloutFailed`'s body, and nothing
   reaches `upstream`;
@@ -127,12 +129,8 @@ receives is what Apigee sent it. What they showed:
   call whose argument holds `ff` reaches `upstream` with `ef bf bd` in its
   place, judged and forwarded as such;
 - **a compressed body:** Apigee decompresses it before the callout. A
-  gzipped call naming `forbidden_tool` is denied by P2;
-- **Apigee's own limit on a body:** Apigee answers 11 and 17 MiB calls
-  itself, 413 `protocol.http.TooBigBody`, and neither reaches rail-apigee.
-  So `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`'s 16 can't be reached through
-  Apigee; a body from 4 MiB on fails at the callout's answer instead
-  (rail-apigee's README, Caveats).
+  gzipped call naming `forbidden_tool` is denied by P2.
+
 
 **Adding or changing an Apigee case:** run it here first, then on the
 stand-in. These cases are the stand-in's specification, so a change to one
@@ -173,8 +171,7 @@ needs a live run.
   `datrail.gateway.Ready` until it holds a bundle, then on liveness: Cloud
   Run can't run `rail probe`.
 - **The callout logs at `debug`**
-  (`gcloud run services logs read <prefix>-callout`): its lines say which
-  of the body-limit calls reached it.
+  (`gcloud run services logs read <prefix>-callout`).
 - **The load balancer's certificate is self-signed** for its IP: a
   Google-managed one needs a DNS name. Clients trust it from
   `terraform output -raw lb_cert` (`curl --cacert`).

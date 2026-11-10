@@ -50,6 +50,8 @@ _AGENT = {"Authorization": "Bearer e2e-agent"}
 _REFUSED = '{"error": "denied by policy"}'
 _CALLOUT_FAILED = '{"error": "policy ruleset cannot be applied"}'
 _OPERATOR_FAULT = '{"error": "e2e operator fault"}'
+# Apigee's own fault for a body past its limit.
+_TOO_BIG = "protocol.http.TooBigBody"
 _MCP_HEADERS = {
     "Accept": "application/json, text/event-stream",
     "Content-Type": "application/json",
@@ -494,8 +496,8 @@ def _run_apigee_cases():
     _expect("nothing reached the upstream", 0, _count_upstream_requests())
 
     # live §9 #8: Apigee takes a callout answer of at most 4 MiB, and the answer echoes the body,
-    # so a larger call fails as if rail-apigee were down.
-    _start_block("enforce: a 3.5 MiB call is forwarded, a 5 MiB one fails closed")
+    # so rail-apigee refuses a larger call; Apigee answers one past 10 MB itself.
+    _start_block("enforce: a 3.5 MiB call is forwarded, a 5 MiB one refused, an 11 MiB one too big")
     _reset_journals()
     code, body = _call_tool(_ENFORCE, "track_package", {"pad": "x" * 7 * 512 * 1024}, good)
     if code == 200 and '"text":"delivered"' in body:
@@ -505,7 +507,15 @@ def _run_apigee_cases():
     _reset_journals()
     code, body = _call_tool(_ENFORCE, "track_package", {"pad": "x" * 5 * 1024 * 1024}, good)
     _expect("the 5 MiB call is answered 503", 503, code)
-    _expect("with RF-CalloutFailed's body", _CALLOUT_FAILED, body)
+    _expect("with the refusal's body", _CALLOUT_FAILED, body)
+    _expect("nothing reached the upstream", 0, _count_upstream_requests())
+    _reset_journals()
+    arguments = {"pad": "x" * 11 * 1024 * 1024}
+    payload = {**_CALL, "params": {"name": "track_package", "arguments": arguments}}
+    body = json.dumps(payload).encode()
+    code, body = _send_raw_post(_ENFORCE, body, list(good.items()), _UPLOAD_TIMEOUT_SECONDS)
+    _expect("the 11 MiB call is answered 413", 413, code)
+    _expect("by Apigee, as too big", True, _TOO_BIG in body)
     _expect("nothing reached the upstream", 0, _count_upstream_requests())
 
     # RF-Refuse answers rail.status: a policy that can't be applied, 503.
@@ -575,14 +585,6 @@ def _run_live_observations():
     # P2 names the tool, so only a decompressed body can match it.
     named_p2 = _wait_for(lambda: _count_denials_naming(_P2), 1)
     _report_seen("P2 denied it, so it was decompressed", "yes" if named_p2 else "no")
-
-    _start_block("seen: Apigee's own limit on a request body")
-    for mib in (11, 17):
-        arguments = {"pad": "x" * mib * 1024 * 1024}
-        payload = {**_CALL, "params": {"name": "track_package", "arguments": arguments}}
-        body = json.dumps(payload).encode()
-        code, answer = _send_raw_post(_ENFORCE, body, good, _UPLOAD_TIMEOUT_SECONDS)
-        _report_seen(f"a {mib} MiB call", f"{code} {answer[:300]}")
 
 
 def main():

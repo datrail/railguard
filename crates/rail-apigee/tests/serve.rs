@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 
 use apigee_callout_proto::apigee::{MessageContext, Request, Strings, flow_variable};
 use prost::Message;
-use rail_apigee::READY;
+use rail_apigee::{MAX_ANSWERED_BYTES, READY};
 use tonic::transport::Endpoint;
 use tonic_health::pb::HealthCheckRequest;
 use tonic_health::pb::health_check_response::ServingStatus;
@@ -156,6 +156,35 @@ async fn a_request_at_the_limit_is_answered_and_one_past_it_refused() {
     assert!(answer.encoded_len() > limit);
     assert_eq!(flow(&answer, "rail.decision").as_deref(), Some("allow"));
     assert_eq!(refused.code(), tonic::Code::OutOfRange, "{refused:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_request_whose_answer_apigee_could_not_take_is_refused_unjudged() {
+    let port = free_port();
+    let server = tokio::task::block_in_place(|| serve(rail_apigee(port), port));
+    let mut at_limit = call(&"a".repeat(MAX_ANSWERED_BYTES));
+    let framing = at_limit.encoded_len() - MAX_ANSWERED_BYTES;
+    at_limit.request.as_mut().unwrap().content = "a".repeat(MAX_ANSWERED_BYTES - framing);
+    assert_eq!(at_limit.encoded_len(), MAX_ANSWERED_BYTES);
+    let mut past_limit = at_limit.clone();
+    past_limit.request.as_mut().unwrap().content.push('a');
+    let mut client = client(port).await;
+
+    let answered = client.process_message(at_limit).await.unwrap().into_inner();
+    let refused = client
+        .process_message(past_limit)
+        .await
+        .unwrap()
+        .into_inner();
+
+    assert_eq!(flow(&answered, "rail.decision").as_deref(), Some("allow"));
+    assert!(answered.encoded_len() <= 4 * 1024 * 1024);
+    assert_eq!(flow(&refused, "rail.decision").as_deref(), Some("refuse"));
+    assert_eq!(flow(&refused, "rail.status").as_deref(), Some("503"));
+    assert!(refused.request.unwrap().content.is_empty());
+    server.terminate();
+    let (_, logs) = tokio::task::block_in_place(|| read_exit(server));
+    assert_eq!(logs.matches("refused unjudged").count(), 1, "{logs}");
 }
 
 #[tokio::test(flavor = "multi_thread")]

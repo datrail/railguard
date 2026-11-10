@@ -20,6 +20,8 @@ path = "tests/main.rs"
 apigee-callout-proto = { path = "../apigee-callout-proto" }
 # Python's `unquote`, as uvicorn decodes the path.
 percent-encoding = "2"
+# A request's encoded size, against what Apigee takes back.
+prost = "0.14"
 rail-grpc-host = { path = "../rail-grpc-host" }
 rail-policy = { path = "../rail-policy" }
 rail-runtime = { path = "../rail-runtime" }
@@ -31,7 +33,6 @@ tracing = "0.1"
 
 [dev-dependencies]
 rail-test-support = { path = "../rail-test-support" }
-prost = "0.14"
 tokio = { version = "1", features = ["io-util"] }
 # The tests' client.
 tonic = { version = "0.14", default-features = false, features = ["channel"] }

@@ -6,6 +6,8 @@
 
 use std::sync::Arc;
 
+use prost::Message;
+
 use apigee_callout_proto::apigee::external_callout_service_server::ExternalCalloutService;
 use apigee_callout_proto::apigee::{FlowVariable, MessageContext, Strings, flow_variable};
 use percent_encoding::percent_decode_str;
@@ -17,6 +19,14 @@ const STATUS: &str = "rail.status";
 const BODY: &str = "rail.body";
 const ALLOW: &str = "allow";
 const REFUSE: &str = "refuse";
+
+/// The answer echoes the content, plus our flow variables and removals: a few hundred bytes.
+pub(crate) const SEND_HEADROOM_BYTES: usize = 1024;
+// Apigee takes a callout's answer of at most 4 MiB.
+const MAX_APIGEE_ANSWER_BYTES: usize = 4 * 1024 * 1024;
+/// The largest request answered as judged: its answer, carrying the content back, still fits in
+/// what Apigee takes. A larger one is refused unjudged, as Apigee would fail its answer.
+pub const MAX_ANSWERED_BYTES: usize = MAX_APIGEE_ANSWER_BYTES - SEND_HEADROOM_BYTES;
 
 /// The ExternalCallout service; with no gateway, Rail Center is disabled and every call allowed.
 #[derive(Clone)]
@@ -31,6 +41,20 @@ impl ExternalCalloutService for Callout {
         request: tonic::Request<MessageContext>,
     ) -> Result<tonic::Response<MessageContext>, tonic::Status> {
         let mut context = request.into_inner();
+        let bytes = context.encoded_len();
+        if bytes > MAX_ANSWERED_BYTES {
+            tracing::warn!(
+                bytes,
+                limit = MAX_ANSWERED_BYTES,
+                "refused unjudged: Apigee takes an answer of at most 4 MiB, and it carries the request's content back"
+            );
+            // Nothing is forwarded, so the content needn't go back.
+            context.request.get_or_insert_default().content.clear();
+            return Ok(tonic::Response::new(build_answer(
+                context,
+                Answer::CannotApply,
+            )));
+        }
         let answer = match &self.gateway {
             Some(gateway) => {
                 let headers = read_headers(&context);
