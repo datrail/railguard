@@ -18,8 +18,9 @@ use tokio::net::UnixListener;
 use tokio_stream::wrappers::UnixListenerStream;
 use tonic::transport::{Endpoint, Server};
 
+use rail_test_support::protect;
+
 use crate::common::TempSocket;
-use crate::settings::protect;
 
 // Each header's name and value, from `value` or `raw_value`, whichever is set.
 fn read_set(options: &[HeaderValueOption]) -> Vec<(String, String)> {

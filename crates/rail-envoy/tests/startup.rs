@@ -3,7 +3,9 @@ use std::os::unix::net::UnixListener;
 use std::path::Path;
 use std::time::Duration;
 
-use crate::common::{Server, TempSocket, probe, rail_envoy};
+use rail_test_support::Server;
+
+use crate::common::{TempSocket, probe, rail_envoy, start_serving};
 
 // The exit code of a run whose configuration is refused.
 fn refused_configuration() -> Option<i32> {
@@ -31,7 +33,7 @@ fn a_socket_left_by_an_earlier_run_is_replaced() {
     drop(UnixListener::bind(&socket.path).unwrap());
     assert!(socket.path.exists());
 
-    let mut server = Server::start_serving(&socket.path);
+    let mut server = start_serving(&socket.path);
 
     assert!(probe(&socket.path).status.success());
     server.terminate();

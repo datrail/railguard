@@ -1,7 +1,9 @@
 use std::process::Stdio;
 use std::time::{Duration, Instant};
 
-use crate::common::{Server, TempSocket, rail_envoy};
+use rail_test_support::Server;
+
+use crate::common::{TempSocket, rail_envoy};
 
 // The fields after the target, of the one line holding `needle`: the first ": " ends the target.
 fn find_fields<'a>(logs: &'a str, needle: &str) -> &'a str {

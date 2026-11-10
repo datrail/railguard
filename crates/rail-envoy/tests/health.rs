@@ -1,4 +1,4 @@
-use crate::common::{Server, TempSocket, probe};
+use crate::common::{TempSocket, probe, start_serving};
 
 fn stdout(output: &std::process::Output) -> String {
     String::from_utf8(output.stdout.clone()).unwrap()
@@ -8,7 +8,7 @@ fn stdout(output: &std::process::Output) -> String {
 #[test]
 fn the_probe_passes_on_a_serving_server() {
     let socket = TempSocket::new("serving");
-    let _server = Server::start_serving(&socket.path);
+    let _server = start_serving(&socket.path);
 
     let output = probe(&socket.path);
 

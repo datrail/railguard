@@ -1,14 +1,11 @@
 use rail_apigee::Config;
-use rail_runtime::{Level, Settings, Variables};
+use rail_runtime::Level;
 
 // Each setting logged at INFO, as (name, value).
 type Entries = Vec<(&'static str, String)>;
 
 fn read(pairs: &[(&str, &str)]) -> Result<(Config, Entries), Vec<String>> {
-    let variables: Variables = pairs.iter().copied().collect();
-    let mut settings = Settings::new(&variables);
-    let read = Config::read(&mut settings);
-    let (config, startup) = settings.finish("RAIL_", read).map_err(|errors| errors.0)?;
+    let (config, startup) = rail_test_support::read(pairs, Config::read)?;
     let entries = startup
         .entries
         .into_iter()

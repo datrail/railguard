@@ -4,8 +4,6 @@ use std::time::Duration;
 use rail_envoy::Config;
 use rail_runtime::{Level, Source, Startup};
 
-use crate::settings;
-
 const TOKEN: &str = "rc_svc_abcdefghijklmnopqrstuvwxyzABCDEFGHIJK-_0123";
 
 // Every setting, set.
@@ -34,7 +32,7 @@ const ENABLED: [(&str, &str); 5] = [
 ];
 
 fn read_startup(pairs: &[(&str, &str)]) -> Result<(Config, Startup), Vec<String>> {
-    settings::read(pairs, Config::read)
+    rail_test_support::read(pairs, Config::read)
 }
 
 fn read(pairs: &[(&str, &str)]) -> Result<Config, Vec<String>> {

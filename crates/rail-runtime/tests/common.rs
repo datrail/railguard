@@ -6,8 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use rail_runtime::{
-    ConfigErrors, Level, ProtectedHosts, RailCenterClient, RailCenterSettings, Refused, Settings,
-    Startup, Variables, read_protected_hosts, read_rail_center,
+    Level, RailCenterClient, RailCenterSettings, Refused, Settings, read_rail_center,
 };
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -125,25 +124,12 @@ pub fn settings(url: &str, token: Option<&str>) -> RailCenterSettings {
         .unwrap()
 }
 
-/// What `reader` reads of `variables`, and what that logs, or every refusal.
-pub fn read_from<T>(
-    variables: &Variables,
-    reader: impl FnOnce(&mut Settings) -> Result<T, Refused>,
-) -> Result<(T, Startup), Vec<String>> {
-    let mut settings = Settings::new(variables);
-    let read = reader(&mut settings);
-    settings
-        .finish("RAIL_", read)
-        .map_err(|ConfigErrors(errors)| errors)
-}
-
 /// What `reader` reads of `pairs`, or every refusal.
 pub fn read<T>(
     pairs: &[(&str, &str)],
     reader: impl FnOnce(&mut Settings) -> Result<T, Refused>,
 ) -> Result<T, Vec<String>> {
-    let variables: Variables = pairs.iter().copied().collect();
-    read_from(&variables, reader).map(|(read, _)| read)
+    rail_test_support::read(pairs, reader).map(|(read, _)| read)
 }
 
 /// Each entry `reader` logs of `pairs`, as (name, value, level); `pairs` must be accepted.
@@ -151,21 +137,12 @@ pub fn describe<T>(
     pairs: &[(&str, &str)],
     reader: impl FnOnce(&mut Settings) -> Result<T, Refused>,
 ) -> Vec<(&'static str, String, Level)> {
-    let variables: Variables = pairs.iter().copied().collect();
-    let (_, startup) = read_from(&variables, reader).unwrap();
+    let (_, startup) = rail_test_support::read(pairs, reader).unwrap();
     startup
         .entries
         .into_iter()
         .map(|entry| (entry.name, entry.value, entry.level))
         .collect()
-}
-
-/// The protected hosts `value` lists, which must be accepted.
-pub fn protect(value: &str) -> ProtectedHosts {
-    read(&[("RAIL_PROXY_PROTECTED_HOSTS", value)], |settings| {
-        read_protected_hosts(settings, true)
-    })
-    .unwrap()
 }
 
 pub fn client(url: &str) -> RailCenterClient {

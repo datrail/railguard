@@ -1,12 +1,11 @@
 //! The real binary, on a port of its own, and a Rail Center it can fetch from.
 
-use std::io::Read;
 use std::net::{Ipv4Addr, SocketAddr, TcpListener as StdTcpListener};
-use std::process::{Child, Command, Output, Stdio};
+use std::process::{Command, Output};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
 
 use apigee_callout_proto::apigee::external_callout_service_client::ExternalCalloutServiceClient;
+use rail_test_support::{Server, isolate};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::sync::watch;
@@ -23,15 +22,10 @@ pub fn free_port() -> u16 {
 
 // Only what's set here, so the caller's own RAIL_* variables can't change a run.
 pub fn rail_apigee(port: u16) -> Command {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_rail-apigee"));
+    let mut command = isolate(env!("CARGO_BIN_EXE_rail-apigee"));
     command
-        .env_clear()
         .env("RAIL_DISABLED", "true")
         .env("RAIL_GATEWAY_PORT", port.to_string());
-    // Under `cargo llvm-cov`, so the binary's coverage is counted, not left in the crate.
-    if let Some(profile) = std::env::var_os("LLVM_PROFILE_FILE") {
-        command.env("LLVM_PROFILE_FILE", profile);
-    }
     command
 }
 
@@ -43,65 +37,9 @@ pub fn probe(port: u16, arguments: &[&str]) -> Output {
         .unwrap()
 }
 
-/// The server, killed if the test ends before it exits.
-pub struct Server(Child);
-
-impl Server {
-    /// `command` spawned, its log kept, once the liveness probe on `port` passes.
-    pub fn serve(mut command: Command, port: u16) -> Self {
-        let child = command
-            .stdout(Stdio::null())
-            .stderr(Stdio::piped())
-            .spawn()
-            .unwrap();
-        let server = Self(child);
-        wait_until(|| probe(port, &[]).status.success());
-        server
-    }
-
-    pub fn terminate(&self) {
-        let status = Command::new("kill")
-            .args(["-TERM", &self.0.id().to_string()])
-            .status()
-            .unwrap();
-        assert!(status.success());
-    }
-
-    /// The exit code, and what it logged; it must exit within 10 s.
-    pub fn wait_for_exit(mut self) -> (Option<i32>, String) {
-        let deadline = Instant::now() + Duration::from_secs(10);
-        let status = loop {
-            if let Some(status) = self.0.try_wait().unwrap() {
-                break status;
-            }
-            assert!(Instant::now() < deadline, "the server never exited");
-            std::thread::sleep(Duration::from_millis(20));
-        };
-        let mut logs = String::new();
-        self.0
-            .stderr
-            .take()
-            .unwrap()
-            .read_to_string(&mut logs)
-            .unwrap();
-        (status.code(), logs)
-    }
-}
-
-impl Drop for Server {
-    fn drop(&mut self) {
-        let _ = self.0.kill();
-        let _ = self.0.wait();
-    }
-}
-
-/// Polls `condition` for up to 10 s.
-pub fn wait_until(mut condition: impl FnMut() -> bool) {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while !condition() {
-        assert!(Instant::now() < deadline, "never happened");
-        std::thread::sleep(Duration::from_millis(50));
-    }
+/// `command` spawned, once the liveness probe on `port` passes.
+pub fn serve(command: Command, port: u16) -> Server {
+    Server::serve(command, || probe(port, &[]).status.success())
 }
 
 /// A client for the server on `port`, sending and receiving up to 4 MiB.

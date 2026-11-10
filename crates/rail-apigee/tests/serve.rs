@@ -11,7 +11,9 @@ use tonic_health::pb::HealthCheckRequest;
 use tonic_health::pb::health_check_response::ServingStatus;
 use tonic_health::pb::health_client::HealthClient;
 
-use crate::common::{RailCenter, Server, client, free_port, probe, rail_apigee, wait_until};
+use rail_test_support::{Server, wait_until};
+
+use crate::common::{RailCenter, client, free_port, probe, rail_apigee, serve};
 
 // At `enforce`, denying every call without a ticket.
 const DENYING: &str = r#"{
@@ -117,7 +119,7 @@ fn stdout(output: &std::process::Output) -> String {
 #[tokio::test(flavor = "multi_thread")]
 async fn with_rail_center_disabled_it_is_ready_and_allows_every_call() {
     let port = free_port();
-    let server = tokio::task::block_in_place(|| Server::serve(rail_apigee(port), port));
+    let server = tokio::task::block_in_place(|| serve(rail_apigee(port), port));
     let ready = tokio::task::block_in_place(|| probe(port, &["--ready"]));
     assert_eq!(stdout(&ready), "serving\n");
 
@@ -131,7 +133,7 @@ async fn with_rail_center_disabled_it_is_ready_and_allows_every_call() {
     assert_eq!(flow(&answer, "rail.decision").as_deref(), Some("allow"));
     assert_echoed(&answer);
     server.terminate();
-    let (code, logs) = tokio::task::block_in_place(|| server.wait_for_exit());
+    let (code, logs) = tokio::task::block_in_place(|| stop(server));
     assert_eq!(code, Some(0), "{logs}");
 }
 
@@ -141,7 +143,7 @@ async fn a_request_at_the_limit_is_answered_and_one_past_it_refused() {
     let port = free_port();
     let mut command = rail_apigee(port);
     command.env("RAIL_GATEWAY_GRPC_MAX_MESSAGE_MB", "1");
-    let _server = tokio::task::block_in_place(|| Server::serve(command, port));
+    let _server = tokio::task::block_in_place(|| serve(command, port));
     let limit = 1 << 20;
     let mut at_limit = call(&"a".repeat(limit));
     // The framing's length prefixes are the same size either side of the limit.
@@ -165,7 +167,7 @@ async fn with_a_bundle_held_a_call_it_denies_is_refused_and_reported() {
     let rail_center = RailCenter::start(DENYING).await;
     let port = free_port();
     let _server = tokio::task::block_in_place(|| {
-        let server = Server::serve(with_rail_center(port, &rail_center.url()), port);
+        let server = serve(with_rail_center(port, &rail_center.url()), port);
         wait_until(|| probe(port, &["--ready"]).status.success());
         server
     });
@@ -197,7 +199,7 @@ async fn with_a_bundle_held_a_call_it_denies_is_refused_and_reported() {
 async fn with_no_bundle_it_is_not_ready_and_a_call_is_forwarded() {
     let port = free_port();
     let command = with_rail_center(port, "http://127.0.0.1:1");
-    let _server = tokio::task::block_in_place(|| Server::serve(command, port));
+    let _server = tokio::task::block_in_place(|| serve(command, port));
     let ready = tokio::task::block_in_place(|| probe(port, &["--ready"]));
     assert_eq!(ready.status.code(), Some(1));
     assert_eq!(stdout(&ready), "not serving: NOT_SERVING\n");
@@ -239,7 +241,7 @@ async fn the_gateway_judges_every_header_item_and_the_decoded_path() {
     let rail_center = RailCenter::start(BY_HEADER_OR_PATH).await;
     let port = free_port();
     let _server = tokio::task::block_in_place(|| {
-        let server = Server::serve(with_rail_center(port, &rail_center.url()), port);
+        let server = serve(with_rail_center(port, &rail_center.url()), port);
         wait_until(|| probe(port, &["--ready"]).status.success());
         server
     });
@@ -279,7 +281,7 @@ async fn readiness_checks_alone_see_the_bundle_arrive() {
     let rail_center = RailCenter::start_holding_bundle(DENYING).await;
     let port = free_port();
     tokio::task::block_in_place(|| {
-        let _server = Server::serve(with_rail_center(port, &rail_center.url()), port);
+        let _server = serve(with_rail_center(port, &rail_center.url()), port);
         assert_eq!(
             stdout(&probe(port, &["--ready"])),
             "not serving: NOT_SERVING\n"
@@ -295,7 +297,7 @@ async fn readiness_checks_alone_see_the_bundle_arrive() {
 #[tokio::test(flavor = "multi_thread")]
 async fn on_sigterm_both_turn_not_serving_and_it_exits_at_the_deadline() {
     let port = free_port();
-    let server = tokio::task::block_in_place(|| Server::serve(rail_apigee(port), port));
+    let server = tokio::task::block_in_place(|| serve(rail_apigee(port), port));
     let channel = Endpoint::from_shared(format!("http://127.0.0.1:{port}"))
         .unwrap()
         .connect()
@@ -320,8 +322,16 @@ async fn on_sigterm_both_turn_not_serving_and_it_exits_at_the_deadline() {
         let next = watch.message().await.unwrap().unwrap();
         assert_eq!(next.status(), ServingStatus::NotServing);
     }
-    let (code, logs) = tokio::task::block_in_place(|| server.wait_for_exit());
+    let (code, logs) = tokio::task::block_in_place(|| stop(server));
     assert_eq!(code, Some(0), "{logs}");
     assert!(logs.contains("shut down at the deadline"), "{logs}");
     assert!(started.elapsed() < Duration::from_secs(8));
+}
+
+// The exit code and what it logged; it must exit within 10 s.
+fn stop(mut server: Server) -> (Option<i32>, String) {
+    let code = server
+        .wait_for_exit(Duration::from_secs(10))
+        .expect("the server never exited");
+    (code, server.read_logs())
 }

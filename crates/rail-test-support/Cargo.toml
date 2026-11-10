@@ -1,0 +1,14 @@
+[package]
+name = "rail-test-support"
+edition = "2024"
+publish = false
+
+[lib]
+test = false
+doctest = false
+
+[dependencies]
+rail-runtime = { path = "../rail-runtime" }
+
+[lints.rust]
+unsafe_code = "forbid"
