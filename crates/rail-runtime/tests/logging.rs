@@ -244,23 +244,20 @@ fn the_settings_are_logged_each_at_its_level_then_each_unread_name() {
 
 // Run in a child process, since `init` sets the process's subscriber and panic hook.
 #[test]
-#[ignore = "run by a_panic_is_logged_through_the_formatter_its_message_only_if_literal"]
-fn panic_child() {
+#[ignore = "run by init_logs_panics_through_the_formatter_and_libraries_from_warn"]
+fn init_child() {
     rail_runtime::logging::init();
+    log::warn!(target: "reqwest::connect", "a library's warning");
+    log::info!(target: "reqwest::connect", "a library's note");
     let wire = "from the wire\nERROR forged";
     let _ = std::panic::catch_unwind(|| panic!("{wire}"));
     let _ = std::panic::catch_unwind(|| panic!("a literal message"));
 }
 
 #[test]
-fn a_panic_is_logged_through_the_formatter_its_message_only_if_literal() {
+fn init_logs_panics_through_the_formatter_and_libraries_from_warn() {
     let output = std::process::Command::new(std::env::current_exe().unwrap())
-        .args([
-            "--exact",
-            "logging::panic_child",
-            "--ignored",
-            "--nocapture",
-        ])
+        .args(["--exact", "logging::init_child", "--ignored", "--nocapture"])
         .output()
         .unwrap();
 
@@ -279,4 +276,9 @@ fn a_panic_is_logged_through_the_formatter_its_message_only_if_literal() {
         "{stderr}"
     );
     assert!(!stderr.contains("from the wire"), "{stderr}");
+    assert!(
+        stderr.contains("WARN reqwest::connect: a library's warning"),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("a library's note"), "{stderr}");
 }

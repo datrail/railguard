@@ -35,11 +35,14 @@ time = { version = "0.3", default-features = false, features = ["formatting", "m
 # `net` gives the Rail Center thread's runtime its IO driver, and `sync` its stop signal.
 tokio = { version = "1", features = ["net", "rt", "sync", "time"] }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt"] }
+# `tracing-log`: reqwest and rustls log through `log`, so `init` bridges it.
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "tracing-log"] }
 uuid = { version = "1", default-features = false, features = ["serde"] }
 webpki-roots = "1"
 
 [dev-dependencies]
+# A library's line, as reqwest and rustls log one.
+log = "0.4"
 rail-test-support = { path = "../rail-test-support" }
 tokio = { version = "1", features = ["io-util", "macros", "net", "rt-multi-thread", "test-util"] }
 
