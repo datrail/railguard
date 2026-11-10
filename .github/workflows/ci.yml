@@ -24,6 +24,9 @@ jobs:
       - run: cargo clippy --locked --all-targets -- -D warnings
       - run: cargo clippy --locked -p rail-policy-py -- -D warnings
       - run: cargo test --locked
+      # The generated proto code is committed, so it must be what its .proto gives now.
+      - run: make proto
+      - run: git diff --exit-code
 
   check-python:
     name: check-python
