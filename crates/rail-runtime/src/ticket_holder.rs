@@ -5,12 +5,11 @@ use std::time::{Duration, SystemTime};
 use sha2::{Digest, Sha256};
 use tokio::runtime::Handle;
 
-use crate::holder::{Holder, Jitter, Kind, MIN_REFRESH_INTERVAL, Schedule, Step, round_to_seconds};
+use crate::holder::{
+    Holder, Jitter, Kind, MAX_BACKOFF, MIN_REFRESH_INTERVAL, Schedule, Step, round_to_seconds,
+};
 use crate::ticket::{OpaqueTicket, TicketAnswer, TicketSource};
 use crate::xrail::Unavailable;
-
-// Six doublings of the 5 s floor, as Python's proxy; the refresh interval caps it too.
-const MAX_BACKOFF: Duration = Duration::from_secs(320);
 
 /// The wall clock: what a ticket's `expires_at` is read against, and denials are stamped with.
 pub type WallClock = Arc<dyn Fn() -> SystemTime + Send + Sync>;
@@ -42,8 +41,8 @@ pub struct TicketHolder {
 }
 
 impl TicketHolder {
-    /// Starts fetching at once, on `runtime`; the source's refresh interval caps the wait on a
-    /// valid ticket, and `jitter` scales every wait.
+    /// Starts fetching at once, on `runtime`; the source's refresh interval, jittered, caps the wait
+    /// on a valid ticket, and `jitter` scales every wait.
     pub fn start(
         runtime: &Handle,
         source: impl TicketSource,

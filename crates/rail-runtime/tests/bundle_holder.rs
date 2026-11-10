@@ -8,7 +8,7 @@ use tokio::time::Instant;
 
 use crate::bundles::{Answer, MINUTE, Script, answer, bundle, failed, held_hash, ok, start};
 use crate::common::{self, Reply, client, response, serve};
-use crate::holder::{TestClock, until};
+use crate::holder::{HOUR, TestClock, until};
 use crate::scripted::Answering;
 
 const LIMIT: Duration = Duration::from_secs(2);
@@ -80,6 +80,21 @@ async fn only_a_usable_answer_is_held_and_any_other_is_retried_as_a_failure() {
         assert_eq!(script.fetched_at(), [0, 5, 65], "{label}");
         assert_eq!(held_hash(&holder).as_deref(), Some("v1"), "{label}");
     }
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_backoff_stops_at_320_s_or_the_interval_if_shorter() {
+    let clock = TestClock::new();
+    let long = Script::new(&clock, |_| failed());
+    let short = Script::new(&clock, |_| failed());
+
+    let _long = start(&long, HOUR);
+    let _short = start(&short, Duration::from_secs(30));
+    until(&clock, 955).await;
+
+    // 5, 10, 20, 40, 80, 160, 320, then 320 again.
+    assert_eq!(long.fetched_at(), [0, 5, 15, 35, 75, 155, 315, 635, 955]);
+    assert_eq!(short.fetched_at()[..6], [0, 5, 15, 35, 65, 95]);
 }
 
 #[tokio::test(start_paused = true)]

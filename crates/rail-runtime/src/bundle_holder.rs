@@ -12,7 +12,9 @@ use tokio::runtime::Handle;
 
 use crate::bundle::BundleSource;
 use crate::client::{FetchError, Response, read_ok};
-use crate::holder::{Holder, Jitter, Kind, MIN_REFRESH_INTERVAL, Schedule, Step, round_to_seconds};
+use crate::holder::{
+    Holder, Jitter, Kind, MAX_BACKOFF, MIN_REFRESH_INTERVAL, Schedule, Step, round_to_seconds,
+};
 
 // The one `schema_version` major read: any minor of it is.
 const SCHEMA_MAJOR: u32 = 2;
@@ -63,7 +65,7 @@ pub struct BundleHolder {
 
 impl BundleHolder {
     /// Starts fetching at once, on `runtime`, and again every `refresh_interval`; after a failure
-    /// it backs off from 5 s up to the interval. `jitter` scales every wait.
+    /// it backs off from 5 s up to 320 s or the interval, if shorter. `jitter` scales every wait.
     pub fn start(
         runtime: &Handle,
         source: impl BundleSource,
@@ -73,7 +75,7 @@ impl BundleHolder {
         let schedule = Schedule {
             period: refresh_interval,
             initial_delay: MIN_REFRESH_INTERVAL,
-            max_delay: refresh_interval,
+            max_delay: MAX_BACKOFF.min(refresh_interval),
         };
         let kind = Bundles { source };
         Self {
