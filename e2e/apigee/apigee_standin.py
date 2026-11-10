@@ -142,7 +142,7 @@ class _Handler(BaseHTTPRequestHandler):
             callout, self.command, self.path, _split_headers(lines), body
         )
         flow = answer.additional_flow_variables if answer is not None else {}
-        # The FaultRule on EC-Rail's fault, and the step on no decision (D2).
+        # EC-Rail's FaultRule, and the step on no decision: both fail closed.
         if _DECISION not in flow:
             self._answer(503, {"Content-Type": ["application/json"]}, _CALLOUT_FAILED)
             return
