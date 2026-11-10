@@ -13,9 +13,10 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 
 FROM gcr.io/distroless/cc-debian12@sha256:e5d81ddde149641e2a9ba55be4545bc125c67de07508b03ba4c22e6eb0ded5aa AS railguard-envoy
 COPY LICENSE /
-COPY --from=build /out/rail-envoy /rail-envoy
+# One name for every host's binary, so probes and commands outlive which binary it is.
+COPY --from=build /out/rail-envoy /usr/local/bin/rail
 # Envoy reaches the socket from its own container, as a member of group 10001.
 COPY --from=build --chown=10001:10001 /out/run /run
 USER 10001:10001
 VOLUME /run/rail
-CMD ["/rail-envoy"]
+CMD ["/usr/local/bin/rail"]

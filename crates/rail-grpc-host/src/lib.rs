@@ -4,7 +4,7 @@
 use std::error::Error;
 use std::fmt;
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::pin::pin;
 use std::process::ExitCode;
 use std::time::Duration;
@@ -69,6 +69,14 @@ impl fmt::Display for Address {
             Address::Tcp(address) => write!(f, "{address}"),
         }
     }
+}
+
+/// The name the binary was run under, for its usage line: `rail` in its image, the crate's from
+/// cargo.
+pub fn program_name() -> String {
+    let program = std::env::args_os().next().unwrap_or_default();
+    let name = Path::new(&program).file_name().unwrap_or_default();
+    sanitize(&name.to_string_lossy()).to_string()
 }
 
 /// Asks the server at `address` for `service`'s health, `""` being the server as a whole; prints

@@ -17,7 +17,7 @@ x-ext: &ext
     context: ../..
     dockerfile: crates/rail-envoy/Dockerfile
   healthcheck:
-    test: ["CMD", "/rail-envoy", "probe"]
+    test: ["CMD", "rail", "probe"]
     interval: 1s
     # Past the probe's own 5 s, so its answer is the one recorded.
     timeout: 6s
