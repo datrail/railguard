@@ -3,6 +3,8 @@
 
 locals {
   images = toset(["callout", "rail-center", "upstream"])
+  # Cloud Run's default, and rail-apigee's.
+  callout_port = 8080
 }
 
 data "google_artifact_registry_docker_image" "image" {
@@ -66,9 +68,13 @@ resource "google_cloud_run_v2_service" "callout" {
       # gRPC needs HTTP/2 end to end.
       ports {
         name           = "h2c"
-        container_port = 8080
+        container_port = local.callout_port
       }
 
+      env {
+        name  = "RAIL_GATEWAY_PORT"
+        value = tostring(local.callout_port)
+      }
       env {
         name  = "RAIL_CENTER_URL"
         value = google_cloud_run_v2_service.stub["rail-center"].uri
@@ -78,27 +84,36 @@ resource "google_cloud_run_v2_service" "callout" {
         value = "edge"
       }
       env {
-        name  = "RAIL_PLUGIN_ENABLED"
-        value = "true"
-      }
-      env {
         name  = "RAIL_AUTH_MODE"
         value = "bearer"
       }
-      # Selects the enforce bundle from the stub.
+      # A service token's shape; the stub serves the bundle to it alone.
       env {
         name  = "RAIL_AUTH_TOKEN"
-        value = "e2e-enforce"
+        value = "rc_svc_e2e-enforceAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      }
+      # Its most detailed logs, since a session is run to find things out.
+      env {
+        name  = "RAIL_LOG_LEVEL"
+        value = "debug"
       }
 
-      # Serves only once it holds a bundle.
+      # Serves only once it holds a bundle. Cloud Run probes can't run `rail probe`, so it asks
+      # the readiness service itself.
       startup_probe {
         grpc {
-          port    = 8080
+          port    = local.callout_port
           service = "datrail.gateway.Ready"
         }
         period_seconds    = 2
         failure_threshold = 30
+      }
+      # Restarted if its gRPC server stops answering.
+      liveness_probe {
+        grpc {
+          port = local.callout_port
+        }
+        period_seconds = 10
       }
     }
   }

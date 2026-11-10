@@ -6,12 +6,14 @@
 #   up    builds and pushes the callout's and the stubs' images, applies the
 #         root, then waits until a call through the enforce proxy reaches the
 #         upstream stub.
-#   test  runs ../driver.py against the session; its exit code is the result.
+#   test  runs ../driver.py against the session, in the stand-in's Python image; its exit code
+#         is the result.
 #   down  terraform destroy, then lists the org's environments, which must be [].
 # ../apigee-org must be applied first, once (README.md).
 set -euo pipefail
 live=$(cd "$(dirname "$0")" && pwd)
-repo=$(cd "$live/../../.." && pwd)
+e2e=$(cd "$live/.." && pwd)
+repo=$(cd "$e2e/../.." && pwd)
 cd "$live/apigee-session"
 [[ -f terraform.tfvars ]] || { echo "Copy apigee-session/terraform.tfvars.example to terraform.tfvars first." >&2; exit 1; }
 
@@ -24,15 +26,15 @@ org="organizations/$(sed -n 's/^project_id *= *"\(.*\)"/\1/p' terraform.tfvars)"
 build_images() {
   local registry wiremock
   registry=$(terraform output -raw registry)
-  wiremock=$(sed -n 's/^ *image: \(wiremock\/wiremock:.*\)$/\1/p' "$repo/e2e/shared/services.yml")
+  wiremock=$(sed -n 's/^ *image: \(wiremock\/wiremock:.*\)$/\1/p' "$e2e/compose.yml")
   gcloud auth configure-docker "${registry%%/*}" --quiet >/dev/null
   # Cloud Run runs linux/amd64, whatever the machine building.
   docker build --platform linux/amd64 -t "$registry/callout:session" \
-    -f "$repo/gateway-apigee-grpc/Dockerfile" "$repo"
+    -f "$repo/crates/rail-apigee/Dockerfile" "$repo"
   docker build --platform linux/amd64 -t "$registry/rail-center:session" \
-    -f "$live/stub.Dockerfile" --build-arg "WIREMOCK=$wiremock" "$repo/e2e/shared/rc-mappings"
+    -f "$live/stub.Dockerfile" --build-arg "WIREMOCK=$wiremock" "$e2e/rail-center-mappings"
   docker build --platform linux/amd64 -t "$registry/upstream:session" \
-    -f "$live/stub.Dockerfile" --build-arg "WIREMOCK=$wiremock" "$repo/e2e/shared/mcp-mappings"
+    -f "$live/stub.Dockerfile" --build-arg "WIREMOCK=$wiremock" "$e2e/upstream-mappings"
   for image in callout rail-center upstream; do
     docker push --quiet "$registry/$image:session"
   done
@@ -97,21 +99,24 @@ case "$action" in
     echo "END THE SESSION WITH ./session.sh down: the environment is billed while it exists."
     ;;
   test)
+    # The image's user reads the certificate.
     cert=$(mktemp)
+    chmod 644 "$cert"
     trap 'rm -f "$cert"' EXIT
     terraform output -raw lb_cert > "$cert"
-    set -a
-    # shellcheck source-path=SCRIPTDIR source=../../shared/tickets.env
-    . "$repo/e2e/shared/tickets.env"
-    set +a
-    E2E_TARGET=live E2E_CA_FILE="$cert" \
-      E2E_ENFORCE_URL=$(terraform output -raw enforce_url) \
-      E2E_NO_CALLOUT_URL=$(terraform output -raw no_callout_url) \
-      E2E_UPSTREAM=$(terraform output -raw upstream_url) \
-      E2E_RAIL_CENTER=$(terraform output -raw rail_center_url) \
-      E2E_STUB_ADMIN_PASSWORD=$(terraform output -raw stub_admin_password) \
-      PYTHONPATH="$repo/e2e/shared" \
-      uv run --project "$repo" python -u "$live/../driver.py"
+    # Passed by name, so it stays off the command line.
+    E2E_STUB_ADMIN_PASSWORD=$(terraform output -raw stub_admin_password)
+    export E2E_STUB_ADMIN_PASSWORD
+    docker compose -f "$e2e/compose.yml" build driver
+    docker run --rm \
+      -v "$e2e/driver.py:/e2e/driver.py:ro" -v "$cert:/e2e/lb-cert.pem:ro" \
+      -e E2E_TARGET=live -e E2E_CA_FILE=/e2e/lb-cert.pem \
+      -e E2E_ENFORCE_URL="$(terraform output -raw enforce_url)" \
+      -e E2E_NO_CALLOUT_URL="$(terraform output -raw no_callout_url)" \
+      -e E2E_UPSTREAM="$(terraform output -raw upstream_url)" \
+      -e E2E_RAIL_CENTER="$(terraform output -raw rail_center_url)" \
+      -e E2E_STUB_ADMIN_PASSWORD \
+      railguard-e2e-apigee-python python -u /e2e/driver.py
     ;;
   down)
     terraform destroy -auto-approve -input=false

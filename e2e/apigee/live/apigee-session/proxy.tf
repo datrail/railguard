@@ -1,9 +1,9 @@
-# Two proxies from the bundle in ../apiproxy: enforce, with the callout, and
+# Two proxies from the bundle in ../../apiproxy, the stand-in's: enforce, with the callout, and
 # no-callout, whose callout is unreachable. Each is zipped, imported as a
 # revision and deployed to the environment as the proxy's service account.
 
 locals {
-  bundle_dir = "${path.module}/../apiproxy"
+  bundle_dir = "${path.module}/../../apiproxy"
 
   proxies = {
     enforce = {
@@ -26,7 +26,7 @@ locals {
             <Name>EC-Rail</Name>
   EOT
 
-  # Each proxy's bundle, ../apiproxy's __PLACEHOLDERS__ filled in,
+  # Each proxy's bundle, ../../apiproxy's __PLACEHOLDERS__ filled in,
   # plus the operator's policy. Terraform has no loop over replacements,
   # hence the nesting.
   bundles = {
