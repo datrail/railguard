@@ -15,7 +15,7 @@ x-wiremock: &wiremock
 x-callout: &callout
   build:
     context: ../..
-    target: railguard-apigee
+    dockerfile: crates/rail-apigee/Dockerfile
   healthcheck:
     test: ["CMD", "/rail-apigee", "probe"]
     interval: 1s

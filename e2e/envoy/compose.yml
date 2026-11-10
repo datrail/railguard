@@ -15,7 +15,7 @@ x-wiremock: &wiremock
 x-ext: &ext
   build:
     context: ../..
-    target: railguard-envoy
+    dockerfile: crates/rail-envoy/Dockerfile
   healthcheck:
     test: ["CMD", "/rail-envoy", "probe"]
     interval: 1s
