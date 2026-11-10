@@ -31,6 +31,8 @@ _ENFORCE = os.environ.get("E2E_ENFORCE_URL", "http://apigee:8080/mcp")
 _NO_CALLOUT = os.environ.get("E2E_NO_CALLOUT_URL", "http://apigee:8080/no-callout")
 _READY = "datrail.gateway.Ready"
 _TIMEOUT_SECONDS = 15
+# http.client sends a body in one call, which the timeout bounds whole.
+_UPLOAD_TIMEOUT_SECONDS = 300
 
 # Unsigned base64url JSON, expiring in 2100, in the nested shape Rail Center stores; its skill is
 # the full key Rail Center mints, `<slug>#<path>#<method>#<call>`.
@@ -64,8 +66,10 @@ _INITIALIZE = {
 }
 _CALL = {"jsonrpc": "2.0", "id": 9, "method": "tools/call", "params": {"name": "track_package"}}
 
-# The live load balancer's certificate is self-signed.
-_TLS = ssl.create_default_context(cafile=os.environ.get("E2E_CA_FILE"))
+# The live load balancer's certificate is self-signed; the stubs' are publicly trusted.
+_TLS = ssl.create_default_context()
+if os.environ.get("E2E_CA_FILE"):
+    _TLS.load_verify_locations(os.environ["E2E_CA_FILE"])
 # The live stubs lock /__admin with basic auth.
 _ADMIN_HEADERS = {}
 if os.environ.get("E2E_STUB_ADMIN_PASSWORD"):
@@ -250,16 +254,14 @@ def _read_last_received_body():
         return None
 
 
-def _send_raw_post(url, body, headers):
+def _send_raw_post(url, body, headers, timeout=_TIMEOUT_SECONDS):
     """The status and body of a POST of `body` (bytes) with `headers`, a list of (name, value)
     pairs, so a header can repeat; (None, "") if nothing answered."""
     parts = urllib.parse.urlsplit(url)
     if parts.scheme == "https":
-        connection = http.client.HTTPSConnection(
-            parts.netloc, timeout=_TIMEOUT_SECONDS, context=_TLS
-        )
+        connection = http.client.HTTPSConnection(parts.netloc, timeout=timeout, context=_TLS)
     else:
-        connection = http.client.HTTPConnection(parts.netloc, timeout=_TIMEOUT_SECONDS)
+        connection = http.client.HTTPConnection(parts.netloc, timeout=timeout)
     try:
         connection.putrequest("POST", parts.path + (f"?{parts.query}" if parts.query else ""))
         for name, value in [*_MCP_HEADERS.items(), *headers]:
@@ -553,11 +555,14 @@ def _run_live_observations():
     code, answer = _send_raw_post(_ENFORCE, body, good)
     _report_seen("the answer", f"{code} {answer[:200]}")
     received = _read_last_received_body()
+    marker = b'"note": "'
     if received is None:
         _report_seen("the upstream received", "nothing")
+    elif marker not in received:
+        _report_seen("the upstream received, without the note", received[:200])
     else:
         # From the note's value on: a, then U+FFFD (ef bf bd), nothing, or ff, then b.
-        note = received[received.find(b'"note": "') + 9 :][:6]
+        note = received[received.index(marker) + len(marker) :][:6]
         _report_seen("the upstream received the note as", note.hex(" "))
 
     _start_block("seen: whether Apigee decompresses a body before the callout")
@@ -567,30 +572,24 @@ def _run_live_observations():
         _ENFORCE, gzip.compress(forbidden), [("Content-Encoding", "gzip"), *good]
     )
     _report_seen("the answer", f"{code} {answer[:200]}")
-    # P2 denies the call only if the callout read it decompressed.
-    denial = _wait_for_last_denial()
-    _report_seen(
-        "the denial's policy", denial.get("policy_id", "<none>") if denial else "no denial"
-    )
-    received = _read_last_received_body()
-    _report_seen("the upstream received", "nothing" if received is None else received[:32].hex(" "))
+    # P2 names the tool, so only a decompressed body can match it.
+    named_p2 = _wait_for(lambda: _count_denials_naming(_P2), 1)
+    _report_seen("P2 denied it, so it was decompressed", "yes" if named_p2 else "no")
 
     _start_block("seen: Apigee's own limit on a request body")
     for mib in (11, 17):
-        _clear_journals()
-        code, answer = _call_tool(
-            _ENFORCE, "track_package", {"pad": "x" * mib * 1024 * 1024}, dict(good)
-        )
+        arguments = {"pad": "x" * mib * 1024 * 1024}
+        payload = {**_CALL, "params": {"name": "track_package", "arguments": arguments}}
+        body = json.dumps(payload).encode()
+        code, answer = _send_raw_post(_ENFORCE, body, good, _UPLOAD_TIMEOUT_SECONDS)
         _report_seen(f"a {mib} MiB call", f"{code} {answer[:300]}")
 
 
 def main():
-    if _LIVE:
-        _run_apigee_cases()
-    else:
-        # First: the stand-in's cases reset the journals, and these count a fetch at startup.
+    # First: the stand-in's cases reset the journals, and these count a fetch at startup.
+    if not _LIVE:
         _run_callout_cases()
-        _run_apigee_cases()
+    _run_apigee_cases()
 
     _start_block("every request found a stub")
     _sweep_unmatched()
@@ -598,7 +597,10 @@ def main():
     _expect("no unmatched request reached rail-center", 0, _unmatched[_RAIL_CENTER])
 
     if _LIVE:
-        _run_live_observations()
+        try:
+            _run_live_observations()
+        except OSError as error:
+            _report_seen("the observations stopped", error)
 
     print()
     if _fails:

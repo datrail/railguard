@@ -51,12 +51,12 @@ terraform apply                    # imports; creates nothing
 rm imports.tf
 ```
 
-**The organisation is shared** with `datrail/gateway`'s harness, from
-which this one was ported: the root is the same. If it was applied there,
-adopt it here as below rather than with a copy of that state, so one state
-manages it; or run sessions without applying it here at all, since
-`apigee-session` finds the instance by name. Give each harness's session
-its own `prefix`, so the two could run at once.
+**The organisation is shared** with `datrail/gateway`'s harness, whose
+root is the same. If it was applied there, adopt it here as above rather
+than with a copy of that state, so one state manages it; or run sessions
+without applying it here at all, since `apigee-session` finds the instance
+by name. Give each harness's session its own `prefix`, so their resources
+can't clash; `down` fails while either harness's environment exists.
 
 **Keep the organisation and instance: deleting them costs days.** Deleting a
 paid organisation is a soft delete lasting many days, and no new one can be
@@ -168,8 +168,10 @@ needs a live run.
   invoker too, to call it by hand.
 - **The callout's probes** call its gRPC health service, on
   `datrail.gateway.Ready` until it holds a bundle, then on liveness: Cloud
-  Run can't run `rail probe`. It logs at `debug`
-  (`gcloud run services logs read <prefix>-callout`).
+  Run can't run `rail probe`.
+- **The callout logs at `debug`**
+  (`gcloud run services logs read <prefix>-callout`): its lines say which
+  of the body-limit calls reached it.
 - **The load balancer's certificate is self-signed** for its IP: a
   Google-managed one needs a DNS name. Clients trust it from
   `terraform output -raw lb_cert` (`curl --cacert`).
