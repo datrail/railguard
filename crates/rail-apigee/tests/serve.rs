@@ -11,7 +11,7 @@ use tonic_health::pb::HealthCheckRequest;
 use tonic_health::pb::health_check_response::ServingStatus;
 use tonic_health::pb::health_client::HealthClient;
 
-use rail_test_support::{Server, wait_until};
+use rail_test_support::{Server, stdout, wait_until};
 
 use crate::common::{RailCenter, client, free_port, probe, rail_apigee, serve};
 
@@ -112,10 +112,6 @@ fn with_rail_center(port: u16, url: &str) -> Command {
     command
 }
 
-fn stdout(output: &std::process::Output) -> String {
-    String::from_utf8(output.stdout.clone()).unwrap()
-}
-
 #[tokio::test(flavor = "multi_thread")]
 async fn with_rail_center_disabled_it_is_ready_and_allows_every_call() {
     let port = free_port();
@@ -133,7 +129,7 @@ async fn with_rail_center_disabled_it_is_ready_and_allows_every_call() {
     assert_eq!(flow(&answer, "rail.decision").as_deref(), Some("allow"));
     assert_echoed(&answer);
     server.terminate();
-    let (code, logs) = tokio::task::block_in_place(|| stop(server));
+    let (code, logs) = tokio::task::block_in_place(|| read_exit(server));
     assert_eq!(code, Some(0), "{logs}");
 }
 
@@ -322,14 +318,14 @@ async fn on_sigterm_both_turn_not_serving_and_it_exits_at_the_deadline() {
         let next = watch.message().await.unwrap().unwrap();
         assert_eq!(next.status(), ServingStatus::NotServing);
     }
-    let (code, logs) = tokio::task::block_in_place(|| stop(server));
+    let (code, logs) = tokio::task::block_in_place(|| read_exit(server));
     assert_eq!(code, Some(0), "{logs}");
     assert!(logs.contains("shut down at the deadline"), "{logs}");
     assert!(started.elapsed() < Duration::from_secs(8));
 }
 
 // The exit code and what it logged; it must exit within 10 s.
-fn stop(mut server: Server) -> (Option<i32>, String) {
+fn read_exit(mut server: Server) -> (Option<i32>, String) {
     let code = server
         .wait_for_exit(Duration::from_secs(10))
         .expect("the server never exited");

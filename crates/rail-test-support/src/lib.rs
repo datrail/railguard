@@ -3,7 +3,7 @@
 
 use std::ffi::OsStr;
 use std::io::Read;
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
 use rail_runtime::{
@@ -50,17 +50,26 @@ pub fn isolate(program: impl AsRef<OsStr>) -> Command {
     command
 }
 
+/// What `output` printed on stdout.
+pub fn stdout(output: &Output) -> String {
+    String::from_utf8(output.stdout.clone()).unwrap()
+}
+
 /// Polls `condition` for up to 10 s.
-pub fn wait_until(mut condition: impl FnMut() -> bool) {
+pub fn wait_until(condition: impl FnMut() -> bool) {
+    poll(condition, "never happened");
+}
+
+fn poll(mut condition: impl FnMut() -> bool, failure: &str) {
     let deadline = Instant::now() + Duration::from_secs(10);
     while !condition() {
-        assert!(Instant::now() < deadline, "never happened");
+        assert!(Instant::now() < deadline, "{failure}");
         std::thread::sleep(Duration::from_millis(50));
     }
 }
 
 /// The server, killed if the test ends before it exits.
-pub struct Server(pub Child);
+pub struct Server(Child);
 
 impl Server {
     /// `command` spawned, its log kept.
@@ -76,10 +85,11 @@ impl Server {
     /// `command` spawned, once `serving` holds; it must within 10 s.
     pub fn serve(command: Command, serving: impl FnMut() -> bool) -> Self {
         let server = Self::spawn(command);
-        wait_until(serving);
+        poll(serving, "the server never served");
         server
     }
 
+    /// Sends SIGTERM.
     pub fn terminate(&self) {
         let status = Command::new("kill")
             .args(["-TERM", &self.0.id().to_string()])
