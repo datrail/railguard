@@ -251,7 +251,7 @@ fn ticket_id(ticket: &TicketState) -> Option<Uuid> {
     Uuid::parse_str(ticket.claims.get("id")?.as_str()?).ok()
 }
 
-fn ticket_state(ticket: &TicketState) -> &'static str {
+pub(crate) fn ticket_state(ticket: &TicketState) -> &'static str {
     match ticket {
         TicketState::Absent => "absent",
         TicketState::Undecodable => "undecodable",

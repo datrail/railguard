@@ -1,3 +1,6 @@
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use serde::Serialize;
 use serde_json::Value;
 
@@ -13,16 +16,34 @@ pub const DEFAULT_STEP_LIMIT: u64 = 100_000;
 pub struct Budget {
     limit: u64,
     steps: u64,
+    stop: Option<Arc<AtomicBool>>,
 }
 
 impl Budget {
     pub fn new(limit: u64) -> Self {
-        Self { limit, steps: 0 }
+        Self {
+            limit,
+            steps: 0,
+            stop: None,
+        }
+    }
+
+    /// Spent at once when `stop` is set: a caller that no longer wants the judgement ends it.
+    pub fn stopped_by(self, stop: Arc<AtomicBool>) -> Self {
+        Self {
+            stop: Some(stop),
+            ..self
+        }
     }
 
     fn charge(&mut self, steps: u64) -> Result<(), Refusal> {
         self.steps = self.steps.saturating_add(steps);
-        if self.steps > self.limit {
+        let stopped = || {
+            self.stop
+                .as_ref()
+                .is_some_and(|stop| stop.load(Ordering::Relaxed))
+        };
+        if self.steps > self.limit || stopped() {
             return Err(Refusal::BudgetExceeded);
         }
         Ok(())
