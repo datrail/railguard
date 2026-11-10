@@ -161,6 +161,26 @@ async fn a_gzip_body_is_decoded() {
 }
 
 #[tokio::test]
+async fn a_gzip_body_with_no_length_is_capped_as_sent_too() {
+    // Empty stored blocks after the header decode to nothing, so only the bytes sent are past it.
+    let small = gzip(b"{\"a\":1}");
+    let mut padded = small[..10].to_vec();
+    for _ in 0..300 {
+        padded.extend_from_slice(&[0, 0, 0, 0xff, 0xff]);
+    }
+    padded.extend_from_slice(&small[10..]);
+    let server =
+        serve(move |_| Reply::Raw(unsized_response(&["content-encoding: gzip"], &padded))).await;
+
+    let error = client(&server.url)
+        .get("/v1/x", &[], LIMITS)
+        .await
+        .unwrap_err();
+
+    assert!(matches!(error, FetchError::TooLarge { .. }), "{error:?}");
+}
+
+#[tokio::test]
 async fn a_gzip_bomb_is_refused_by_its_decoded_size() {
     let bomb = gzip(&[0; 64 << 10]);
     assert!(bomb.len() < LIMITS.max_bytes);
