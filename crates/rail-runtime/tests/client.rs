@@ -116,7 +116,16 @@ async fn a_declared_length_past_the_cap_is_refused_unread() {
 
 #[tokio::test]
 async fn an_unsized_body_past_the_cap_is_refused_while_streaming() {
-    let server = serve(|_| Reply::Raw(unsized_response(&[], &[b'x'; 1025]))).await;
+    // Two chunks each under the cap, so only their running total is past it.
+    let chunk = format!("258\r\n{}\r\n", "x".repeat(600));
+    let body = format!("{chunk}{chunk}0\r\n\r\n");
+    let server = serve(move |_| {
+        Reply::Raw(unsized_response(
+            &["transfer-encoding: chunked"],
+            body.as_bytes(),
+        ))
+    })
+    .await;
 
     let error = client(&server.url)
         .get("/v1/x", &[], LIMITS)
@@ -140,7 +149,7 @@ async fn a_gzip_body_is_decoded() {
     let server = serve(|_| {
         Reply::Raw(response(
             "200 OK",
-            &["content-encoding: gzip"],
+            &["content-encoding: GZIP"],
             &gzip(b"{\"a\":1}"),
         ))
     })

@@ -230,6 +230,12 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
             ],
         ),
         (
+            vec![held(), answer(StatusCode::OK, b"<html>")],
+            [fetch_failed, keeping],
+            "WARN",
+            vec![r#"reason="the response isn't JSON"#],
+        ),
+        (
             vec![refused()],
             [refusing, none_held],
             "ERROR",
