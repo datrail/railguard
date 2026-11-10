@@ -14,38 +14,27 @@ mod xrail;
 use std::fs;
 use std::os::unix::fs::{FileTypeExt, PermissionsExt};
 use std::path::Path;
-use std::pin::pin;
 use std::process::ExitCode;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
 use envoy_types::ext_authz::v3::pb::AuthorizationServer;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
-use rail_policy::sanitize;
+use rail_grpc_host::Address;
 use rail_runtime::{
-    Jitter, Level, RailCenterClient, RailCenterSettings, RailCenterThread, RailCenterTickets,
-    Settings, Startup, TicketHolder, TicketSettings, Variables,
+    Jitter, RailCenterClient, RailCenterSettings, RailCenterThread, RailCenterTickets, Settings,
+    Startup, TicketHolder, TicketSettings, Variables,
 };
 use tokio::net::UnixListener;
-use tokio::signal::unix::{Signal, SignalKind, signal};
+use tokio::signal::unix::{SignalKind, signal};
 use tokio::sync::oneshot;
 use tokio_stream::wrappers::UnixListenerStream;
 use tonic::server::NamedService;
-use tonic::transport::Endpoint;
 use tonic_health::ServingStatus;
-use tonic_health::pb::HealthCheckRequest;
-use tonic_health::pb::health_check_response::ServingStatus as WireStatus;
-use tonic_health::pb::health_client::HealthClient;
 use tonic_health::server::HealthReporter;
 
 pub use crate::config::Config;
 pub use crate::services::Callouts;
-
-// Envoy keeps its connections open, and an ext_proc stream lasts as long as its request.
-const SHUTDOWN_DEADLINE: Duration = Duration::from_secs(5);
-
-// Longer than any answer from a live server, and within the e2e health check's timeout.
-const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// The binary: serves, or with `probe`, asks the server on the socket configured.
 pub async fn run() -> ExitCode {
@@ -59,7 +48,7 @@ pub async fn run() -> ExitCode {
         .unwrap_or_else(|errors| errors.exit());
     match std::env::args().nth(1).as_deref() {
         None => serve(config, &startup).await,
-        Some("probe") => probe(&config.socket).await,
+        Some("probe") => rail_grpc_host::probe(&Address::Unix(config.socket.clone()), "").await,
         Some(argument) => {
             eprintln!("unknown argument {argument:?}; usage: rail-envoy [probe]");
             // A usage error shares the exit status of a refused configuration.
@@ -69,7 +58,7 @@ pub async fn run() -> ExitCode {
 }
 
 async fn serve(config: Config, startup: &Startup) -> ExitCode {
-    log_settings(startup);
+    rail_runtime::logging::log_settings(startup);
     // SIGTERM is how a container is stopped; as PID 1 nothing handles it unless we do.
     let terminate = match signal(SignalKind::terminate()) {
         Ok(terminate) => terminate,
@@ -103,7 +92,7 @@ async fn serve(config: Config, startup: &Startup) -> ExitCode {
     tracing::info!("serving Envoy");
     let (draining, drain_started) = oneshot::channel();
     let stopping = async {
-        terminated(terminate).await;
+        rail_grpc_host::terminated(terminate).await;
         report_status(&health, ServingStatus::NotServing).await;
         let _ = draining.send(());
     };
@@ -112,7 +101,7 @@ async fn serve(config: Config, startup: &Startup) -> ExitCode {
         .add_service(AuthorizationServer::new(callouts.clone()))
         .add_service(ExternalProcessorServer::new(callouts))
         .serve_with_incoming_shutdown(UnixListenerStream::new(listener), stopping);
-    let served = drain_until_deadline(server, drain_started).await;
+    let served = rail_grpc_host::drain_until_deadline(server, drain_started).await;
     // Its stop blocks on a join, so it's kept off the async workers.
     if let Some(thread) = rail_center {
         let _ = tokio::task::spawn_blocking(move || thread.stop()).await;
@@ -124,31 +113,6 @@ async fn serve(config: Config, startup: &Startup) -> ExitCode {
             ExitCode::FAILURE
         }
     }
-}
-
-// At the deadline the server is dropped; tonic's connection tasks end with the runtime, on exit.
-async fn drain_until_deadline(
-    server: impl Future<Output = Result<(), tonic::transport::Error>>,
-    mut drain_started: oneshot::Receiver<()>,
-) -> Result<(), tonic::transport::Error> {
-    let mut server = pin!(server);
-    let served = tokio::select! {
-        served = &mut server => served,
-        Ok(()) = &mut drain_started => {
-            match tokio::time::timeout(SHUTDOWN_DEADLINE, &mut server).await {
-                Ok(served) => served,
-                Err(_) => {
-                    tracing::warn!(deadline_seconds = SHUTDOWN_DEADLINE.as_secs(), "shut down at the deadline: the connections still open are cut");
-                    return Ok(());
-                }
-            }
-        }
-    };
-    // It ends without an error only once drained, which may be in the poll that starts the drain.
-    if served.is_ok() {
-        tracing::info!("shut down: every connection drained");
-    }
-    served
 }
 
 // The ticket is fetched and refreshed on the Rail Center thread; calls only read it.
@@ -168,24 +132,6 @@ fn start_tickets(
         Jitter::random(),
     );
     Ok((thread, Arc::new(tickets)))
-}
-
-// Each setting as used, then each RAIL_ variable nothing read, likely a typo; never its value.
-fn log_settings(startup: &Startup) {
-    for entry in &startup.entries {
-        let source = entry.source.as_str();
-        match entry.level {
-            Level::Info => {
-                tracing::info!(name = %entry.name, value = %entry.value, source = %source, "setting");
-            }
-            Level::Warn(weakens) => {
-                tracing::warn!(name = %entry.name, value = %entry.value, source = %source, weakens, "setting");
-            }
-        }
-    }
-    for name in &startup.unread {
-        tracing::warn!(name = %name, "set but not read");
-    }
 }
 
 // A socket left by an earlier run is replaced; anything else at the path is refused.
@@ -225,62 +171,4 @@ async fn report_status(health: &HealthReporter, status: ServingStatus) {
     health
         .set_service_status(ExternalProcessorServer::<Callouts>::NAME, status)
         .await;
-}
-
-async fn terminated(mut terminate: Signal) {
-    tokio::select! {
-        _ = terminate.recv() => {}
-        _ = tokio::signal::ctrl_c() => {}
-    }
-}
-
-// A connection alone proves nothing: the kernel completes it from the backlog of a hung process.
-async fn probe(socket: &Path) -> ExitCode {
-    match tokio::time::timeout(PROBE_TIMEOUT, check_health(socket)).await {
-        Ok(Ok(WireStatus::Serving)) => {
-            println!("serving");
-            ExitCode::SUCCESS
-        }
-        Ok(Ok(status)) => {
-            println!("not serving: {}", status.as_str_name());
-            ExitCode::FAILURE
-        }
-        Ok(Err(error)) => {
-            println!(
-                "can't check health on {}: {}",
-                sanitize(&socket.display().to_string()),
-                sanitize(&error)
-            );
-            ExitCode::FAILURE
-        }
-        Err(_) => {
-            println!(
-                "no answer on {} within {}s",
-                sanitize(&socket.display().to_string()),
-                PROBE_TIMEOUT.as_secs()
-            );
-            ExitCode::FAILURE
-        }
-    }
-}
-
-// The server's health as a whole.
-async fn check_health(socket: &Path) -> Result<WireStatus, String> {
-    let endpoint = Endpoint::from_shared(format!("unix:{}", socket.display()))
-        .map_err(|error| error.to_string())?;
-    let channel =
-        endpoint
-            .connect()
-            .await
-            .map_err(|error| match std::error::Error::source(&error) {
-                Some(cause) => format!("can't connect: {cause}"),
-                None => format!("can't connect: {error}"),
-            })?;
-    let response = HealthClient::new(channel)
-        .check(HealthCheckRequest::default())
-        .await
-        .map_err(|status| format!("{:?}: {}", status.code(), status.message()))?;
-    let status = response.into_inner().status;
-    // A value this version doesn't know isn't SERVING.
-    Ok(WireStatus::try_from(status).unwrap_or(WireStatus::Unknown))
 }

@@ -18,6 +18,8 @@ use tracing_subscriber::field::RecordFields;
 use tracing_subscriber::fmt::FormatFields;
 use tracing_subscriber::fmt::format::Writer;
 
+use crate::config::{Level, Startup};
+
 // Long enough to keep the root cause at the end of an error chain.
 const MAX_FIELD_CHARS: usize = 1024;
 
@@ -39,6 +41,24 @@ fn log_panic(info: &PanicHookInfo<'_>) {
     match info.payload().downcast_ref::<&'static str>() {
         Some(&panic_message) => tracing::error!(location, panic_message, "a thread panicked"),
         None => tracing::error!(location, "a thread panicked; its message is withheld"),
+    }
+}
+
+// Each setting as used, then each RAIL_ variable nothing read, likely a typo; never its value.
+pub fn log_settings(startup: &Startup) {
+    for entry in &startup.entries {
+        let source = entry.source.as_str();
+        match entry.level {
+            Level::Info => {
+                tracing::info!(name = %entry.name, value = %entry.value, source = %source, "setting");
+            }
+            Level::Warn(weakens) => {
+                tracing::warn!(name = %entry.name, value = %entry.value, source = %source, weakens, "setting");
+            }
+        }
+    }
+    for name in &startup.unread {
+        tracing::warn!(name = %name, "set but not read");
     }
 }
 

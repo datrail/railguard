@@ -3,12 +3,12 @@ use std::time::{Duration, Instant};
 
 use crate::common::{Server, TempSocket, rail_envoy};
 
-// The fields after the target, of the one line holding `needle`.
+// The fields after the target, of the one line holding `needle`: the first ": " ends the target.
 fn find_fields<'a>(logs: &'a str, needle: &str) -> &'a str {
     let lines: Vec<_> = logs.lines().filter(|line| line.contains(needle)).collect();
     assert_eq!(lines.len(), 1, "{logs}");
     let (_, fields) = lines[0]
-        .split_once(" rail_envoy: ")
+        .split_once(": ")
         .unwrap_or_else(|| panic!("{logs}"));
     fields
 }
