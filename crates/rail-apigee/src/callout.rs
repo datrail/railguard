@@ -1,15 +1,15 @@
 //! Each request Apigee sends, judged, and answered with what Apigee should change.
 //!
 //! Apigee applies only what the returned maps contain, and writes each item of a header returned
-//! as a header line of its own. So the answer removes the `x-rail` headers and sets our flow
-//! variables, and touches nothing else.
+//! as a header line of its own. So the answer removes the `x-rail` headers and any name with `_`,
+//! sets our flow variables, and touches nothing else.
 
 use std::sync::Arc;
 
 use apigee_callout_proto::apigee::external_callout_service_server::ExternalCalloutService;
 use apigee_callout_proto::apigee::{FlowVariable, MessageContext, Strings, flow_variable};
 use percent_encoding::percent_decode_str;
-use rail_runtime::{Answer, Call, Gateway};
+use rail_runtime::{Answer, Call, Gateway, XRAIL, is_withheld_header};
 
 // The flow variables the Apigee proxy reads.
 const DECISION: &str = "rail.decision";
@@ -17,8 +17,6 @@ const STATUS: &str = "rail.status";
 const BODY: &str = "rail.body";
 const ALLOW: &str = "allow";
 const REFUSE: &str = "refuse";
-
-const XRAIL: &str = "x-rail";
 
 /// The ExternalCallout service; with no gateway, Rail Center is disabled and every call allowed.
 #[derive(Clone)]
@@ -91,7 +89,7 @@ pub fn build_answer(mut context: MessageContext, answer: Answer) -> MessageConte
     let mut removed: Vec<String> = request
         .headers
         .keys()
-        .filter(|name| is_x_rail_header(name))
+        .filter(|name| is_withheld_header(&name.to_ascii_lowercase()))
         .cloned()
         .collect();
     removed.push(XRAIL.to_owned());
@@ -115,11 +113,6 @@ pub fn build_answer(mut context: MessageContext, answer: Answer) -> MessageConte
         }
     }
     context
-}
-
-fn is_x_rail_header(name: &str) -> bool {
-    let lowered = name.to_ascii_lowercase();
-    lowered == XRAIL || lowered.starts_with("x-rail-")
 }
 
 fn text(value: &str) -> FlowVariable {

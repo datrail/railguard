@@ -43,6 +43,7 @@ fn received() -> MessageContext {
                 ("X-Rail".to_owned(), strings(&["ticket"])),
                 ("x-rail-status".to_owned(), strings(&["ok"])),
                 ("x-railway".to_owned(), strings(&["kept"])),
+                ("X_Rail".to_owned(), strings(&["ticket"])),
                 ("accept".to_owned(), strings(&["a", "b"])),
             ]),
             form_params: HashMap::from([("f".to_owned(), strings(&["1"]))]),
@@ -54,7 +55,7 @@ fn received() -> MessageContext {
     }
 }
 
-// Only what Apigee should change: the x-rail headers removed, and our flow variables.
+// Only what Apigee should change: the x-rail headers and `_` names removed, and our flow variables.
 fn expected(flow: &[(&str, &str)]) -> MessageContext {
     let mut expected = received();
     let request = expected.request.as_mut().unwrap();
@@ -62,6 +63,7 @@ fn expected(flow: &[(&str, &str)]) -> MessageContext {
         ("x-rail".to_owned(), Strings::default()),
         ("X-Rail".to_owned(), Strings::default()),
         ("x-rail-status".to_owned(), Strings::default()),
+        ("X_Rail".to_owned(), Strings::default()),
     ]);
     request.form_params.clear();
     request.query_params.clear();
@@ -73,7 +75,7 @@ fn expected(flow: &[(&str, &str)]) -> MessageContext {
 }
 
 #[test]
-fn the_answer_removes_the_x_rail_headers_and_sets_the_decision() {
+fn the_answer_removes_the_x_rail_headers_and_underscored_names_and_sets_the_decision() {
     assert_eq!(
         build_answer(received(), Answer::Forward),
         expected(&[("rail.decision", "allow")])

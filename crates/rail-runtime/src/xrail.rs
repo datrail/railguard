@@ -121,7 +121,7 @@ impl XRailHeaders {
             .chain(
                 sent.into_iter()
                     .map(str::to_ascii_lowercase)
-                    .filter(|name| !may_cross(name)),
+                    .filter(|name| is_withheld_header(name)),
             )
             .filter(|name| !is_set(name))
             .collect();
@@ -165,8 +165,9 @@ fn route_to(entry: &ProtectedHost, agent_port: Option<u16>) -> Route {
     }
 }
 
-// No agent x-rail header, nor any name with `_`, reaches the upstream. Takes a lowercased name.
-fn may_cross(name: &str) -> bool {
+/// Whether an agent's header is kept from the upstream: an x-rail header, or any name with `_`.
+/// Takes a lowercased name.
+pub fn is_withheld_header(name: &str) -> bool {
     // Some upstreams read `_` and `-` alike, so `x_rail` could pass for `x-rail`.
-    !(name == XRAIL || name.starts_with("x-rail-") || name.contains('_'))
+    name == XRAIL || name.starts_with("x-rail-") || name.contains('_')
 }
