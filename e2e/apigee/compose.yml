@@ -65,7 +65,7 @@ services:
       RAIL_CENTER_URL: http://rail-center.invalid
       RAIL_CENTER_ALLOW_HTTP: "true"
       RAIL_GATEWAY_SLUG: edge
-      RAIL_GATEWAY_PORT: "9100"
+      RAIL_CALLOUT_PORT: "9100"
 
   # Two proxies: /mcp judged by the callout, and /no-callout, whose callout never resolves.
   apigee:

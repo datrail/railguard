@@ -17,6 +17,6 @@ COPY LICENSE /
 COPY --from=build /out/rail-apigee /usr/local/bin/rail
 # Not root: the callout receives every request header, credentials included.
 USER 10001:10001
-# RAIL_GATEWAY_PORT's default, and Cloud Run's.
+# RAIL_CALLOUT_PORT's default, and Cloud Run's.
 EXPOSE 8080
 CMD ["/usr/local/bin/rail"]

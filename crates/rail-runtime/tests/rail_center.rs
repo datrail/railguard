@@ -1,9 +1,7 @@
 use rail_runtime::{
     CenterUrl, Level, RailCenterSettings, Settings, Variables, read_disabled, read_rail_center,
 };
-use rail_test_support::read_from;
-
-use rail_test_support::describe;
+use rail_test_support::{describe, read_from};
 
 use crate::common;
 

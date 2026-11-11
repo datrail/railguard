@@ -48,6 +48,13 @@ _CALLOUT_FAILED = (
 # The test-only policy, on the header the live harness's condition names.
 _OPERATOR_FAULT = ET.parse(os.environ["APIGEE_OPERATOR_FAULT"]).getroot()
 _OPERATOR_FAULT_HEADER = "x-e2e-operator-fault"
+# Apigee answers a body past its 10 MB itself, before any policy (seen live); 10 MiB here, as
+# only bodies well past it are sent.
+_MAX_BODY_BYTES = 10 * 1024 * 1024
+_TOO_BIG = (
+    b'{"fault":{"faultstring":"Body buffer overflow",'
+    b'"detail":{"errorcode":"protocol.http.TooBigBody"}}}'
+)
 # Set per hop, never forwarded.
 _HOP_HEADERS = {"connection", "content-length", "host", "transfer-encoding"}
 
@@ -122,6 +129,9 @@ class _Handler(BaseHTTPRequestHandler):
             return
         base, callout = proxy
         body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
+        if len(body) > _MAX_BODY_BYTES:
+            self._answer(413, {"Content-Type": ["application/json"]}, _TOO_BIG)
+            return
         if _OPERATOR_FAULT_HEADER in self.headers:
             # A fault before EC-Rail keeps its own error: the FaultRule names
             # EC-Rail's.

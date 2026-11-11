@@ -96,7 +96,7 @@ impl Server {
         Self(child)
     }
 
-    /// `command` spawned, once `serving` holds; it must within 10 s.
+    /// `command` spawned, once `serving` holds; it must hold within 10 s.
     pub fn serve(command: Command, serving: impl FnMut() -> bool) -> Self {
         let server = Self::spawn(command);
         poll(serving, "the server never served");

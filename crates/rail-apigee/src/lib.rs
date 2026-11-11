@@ -30,12 +30,10 @@ use tokio::sync::oneshot;
 use tokio_stream::wrappers::TcpListenerStream;
 use tonic_health::pb::health_server::HealthServer;
 
-pub use crate::callout::{Callout, build_answer, read_path};
+use crate::callout::SEND_HEADROOM_BYTES;
+pub use crate::callout::{Callout, MAX_ANSWERED_BYTES, build_answer, read_path};
 pub use crate::config::Config;
 pub use crate::health::{READY, Readiness, Statuses};
-
-// The answer echoes the content, plus our flow variables and removals: a few hundred bytes.
-const SEND_HEADROOM_BYTES: usize = 1024;
 
 /// The binary: serves, or with `probe [--ready]`, asks the server on the port configured.
 pub async fn run() -> ExitCode {

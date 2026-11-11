@@ -1,11 +1,17 @@
-"""Checks rail-apigee on its own, then through the stand-in for an Apigee proxy running apiproxy/.
+"""Checks rail-apigee on its own, then through the stand-in for an Apigee proxy running apiproxy/;
+or, with E2E_TARGET=live (live/session.sh test), through real Apigee, followed by what Apigee is
+seen to do where the stand-in can't say.
 
 Assertions read WireMock's request journals, not logs: a log says what rail-apigee believes it
 did, a journal says it happened. "live §9" is what the Python gateway's runs on real Apigee found.
 """
 
+import base64
+import gzip
 import http.client
 import json
+import os
+import ssl
 import time
 import urllib.error
 import urllib.parse
@@ -16,14 +22,17 @@ from external_callout_pb2 import MessageContext, Request, Strings
 from external_callout_pb2_grpc import ExternalCalloutServiceStub
 from grpc_health.v1 import health_pb2, health_pb2_grpc
 
-_UPSTREAM = "http://upstream:8080"
-_RAIL_CENTER = "http://rail-center:8080"
+_LIVE = os.environ.get("E2E_TARGET", "local") == "live"
+_UPSTREAM = os.environ.get("E2E_UPSTREAM", "http://upstream:8080")
+_RAIL_CENTER = os.environ.get("E2E_RAIL_CENTER", "http://rail-center:8080")
 _CALLOUT = "callout:8080"
 _UNREACHABLE = "callout-unreachable:9100"
-_ENFORCE = "http://apigee:8080/mcp"
-_NO_CALLOUT = "http://apigee:8080/no-callout"
+_ENFORCE = os.environ.get("E2E_ENFORCE_URL", "http://apigee:8080/mcp")
+_NO_CALLOUT = os.environ.get("E2E_NO_CALLOUT_URL", "http://apigee:8080/no-callout")
 _READY = "datrail.gateway.Ready"
 _TIMEOUT_SECONDS = 15
+# http.client sends a body in one call, which the timeout bounds whole.
+_UPLOAD_TIMEOUT_SECONDS = 300
 
 # Unsigned base64url JSON, expiring in 2100, in the nested shape Rail Center stores; its skill is
 # the full key Rail Center mints, `<slug>#<path>#<method>#<call>`.
@@ -41,6 +50,8 @@ _AGENT = {"Authorization": "Bearer e2e-agent"}
 _REFUSED = '{"error": "denied by policy"}'
 _CALLOUT_FAILED = '{"error": "policy ruleset cannot be applied"}'
 _OPERATOR_FAULT = '{"error": "e2e operator fault"}'
+# Apigee's own fault for a body past its limit.
+_TOO_BIG = "protocol.http.TooBigBody"
 _MCP_HEADERS = {
     "Accept": "application/json, text/event-stream",
     "Content-Type": "application/json",
@@ -56,6 +67,16 @@ _INITIALIZE = {
     },
 }
 _CALL = {"jsonrpc": "2.0", "id": 9, "method": "tools/call", "params": {"name": "track_package"}}
+
+# The live load balancer's certificate is self-signed; the stubs' are publicly trusted.
+_TLS = ssl.create_default_context()
+if os.environ.get("E2E_CA_FILE"):
+    _TLS.load_verify_locations(os.environ["E2E_CA_FILE"])
+# The live stubs lock /__admin with basic auth.
+_ADMIN_HEADERS = {}
+if os.environ.get("E2E_STUB_ADMIN_PASSWORD"):
+    _credential = base64.b64encode(f"e2e:{os.environ['E2E_STUB_ADMIN_PASSWORD']}".encode())
+    _ADMIN_HEADERS["Authorization"] = f"Basic {_credential.decode()}"
 
 _fails = 0
 # Set by any sweep: each reset sweeps first, so the last check covers the whole run.
@@ -79,6 +100,11 @@ def _expect(what, want, got):
         _report_fail(f"{what}: wanted {want}, got {'<empty>' if got is None else got}")
 
 
+# What Apigee was seen to do, which no assertion holds it to yet.
+def _report_seen(what, seen):
+    print(f"  seen  {what}: {seen}")
+
+
 def _start_block(title):
     print(f"\n== {title} ==")
 
@@ -91,12 +117,12 @@ def _send_json(method, url, body=None, headers=None):
         method=method,
         headers={"Content-Type": "application/json", **(headers or {})},
     )
-    return urllib.request.urlopen(request, timeout=_TIMEOUT_SECONDS)
+    return urllib.request.urlopen(request, timeout=_TIMEOUT_SECONDS, context=_TLS)
 
 
 # Raises on failure: a reset that silently failed would leave the last block's traffic behind.
 def _ask_admin(method, base, path, body=None):
-    with _send_json(method, base + path, body) as response:
+    with _send_json(method, base + path, body, _ADMIN_HEADERS) as response:
         text = response.read().decode()
     return json.loads(text) if text else None
 
@@ -212,15 +238,32 @@ def _sweep_unmatched():
 
 def _reset_journals():
     _sweep_unmatched()
+    _clear_journals()
+
+
+# Without the sweep: what's only seen can't fail the run.
+def _clear_journals():
     _ask_admin("DELETE", _UPSTREAM, "/__admin/requests")
     _ask_admin("DELETE", _RAIL_CENTER, "/__admin/requests")
 
 
-def _send_raw_post(url, body, headers):
+def _read_last_received_body():
+    """The body of the newest request the upstream logged, as bytes, or None."""
+    try:
+        requests = _ask_admin("GET", _UPSTREAM, "/__admin/requests")["requests"]
+        return base64.b64decode(requests[0]["request"]["bodyAsBase64"])
+    except (OSError, ValueError, KeyError, IndexError):
+        return None
+
+
+def _send_raw_post(url, body, headers, timeout=_TIMEOUT_SECONDS):
     """The status and body of a POST of `body` (bytes) with `headers`, a list of (name, value)
     pairs, so a header can repeat; (None, "") if nothing answered."""
     parts = urllib.parse.urlsplit(url)
-    connection = http.client.HTTPConnection(parts.netloc, timeout=_TIMEOUT_SECONDS)
+    if parts.scheme == "https":
+        connection = http.client.HTTPSConnection(parts.netloc, timeout=timeout, context=_TLS)
+    else:
+        connection = http.client.HTTPConnection(parts.netloc, timeout=timeout)
     try:
         connection.putrequest("POST", parts.path + (f"?{parts.query}" if parts.query else ""))
         for name, value in [*_MCP_HEADERS.items(), *headers]:
@@ -333,6 +376,15 @@ def _run_callout_cases():
     _expect("a policy it can't apply is refused", "refuse", broken.get("rail.decision"))
     _expect("with 503", "503", broken.get("rail.status"))
     _expect("and the refusal's body", _CALLOUT_FAILED, broken.get("rail.body"))
+    # Through Apigee, its answer failing there would look the same: only asked directly can
+    # the refusal be told apart.
+    large = _process(_CALLOUT, "POST", "x" * 5 * 1024 * 1024, ticket=_GOOD_TICKET)
+    _expect(
+        "a request whose answer Apigee couldn't take is refused",
+        "refuse",
+        large.get("rail.decision"),
+    )
+    _expect("with 503", "503", large.get("rail.status"))
 
     _start_block("unreachable: serves on the port it was given, and isn't ready")
     _expect("liveness on 9100", "SERVING", _check_health(_UNREACHABLE))
@@ -453,8 +505,8 @@ def _run_apigee_cases():
     _expect("nothing reached the upstream", 0, _count_upstream_requests())
 
     # live §9 #8: Apigee takes a callout answer of at most 4 MiB, and the answer echoes the body,
-    # so a larger call fails as if rail-apigee were down.
-    _start_block("enforce: a 3.5 MiB call is forwarded, a 5 MiB one fails closed")
+    # so rail-apigee refuses a larger call; Apigee answers one past 10 MB itself.
+    _start_block("enforce: a 3.5 MiB call is forwarded, a 5 MiB one refused, an 11 MiB one too big")
     _reset_journals()
     code, body = _call_tool(_ENFORCE, "track_package", {"pad": "x" * 7 * 512 * 1024}, good)
     if code == 200 and '"text":"delivered"' in body:
@@ -464,7 +516,15 @@ def _run_apigee_cases():
     _reset_journals()
     code, body = _call_tool(_ENFORCE, "track_package", {"pad": "x" * 5 * 1024 * 1024}, good)
     _expect("the 5 MiB call is answered 503", 503, code)
-    _expect("with RF-CalloutFailed's body", _CALLOUT_FAILED, body)
+    _expect("with the refusal's body", _CALLOUT_FAILED, body)
+    _expect("nothing reached the upstream", 0, _count_upstream_requests())
+    _reset_journals()
+    arguments = {"pad": "x" * 11 * 1024 * 1024}
+    payload = {**_CALL, "params": {"name": "track_package", "arguments": arguments}}
+    body = json.dumps(payload).encode()
+    code, body = _send_raw_post(_ENFORCE, body, list(good.items()), _UPLOAD_TIMEOUT_SECONDS)
+    _expect("the 11 MiB call is answered 413", 413, code)
+    _expect("by Apigee, as too big", True, _TOO_BIG in body)
     _expect("nothing reached the upstream", 0, _count_upstream_requests())
 
     # RF-Refuse answers rail.status: a policy that can't be applied, 503.
@@ -501,15 +561,66 @@ def _run_apigee_cases():
     _expect("and it alone was reported", 1, _wait_for(_count_denials, 2, tries=8))
 
 
+# Live only: what Apigee hands the callout, which the callout echoes, so the upstream receives
+# what the callout read. Each prints what was seen, for the stand-in and rail-apigee to follow.
+def _run_live_observations():
+    good = [("x-rail", _GOOD_TICKET), *_AGENT.items()]
+
+    _start_block("seen: what Apigee sends the callout for content that isn't UTF-8")
+    _clear_journals()
+    arguments = b'{"note": "a\xffb"}'
+    body = b'{"jsonrpc": "2.0", "id": 9, "method": "tools/call", "params": '
+    body += b'{"name": "track_package", "arguments": ' + arguments + b"}}"
+    code, answer = _send_raw_post(_ENFORCE, body, good)
+    _report_seen("the answer", f"{code} {answer[:200]}")
+    received = _read_last_received_body()
+    marker = b'"note": "'
+    if received is None:
+        _report_seen("the upstream received", "nothing")
+    elif marker not in received:
+        _report_seen("the upstream received, without the note", received[:200])
+    else:
+        # From the note's value on: a, then U+FFFD (ef bf bd), nothing, or ff, then b.
+        note = received[received.index(marker) + len(marker) :][:6]
+        _report_seen("the upstream received the note as", note.hex(" "))
+
+    _start_block("seen: whether Apigee decompresses a body before the callout")
+    _clear_journals()
+    forbidden = json.dumps({**_CALL, "params": {"name": "forbidden_tool"}}).encode()
+    code, answer = _send_raw_post(
+        _ENFORCE, gzip.compress(forbidden), [("Content-Encoding", "gzip"), *good]
+    )
+    _report_seen("the answer", f"{code} {answer[:200]}")
+    # P2 names the tool, so only a decompressed body can match it.
+    named_p2 = _wait_for(lambda: _count_denials_naming(_P2), 1)
+    _report_seen("P2 denied it, so it was decompressed", "yes" if named_p2 else "no")
+
+    # Its answer is just under 4 MiB: forwarded only if Apigee takes the full 4 MiB.
+    _start_block("seen: a call just under rail-apigee's cap")
+    _clear_journals()
+    arguments = {"pad": "x" * (4 * 1024 * 1024 - 8 * 1024)}
+    payload = {**_CALL, "params": {"name": "track_package", "arguments": arguments}}
+    body = json.dumps(payload).encode()
+    code, answer = _send_raw_post(_ENFORCE, body, good, _UPLOAD_TIMEOUT_SECONDS)
+    _report_seen("the answer", f"{code} {answer[:200]}")
+
+
 def main():
     # First: the stand-in's cases reset the journals, and these count a fetch at startup.
-    _run_callout_cases()
+    if not _LIVE:
+        _run_callout_cases()
     _run_apigee_cases()
 
     _start_block("every request found a stub")
     _sweep_unmatched()
     _expect("no unmatched request reached the upstream", 0, _unmatched[_UPSTREAM])
     _expect("no unmatched request reached rail-center", 0, _unmatched[_RAIL_CENTER])
+
+    if _LIVE:
+        try:
+            _run_live_observations()
+        except OSError as error:
+            _report_seen("the observations stopped", error)
 
     print()
     if _fails:

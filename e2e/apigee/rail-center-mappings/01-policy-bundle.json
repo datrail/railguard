@@ -1,5 +1,5 @@
 {
-  "name": "the bundle for gateway-enforce — enforce, fallback pass; P4, which can't be applied, gates broken_tool alone",
+  "name": "the bundle for gateway-enforce — enforce, fallback pass; P4, which can't be applied, is broken_tool's binding, and faces any unbound call past P1–P3",
   "priority": 1,
   "request": {
     "method": "GET",
