@@ -2,7 +2,7 @@
 
 DatRail lets an organisation decide what its AI agents may do with the MCP servers they call. Rail Center, a separate service, keeps the rules, and issues each agent a ticket saying what it knows about that agent. RailGuard enforces those rules on the network: a gateway in front of MCP servers judges each call against the rules, and a proxy beside the agents attaches their tickets to the calls they make.
 
-It's one Rust workspace for both, and for the rules language they share. The language is also built as a Python package, so Rail Center can check a rule with the same code the gateway enforces it with. RailGuard is to replace the Python repos `datrail/gateway` and `datrail/proxy`, one image at a time.
+It's one Rust workspace for both, and for the rules language they share. The language is also built as a Python package, so Rail Center can check a rule with the same code the gateway enforces it with.
 
 ## What's here
 
