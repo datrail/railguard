@@ -36,7 +36,6 @@ jobs:
     permissions: {}
     outputs:
       tag: ${{ steps.resolve.outputs.tag }}
-      version: ${{ steps.resolve.outputs.version }}
       latest: ${{ steps.resolve.outputs.latest }}
     steps:
       # Only vMAJOR.MINOR.PATCH: a manual run would otherwise tag the branch it was launched from.
@@ -50,7 +49,6 @@ jobs:
             exit 1
           fi
           echo "tag=$RAW_REF" >> "$GITHUB_OUTPUT"
-          echo "version=${RAW_REF#v}" >> "$GITHUB_OUTPUT"
           # A prerelease mustn't move `latest`, which asks for the newest stable build.
           if [[ "$RAW_REF" == *-* ]]; then
             echo "latest=false" >> "$GITHUB_OUTPUT"
@@ -118,12 +116,12 @@ jobs:
           file: crates/rail-${{ matrix.host }}/Dockerfile
           platforms: linux/${{ matrix.platform }}
           build-args: |
-            RAIL_VERSION=${{ needs.version.outputs.version }}
+            RAIL_VERSION=${{ needs.version.outputs.tag }}
             RAIL_REVISION=${{ steps.commit.outputs.sha }}
           labels: |
             org.opencontainers.image.title=railguard-${{ matrix.host }}
             org.opencontainers.image.description=${{ matrix.description }}
-            org.opencontainers.image.version=${{ needs.version.outputs.version }}
+            org.opencontainers.image.version=${{ needs.version.outputs.tag }}
             org.opencontainers.image.revision=${{ steps.commit.outputs.sha }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.licenses=Apache-2.0
@@ -190,6 +188,7 @@ jobs:
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
           VERSION: ${{ steps.meta.outputs.version }}
+          TAG: ${{ needs.version.outputs.tag }}
           DESCRIPTION: ${{ matrix.description }}
           SOURCE: https://github.com/${{ github.repository }}
         run: |
@@ -202,7 +201,7 @@ jobs:
           docker buildx imagetools create "${tag_args[@]}" \
             --annotation "index:org.opencontainers.image.source=$SOURCE" \
             --annotation "index:org.opencontainers.image.description=$DESCRIPTION" \
-            --annotation "index:org.opencontainers.image.version=$VERSION" \
+            --annotation "index:org.opencontainers.image.version=$TAG" \
             --annotation "index:org.opencontainers.image.licenses=Apache-2.0" \
             "${platform_images[@]}"
           echo "digest=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{json .Manifest}}' | jq -r .digest)" >> "$GITHUB_OUTPUT"
