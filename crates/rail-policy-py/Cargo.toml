@@ -1,6 +1,8 @@
 [package]
 name = "rail-policy-py"
 edition = "2024"
+license.workspace = true
+publish.workspace = true
 
 [lib]
 name = "_native"

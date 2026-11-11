@@ -33,6 +33,13 @@ jobs:
       - run: make test
       # The generated proto code is committed, so it must be what its .proto gives now.
       - run: make proto
+      # The notices are committed too, so they must be what the dependencies give now.
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: cargo-about@0.9.3
+      # Every platform's sources, since the notices cover arm64 too, and `make notices` is offline.
+      - run: cargo fetch --locked
+      - run: make notices
       # Untracked files too, so a new generated file isn't missed.
       - run: test -z "$(git status --porcelain)" || { git status --porcelain; exit 1; }
 

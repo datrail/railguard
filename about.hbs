@@ -1,0 +1,11 @@
+Third-party software in this image, and the licences it's used under.
+{{#each licenses}}
+
+================================================================================
+{{{name}}}, used by:
+{{#each used_by}}
+- {{crate.name}} {{crate.version}}
+{{/each}}
+
+{{{text}}}
+{{/each}}

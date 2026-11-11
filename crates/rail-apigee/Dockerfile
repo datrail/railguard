@@ -12,7 +12,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     cargo build --release --locked -p rail-apigee && install -D target/release/rail-apigee /out/rail-apigee
 
 FROM gcr.io/distroless/cc-debian13@sha256:e1f5543d45a2cd7c02a5b43dda5f0ff30729b4832113759d01ed39b0b152cddb AS railguard-apigee
-COPY LICENSE /
+COPY LICENSE crates/rail-apigee/THIRD-PARTY-NOTICES /
 # One name for every host's binary, so probes and commands outlive which binary it is.
 COPY --from=build /out/rail-apigee /usr/local/bin/rail
 # Not root: the callout receives every request header, credentials included.

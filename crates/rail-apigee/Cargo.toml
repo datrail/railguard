@@ -1,6 +1,8 @@
 [package]
 name = "rail-apigee"
 edition = "2024"
+license.workspace = true
+publish.workspace = true
 # One test binary, `tests/main.rs`, its modules beside it.
 autotests = false
 

@@ -14,7 +14,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     cargo build --release --locked -p rail-envoy && cp target/release/rail-envoy /out/
 
 FROM gcr.io/distroless/cc-debian13@sha256:e1f5543d45a2cd7c02a5b43dda5f0ff30729b4832113759d01ed39b0b152cddb AS railguard-envoy
-COPY LICENSE /
+COPY LICENSE crates/rail-envoy/THIRD-PARTY-NOTICES /
 # One name for every host's binary, so probes and commands outlive which binary it is.
 COPY --from=build /out/rail-envoy /usr/local/bin/rail
 # Envoy reaches the socket from its own container, as a member of group 10001.
