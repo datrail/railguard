@@ -57,8 +57,8 @@ what's left.
   reaches `upstream`; an operator's own fault keeps its error.
 - **Apigee's ways, as seen live:** a header split on its commas, the query kept out of the endpoint key, the 4 MiB
   answer, and the 413 past 10 MB.
-- **Rail Center as it's called:** the bundle fetched with the service token, and each refusal's denial reported as Rail
-  Center reads it.
+- **Rail Center as it's called:** the bundle fetched with the service token, and each denial reported as Rail Center
+  reads it.
 
 ## Easy to get wrong
 

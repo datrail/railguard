@@ -110,8 +110,7 @@ cases, not its cases of rail-apigee on its own (Cloud Run wants an ID token for 
   `undecodable`; a claimed status with a comma is dropped; a query string stays out of the endpoint key; a body that
   isn't UTF-8 never reaches `upstream` (Apigee replaces its bytes with U+FFFD, so it isn't JSON); a 3.5 MiB call is
   forwarded, a 5 MiB one refused by rail-apigee, whose answer Apigee couldn't take, and an 11 MiB one answered 413 by
-  Apigee itself (rail-apigee's README,
-  ["Run it beside Apigee"](../../../crates/rail-apigee/README.md#run-it-beside-apigee));
+  Apigee itself (rail-apigee's README, ["Caveats"](../../../crates/rail-apigee/README.md#caveats));
 - `no-callout` answers 503 with `RF-CalloutFailed`'s body, and nothing reaches `upstream`;
 - an operator's policy faulting before `EC-Rail` keeps its own error, on both proxies. The policy,
   `../RF-E2E-OperatorFault.xml`, is test only: the session adds it in front of `EC-Rail`, on header

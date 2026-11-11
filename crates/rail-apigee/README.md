@@ -2,7 +2,7 @@
 
 The gateway, for MCP servers behind Apigee. Apigee hands it each request on its way to an MCP server; rail-apigee judges
 the call against Rail Center's rules, using the caller's ticket, and tells Apigee to forward it or to refuse it. It
-reports each refusal to Rail Center, so people can see what was stopped and why. See the [main README](../../README.md)
+reports each denial to Rail Center, so people can see what was stopped and why. See the [main README](../../README.md)
 for the system around it.
 
 ## Architecture
@@ -13,12 +13,13 @@ flowchart LR
   subgraph proxy[Apigee proxy]
     ec[EC-Rail] --> decision{rail.decision}
     decision -->|refuse| refuse[RF-Refuse]
-    decision -->|none, or EC-Rail failed| failed[RF-CalloutFailed, 503]
+        decision -->|none| failed[RF-CalloutFailed, 503]
+    ec -->|failed| failed
   end
   ec <-->|ExternalCallout over gRPC| callout[rail-apigee]
   decision -->|allow| server[MCP server]
   center[Rail Center] -->|policy bundle, signing keys| callout
-  callout -->|refusals| center
+    callout -->|denials| center
 ```
 
 Apigee's ExternalCallout service, over TCP on `RAIL_CALLOUT_PORT`. It judges each `POST` against the policy bundle held,
@@ -27,7 +28,9 @@ every name holding `_` (some upstreams read it as `-`), and the flow variable `r
 `refuse`, plus `rail.status` and `rail.body` for a refusal. The proxy (below) acts on them.
 
 - **Changes only its own.** Nothing else in the context changes: Apigee applies only what the answer's maps hold.
-- **Only a `POST` is judged.** Any other method is allowed: an MCP call is a `POST`.
+- **Session messages aren't judged.** A request other than a `POST` is allowed, and so is a session message
+  (`initialize`, `tools/list`, a notification), since judging it would let a rule bound to one tool close the session.
+  At enforcement `none`, every call is allowed unjudged.
 - **A refusal names no policy.** 403 `{"error": "denied by policy"}` for a call the rules deny, 503
   `{"error": "policy ruleset cannot be applied"}` for one they can't be applied to, so a caller can't map the rules one
   attempt at a time.
@@ -40,9 +43,9 @@ every name holding `_` (some upstreams read it as `-`), and the flow variable `r
 
 It reads every setting, and prints every refusal at once and exits 2, so they're all fixed in one round; a port it can't
 listen on exits 2 too. Then it logs a `setting` line for each one it uses, with its value and whether it came from the
-environment or the default, a secret only as `set`. A value that weakens something is logged as a warning saying what
-(`RAIL_DISABLED=true`, an `http://` Rail Center), and so is a `RAIL_…` variable nothing reads, as a likely typo. It then
-logs `serving the ExternalCallout service`, and starts fetching the bundle and the signing keys.
+environment or the default, a secret only as `set` or `unset`. A value that weakens something is logged as a warning
+saying what (`RAIL_DISABLED=true`, an `http://` Rail Center), and so is a `RAIL_…` variable nothing reads, as a likely
+typo. It starts fetching the bundle and the signing keys, then logs `serving the ExternalCallout service`.
 
 ## When Rail Center is down
 
@@ -51,8 +54,8 @@ logs `serving the ExternalCallout service`, and starts fetching the bundle and t
   error.
 - **The signing keys:** held for at most 900 s after the last good fetch. Past that, a signed ticket reads as a bad
   signature, and the bundle's `ticket_fallback` decides the call.
-- **Refusals:** each is reported without the call waiting, in one attempt. A report that fails, or that would be past 64
-  in flight (16 of them naming no policy), is dropped.
+- **Denials:** each 403 is reported without the call waiting, in one attempt. A report that fails, or that would be past
+  64 in flight (16 of them naming no policy), is dropped.
 
 ## Run it beside Apigee
 
@@ -75,8 +78,7 @@ deployment:
 ## Configuration
 
 Every setting it reads, its own and those both hosts share, is in
-[`CONFIGURATION.md`](../../CONFIGURATION.md#rail-apigee). `RAIL_CENTER_URL` and `RAIL_GATEWAY_SLUG` are required unless
-`RAIL_DISABLED=true`, under which it allows every call it can answer.
+[`CONFIGURATION.md`](../../CONFIGURATION.md#rail-apigee).
 
 ## Health
 
@@ -94,7 +96,8 @@ Center on, its thread then has at most 1 s more to stop.
 
 - **The 4 MiB answer:** Apigee takes a callout's answer of at most 4 MiB, and the answer must echo the body (an empty
   `content` would remove it). So a request past 4 MiB less 1 KiB is refused unjudged, 503, with a warning naming
-  Apigee's message id, whatever `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB` allows (seen live: 3.5 MiB forwarded, 5 MiB refused).
+  Apigee's message id, whatever `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB` allows (seen live: a call just under the cap is
+  forwarded, so Apigee takes an answer up to about 4 MiB).
 - **Apigee's 10 MB request:** Apigee answers a request body past 10 MB itself, 413 `protocol.http.TooBigBody`, before
   the callout (seen live).
 - **Streaming stays off:** it would lift the 10 MB limit, but a streamed request reaches the callout with no content,

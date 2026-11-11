@@ -12,29 +12,25 @@ so Rail Center can check a rule with the same code the gateway enforces it with.
 
 ```mermaid
 flowchart LR
-  agent[Agent] -->|MCP call| proxy
-  subgraph proxy[Envoy]
-    envoy[rail-envoy]
-  end
-  proxy -->|MCP call plus x-rail| gateway
-  subgraph gateway[Apigee]
-    apigee[rail-apigee]
-  end
-  gateway -->|allowed call| server[MCP server]
-  center[Rail Center] -->|ticket| envoy
-  center -->|policy bundle, signing keys| apigee
-  apigee -->|refusals| center
+  agent[Agent] -->|MCP call| envoy[Envoy]
+  envoy <-->|ext_authz or ext_proc| railenvoy[rail-envoy]
+  envoy -->|MCP call plus x-rail| apigee[Apigee]
+  apigee <-->|ExternalCallout| railapigee[rail-apigee]
+  apigee -->|allowed call| server[MCP server]
+  center[Rail Center] -->|ticket| railenvoy
+  center -->|policy bundle, signing keys| railapigee
+  railapigee -->|denials| center
 ```
 
 - **Agent to proxy.** The agent's own calls, which rail-envoy doesn't trust: it removes any `x-rail` header the agent
   set, so an agent can't present a ticket of its own making, and adds this host's ticket for a protected MCP server.
 - **Proxy to gateway.** The call with its ticket in `x-rail`. rail-apigee checks a signed ticket against Rail Center's
   keys; an unsigned one is read as it is, so it's only as good as the path from the proxy.
-- **Gateway to MCP server.** Only a call the rules allow is forwarded, with the `x-rail` headers removed; a refused one
-  gets rail-apigee's answer instead.
-- **Rail Center to both.** Each host fetches what it needs and keeps the last one through an outage: the proxy its
-  ticket, the gateway its bundle and the keys tickets are signed with. The gateway reports each refusal back, so people
-  can see what was stopped and why.
+- **Gateway to MCP server.** A call the rules deny gets rail-apigee's refusal instead; any other is forwarded, with the
+  `x-rail` headers removed.
+- **Rail Center to both.** Each host fetches what it needs and keeps it through an outage: the proxy its ticket while
+  it's valid, the gateway its bundle, and the keys tickets are signed with for 900 s. The gateway reports each denial
+  back, so people can see what was stopped and why.
 
 Each host's README has its own flow: [rail-apigee](crates/rail-apigee/README.md#architecture) and
 [rail-envoy](crates/rail-envoy/README.md#architecture).
@@ -61,7 +57,7 @@ Each host's README has its own flow: [rail-apigee](crates/rail-apigee/README.md#
 make lint      # rustfmt and clippy
 make test      # the Rust tests
 make test-py   # builds the datrail-policy wheel and runs its tests; needs uv
-make check     # all three, plus the Python lint, as CI runs them
+make check     # all three, plus the Python lint
 make fmt-md    # formats the markdown with Prettier; make lint-md checks it; needs npx
 ```
 

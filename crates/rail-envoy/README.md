@@ -43,9 +43,9 @@ has an `_`.
 It reads every setting, and prints every refusal at once and exits 2, so they're all fixed in one round; a socket it
 can't listen on exits 2 too. A socket left by an earlier run is replaced, and anything else at the path refused; the
 socket is made `0660`, since Envoy runs in its group as another user. Then it logs a `setting` line for each setting it
-uses, with its value and whether it came from the environment or the default, a secret only as `set`. A value that
-weakens something is logged as a warning saying what (`RAIL_DISABLED=true`, an `http://` Rail Center), and so is a
-`RAIL_…` variable nothing reads, as a likely typo. It then logs `serving Envoy`, and starts fetching the ticket.
+uses, with its value and whether it came from the environment or the default, a secret only as `set` or `unset`. A value
+that weakens something is logged as a warning saying what (`RAIL_DISABLED=true`, an `http://` Rail Center), and so is a
+`RAIL_…` variable nothing reads, as a likely typo. It starts fetching the ticket, then logs `serving Envoy`.
 
 ## When Rail Center is down
 
@@ -82,11 +82,7 @@ Envoy's configuration is the customer's, so we can only recommend it. rail-envoy
 ## Configuration
 
 Every setting it reads, its own and those both hosts share, is in
-[`CONFIGURATION.md`](../../CONFIGURATION.md#rail-envoy). `RAIL_PROXY_PROTECTED_HOSTS` lists the protected hosts; it,
-`RAIL_CENTER_URL`, `RAIL_HOST_ID` and `RAIL_SANDBOX_NAME` are required unless `RAIL_DISABLED=true`.
-
-At `RAIL_LOG_LEVEL=debug` it logs each request's decision: the host, and for a protected one the header set (`x-rail`,
-or `x-rail-status` with its reason), the route and where it connects; and the headers removed. Never the ticket.
+[`CONFIGURATION.md`](../../CONFIGURATION.md#rail-envoy).
 
 ## Health
 

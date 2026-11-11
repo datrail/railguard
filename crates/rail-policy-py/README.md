@@ -14,8 +14,8 @@ wheel, for CPython 3.12 or later.
 - **`compile_bundle`** and **`judge_sample`** judge a sample call against a bundle and trace the policies evaluated;
 - **`read_ticket`** reads an `x-rail` value into the claims `judge_sample` takes.
 
-Each returns a frozen dataclass with a tag field (`kind`, `decision`, `verdict`), and fields that don't apply are
-`None`.
+Each result but the compiled bundle is a frozen dataclass with a tag field (`kind`, `decision`, `verdict`), and fields
+that don't apply are `None`.
 
 ## Install
 

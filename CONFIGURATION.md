@@ -71,7 +71,8 @@ The level of the hosts' own log lines, on stderr.
 - **Accepted:** `error`, `warn`, `info`, `debug` or `trace`, in any case.
 - **Read by:** both hosts.
 - The libraries' lines stay at `warn`: below it they log the wire itself, reqwest's and rustls' included. At `debug`,
-  `rail-envoy` logs each request's decision, never the ticket.
+  `rail-envoy` logs each request's decision: the host, and for a protected one the header set (`x-rail`, or
+  `x-rail-status` with its reason), the route and where it connects; and the headers removed. Never the ticket.
 
 ## rail-apigee
 
@@ -88,7 +89,8 @@ The TCP port the callout and its health checks are served on.
 The largest request read from Apigee, in MiB.
 
 - **Default:** `16`, above Apigee's 10 MB request limit.
-- **Accepted:** `1` to `100`, a whole number of MiB.
+- **Accepted:** `1` to `100`, a whole number of MiB; the maximum is high enough that no limit a deployment already sets
+  is refused.
 - **Read by:** `rail-apigee`.
 - **Past 4 MiB less 1 KiB, a request is refused unjudged** (503, with a warning logged), whatever this allows: Apigee
   takes a callout's answer of at most 4 MiB, and the answer echoes the body. An answer may be up to 1 KiB larger than
@@ -108,7 +110,7 @@ Which gateway this is in Rail Center, and so whose policy bundle it fetches.
 How often the bundle held is fetched again.
 
 - **Default:** `60`, so a rule changed in Rail Center reaches every gateway within about a minute.
-- **Accepted:** `5` to `86400`, whole seconds.
+- **Accepted:** `5` to `86400`, whole seconds: a bundle polled less often than daily is surely a mistake.
 - **Read by:** `rail-apigee`.
 - Each wait is scaled by 0.8 to 1.2, so a fleet doesn't poll in step. After a failure, the next attempt comes in 5 s,
   doubling to at most 320 s or the interval, whichever is less. The 5 s floor isn't a setting: a lower one would let a
@@ -158,7 +160,7 @@ The one sandbox this proxy serves, for the ticket fetch.
 The longest a valid ticket goes without being fetched again.
 
 - **Default:** `3600`.
-- **Accepted:** `5` to `86400`, whole seconds.
+- **Accepted:** `5` to `86400`, whole seconds: a ticket lives no longer than a day.
 - **Read by:** `rail-envoy`.
 - A ticket is fetched again at half its remaining life when that comes sooner, so a short one is replaced before it
   lapses. The waits are scaled and backed off as the bundle's are (`RAIL_GATEWAY_BUNDLE_REFRESH_SECONDS`).
