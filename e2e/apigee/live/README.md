@@ -16,6 +16,19 @@ Two Terraform roots:
 | `apigee-org`     | the Apigee organisation, its instance, their KMS keys                                                                                                                                                                                                      | applied once per project, never destroyed         | nothing without an environment, apart from the keys (about $0.06 a month each) |
 | `apigee-session` | the environment and its group, the TargetServers, the two proxies from `../apiproxy/`, the load balancer in front of Apigee and its VPC, the image registry, the service accounts, and on Cloud Run rail-apigee and the `rail-center` and `upstream` stubs | one session: `session.sh up` to `session.sh down` | a Base environment, about $0.50 an hour, and the load balancer                 |
 
+## Architecture
+
+```mermaid
+flowchart LR
+  driver[driver.py, on your machine] -->|HTTPS| lb[load balancer]
+  lb --> apigee[Apigee X: mcp and no-callout]
+  apigee <-->|ExternalCallout, with an ID token| callout[callout: rail-apigee on Cloud Run]
+  apigee -->|allowed calls| upstream[upstream stub on Cloud Run]
+  callout -->|bundle, keys, denials| center[rail-center stub on Cloud Run]
+  driver -.->|journals| upstream
+  driver -.->|journals| center
+```
+
 ## The proxy bundle
 
 `../apiproxy/` is the proxy both harnesses run: `apigee-session` imports it twice, and the
@@ -97,7 +110,8 @@ cases, not its cases of rail-apigee on its own (Cloud Run wants an ID token for 
   `undecodable`; a claimed status with a comma is dropped; a query string stays out of the endpoint key; a body that
   isn't UTF-8 never reaches `upstream` (Apigee replaces its bytes with U+FFFD, so it isn't JSON); a 3.5 MiB call is
   forwarded, a 5 MiB one refused by rail-apigee, whose answer Apigee couldn't take, and an 11 MiB one answered 413 by
-  Apigee itself (rail-apigee's README, "The Apigee proxy");
+  Apigee itself (rail-apigee's README,
+  ["Run it beside Apigee"](../../../crates/rail-apigee/README.md#run-it-beside-apigee));
 - `no-callout` answers 503 with `RF-CalloutFailed`'s body, and nothing reaches `upstream`;
 - an operator's policy faulting before `EC-Rail` keeps its own error, on both proxies. The policy,
   `../RF-E2E-OperatorFault.xml`, is test only: the session adds it in front of `EC-Rail`, on header
@@ -146,3 +160,25 @@ specification, so a change to one needs a live run.
   from `terraform output -raw lb_cert` (`curl --cacert`).
 - **Exposed during a session:** the proxies and the stubs, open to anyone. They serve fake bundles and fake MCP answers,
   and no real credential is used past Apigee. Nothing is left once `down` has run.
+
+## What it proves that the stand-in cannot
+
+- **The stand-in is right:** the apigee stack's Apigee cases pass against real Apigee X, so the stand-in's rules hold.
+- **What Apigee's docs don't say:** the `seen` lines, such as how Apigee hands the callout content that isn't UTF-8 or
+  is compressed.
+- **rail-apigee on Cloud Run,** behind Cloud Run's IAM check, called with Apigee's ID token, its readiness read by Cloud
+  Run's probes.
+
+## Easy to get wrong
+
+- **Both `gcloud` logins must be current:** `gcloud auth login`, for `session.sh`, and
+  `gcloud auth application-default login`, for Terraform.
+- **The session's state is local:** `apigee-session/terraform.tfstate` and `terraform.tfvars` are what `down` destroys
+  from, so they're kept until it has run.
+- **A changed Apigee case runs here first,** then on the stand-in (above).
+
+## Not covered here
+
+- **rail-apigee on its own:** the apigee stack's callout cases aren't run, since Cloud Run wants an ID token for them.
+- **Signed tickets:** no case sends one.
+- **A production setup:** see [rail-apigee's README](../../../crates/rail-apigee/README.md).
