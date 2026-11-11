@@ -1,4 +1,4 @@
-# Printed after terraform apply. The other roots find the org and instance by
+# Printed after terraform apply. The other root finds the org and instance by
 # name (data "google_apigee_instance"), not through these.
 
 output "org_id" {

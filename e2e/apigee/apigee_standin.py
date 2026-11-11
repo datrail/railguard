@@ -1,11 +1,11 @@
 """A stand-in for an Apigee proxy running apiproxy/, for the e2e stack.
 
-A model, not Apigee: it does what the bundle, Apigee's docs and runs on
-real Apigee (live/, "seen live") say Apigee does, and nothing else. Each rule says where it comes from. Settings, from the
-environment:
+A model, not Apigee: it does what the bundle, Apigee's docs and runs on real Apigee (live/,
+"seen live") say Apigee does, and nothing else. Each rule says where it comes from. Settings,
+from the environment:
 
 - APIGEE_PROXIES: `<base path>=<callout host:port>`, comma-separated;
-- APIGEE_TARGET_URL: where an allowed request goes, the base path replaced;
+- APIGEE_TARGET_URL: where an allowed request goes, over http://, the base path replaced;
 - APIGEE_TIMEOUT_MS: EC-Rail's TimeoutMs;
 - APIGEE_BUNDLE: the `apiproxy/` folder;
 - APIGEE_OPERATOR_FAULT: the test-only policy faulting before EC-Rail.
@@ -30,16 +30,12 @@ _STATUS = "rail.status"
 _BODY = "rail.body"
 _REFUSE = "refuse"
 
-_PROXIES = dict(
-    entry.split("=", 1) for entry in os.environ["APIGEE_PROXIES"].split(",")
-)
+_PROXIES = dict(entry.split("=", 1) for entry in os.environ["APIGEE_PROXIES"].split(","))
 _TARGET = urllib.parse.urlsplit(os.environ["APIGEE_TARGET_URL"])
-_TIMEOUT_SECONDS = int(os.environ.get("APIGEE_TIMEOUT_MS", "5000")) / 1000
+_TIMEOUT_SECONDS = int(os.environ["APIGEE_TIMEOUT_MS"]) / 1000
 # The bundle's own 503, so the two can't drift.
 _CALLOUT_FAILED = (
-    ET.parse(
-        os.path.join(os.environ["APIGEE_BUNDLE"], "policies", "RF-CalloutFailed.xml")
-    )
+    ET.parse(os.path.join(os.environ["APIGEE_BUNDLE"], "policies", "RF-CalloutFailed.xml"))
     .getroot()
     .findtext("FaultResponse/Set/Payload")
     .encode()
@@ -67,9 +63,8 @@ def _find_proxy(path):
 
 
 def _split_headers(lines):
-    """Each header's items, by name as first received, as the callout sees them.
-    Apigee splits values on commas (seen live), and a repeated
-    line adds items."""
+    """Each header's items, by name as first received, as the callout sees them. Apigee splits
+    values on commas (seen live), and a repeated line adds items."""
     headers = {}
     for name, value in lines:
         key = next((k for k in headers if k.lower() == name.lower()), name)
@@ -78,8 +73,8 @@ def _split_headers(lines):
 
 
 def _call_callout(callout, verb, uri, headers, body):
-    """The callout's answer, or None for any failure: unreachable, timed out,
-    a gRPC error, or an answer over gRPC's 4 MiB default (seen live)."""
+    """The callout's answer, or None for any failure: unreachable, timed out, a gRPC error, or
+    an answer over gRPC's 4 MiB default (seen live)."""
     context = MessageContext(
         request=Request(
             verb=verb,
@@ -99,9 +94,9 @@ def _call_callout(callout, verb, uri, headers, body):
 
 
 def _apply_answer(lines, answer):
-    """The header lines after the answer. One not returned is left as received
-    (live: `accept` arrives whole); an empty list removes it (docs); each item
-    of any other is written back as a line of its own (live, step 17)."""
+    """The header lines after the answer. One not returned is left as received (seen live:
+    `accept` arrives whole); an empty list removes it (docs); each item of any other is written
+    back as a line of its own (seen live)."""
     for name, values in answer.request.headers.items():
         lines = [line for line in lines if line[0].lower() != name.lower()]
         lines += [(name, item) for item in values.strings]
@@ -111,13 +106,7 @@ def _apply_answer(lines, answer):
 class _Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
-    def do_GET(self):
-        self._handle()
-
     def do_POST(self):
-        self._handle()
-
-    def do_DELETE(self):
         self._handle()
 
     def _handle(self):
@@ -147,9 +136,7 @@ class _Handler(BaseHTTPRequestHandler):
         ]
 
         # EC-Rail: `uri` is the path with the query, as sent (seen live).
-        answer = _call_callout(
-            callout, self.command, self.path, _split_headers(lines), body
-        )
+        answer = _call_callout(callout, self.command, self.path, _split_headers(lines), body)
         flow = answer.additional_flow_variables if answer is not None else {}
         # EC-Rail's FaultRule, and the step on no decision: both fail closed.
         if _DECISION not in flow:
@@ -174,10 +161,7 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _forward(self, suffix, query, lines, body):
         """Send the request to the target, and its answer back as received."""
-        if _TARGET.scheme == "https":
-            connection = http.client.HTTPSConnection(_TARGET.netloc, timeout=60)
-        else:
-            connection = http.client.HTTPConnection(_TARGET.netloc, timeout=60)
+        connection = http.client.HTTPConnection(_TARGET.netloc, timeout=60)
         try:
             connection.putrequest(
                 self.command, _TARGET.path + suffix + (f"?{query}" if query else "")

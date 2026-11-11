@@ -1,12 +1,13 @@
-# Two proxies from the bundle in ../../apiproxy, the stand-in's: enforce, with the callout, and
-# no-callout, whose callout is unreachable. Each is zipped, imported as a
-# revision and deployed to the environment as the proxy's service account.
+# Two proxies from the bundle in ../../apiproxy, the stand-in's: mcp, with the
+# callout, and no-callout, whose callout is unreachable. Each is zipped,
+# imported as a revision and deployed to the environment as the proxy's
+# service account.
 
 locals {
   bundle_dir = "${path.module}/../../apiproxy"
 
   proxies = {
-    enforce = {
+    mcp = {
       base_path      = "/mcp"
       callout_server = google_apigee_target_server.callout["callout"].name
     }

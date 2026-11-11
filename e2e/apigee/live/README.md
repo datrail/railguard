@@ -6,9 +6,6 @@ wrote from Apigee's docs and from what earlier live runs saw; only real
 Apigee can show the stand-in is right, and answer what its docs don't say.
 A session costs money while it's up, so it's run by hand, never in CI.
 
-Runs the apigee stack's driver against real Apigee X, with rail-apigee as
-the callout, by hand; never in CI.
-
 **A test harness, not a deployment template.** It takes shortcuts a
 production setup shouldn't: open stubs and proxies, a self-signed
 certificate, fake credentials. For running rail-apigee, see
@@ -68,7 +65,7 @@ environment exists in the organisation.
 paid organisation is a soft delete lasting many days, and no new one can be
 created in the project until it ends. Creating the instance again then takes
 about 24 minutes more. Kept, they cost nothing: Apigee bills environments,
-which `apigee-session` creates and destroys.  So the root never deletes them:
+which `apigee-session` creates and destroys. So the root never deletes them:
 `deletion_policy = "ABANDON"` makes `terraform destroy` only drop them from the
 state, and the KMS keys they depend on have `prevent_destroy`.
 
@@ -96,11 +93,11 @@ cd ..
   for linux/amd64 (8 with the build cached). `up` again on a running
   session redeploys what changed (rail-apigee, a stub, the bundle) in about
   3 minutes, so a fix can be tried in the same session.
-- **`up` waits** until a `GET` through `enforce` gets the upstream stub's 405
+- **`up` waits** until a `GET` through `mcp` gets the upstream stub's 405
   six times in a row, 5 s apart, for up to 10 minutes: just after the first,
   the load balancer still answers some 502s. It then checks the stubs'
-  `/__admin` refuses a call without the password. If the wait times out, it prints the last answer:
-  an Apigee fault there names what is wrong.
+  `/__admin` refuses a call without the password. If the wait times out, it
+  prints the last answer: an Apigee fault there names what is wrong.
 
 ## What the driver checks
 
@@ -109,8 +106,8 @@ cd ..
 password, all as `E2E_*` variables; its exit code is the result. It runs the
 stack's Apigee cases, not its cases of rail-apigee on its own (Cloud Run
 wants an ID token for those):
-- discovery passes; a call with no ticket is refused 403, and the denial
-  names no policy; a good ticket's call is forwarded;
+- a call with no ticket is refused 403, and the denial names no policy; a
+  good ticket's call is forwarded;
 - no `x-rail*` header reaches `upstream`, `accept` arrives whole, and the
   agent's `Authorization` arrives as sent;
 - Apigee's own behaviour, as earlier live runs found it: a ticket
@@ -120,8 +117,7 @@ wants an ID token for those):
   its bytes with U+FFFD, so it isn't JSON); a 3.5 MiB call is
   forwarded, a 5 MiB one refused by rail-apigee, whose answer Apigee
   couldn't take, and an 11 MiB one answered 413 by Apigee itself
-  (rail-apigee's README, Caveats);
-- a policy rail-apigee can't apply answers 503 with `RF-Refuse`;
+  (rail-apigee's README, "The Apigee proxy");
 - `no-callout` answers 503 with `RF-CalloutFailed`'s body, and nothing
   reaches `upstream`;
 - an operator's policy faulting before `EC-Rail` keeps its own error, on
@@ -140,7 +136,6 @@ receives is what Apigee sent it. What they showed:
 - **a call just under rail-apigee's cap:** forwarded, so Apigee takes an
   answer up to about 4 MiB, as the cap assumes.
 
-
 **Adding or changing an Apigee case:** run it here first, then on the
 stand-in. These cases are the stand-in's specification, so a change to one
 needs a live run.
@@ -151,7 +146,7 @@ needs a live run.
 |---|---|
 | agent (the driver) → load balancer | none; HTTPS with a self-signed certificate |
 | Apigee → callout | an ID token from `EC-Rail`, checked by Cloud Run; invokers: the proxy's service account and you |
-| callout → `rail-center` | `Bearer rc_svc_e2e-enforce…`, which picks the stub's bundle; Cloud Run's IAM check is off |
+| callout → `rail-center` | `Bearer rc_svc_e2e…`, which picks the stub's bundle; Cloud Run's IAM check is off |
 | Apigee → `upstream` | the agent's `Authorization`, forwarded as sent; Cloud Run's IAM check is off |
 | driver → each stub's `/__admin` | basic auth, user `e2e`, password `terraform output -raw stub_admin_password` |
 

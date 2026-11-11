@@ -18,8 +18,9 @@ static_resources:
                 # Some upstreams read `_` as `-`, so `x_rail` could pass for `x-rail`.
                 common_http_protocol_options:
                   headers_with_underscores_action: DROP_HEADER
-                # Before the route is picked, which reads `x-rail-upstream`, and before the callout, so
-                # the agent's x-rail headers never cross nor route even when it fails open.
+                # Before the route is picked, which reads `x-rail-upstream`, and before the
+                # callout, so the agent's x-rail headers never cross nor route even when it
+                # fails open.
                 early_header_mutation_extensions:
                   - name: envoy.http.early_header_mutation.header_mutation
                     typed_config:
@@ -68,7 +69,8 @@ static_resources:
                       grpc_service:
                         envoy_grpc: { cluster_name: rail_ext }
                         timeout: 1s
-                      # The extension being down never stops a request; nothing forged crosses, as above.
+                      # The extension being down never stops a request; nothing forged
+                      # crosses, as above.
                       failure_mode_allow: true
                       # The route is picked again from `x-rail-upstream`.
                       clear_route_cache: true
@@ -100,7 +102,8 @@ static_resources:
                   address:
                     pipe: { path: /run/rail/ext.sock }
 
-    # The host in `:authority` over HTTPS, at its port or 443; SNI and the certificate check follow it.
+    # The host in `:authority` over HTTPS, at its port or 443; SNI and the certificate
+    # check follow it.
     - name: rail_tls
       lb_policy: CLUSTER_PROVIDED
       cluster_type:

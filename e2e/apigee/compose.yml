@@ -52,9 +52,16 @@ services:
       RAIL_CENTER_ALLOW_HTTP: "true"
       RAIL_AUTH_MODE: bearer
       # A service token's shape; the stub serves the bundle to it alone.
-      RAIL_AUTH_TOKEN: rc_svc_e2e-enforceAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+      RAIL_AUTH_TOKEN: rc_svc_e2eAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
       RAIL_GATEWAY_SLUG: edge
+      # One fetch per run, so the driver's count of fetches holds.
       RAIL_GATEWAY_BUNDLE_REFRESH_SECONDS: "3600"
+    # Healthy once it holds the bundle, so nothing is sent before it judges.
+    healthcheck:
+      test: ["CMD", "rail", "probe", "--ready"]
+      interval: 1s
+      timeout: 6s
+      retries: 30
     depends_on:
       rail-center: {condition: service_healthy}
 

@@ -12,4 +12,4 @@ Checks rail-apigee as Apigee would use it, without paying for Apigee: first rail
 
 `apiproxy/` is the Apigee proxy rail-apigee's README describes, with its placeholders. `RF-E2E-OperatorFault.xml` is a test-only policy, faulting before the callout, to check an operator's own fault keeps its error.
 
-The apigee stack has no real Apigee: `apigee/apigee_standin.py` models a proxy running `apigee/apiproxy/`, each rule naming its source, and calls rail-apigee as Apigee would. It and the driver run on Python with gRPC (`apigee/python.Dockerfile`), with the ExternalCallout stubs generated from the vendored `.proto` and the packages pinned by hash (`apigee/requirements.txt`).
+`apigee_standin.py`, each of its rules naming its source, and `driver.py` run on Python with gRPC (`python.Dockerfile`): the ExternalCallout stubs generated from the vendored `.proto`, the packages pinned by hash (`requirements.txt`).
