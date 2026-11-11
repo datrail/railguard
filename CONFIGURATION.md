@@ -176,5 +176,4 @@ Each is refused when set, rather than ignored, so a deployment carrying one over
 | `RAIL_GATEWAY_LOG_LEVEL`               | `RAIL_LOG_LEVEL`                                                 | both hosts  |
 | `RAIL_PROXY_LOG_LEVEL`                 | `RAIL_LOG_LEVEL`                                                 | both hosts  |
 | `RAIL_PLUGIN_ENABLED`                  | `RAIL_DISABLED`: Rail Center is used unless it's `true`          | both hosts  |
-| `RAIL_TICKET_MODE`                     | `RAIL_DISABLED`: Rail Center is used unless it's `true`          | both hosts  |
 | `RAIL_PROXY_ALLOW_INSECURE_CREDENTIAL` | `RAIL_CENTER_ALLOW_HTTP`: `true` allows an `http://` Rail Center | both hosts  |
