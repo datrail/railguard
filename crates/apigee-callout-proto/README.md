@@ -5,11 +5,6 @@ ExternalCallout service, `apigee.ExternalCalloutService`, its messages, server a
 definition and kept apart, so `rail-apigee` holds only its own logic and a build needs no code generator. See the
 [main README](../../README.md) for the system around it.
 
-## Who uses it
-
-`rail-apigee` serves it, and its tests call it. The apigee stack's stand-in generates its own Python stubs from the same
-`.proto`.
-
 ## Entry points
 
 One module, `apigee`, not re-exported at the root, so its `Request` and `Response` don't clash with tonic's:

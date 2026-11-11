@@ -9,9 +9,9 @@ enforced. The conformance cases in [`vectors/`](../../vectors) define its behavi
 
 ## Who uses it
 
-- **The gateways,** through `rail-runtime`, to judge each call.
-- **Rail Center and RailDash,** through the Python package [`rail-policy-py`](../rail-policy-py/README.md), to check a
-  rule before it's published and to try one on a sample call.
+Rail Center and RailDash, outside this workspace, are to use it through the Python package
+[`rail-policy-py`](../rail-policy-py/README.md): Rail Center to check each rule before publishing it, and RailDash to
+try a rule on a sample call.
 
 ## Entry points
 

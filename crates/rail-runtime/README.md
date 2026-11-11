@@ -4,11 +4,6 @@ What a running host does around the rules language: it reads the host's settings
 it fetched usable while Rail Center can't be reached. Both hosts, the gateway and the proxy, are built on it, so they
 behave the same. See the [main README](../../README.md) for the system around it.
 
-## Who uses it
-
-`rail-apigee` and `rail-envoy`, each adding only what its own software needs: the gRPC service, its health and its
-shutdown.
-
 ## Entry points
 
 - **Settings:** `Settings` reads typed settings from `Variables`, collecting every refusal so an operator fixes them in

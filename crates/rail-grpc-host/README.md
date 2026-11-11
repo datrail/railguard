@@ -3,10 +3,6 @@
 Both hosts are gRPC servers, and both need to answer health checks and to stop cleanly when told to. This crate does
 that once for both, so they can't differ. See the [main README](../../README.md) for the system around it.
 
-## Who uses it
-
-`rail-apigee`, over TCP, and `rail-envoy`, over a unix socket.
-
 ## Entry points
 
 - **`terminated`** waits for SIGTERM or Ctrl-C;

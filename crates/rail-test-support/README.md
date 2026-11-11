@@ -3,10 +3,6 @@
 Helpers the workspace's tests share, so every crate tests its settings and its binary the same way. A dev-dependency
 only: nothing shipped uses it. See the [main README](../../README.md) for the system around it.
 
-## Who uses it
-
-Every crate's tests that read settings or run a binary: `rail-runtime`'s, and the hosts'.
-
 ## Entry points
 
 - **`read`**, **`read_from`** and **`describe`** read settings as a binary reads them: what's read, what's logged, or
