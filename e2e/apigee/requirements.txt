@@ -1,0 +1,17 @@
+# The stand-in's and the driver's gRPC, as the Python gateway's uv.lock pins it; Linux wheels only.
+grpcio==1.84.0 \
+    --hash=sha256:fbdbcd06986ede3ce584083b1dc2afe6808e8943e5cf50ad11183c03aceda25a \
+    --hash=sha256:b44f0a0fc7bc6677d38cc80bca1a32814ce6c8f200fb8b3c1a61c9d77eaefbf3
+grpcio-health-checking==1.84.0 \
+    --hash=sha256:3eab9b688e5e09bd1d584c296d3440358f11817388db87b807edd61f45b464d1
+grpcio-tools==1.84.0 \
+    --hash=sha256:a83ccb3f47f841d92f04fd35ed1f8b094e2a92c33ae41f26732e970e0361ff14 \
+    --hash=sha256:fc1708de3ba6cc46eff02de1aea865442418167794ca963a2cf6ea2013930146
+protobuf==7.36.2 \
+    --hash=sha256:e11e1f0180583a2af89db6a2ecd9e8dc40aa6d2988ca175bfd0e6d12ea72d74e \
+    --hash=sha256:89f23aa53c24553a2416fd4fd1ec06f74fa42b14b546d8883128813f775bbfd2 \
+    --hash=sha256:bdb3a345d48db958e6ce1f18e508beb0cc981d64f24088427549c866cd039f1e
+setuptools==84.2.1 \
+    --hash=sha256:ca140b45d5325a9478f880e351484f62fef15f336462e449ca0c03c873d589c2
+typing-extensions==4.16.0 \
+    --hash=sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8

@@ -1,0 +1,20 @@
+{
+  "name": "the bundle for gateway-enforce — enforce, fallback pass; P4, which can't be applied, gates broken_tool alone",
+  "priority": 1,
+  "request": {
+    "method": "GET",
+    "urlPath": "/v1/policy-bundle",
+    "headers": {
+      "Authorization": {
+        "equalTo": "Bearer rc_svc_e2e-enforceAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": "{\"schema_version\": \"2.0\", \"content_hash\": \"e2e-v1-enforce-pass\", \"generated_at\": \"2026-01-01T00:00:00Z\", \"policies\": [{\"id\": \"11111111-0000-4000-8000-000000000001\", \"name\": \"P1 \\u2014 Deny critical-tier agents\", \"priority\": 1, \"condition\": {\"path\": \"ticket.posture.overall.score\", \"op\": \"lt\", \"value\": 40}, \"action\": \"block\", \"enabled\": true}, {\"id\": \"11111111-0000-4000-8000-000000000002\", \"name\": \"P2 \\u2014 Deny one endpoint outright\", \"priority\": 2, \"condition\": {\"path\": \"request.endpoint_key\", \"op\": \"eq\", \"value\": \"/mcp#tools/call#forbidden_tool\"}, \"action\": \"block\", \"enabled\": true}, {\"id\": \"11111111-0000-4000-8000-000000000003\", \"name\": \"P3 \\u2014 Deny a call that names no endpoint\", \"priority\": 3, \"condition\": {\"path\": \"request.endpoint_key\", \"op\": \"not_existing\"}, \"action\": \"block\", \"enabled\": true}, {\"id\": \"11111111-0000-4000-8000-000000000004\", \"name\": \"P4 \\u2014 An op no gateway reads\", \"priority\": 4, \"condition\": {\"path\": \"request.endpoint_key\", \"op\": \"e2e_unknown_op\", \"value\": 1}, \"action\": \"block\", \"enabled\": true}], \"bindings\": [{\"endpoint_key\": \"edge#/mcp#tools/call#track_package\", \"mode\": \"gated\", \"policy_ids\": [\"11111111-0000-4000-8000-000000000001\"]}, {\"endpoint_key\": \"edge#/mcp#tools/call#broken_tool\", \"mode\": \"gated\", \"policy_ids\": [\"11111111-0000-4000-8000-000000000004\"]}], \"enforcement\": {\"mode\": \"enforce\"}, \"binding_fallback\": \"pass\", \"ticket_fallback\": \"block\"}"
+  }
+}

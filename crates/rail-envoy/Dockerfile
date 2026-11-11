@@ -1,4 +1,4 @@
-# docker build --target railguard-envoy .
+# docker build -f crates/rail-envoy/Dockerfile .
 # Pinned by digest: a tag is mutable.
 FROM rust:1.99.1-slim-bookworm@sha256:ed2c95ca377d6571b124b05e75e01207973ded639dce7d5542eb7bcd797e32aa AS build
 # The image's own toolchain, the one rust-toolchain.toml names, without its clippy and rustfmt.
