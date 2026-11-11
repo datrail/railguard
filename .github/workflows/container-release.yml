@@ -36,6 +36,7 @@ jobs:
     permissions: {}
     outputs:
       tag: ${{ steps.resolve.outputs.tag }}
+      version: ${{ steps.resolve.outputs.version }}
       latest: ${{ steps.resolve.outputs.latest }}
     steps:
       # Only vMAJOR.MINOR.PATCH: a manual run would otherwise tag the branch it was launched from.
@@ -49,6 +50,7 @@ jobs:
             exit 1
           fi
           echo "tag=$RAW_REF" >> "$GITHUB_OUTPUT"
+          echo "version=${RAW_REF#v}" >> "$GITHUB_OUTPUT"
           # A prerelease mustn't move `latest`, which asks for the newest stable build.
           if [[ "$RAW_REF" == *-* ]]; then
             echo "latest=false" >> "$GITHUB_OUTPUT"
@@ -86,6 +88,10 @@ jobs:
             runner: ubuntu-26.04
           - platform: arm64
             runner: ubuntu-26.04-arm
+          - host: apigee
+            description: RailGuard's gateway, as an Apigee ExternalCallout service
+          - host: envoy
+            description: RailGuard's proxy, as an Envoy ext_authz and ext_proc service
     env:
       IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.host }}
     steps:
@@ -111,9 +117,16 @@ jobs:
           context: .
           file: crates/rail-${{ matrix.host }}/Dockerfile
           platforms: linux/${{ matrix.platform }}
+          build-args: |
+            RAIL_VERSION=${{ needs.version.outputs.version }}
+            RAIL_REVISION=${{ steps.commit.outputs.sha }}
           labels: |
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.title=railguard-${{ matrix.host }}
+            org.opencontainers.image.description=${{ matrix.description }}
+            org.opencontainers.image.version=${{ needs.version.outputs.version }}
             org.opencontainers.image.revision=${{ steps.commit.outputs.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.licenses=Apache-2.0
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
           sbom: true
           # Off: the signed attestation in `publish` replaces buildx's unsigned provenance.
@@ -139,6 +152,11 @@ jobs:
       fail-fast: false
       matrix:
         host: [apigee, envoy]
+        include:
+          - host: apigee
+            description: RailGuard's gateway, as an Apigee ExternalCallout service
+          - host: envoy
+            description: RailGuard's proxy, as an Envoy ext_authz and ext_proc service
     env:
       IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.host }}
     steps:
@@ -172,13 +190,21 @@ jobs:
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
           VERSION: ${{ steps.meta.outputs.version }}
+          DESCRIPTION: ${{ matrix.description }}
+          SOURCE: https://github.com/${{ github.repository }}
         run: |
           set -euo pipefail
           tag_args=()
           while read -r tag; do [[ -n "$tag" ]] && tag_args+=(-t "$tag"); done <<< "$TAGS"
           platform_images=()
           for digest in *; do platform_images+=("$IMAGE@sha256:$digest"); done
-          docker buildx imagetools create "${tag_args[@]}" "${platform_images[@]}"
+          # On the index, where GHCR reads a multi-arch package's source and description.
+          docker buildx imagetools create "${tag_args[@]}" \
+            --annotation "index:org.opencontainers.image.source=$SOURCE" \
+            --annotation "index:org.opencontainers.image.description=$DESCRIPTION" \
+            --annotation "index:org.opencontainers.image.version=$VERSION" \
+            --annotation "index:org.opencontainers.image.licenses=Apache-2.0" \
+            "${platform_images[@]}"
           echo "digest=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{json .Manifest}}' | jq -r .digest)" >> "$GITHUB_OUTPUT"
 
       # Checked with `gh attestation verify oci://<image>:<tag> --owner datrail`. Warns rather than

@@ -63,6 +63,7 @@ pub async fn run() -> ExitCode {
 }
 
 async fn serve(config: Config, startup: &Startup) -> ExitCode {
+    rail_runtime::logging::log_build();
     rail_runtime::logging::log_settings(startup);
     // SIGTERM is how a container is stopped; as PID 1 nothing handles it unless we do.
     let terminate = match signal(SignalKind::terminate()) {
