@@ -198,7 +198,7 @@ fn check_token(token: &str) -> Result<(), String> {
 pub struct CenterUrl(Url);
 
 impl CenterUrl {
-    /// Refuses what the WHATWG parser and Python's `urlsplit` could read differently, so the host
+    /// Refuses what the WHATWG parser and other URL parsers could read differently, so the host
     /// reached is the one an operator reads in the value. Never quotes the value, which may hold
     /// a credential.
     pub fn parse(text: &str) -> Result<Self, String> {

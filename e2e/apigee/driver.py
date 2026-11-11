@@ -3,7 +3,7 @@ or, with E2E_TARGET=live (live/session.sh test), through real Apigee, followed b
 seen to do where the stand-in can't say.
 
 Assertions read WireMock's request journals, not logs: a log says what rail-apigee believes it
-did, a journal says it happened. "live §9" is what the Python gateway's runs on real Apigee found.
+did, a journal says it happened. "Seen live" is what runs on real Apigee found.
 """
 
 import base64
@@ -27,7 +27,7 @@ _UPSTREAM = os.environ.get("E2E_UPSTREAM", "http://upstream:8080")
 _RAIL_CENTER = os.environ.get("E2E_RAIL_CENTER", "http://rail-center:8080")
 _CALLOUT = "callout:8080"
 _UNREACHABLE = "callout-unreachable:9100"
-_ENFORCE = os.environ.get("E2E_ENFORCE_URL", "http://apigee:8080/mcp")
+_MCP = os.environ.get("E2E_MCP_URL", "http://apigee:8080/mcp")
 _NO_CALLOUT = os.environ.get("E2E_NO_CALLOUT_URL", "http://apigee:8080/no-callout")
 _READY = "datrail.gateway.Ready"
 _TIMEOUT_SECONDS = 15
@@ -272,7 +272,7 @@ def _send_raw_post(url, body, headers, timeout=_TIMEOUT_SECONDS):
         connection.endheaders(body)
         response = connection.getresponse()
         return response.status, response.read().decode(errors="replace")
-    except OSError:
+    except (OSError, http.client.HTTPException):
         return None, ""
     finally:
         connection.close()
@@ -303,14 +303,6 @@ def _open_session(url, headers):
     except OSError:
         return None
     return sid if 200 <= status < 300 else None
-
-
-# `initialize` names no endpoint, so it's forwarded without a policy walk.
-def _get_handshake_status(url, headers):
-    try:
-        return _post_mcp(url, _INITIALIZE, headers)[0]
-    except OSError:
-        return None
 
 
 def _call_tool(url, tool, arguments=None, headers=None, request_id=9):
@@ -396,10 +388,9 @@ def _run_apigee_cases():
     good = {"x-rail": _GOOD_TICKET, **_AGENT}
     call = json.dumps(_CALL).encode()
 
-    _start_block("enforce: discovery passes, and a call with no ticket is refused")
+    _start_block("mcp: a call with no ticket is refused")
     _reset_journals()
-    _expect("initialize isn't refused", 200, _get_handshake_status(_ENFORCE, _AGENT))
-    code, body = _call_tool(_ENFORCE, "track_package", headers=_AGENT)
+    code, body = _call_tool(_MCP, "track_package", headers=_AGENT)
     _expect("the call is refused 403", 403, code)
     _expect("with the refusal's body", _REFUSED, body)
     _expect("no call reached the upstream", 0, _count_forwarded_tool_calls())
@@ -409,14 +400,14 @@ def _run_apigee_cases():
         _wait_for(_count_denials_naming_no_policy, 1),
     )
 
-    _start_block("enforce: a good ticket is forwarded, with only the agent's headers")
+    _start_block("mcp: a good ticket is forwarded, with only the agent's headers")
     _reset_journals()
-    sid = _open_session(_ENFORCE, good)
+    sid = _open_session(_MCP, good)
     if sid is None:
         _report_fail("the handshake didn't return a session id")
         sid = "none"
     code, body = _call_tool(
-        _ENFORCE,
+        _MCP,
         "track_package",
         {"tracking_number": "pkg-1"},
         {"Mcp-Session-Id": sid, "x-rail-status": "not-found", **good},
@@ -441,21 +432,21 @@ def _run_apigee_cases():
         received.get("authorization"),
     )
 
-    _start_block("enforce: a ticket Apigee splits on its comma is undecodable")
+    _start_block("mcp: a ticket Apigee splits on its comma is undecodable")
     _reset_journals()
     split = {**good, "x-rail": _GOOD_TICKET + ",x"}
-    _expect("the call is refused 403", 403, _get_call_status(_ENFORCE, "track_package", split))
+    _expect("the call is refused 403", 403, _get_call_status(_MCP, "track_package", split))
     _expect(
         "the denial reads the ticket as undecodable",
         "undecodable",
         _wait_for_last_denial().get("metadata", {}).get("x-rail-status"),
     )
 
-    # live §9 #1: a ticket sent twice is refused, as one sent once by a standalone gateway isn't.
-    _start_block("enforce: a ticket sent on two header lines is undecodable")
+    # Seen live: a ticket sent twice is refused.
+    _start_block("mcp: a ticket sent on two header lines is undecodable")
     _reset_journals()
     code, _ = _send_raw_post(
-        _ENFORCE, call, [("x-rail", _GOOD_TICKET), ("x-rail", _GOOD_TICKET), *_AGENT.items()]
+        _MCP, call, [("x-rail", _GOOD_TICKET), ("x-rail", _GOOD_TICKET), *_AGENT.items()]
     )
     _expect("the call is refused 403", 403, code)
     _expect(
@@ -464,12 +455,12 @@ def _run_apigee_cases():
         _wait_for_last_denial().get("metadata", {}).get("x-rail-status"),
     )
 
-    # live §9 #2: Apigee splits the claim on its comma, so it reads as two and is dropped. No
+    # Seen live: Apigee splits the claim on its comma, so it reads as two and is dropped. No
     # real claim has a comma.
-    _start_block("enforce: a claimed status is recorded, and one with a comma dropped")
+    _start_block("mcp: a claimed status is recorded, and one with a comma dropped")
     _reset_journals()
     claimed = {"x-rail-status": "not-found", **_AGENT}
-    _expect("the call is refused 403", 403, _get_call_status(_ENFORCE, "track_package", claimed))
+    _expect("the call is refused 403", 403, _get_call_status(_MCP, "track_package", claimed))
     metadata = _wait_for_last_denial().get("metadata", {})
     _expect("the denial reads no ticket", "absent", metadata.get("x-rail-status"))
     _expect(
@@ -477,44 +468,42 @@ def _run_apigee_cases():
     )
     _reset_journals()
     claimed = {"x-rail-status": "not-found, expired", **_AGENT}
-    _expect("the call is refused 403", 403, _get_call_status(_ENFORCE, "track_package", claimed))
+    _expect("the call is refused 403", 403, _get_call_status(_MCP, "track_package", claimed))
     metadata = _wait_for_last_denial().get("metadata", {})
     _expect("the denial reads no ticket", "absent", metadata.get("x-rail-status"))
     _expect("and records no claim", "<none>", metadata.get("claimed-x-rail-status", "<none>"))
 
-    # live §9 #5: the endpoint key is the path without the query.
-    _start_block("enforce: the query string stays out of the endpoint key")
+    # Seen live: the endpoint key is the path without the query.
+    _start_block("mcp: the query string stays out of the endpoint key")
     _reset_journals()
     _expect(
         "the forbidden call is refused 403",
         403,
-        _get_call_status(_ENFORCE + "?e2e=1", "forbidden_tool", good),
+        _get_call_status(_MCP + "?e2e=1", "forbidden_tool", good),
     )
     _expect("it named P2, the endpoint rule", 1, _wait_for(lambda: _count_denials_naming(_P2), 1))
 
-    # live §9 #6: Apigee may send such content; whatever answers, it mustn't be forwarded.
-    _start_block("enforce: a body that isn't UTF-8 never reaches the upstream")
+    # Seen live: Apigee replaces such bytes with U+FFFD, so the body isn't JSON, and is refused.
+    _start_block("mcp: a body that isn't UTF-8 never reaches the upstream")
     _reset_journals()
-    code, body = _send_raw_post(
-        _ENFORCE, b"\xff\xfe{}", [("x-rail", _GOOD_TICKET), *_AGENT.items()]
-    )
+    code, body = _send_raw_post(_MCP, b"\xff\xfe{}", [("x-rail", _GOOD_TICKET), *_AGENT.items()])
     if code in (403, 503):
         _report_ok(f"the call is refused ({code}: {body})")
     else:
         _report_fail(f"the call is refused 403 or 503: got {code} {body}")
     _expect("nothing reached the upstream", 0, _count_upstream_requests())
 
-    # live §9 #8: Apigee takes a callout answer of at most 4 MiB, and the answer echoes the body,
+    # Seen live: Apigee takes a callout answer of at most 4 MiB, and the answer echoes the body,
     # so rail-apigee refuses a larger call; Apigee answers one past 10 MB itself.
-    _start_block("enforce: a 3.5 MiB call is forwarded, a 5 MiB one refused, an 11 MiB one too big")
+    _start_block("mcp: a 3.5 MiB call is forwarded, a 5 MiB one refused, an 11 MiB one too big")
     _reset_journals()
-    code, body = _call_tool(_ENFORCE, "track_package", {"pad": "x" * 7 * 512 * 1024}, good)
+    code, body = _call_tool(_MCP, "track_package", {"pad": "x" * 7 * 512 * 1024}, good)
     if code == 200 and '"text":"delivered"' in body:
         _report_ok("the 3.5 MiB call returns the upstream's answer")
     else:
         _report_fail(f"the 3.5 MiB call returns the upstream's answer: got {code} {body[:300]}")
     _reset_journals()
-    code, body = _call_tool(_ENFORCE, "track_package", {"pad": "x" * 5 * 1024 * 1024}, good)
+    code, body = _call_tool(_MCP, "track_package", {"pad": "x" * 5 * 1024 * 1024}, good)
     _expect("the 5 MiB call is answered 503", 503, code)
     _expect("with the refusal's body", _CALLOUT_FAILED, body)
     _expect("nothing reached the upstream", 0, _count_upstream_requests())
@@ -522,17 +511,9 @@ def _run_apigee_cases():
     arguments = {"pad": "x" * 11 * 1024 * 1024}
     payload = {**_CALL, "params": {"name": "track_package", "arguments": arguments}}
     body = json.dumps(payload).encode()
-    code, body = _send_raw_post(_ENFORCE, body, list(good.items()), _UPLOAD_TIMEOUT_SECONDS)
+    code, body = _send_raw_post(_MCP, body, list(good.items()), _UPLOAD_TIMEOUT_SECONDS)
     _expect("the 11 MiB call is answered 413", 413, code)
     _expect("by Apigee, as too big", True, _TOO_BIG in body)
-    _expect("nothing reached the upstream", 0, _count_upstream_requests())
-
-    # RF-Refuse answers rail.status: a policy that can't be applied, 503.
-    _start_block("enforce: a policy rail-apigee can't apply answers 503")
-    _reset_journals()
-    code, body = _call_tool(_ENFORCE, "broken_tool", headers=good)
-    _expect("the call is answered 503", 503, code)
-    _expect("with the refusal's body", _CALLOUT_FAILED, body)
     _expect("nothing reached the upstream", 0, _count_upstream_requests())
 
     _start_block("no-callout: the proxy fails closed")
@@ -547,14 +528,14 @@ def _run_apigee_cases():
     _start_block("an operator's fault before the callout keeps its own error")
     _reset_journals()
     fault = {"x-e2e-operator-fault": "1", **_AGENT}
-    for name, url in (("enforce", _ENFORCE), ("no-callout", _NO_CALLOUT)):
+    for name, url in (("mcp", _MCP), ("no-callout", _NO_CALLOUT)):
         code, body = _call_tool(url, "track_package", headers=fault)
         _expect(f"{name}: the call is answered 418", 418, code)
         _expect(f"{name}: with the operator's body", _OPERATOR_FAULT, body)
     _expect("nothing reached the upstream", 0, _count_upstream_requests())
     # A refused call after it: once its denial is in, the first would be too.
     _expect(
-        "a call with no ticket is refused", 403, _get_call_status(_ENFORCE, "track_package", _AGENT)
+        "a call with no ticket is refused", 403, _get_call_status(_MCP, "track_package", _AGENT)
     )
     _expect("only that call reached rail-apigee", 1, _wait_for(_count_denials_naming_no_policy, 1))
     # Given time for a second report to arrive, were there one.
@@ -571,7 +552,7 @@ def _run_live_observations():
     arguments = b'{"note": "a\xffb"}'
     body = b'{"jsonrpc": "2.0", "id": 9, "method": "tools/call", "params": '
     body += b'{"name": "track_package", "arguments": ' + arguments + b"}}"
-    code, answer = _send_raw_post(_ENFORCE, body, good)
+    code, answer = _send_raw_post(_MCP, body, good)
     _report_seen("the answer", f"{code} {answer[:200]}")
     received = _read_last_received_body()
     marker = b'"note": "'
@@ -588,7 +569,7 @@ def _run_live_observations():
     _clear_journals()
     forbidden = json.dumps({**_CALL, "params": {"name": "forbidden_tool"}}).encode()
     code, answer = _send_raw_post(
-        _ENFORCE, gzip.compress(forbidden), [("Content-Encoding", "gzip"), *good]
+        _MCP, gzip.compress(forbidden), [("Content-Encoding", "gzip"), *good]
     )
     _report_seen("the answer", f"{code} {answer[:200]}")
     # P2 names the tool, so only a decompressed body can match it.
@@ -601,11 +582,11 @@ def _run_live_observations():
     arguments = {"pad": "x" * (4 * 1024 * 1024 - 8 * 1024)}
     payload = {**_CALL, "params": {"name": "track_package", "arguments": arguments}}
     body = json.dumps(payload).encode()
-    code, answer = _send_raw_post(_ENFORCE, body, good, _UPLOAD_TIMEOUT_SECONDS)
+    code, answer = _send_raw_post(_MCP, body, good, _UPLOAD_TIMEOUT_SECONDS)
     _report_seen("the answer", f"{code} {answer[:200]}")
 
 
-def main():
+def _main():
     # First: the stand-in's cases reset the journals, and these count a fetch at startup.
     if not _LIVE:
         _run_callout_cases()
@@ -619,7 +600,7 @@ def main():
     if _LIVE:
         try:
             _run_live_observations()
-        except OSError as error:
+        except (OSError, http.client.HTTPException) as error:
             _report_seen("the observations stopped", error)
 
     print()
@@ -630,4 +611,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    _main()

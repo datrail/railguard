@@ -72,7 +72,7 @@ fn a_port_or_limit_out_of_range_is_refused_and_the_largest_limit_taken() {
 }
 
 #[test]
-fn the_python_gateways_port_is_refused_alongside_the_other_refusals() {
+fn the_retired_port_is_refused_alongside_the_other_refusals() {
     let errors = read(&[("RAIL_DISABLED", "maybe"), ("RAIL_GATEWAY_PORT", "8080")]).unwrap_err();
     assert_eq!(errors.len(), 2, "{errors:?}");
     assert!(
@@ -82,7 +82,7 @@ fn the_python_gateways_port_is_refused_alongside_the_other_refusals() {
 }
 
 #[test]
-fn the_python_gateways_names_are_refused_each_naming_the_new_one() {
+fn the_retired_names_are_refused_each_naming_the_new_one() {
     let cases = [
         (
             "RAIL_GATEWAY_PORT",

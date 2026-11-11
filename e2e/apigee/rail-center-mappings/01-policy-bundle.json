@@ -1,12 +1,12 @@
 {
-  "name": "the bundle for gateway-enforce — enforce, fallback pass; P4, which can't be applied, is broken_tool's binding, and faces any unbound call past P1–P3",
+  "name": "the bundle for edge, to the service token alone — enforce, fallback pass; P4, which can't be applied, is broken_tool's binding, and faces any unbound call past P1–P3",
   "priority": 1,
   "request": {
     "method": "GET",
     "urlPath": "/v1/policy-bundle",
     "headers": {
       "Authorization": {
-        "equalTo": "Bearer rc_svc_e2e-enforceAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        "equalTo": "Bearer rc_svc_e2eAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
       }
     }
   },

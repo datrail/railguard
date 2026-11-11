@@ -46,7 +46,7 @@ struct Expect {
 }
 
 impl Request {
-    // In the Python servicer's table test's order, the names cased otherwise, as a host may send them.
+    // The names cased otherwise, as a host may send them.
     fn into_call(self) -> Call<String> {
         let headers = (self
             .x_rail
@@ -65,7 +65,7 @@ impl Request {
 }
 
 #[tokio::test(start_paused = true)]
-async fn every_case_of_the_python_gateway_answers_and_reports_as_it_does() {
+async fn every_enforcement_case_is_answered_and_reported_as_it_says() {
     let Vectors { cases } = serde_json::from_str(VECTORS).unwrap();
     assert_eq!(cases.len(), 88);
     let mut differing = Vec::new();
@@ -123,7 +123,7 @@ fn start(
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_body_names_what_the_python_gateway_reads_it_to_name() {
+async fn a_body_names_the_endpoint_its_method_and_tool_say() {
     let deep = |depth: usize| {
         let inner = "[".repeat(depth - 3) + &"]".repeat(depth - 3);
         format!(
@@ -145,7 +145,7 @@ async fn a_body_names_what_the_python_gateway_reads_it_to_name() {
             resolved,
         ),
         (r#"{"method": "tools/call", "params": "a\/b"}"#.into(), "unrecognised"),
-        // Keys a string can't hold, which the Python gateway reads past.
+        // Keys a string can't hold, read past.
         (r#"{"\ud800": 0, "method": "tools/call", "params": {"\udfff": 1, "name": "a"}}"#.into(), resolved),
         (r#"{"method": "tools/call", "params": {"name": "a"}} {}"#.into(), "unrecognised"),
         (
@@ -160,7 +160,7 @@ async fn a_body_names_what_the_python_gateway_reads_it_to_name() {
             r#"[{"method": "tools/call", "params": {"name": "a"}}]"#.into(),
             "unrecognised",
         ),
-        // Not UTF-8: Python's `json.loads` can't decode it either.
+        // Not UTF-8.
         (
             b"{\"method\": \"tools/call\", \"params\": {\"name\": \"a\xff\"}}".into(),
             "unrecognised",

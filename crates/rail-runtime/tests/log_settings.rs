@@ -20,7 +20,7 @@ fn the_log_level_is_info_by_default_and_case_folded() {
 }
 
 #[test]
-fn python_level_names_and_per_host_settings_are_refused() {
+fn other_level_names_and_the_retired_per_host_settings_are_refused() {
     for value in ["WARNING", "CRITICAL", "off"] {
         let errors = read(Some(value)).unwrap_err();
         assert_eq!(

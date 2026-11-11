@@ -42,7 +42,7 @@ jobs:
       - run: make lint-py
       - run: make test-py
 
-  # Builds each host's image and runs it behind its real proxy, against stubs.
+  # Builds each host's image and runs it behind Envoy or the Apigee stand-in, against stubs.
   e2e:
     name: e2e (${{ matrix.stack }})
     runs-on: ubuntu-26.04

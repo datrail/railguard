@@ -90,7 +90,7 @@ resource "google_cloud_run_v2_service" "callout" {
       # A service token's shape; the stub serves the bundle to it alone.
       env {
         name  = "RAIL_AUTH_TOKEN"
-        value = "rc_svc_e2e-enforceAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        value = "rc_svc_e2eAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
       }
       # Its most detailed logs, since a session is run to find things out.
       env {

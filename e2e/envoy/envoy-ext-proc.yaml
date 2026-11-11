@@ -18,8 +18,9 @@ static_resources:
                 # Some upstreams read `_` as `-`, so `x_rail` could pass for `x-rail`.
                 common_http_protocol_options:
                   headers_with_underscores_action: DROP_HEADER
-                # Before the route is picked, which reads `x-rail-upstream`, and before the callout, so
-                # the agent's x-rail headers never cross nor route even when it fails open.
+                # Before the route is picked, which reads `x-rail-upstream`, and before the
+                # callout, so the agent's x-rail headers never cross nor route even when it
+                # fails open.
                 early_header_mutation_extensions:
                   - name: envoy.http.early_header_mutation.header_mutation
                     typed_config:
@@ -68,14 +69,16 @@ static_resources:
                         envoy_grpc: { cluster_name: rail_ext }
                       # Past the 200 ms default, which a slow CI runner can miss.
                       message_timeout: 5s
-                      # The extension being down never stops a request; nothing forged crosses, as above.
+                      # The extension being down never stops a request; nothing forged
+                      # crosses, as above.
                       failure_mode_allow: true
-                      # The request's headers only, as the proxy's ext_proc config.
+                      # The request's headers only: rail-envoy reads nothing else.
                       processing_mode:
                         request_header_mode: SEND
                         response_header_mode: SKIP
                         request_body_mode: NONE
-                      # Lets the extension rewrite `:authority`; it asks for the route to be picked again.
+                      # Lets the extension rewrite `:authority`; it asks for the route to be
+                      # picked again.
                       mutation_rules:
                         allow_all_routing: true
                   - name: envoy.filters.http.dynamic_forward_proxy
@@ -103,7 +106,8 @@ static_resources:
                   address:
                     pipe: { path: /run/rail/ext.sock }
 
-    # The host in `:authority` over HTTPS, at its port or 443; SNI and the certificate check follow it.
+    # The host in `:authority` over HTTPS, at its port or 443; SNI and the certificate
+    # check follow it.
     - name: rail_tls
       lb_policy: CLUSTER_PROVIDED
       cluster_type:

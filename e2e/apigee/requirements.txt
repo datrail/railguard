@@ -1,4 +1,4 @@
-# The stand-in's and the driver's gRPC, as the Python gateway's uv.lock pins it; Linux wheels only.
+# The stand-in's and the driver's gRPC; Linux wheels only.
 grpcio==1.84.0 \
     --hash=sha256:fbdbcd06986ede3ce584083b1dc2afe6808e8943e5cf50ad11183c03aceda25a \
     --hash=sha256:b44f0a0fc7bc6677d38cc80bca1a32814ce6c8f200fb8b3c1a61c9d77eaefbf3

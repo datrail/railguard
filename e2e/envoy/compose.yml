@@ -5,7 +5,6 @@ name: railguard-e2e-envoy
 x-wiremock: &wiremock
   # Pinned by digest: a tag is mutable.
   image: wiremock/wiremock:3.9.1@sha256:8fe02bc3f9b63deb1454d41750dbaf081adf4b3e8c74fd8e31f790bee5647b88
-  command: ["--global-response-templating"]
   healthcheck:
     test: ["CMD", "curl", "-sf", "http://localhost:8080/__admin/health"]
     interval: 2s
@@ -85,7 +84,6 @@ services:
   upstream-tls:
     <<: *wiremock
     command:
-      - --global-response-templating
       - --https-port=8443
       - --https-keystore=/certs/upstream-tls.p12
       - --keystore-type=PKCS12
@@ -104,7 +102,6 @@ services:
   upstream-443:
     <<: *wiremock
     command:
-      - --global-response-templating
       - --https-port=443
       - --https-keystore=/certs/upstream-tls.p12
       - --keystore-type=PKCS12
@@ -121,6 +118,8 @@ services:
 
   rail-center:
     <<: *wiremock
+    # Its answers name the host asked for, and expire relative to now.
+    command: ["--global-response-templating"]
     volumes:
       - ./rail-center:/home/wiremock:ro
 

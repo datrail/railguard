@@ -32,7 +32,8 @@ variable "apigee_env_type" {
 }
 
 variable "timeout_ms" {
-  description = "How long the proxy waits for the callout (EC-Rail's TimeoutMs); past rail-apigee's 5 s deadline, so its answer is the one sent."
+  # Past rail-apigee's 5 s deadline, so its answer is the one sent.
+  description = "How long the proxy waits for the callout (EC-Rail's TimeoutMs)."
   type        = number
   default     = 6000
 }

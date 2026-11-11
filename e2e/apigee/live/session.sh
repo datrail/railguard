@@ -4,18 +4,22 @@
 #
 # Usage: ./session.sh up | test | down
 #   up    builds and pushes the callout's and the stubs' images, applies the
-#         root, then waits until a call through the enforce proxy reaches the
+#         root, then waits until a call through the mcp proxy reaches the
 #         upstream stub.
-#   test  runs ../driver.py against the session, in the stand-in's Python image; its exit code
-#         is the result.
-#   down  terraform destroy, then lists the org's environments, which must be [].
+#   test  runs ../driver.py against the session, in the stand-in's Python
+#         image; its exit code is the result.
+#   down  terraform destroy, then lists the org's environments, which must
+#         be [].
 # ../apigee-org must be applied first, once (README.md).
 set -euo pipefail
 live=$(cd "$(dirname "$0")" && pwd)
 e2e=$(cd "$live/.." && pwd)
 repo=$(cd "$e2e/../.." && pwd)
 cd "$live/apigee-session"
-[[ -f terraform.tfvars ]] || { echo "Copy apigee-session/terraform.tfvars.example to terraform.tfvars first." >&2; exit 1; }
+if [[ ! -f terraform.tfvars ]]; then
+  echo "Copy apigee-session/terraform.tfvars.example to terraform.tfvars first." >&2
+  exit 1
+fi
 
 api="https://apigee.googleapis.com/v1"
 get() { curl -fsS -H "Authorization: Bearer $(gcloud auth print-access-token)" "${api}/$1"; }
@@ -46,11 +50,11 @@ build_images() {
 # still answers some 502s after its first good answer, so it must give six in
 # a row.
 await_proxy() {
-  local cert url body streak=0
+  local cert url body streak=0 deadline=$((SECONDS + 600))
   cert=$(mktemp)
   terraform output -raw lb_cert > "$cert"
-  url=$(terraform output -raw enforce_url)
-  for _ in $(seq 120); do
+  url=$(terraform output -raw mcp_url)
+  while ((SECONDS < deadline)); do
     body=$(curl -s --max-time 10 --cacert "$cert" "$url" || true)
     if [[ "$body" == *"stream not offered"* ]]; then
       streak=$((streak + 1))
@@ -64,7 +68,8 @@ await_proxy() {
     sleep 5
   done
   rm -f "$cert"
-  echo "The enforce proxy still doesn't reach the upstream stub after 10 minutes. Last answer:" >&2
+  echo "The mcp proxy still doesn't reach the upstream stub after 10 minutes." >&2
+  echo "Last answer:" >&2
   echo "$body" >&2
   return 1
 }
@@ -99,7 +104,7 @@ case "$action" in
       get "$deployment" | jq -c '{revision, state, proxyDeploymentType, serviceAccount}'
     done
     echo
-    echo "== Waiting for the enforce proxy to reach the upstream stub"
+    echo "== Waiting for the mcp proxy to reach the upstream stub"
     await_proxy
     check_stub_admin
     echo "Session up in $(elapsed "$start")."
@@ -118,7 +123,7 @@ case "$action" in
     docker run --rm \
       -v "$e2e/driver.py:/e2e/driver.py:ro" -v "$cert:/e2e/lb-cert.pem:ro" \
       -e E2E_TARGET=live -e E2E_CA_FILE=/e2e/lb-cert.pem \
-      -e E2E_ENFORCE_URL="$(terraform output -raw enforce_url)" \
+      -e E2E_MCP_URL="$(terraform output -raw mcp_url)" \
       -e E2E_NO_CALLOUT_URL="$(terraform output -raw no_callout_url)" \
       -e E2E_UPSTREAM="$(terraform output -raw upstream_url)" \
       -e E2E_RAIL_CENTER="$(terraform output -raw rail_center_url)" \
@@ -137,7 +142,7 @@ case "$action" in
     fi
     ;;
   *)
-    sed -n '5,10p' "$0" >&2
+    sed -n '5,12p' "$0" >&2
     exit 1
     ;;
 esac

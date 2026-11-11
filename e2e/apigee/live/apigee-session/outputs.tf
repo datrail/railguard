@@ -1,6 +1,6 @@
 # What ../session.sh and the driver read with terraform output.
 
-output "enforce_url" {
+output "mcp_url" {
   value = "https://${google_compute_global_address.lb.address}/mcp"
 }
 

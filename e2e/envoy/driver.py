@@ -41,6 +41,7 @@ _SETTLE_SECONDS = 15
 # (Through, as `envoy` or `envoy:port`, the agent's `Host`, its extension's sandbox, whether it
 # fetches, the status, where it arrives as (journal, scheme, `Host`) or None, the x-rail and `_`
 # headers that arrive)
+# fmt: off
 _CASES = [
     # Straight to the upstream, past every Envoy: the journal shows what a forgery looks like.
     (None, "upstream.test:8080", None, False, 200, (_PLAIN, "http", "upstream.test:8080"), {**_FORGED, **_UNDERSCORED}),
@@ -63,20 +64,16 @@ _CASES = [
     # Protected, and resolves to a server that serves TLS on 8443 (as upstream-tls.test shows) but
     # can't prove the name: the certificate check refuses it, and the server sees no request.
     ("envoy-ext-authz", "misresolved.test:8443", "e2e-sandbox", True, 503, None, None),
-    # The same through ext_proc, which sets the headers in its answer to the request's headers.
+    # Through ext_proc, which sets the headers in its answer to the request's headers; the port
+    # rules above are rail-envoy's own, alike for both callouts.
     ("envoy-ext-proc", "upstream-tls.test:8443", "e2e-sandbox", True, 200, (_TLS, "https", "upstream-tls.test:8443"), _TICKET),
     ("envoy-ext-proc", "upstream-tls.test", "e2e-sandbox", True, 200, (_TLS, "https", "upstream-tls.test:8443"), _TICKET),
-    ("envoy-ext-proc", "upstream-tls.test:9999", "e2e-sandbox", True, 200, (_TLS, "https", "upstream-tls.test:8443"), _TICKET),
-    ("envoy-ext-proc", "upstream-agent-port.test:8443", "e2e-sandbox", True, 200, (_TLS, "https", "upstream-agent-port.test:8443"), _TICKET),
-    ("envoy-ext-proc", "upstream-443.test", "e2e-sandbox", True, 200, (_443, "https", "upstream-443.test"), _TICKET),
     ("envoy-ext-proc", "upstream-plain.test:8080", "e2e-sandbox", True, 200, (_PLAIN, "http", "upstream-plain.test:8080"), _TICKET),
     ("envoy-ext-proc", "upstream.test:8080", "e2e-sandbox", True, 200, (_PLAIN, "http", "upstream.test:8080"), {}),
     ("envoy-ext-proc", "nowhere.test:8443", "e2e-sandbox", True, 503, None, None),
     ("envoy-ext-proc", "misresolved.test:8443", "e2e-sandbox", True, 503, None, None),
     # Both callouts in one chain: ext_proc, second, leaves the request as ext_authz changed it.
     ("envoy-variants", "upstream-tls.test:8443", "e2e-sandbox", True, 200, (_TLS, "https", "upstream-tls.test:8443"), _TICKET),
-    ("envoy-variants", "upstream-tls.test", "e2e-sandbox", True, 200, (_TLS, "https", "upstream-tls.test:8443"), _TICKET),
-    ("envoy-variants", "upstream-agent-port.test:8443", "e2e-sandbox", True, 200, (_TLS, "https", "upstream-agent-port.test:8443"), _TICKET),
     ("envoy-variants", "upstream-plain.test:8080", "e2e-sandbox", True, 200, (_PLAIN, "http", "upstream-plain.test:8080"), _TICKET),
     # ext_authz with `encode_raw_headers`, the headers in `header_map`, and Envoy removing none of
     # the agent's: rail-envoy's answer alone keeps them from crossing.
@@ -100,6 +97,7 @@ _CASES = [
     ("envoy-no-ext-authz", "upstream-tls.test:8443", None, False, 502, None, None),
     ("envoy-no-ext-proc", "upstream-tls.test:8443", None, False, 502, None, None),
 ]
+# fmt: on
 
 # rail-envoy answers a full-duplex body part as any other, not sending it back, so Envoy drops the
 # answer as spurious: the agent gets a 500, and nothing reaches the upstream. Expected to fail so,
@@ -109,7 +107,11 @@ _FULL_DUPLEX_UNSUPPORTED = ("rail-envoy doesn't send a full-duplex body back", 5
 # The body, as the agent's chunks.
 _PARTS = [b'{"jsonrpc":"2.0",', b'"id":1,', b'"method":"tools/list"}']
 # Past 15016's `max_request_bytes` (1024), so ext_authz sees only its start.
-_OVERSIZED_PARTS = [b'{"jsonrpc":"2.0","id":1,', b'"method":"tools/list","params":{"pad":"' + b"x" * 1500, b'"}}']
+_OVERSIZED_PARTS = [
+    b'{"jsonrpc":"2.0","id":1,',
+    b'"method":"tools/list","params":{"pad":"' + b"x" * 1500,
+    b'"}}',
+]
 
 # (What Envoy sends rail-envoy, its listener on envoy-variants, the body's chunks, whether trailers
 # follow the body, why it's expected to fail and the status the agent then gets, or None)
@@ -143,7 +145,9 @@ def _send_through(via, host):
         **_AGENTS_OWN,
     }
     address = host if via is None else via if ":" in via else f"{via}:15001"
-    request = urllib.request.Request(f"http://{address}/mcp", data=_BODY, headers=headers, method="POST")
+    request = urllib.request.Request(
+        f"http://{address}/mcp", data=_BODY, headers=headers, method="POST"
+    )
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
             return response.status, response.read(), marker
@@ -187,11 +191,9 @@ def _find_received(marker):
 
 def _count_fetches(sandbox):
     """How many ticket fetches Rail Center got for this host and `sandbox`."""
-    with urllib.request.urlopen(f"http://{_RAIL_CENTER}/__admin/requests", timeout=10) as response:
-        journal = json.load(response)
     return sum(
         1
-        for entry in journal["requests"]
+        for entry in _read_journal(_RAIL_CENTER)
         if entry["request"]["url"].startswith("/v1/tickets?")
         and entry["request"]["queryParams"].get("host_id", {}).get("values") == [_HOST_ID]
         and entry["request"]["queryParams"].get("sandbox_name", {}).get("values") == [sandbox]
@@ -205,7 +207,9 @@ def _wait_for_fetch(sandbox):
 
 
 def _run_case(via, host, expected_status, arrives, expected_headers):
-    expected = [] if arrives is None else [(arrives, {**expected_headers, **_NEAR_MISS, **_AGENTS_OWN})]
+    expected = (
+        [] if arrives is None else [(arrives, {**expected_headers, **_NEAR_MISS, **_AGENTS_OWN})]
+    )
     deadline = time.monotonic() + _SETTLE_SECONDS
     while True:
         status, body, marker = _send_through(via, host)
@@ -215,6 +219,10 @@ def _run_case(via, host, expected_status, arrives, expected_headers):
         if ok or time.monotonic() > deadline:
             return ok, status, received
         time.sleep(1)
+
+
+def _report(ok, line):
+    print(f"{'ok  ' if ok else 'FAIL'} {line}")
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -234,7 +242,7 @@ def _check_redirect():
         status, location = error.code, error.headers.get("location")
     followed = sum(1 for entry in _read_journal(_PLAIN) if entry["request"]["url"] == "/followed")
     ok = (status, location, followed) == (302, "http://upstream.test:8080/followed", 0)
-    print(f"{'ok  ' if ok else 'FAIL'} envoy-ext-authz redirect: {status} to {location}, followed {followed} times")
+    _report(ok, f"envoy-ext-authz redirect: {status} to {location}, followed {followed} times")
     return ok
 
 
@@ -271,19 +279,24 @@ def _check_body(what, port, parts, trailers, known):
         for entry in _read_journal(_PLAIN)
         if _read_headers(entry).get(_MARKER) == marker
     ]
-    ok = status == 200 and _is_answer(body) and received == [(b"".join(parts).decode(), _TICKET["x-rail"])]
+    ok = (
+        status == 200
+        and _is_answer(body)
+        and received == [(b"".join(parts).decode(), _TICKET["x-rail"])]
+    )
     with_trailers = ", with trailers" if trailers else ""
     if known is None:
-        print(f"{'ok  ' if ok else 'FAIL'} envoy-variants:{port} {what}{with_trailers}: {status}, received {received}")
+        _report(ok, f"envoy-variants:{port} {what}{with_trailers}: {status}, received {received}")
         return ok
     why, known_status = known
     # Any other failure is a broken listener, not the known gap.
     verdict = "XPASS" if ok else "xfail" if (status, received) == (known_status, []) else "FAIL"
-    print(f"{verdict} envoy-variants:{port} {what}{with_trailers} ({why}): {status}, received {received}")
+    case = f"envoy-variants:{port} {what}{with_trailers} ({why})"
+    print(f"{verdict} {case}: {status}, received {received}")
     return verdict == "xfail"
 
 
-def main():
+def _main():
     passed = True
     for via, host, sandbox, fetches_ticket, expected_status, arrives, expected_headers in _CASES:
         # Each state is the answer to a real fetch, not the state before the first one.
@@ -293,7 +306,7 @@ def main():
         fetches = None if sandbox is None else _count_fetches(sandbox)
         ok = ok and (fetches != 0 if fetches_ticket else not fetches)
         passed = passed and ok
-        print(f"{'ok  ' if ok else 'FAIL'} {via or 'direct'} {host}: {status}, received {received}, {fetches} fetches")
+        _report(ok, f"{via or 'direct'} {host}: {status}, received {received}, {fetches} fetches")
     passed = _check_redirect() and passed
     for what, port, parts, trailers, known in _BODY_CASES:
         passed = _check_body(what, port, parts, trailers, known) and passed
@@ -301,4 +314,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(_main())

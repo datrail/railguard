@@ -1,8 +1,8 @@
-//! What an MCP request body names: its method and tool, read as the Python gateway reads them.
+//! What an MCP request body names: its method and tool.
 //!
 //! Not parsed to a `Value`, which refuses a number past a double or a lone surrogate, nor to a derived
-//! struct, which refuses a repeated key or a key holding a lone surrogate: Python reads them all, so
-//! a caller sending one would hide the call's endpoint. Values are only scanned, and only the two
+//! struct, which refuses a repeated key or a key holding a lone surrogate: other JSON readers take
+//! them all, so refusing one would let a caller hide the call's endpoint. Values are only scanned, and only the two
 //! strings read are parsed.
 
 use std::borrow::Cow;
@@ -12,14 +12,14 @@ use rail_policy::{Endpoint, Resolution, resolve_endpoint};
 use serde::de::{DeserializeSeed, Deserializer, MapAccess, Visitor};
 use serde_json::value::RawValue;
 
-// Past this, a body names nothing: as the Python gateway, so a call judged there is judged here.
+// Past this, a body names nothing.
 const MAX_NESTING: usize = 256;
 
 /// What `body`, as sent to `path`, asks for. One that isn't a JSON object in UTF-8, or nests past
 /// 256 levels, names no endpoint this reader can key; a `method` or `name` of another type reads as
-/// absent. `Content-Encoding` isn't decoded, as in Python.
+/// absent. `Content-Encoding` isn't decoded.
 pub(crate) fn read_endpoint(path: &str, body: &[u8]) -> Resolution {
-    // Python's `json.loads` reads bytes past one UTF-8 BOM.
+    // Read past one UTF-8 BOM, which a JSON reader may accept.
     let body = body.strip_prefix("\u{feff}".as_bytes()).unwrap_or(body);
     if nests_past(body, MAX_NESTING) {
         return Resolution::Judged(Endpoint::Unrecognised);
@@ -45,7 +45,7 @@ fn members(json: &[u8]) -> Option<Members<'_>> {
     Some(members)
 }
 
-// A key repeated keeps its last value, as in Python.
+// A key repeated keeps its last value.
 fn last<'a>(members: &Members<'a>, key: &str) -> Option<&'a RawValue> {
     let key = key.as_bytes();
     let (_, value) = members.iter().rev().find(|(name, _)| &**name == key)?;
@@ -57,7 +57,7 @@ fn text(value: &RawValue) -> Option<String> {
     serde_json::from_str(value.get()).ok()
 }
 
-// Brackets outside strings: counted before parsing, as the Python gateway does.
+// Brackets outside strings, counted before parsing, so a deep body can't exhaust the parser.
 fn nests_past(body: &[u8], limit: usize) -> bool {
     let mut depth = 0_usize;
     let (mut in_string, mut escaped) = (false, false);
@@ -105,7 +105,7 @@ impl<'de> Visitor<'de> for Object {
     }
 }
 
-// A key as bytes, so one holding a lone surrogate escape fails nothing, as in Python.
+// A key as bytes, so one holding a lone surrogate escape fails nothing.
 struct KeyBytes;
 
 impl<'de> DeserializeSeed<'de> for KeyBytes {
