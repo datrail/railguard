@@ -5,7 +5,7 @@ use rail_runtime::{
 };
 
 // The callout's settings are named for any host serving a callout, not the gateway's alone;
-// the retired names are the Python gateway's.
+// the retired names are refused, so a deployment still setting one can't quietly lose it.
 const PORT: &str = "RAIL_CALLOUT_PORT";
 const RETIRED_PORT: &str = "RAIL_GATEWAY_PORT";
 const DEFAULT_PORT: u16 = 8080;
@@ -14,7 +14,7 @@ const MAX_MESSAGE_MB: &str = "RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB";
 const RETIRED_MAX_MESSAGE_MB: &str = "RAIL_GATEWAY_GRPC_MAX_MESSAGE_MB";
 // Apigee X takes request bodies up to 10 MB, and gRPC's own default is 4 MB.
 const DEFAULT_MAX_MESSAGE_MB: usize = 16;
-// As Python's, so no setting it took is refused.
+// High enough that no limit a deployment already sets is refused.
 const MAX_MAX_MESSAGE_MB: usize = 100;
 const MB: usize = 1024 * 1024;
 

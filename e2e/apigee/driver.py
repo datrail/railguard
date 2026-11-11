@@ -3,7 +3,7 @@ or, with E2E_TARGET=live (live/session.sh test), through real Apigee, followed b
 seen to do where the stand-in can't say.
 
 Assertions read WireMock's request journals, not logs: a log says what rail-apigee believes it
-did, a journal says it happened. "live §9" is what the Python gateway's runs on real Apigee found.
+did, a journal says it happened. "Seen live" is what runs on real Apigee found.
 """
 
 import base64
@@ -451,7 +451,7 @@ def _run_apigee_cases():
         _wait_for_last_denial().get("metadata", {}).get("x-rail-status"),
     )
 
-    # live §9 #1: a ticket sent twice is refused, as one sent once by a standalone gateway isn't.
+    # Seen live: a ticket sent twice is refused.
     _start_block("enforce: a ticket sent on two header lines is undecodable")
     _reset_journals()
     code, _ = _send_raw_post(
@@ -464,7 +464,7 @@ def _run_apigee_cases():
         _wait_for_last_denial().get("metadata", {}).get("x-rail-status"),
     )
 
-    # live §9 #2: Apigee splits the claim on its comma, so it reads as two and is dropped. No
+    # Seen live: Apigee splits the claim on its comma, so it reads as two and is dropped. No
     # real claim has a comma.
     _start_block("enforce: a claimed status is recorded, and one with a comma dropped")
     _reset_journals()
@@ -482,7 +482,7 @@ def _run_apigee_cases():
     _expect("the denial reads no ticket", "absent", metadata.get("x-rail-status"))
     _expect("and records no claim", "<none>", metadata.get("claimed-x-rail-status", "<none>"))
 
-    # live §9 #5: the endpoint key is the path without the query.
+    # Seen live: the endpoint key is the path without the query.
     _start_block("enforce: the query string stays out of the endpoint key")
     _reset_journals()
     _expect(
@@ -504,7 +504,7 @@ def _run_apigee_cases():
         _report_fail(f"the call is refused 403 or 503: got {code} {body}")
     _expect("nothing reached the upstream", 0, _count_upstream_requests())
 
-    # live §9 #8: Apigee takes a callout answer of at most 4 MiB, and the answer echoes the body,
+    # Seen live: Apigee takes a callout answer of at most 4 MiB, and the answer echoes the body,
     # so rail-apigee refuses a larger call; Apigee answers one past 10 MB itself.
     _start_block("enforce: a 3.5 MiB call is forwarded, a 5 MiB one refused, an 11 MiB one too big")
     _reset_journals()

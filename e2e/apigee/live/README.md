@@ -57,12 +57,12 @@ terraform apply                    # imports; creates nothing
 rm imports.tf
 ```
 
-**The organisation is shared** with `datrail/gateway`'s harness, whose
-root is the same. If it was applied there, don't apply it here:
-`apigee-session` finds the instance by name, so sessions run without it.
-Adopted here too, it would be in two states, whose roots could fight over
-drift. Give each harness's session its own `prefix`, so their resources
-can't clash; `down` fails while either harness's environment exists.
+**An organisation applied from elsewhere,** such as by another harness in
+the same project: don't apply it here; `apigee-session` finds the instance
+by name, so sessions run without it. Adopted here too, it would be in two
+states, whose roots could fight over drift. Give each harness's session its
+own `prefix`, so their resources can't clash; `down` fails while any
+environment exists in the organisation.
 
 **Keep the organisation and instance: deleting them costs days.** Deleting a
 paid organisation is a soft delete lasting many days, and no new one can be
@@ -113,7 +113,7 @@ wants an ID token for those):
   names no policy; a good ticket's call is forwarded;
 - no `x-rail*` header reaches `upstream`, `accept` arrives whole, and the
   agent's `Authorization` arrives as sent;
-- Apigee's own behaviour, as the Python gateway's runs found it: a ticket
+- Apigee's own behaviour, as earlier live runs found it: a ticket
   split on a comma or sent on two header lines is `undecodable`; a claimed
   status with a comma is dropped; a query string stays out of the endpoint
   key; a body that isn't UTF-8 never reaches `upstream` (Apigee replaces

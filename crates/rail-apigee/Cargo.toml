@@ -18,7 +18,7 @@ path = "tests/main.rs"
 
 [dependencies]
 apigee-callout-proto = { path = "../apigee-callout-proto" }
-# Python's `unquote`, as uvicorn decodes the path.
+# Decodes the path, keeping an invalid escape and replacing invalid UTF-8.
 percent-encoding = "2"
 # A request's encoded size, against what Apigee takes back.
 prost = "0.14"

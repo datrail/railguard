@@ -1,6 +1,6 @@
 # The apigee stack
 
-Checks rail-apigee as Apigee would use it, without paying for Apigee: first rail-apigee on its own (health, readiness, a call judged), then behind a stand-in that does what an Apigee proxy running `apiproxy/` does with its answers. The cases include what the Python gateway's runs on real Apigee found Apigee doing, such as splitting a header on its commas, so the stand-in is held to it. [`live/`](live/README.md) runs the same driver against real Apigee, to check the stand-in is right.
+Checks rail-apigee as Apigee would use it, without paying for Apigee: first rail-apigee on its own (health, readiness, a call judged), then behind a stand-in that does what an Apigee proxy running `apiproxy/` does with its answers. The cases include what runs on real Apigee found it doing, such as splitting a header on its commas, so the stand-in is held to it. [`live/`](live/README.md) runs the same driver against real Apigee, to check the stand-in is right.
 
 `make e2e-apigee` runs it (see [the stacks](../README.md)). `compose.yml` holds:
 

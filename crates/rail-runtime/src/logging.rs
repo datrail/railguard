@@ -80,7 +80,7 @@ fn own_lines_at(level: tracing::Level) -> Targets {
     )
 }
 
-/// `RAIL_LOG_LEVEL`, INFO by default. Refuses the Python images' names for it, one per host.
+/// `RAIL_LOG_LEVEL`, INFO by default. Refuses the retired names for it, one per host.
 pub fn read_log_level(settings: &mut Settings) -> Result<tracing::Level, Refused> {
     let instead = format!("{LOG_LEVEL} sets the log level");
     let retired = [

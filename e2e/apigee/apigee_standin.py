@@ -1,8 +1,7 @@
 """A stand-in for an Apigee proxy running apiproxy/, for the e2e stack.
 
-A model, not Apigee: it does what the bundle, Apigee's docs and the Python
-gateway's runs on real Apigee (its live harness, "live §9") say Apigee does,
-and nothing else. Each rule says where it comes from. Settings, from the
+A model, not Apigee: it does what the bundle, Apigee's docs and runs on
+real Apigee (live/, "seen live") say Apigee does, and nothing else. Each rule says where it comes from. Settings, from the
 environment:
 
 - APIGEE_PROXIES: `<base path>=<callout host:port>`, comma-separated;
@@ -69,7 +68,7 @@ def _find_proxy(path):
 
 def _split_headers(lines):
     """Each header's items, by name as first received, as the callout sees them.
-    Apigee splits values on commas (prototype; live §9 #1, #2), and a repeated
+    Apigee splits values on commas (seen live), and a repeated
     line adds items."""
     headers = {}
     for name, value in lines:
@@ -80,13 +79,13 @@ def _split_headers(lines):
 
 def _call_callout(callout, verb, uri, headers, body):
     """The callout's answer, or None for any failure: unreachable, timed out,
-    a gRPC error, or an answer over gRPC's 4 MiB default (live §9 #8)."""
+    a gRPC error, or an answer over gRPC's 4 MiB default (seen live)."""
     context = MessageContext(
         request=Request(
             verb=verb,
             uri=uri,
             headers={name: Strings(strings=items) for name, items in headers.items()},
-            # Apigee sends a body that isn't UTF-8, replaced (live §9 #6).
+            # Apigee sends a body that isn't UTF-8, replaced (seen live).
             content=body.decode(errors="replace"),
         )
     )
@@ -147,7 +146,7 @@ class _Handler(BaseHTTPRequestHandler):
             if name.lower() not in _HOP_HEADERS
         ]
 
-        # EC-Rail: `uri` is the path with the query, as sent (live §9 #5).
+        # EC-Rail: `uri` is the path with the query, as sent (seen live).
         answer = _call_callout(
             callout, self.command, self.path, _split_headers(lines), body
         )
@@ -157,7 +156,7 @@ class _Handler(BaseHTTPRequestHandler):
             self._answer(503, {"Content-Type": ["application/json"]}, _CALLOUT_FAILED)
             return
         if flow[_DECISION].string == _REFUSE:
-            # RF-Refuse (live §9 #3).
+            # RF-Refuse (seen live).
             self._answer(
                 int(flow[_STATUS].string),
                 {"Content-Type": ["application/json"]},
@@ -165,7 +164,7 @@ class _Handler(BaseHTTPRequestHandler):
             )
             return
 
-        # The answer's content is the body forwarded, even empty (live §9 #4).
+        # The answer's content is the body forwarded, even empty (seen live).
         self._forward(
             path[len(base) :],
             query,
