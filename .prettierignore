@@ -1,0 +1,5 @@
+# Not committed.
+/docs/
+/pr.md
+.pytest_cache/
+.venv/

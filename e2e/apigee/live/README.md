@@ -1,37 +1,34 @@
 # The live harness
 
-Runs the [apigee stack](../README.md)'s checks against real Apigee, with
-rail-apigee deployed on Cloud Run. The stack itself runs on a stand-in we
-wrote from Apigee's docs and from what earlier live runs saw; only real
-Apigee can show the stand-in is right, and answer what its docs don't say.
-A session costs money while it's up, so it's run by hand, never in CI.
+Runs the [apigee stack](../README.md)'s checks against real Apigee, with rail-apigee deployed on Cloud Run. The stack
+itself runs on a stand-in we wrote from Apigee's docs and from what earlier live runs saw; only real Apigee can show the
+stand-in is right, and answer what its docs don't say. A session costs money while it's up, so it's run by hand, never
+in CI.
 
-**A test harness, not a deployment template.** It takes shortcuts a
-production setup shouldn't: open stubs and proxies, a self-signed
-certificate, fake credentials. For running rail-apigee, see
+**A test harness, not a deployment template.** It takes shortcuts a production setup shouldn't: open stubs and proxies,
+a self-signed certificate, fake credentials. For running rail-apigee, see
 [its README](../../../crates/rail-apigee/README.md).
 
 Two Terraform roots:
 
-| Root | Holds | Lifetime | Cost |
-|---|---|---|---|
-| `apigee-org` | the Apigee organisation, its instance, their KMS keys | applied once per project, never destroyed | nothing without an environment, apart from the keys (about $0.06 a month each) |
-| `apigee-session` | the environment and its group, the TargetServers, the two proxies from `../apiproxy/`, the load balancer in front of Apigee and its VPC, the image registry, the service accounts, and on Cloud Run rail-apigee and the `rail-center` and `upstream` stubs | one session: `session.sh up` to `session.sh down` | a Base environment, about $0.50 an hour, and the load balancer |
+| Root             | Holds                                                                                                                                                                                                                                                      | Lifetime                                          | Cost                                                                           |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `apigee-org`     | the Apigee organisation, its instance, their KMS keys                                                                                                                                                                                                      | applied once per project, never destroyed         | nothing without an environment, apart from the keys (about $0.06 a month each) |
+| `apigee-session` | the environment and its group, the TargetServers, the two proxies from `../apiproxy/`, the load balancer in front of Apigee and its VPC, the image registry, the service accounts, and on Cloud Run rail-apigee and the `rail-center` and `upstream` stubs | one session: `session.sh up` to `session.sh down` | a Base environment, about $0.50 an hour, and the load balancer                 |
 
 ## The proxy bundle
 
-`../apiproxy/` is the proxy both harnesses run: `apigee-session` imports it
-twice, and the [stand-in](../apigee_standin.py) reads its policies.
-`apigee-session/proxy.tf` replaces each `__NAME__` per proxy:
+`../apiproxy/` is the proxy both harnesses run: `apigee-session` imports it twice, and the
+[stand-in](../apigee_standin.py) reads its policies. `apigee-session/proxy.tf` replaces each `__NAME__` per proxy:
 
-| Placeholder | File | Value |
-|---|---|---|
-| `__PROXY_NAME__` | `rail-mcp.xml` | the name the proxy is imported under |
-| `__BASE_PATH__` | `proxies/default.xml` | the path agents call, such as `/mcp`; part of every endpoint key the callout judges |
-| `__TARGET_URL__` | `targets/default.xml` | the `upstream` stub's URL |
-| `__TIMEOUT_MS__` | `policies/EC-Rail.xml` | how long to wait for the callout, in milliseconds (`timeout_ms`, 6000 by default); past it, `RF-CalloutFailed` answers 503. Past rail-apigee's 5 s deadline, so rail-apigee's own answer is the one sent |
-| `__CALLOUT_SERVER__` | `policies/EC-Rail.xml` | the TargetServer's name |
-| `__CALLOUT_AUDIENCE__` | `policies/EC-Rail.xml` | the callout's Cloud Run URL: the audience of the ID token Apigee sends it |
+| Placeholder            | File                   | Value                                                                                                                                                                                                    |
+| ---------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `__PROXY_NAME__`       | `rail-mcp.xml`         | the name the proxy is imported under                                                                                                                                                                     |
+| `__BASE_PATH__`        | `proxies/default.xml`  | the path agents call, such as `/mcp`; part of every endpoint key the callout judges                                                                                                                      |
+| `__TARGET_URL__`       | `targets/default.xml`  | the `upstream` stub's URL                                                                                                                                                                                |
+| `__TIMEOUT_MS__`       | `policies/EC-Rail.xml` | how long to wait for the callout, in milliseconds (`timeout_ms`, 6000 by default); past it, `RF-CalloutFailed` answers 503. Past rail-apigee's 5 s deadline, so rail-apigee's own answer is the one sent |
+| `__CALLOUT_SERVER__`   | `policies/EC-Rail.xml` | the TargetServer's name                                                                                                                                                                                  |
+| `__CALLOUT_AUDIENCE__` | `policies/EC-Rail.xml` | the callout's Cloud Run URL: the audience of the ID token Apigee sends it                                                                                                                                |
 
 ## One-time setup: the Apigee organisation
 
@@ -43,10 +40,8 @@ terraform init
 terraform apply
 ```
 
-The state is local (`terraform.tfstate`, not committed), and applying again
-with it changes nothing. Without it (lost, another machine, or an
-organisation created some other way), adopt what exists instead of creating
-it:
+The state is local (`terraform.tfstate`, not committed), and applying again with it changes nothing. Without it (lost,
+another machine, or an organisation created some other way), adopt what exists instead of creating it:
 
 ```sh
 cp imports.tf.example imports.tf   # edit the IDs if yours are named differently
@@ -54,26 +49,21 @@ terraform apply                    # imports; creates nothing
 rm imports.tf
 ```
 
-**An organisation applied from elsewhere,** such as by another harness in
-the same project: don't apply it here; `apigee-session` finds the instance
-by name, so sessions run without it. Adopted here too, it would be in two
-states, whose roots could fight over drift. Give each harness's session its
-own `prefix`, so their resources can't clash; `down` fails while any
-environment exists in the organisation.
+**An organisation applied from elsewhere,** such as by another harness in the same project: don't apply it here;
+`apigee-session` finds the instance by name, so sessions run without it. Adopted here too, it would be in two states,
+whose roots could fight over drift. Give each harness's session its own `prefix`, so their resources can't clash; `down`
+fails while any environment exists in the organisation.
 
-**Keep the organisation and instance: deleting them costs days.** Deleting a
-paid organisation is a soft delete lasting many days, and no new one can be
-created in the project until it ends. Creating the instance again then takes
-about 24 minutes more. Kept, they cost nothing: Apigee bills environments,
-which `apigee-session` creates and destroys. So the root never deletes them:
-`deletion_policy = "ABANDON"` makes `terraform destroy` only drop them from the
-state, and the KMS keys they depend on have `prevent_destroy`.
+**Keep the organisation and instance: deleting them costs days.** Deleting a paid organisation is a soft delete lasting
+many days, and no new one can be created in the project until it ends. Creating the instance again then takes about 24
+minutes more. Kept, they cost nothing: Apigee bills environments, which `apigee-session` creates and destroys. So the
+root never deletes them: `deletion_policy = "ABANDON"` makes `terraform destroy` only drop them from the state, and the
+KMS keys they depend on have `prevent_destroy`.
 
 ## A session
 
-Needs `gcloud`, `terraform`, `docker` and `jq`, and `apigee-org`
-applied. Owner on the project covers both roots; a narrower set of roles is
-untested.
+Needs `gcloud`, `terraform`, `docker` and `jq`, and `apigee-org` applied. Owner on the project covers both roots; a
+narrower set of roles is untested.
 
 ```sh
 cd e2e/apigee/live/apigee-session
@@ -84,101 +74,75 @@ cd ..
 ./session.sh down   # destroys everything, then checks no environment is left
 ```
 
-- **Cost:** mostly the Base environment, about $0.50 an hour; the load
-  balancer and three always-on Cloud Run instances add a few cents. It is
-  billed from `up` until `down`, so **always end with `down`**, which fails
-  if any environment is left in the organisation.
-- **Time:** a first `up` takes roughly 8 to 25 minutes, most of it the
-  environment attaching to the instance, plus rail-apigee's release build
-  for linux/amd64 (8 with the build cached). `up` again on a running
-  session redeploys what changed (rail-apigee, a stub, the bundle) in about
-  3 minutes, so a fix can be tried in the same session.
-- **`up` waits** until a `GET` through `mcp` gets the upstream stub's 405
-  six times in a row, 5 s apart, for up to 10 minutes: just after the first,
-  the load balancer still answers some 502s. It then checks the stubs'
-  `/__admin` refuses a call without the password. If the wait times out, it
-  prints the last answer: an Apigee fault there names what is wrong.
+- **Cost:** mostly the Base environment, about $0.50 an hour; the load balancer and three always-on Cloud Run instances
+  add a few cents. It is billed from `up` until `down`, so **always end with `down`**, which fails if any environment is
+  left in the organisation.
+- **Time:** a first `up` takes roughly 8 to 25 minutes, most of it the environment attaching to the instance, plus
+  rail-apigee's release build for linux/amd64 (8 with the build cached). `up` again on a running session redeploys what
+  changed (rail-apigee, a stub, the bundle) in about 3 minutes, so a fix can be tried in the same session.
+- **`up` waits** until a `GET` through `mcp` gets the upstream stub's 405 six times in a row, 5 s apart, for up to 10
+  minutes: just after the first, the load balancer still answers some 502s. It then checks the stubs' `/__admin` refuses
+  a call without the password. If the wait times out, it prints the last answer: an Apigee fault there names what is
+  wrong.
 
 ## What the driver checks
 
-`./session.sh test` runs `../driver.py` in the stand-in's Python image, with
-`E2E_TARGET=live`, the session's URLs, its certificate and the stubs'
-password, all as `E2E_*` variables; its exit code is the result. It runs the
-stack's Apigee cases, not its cases of rail-apigee on its own (Cloud Run
-wants an ID token for those):
-- a call with no ticket is refused 403, and the denial names no policy; a
-  good ticket's call is forwarded;
-- no `x-rail*` header reaches `upstream`, `accept` arrives whole, and the
-  agent's `Authorization` arrives as sent;
-- Apigee's own behaviour, as earlier live runs found it: a ticket
-  split on a comma or sent on two header lines is `undecodable`; a claimed
-  status with a comma is dropped; a query string stays out of the endpoint
-  key; a body that isn't UTF-8 never reaches `upstream` (Apigee replaces
-  its bytes with U+FFFD, so it isn't JSON); a 3.5 MiB call is
-  forwarded, a 5 MiB one refused by rail-apigee, whose answer Apigee
-  couldn't take, and an 11 MiB one answered 413 by Apigee itself
-  (rail-apigee's README, "The Apigee proxy");
-- `no-callout` answers 503 with `RF-CalloutFailed`'s body, and nothing
-  reaches `upstream`;
-- an operator's policy faulting before `EC-Rail` keeps its own error, on
-  both proxies. The policy, `../RF-E2E-OperatorFault.xml`, is test only:
-  the session adds it in front of `EC-Rail`, on header
+`./session.sh test` runs `../driver.py` in the stand-in's Python image, with `E2E_TARGET=live`, the session's URLs, its
+certificate and the stubs' password, all as `E2E_*` variables; its exit code is the result. It runs the stack's Apigee
+cases, not its cases of rail-apigee on its own (Cloud Run wants an ID token for those):
+
+- a call with no ticket is refused 403, and the denial names no policy; a good ticket's call is forwarded;
+- no `x-rail*` header reaches `upstream`, `accept` arrives whole, and the agent's `Authorization` arrives as sent;
+- Apigee's own behaviour, as earlier live runs found it: a ticket split on a comma or sent on two header lines is
+  `undecodable`; a claimed status with a comma is dropped; a query string stays out of the endpoint key; a body that
+  isn't UTF-8 never reaches `upstream` (Apigee replaces its bytes with U+FFFD, so it isn't JSON); a 3.5 MiB call is
+  forwarded, a 5 MiB one refused by rail-apigee, whose answer Apigee couldn't take, and an 11 MiB one answered 413 by
+  Apigee itself (rail-apigee's README, "The Apigee proxy");
+- `no-callout` answers 503 with `RF-CalloutFailed`'s body, and nothing reaches `upstream`;
+- an operator's policy faulting before `EC-Rail` keeps its own error, on both proxies. The policy,
+  `../RF-E2E-OperatorFault.xml`, is test only: the session adds it in front of `EC-Rail`, on header
   `x-e2e-operator-fault`.
 
-Then it prints, as `seen` lines that pass or fail nothing, what only real
-Apigee can say. rail-apigee echoes the content it's sent, so what `upstream`
-receives is what Apigee sent it. What they showed:
-- **content that isn't UTF-8:** Apigee replaces the byte with U+FFFD. A
-  call whose argument holds `ff` reaches `upstream` with `ef bf bd` in its
-  place, judged and forwarded as such;
-- **a compressed body:** Apigee decompresses it before the callout. A
-  gzipped call naming `forbidden_tool` is denied by P2;
-- **a call just under rail-apigee's cap:** forwarded, so Apigee takes an
-  answer up to about 4 MiB, as the cap assumes.
+Then it prints, as `seen` lines that pass or fail nothing, what only real Apigee can say. rail-apigee echoes the content
+it's sent, so what `upstream` receives is what Apigee sent it. What they showed:
 
-**Adding or changing an Apigee case:** run it here first, then on the
-stand-in. These cases are the stand-in's specification, so a change to one
-needs a live run.
+- **content that isn't UTF-8:** Apigee replaces the byte with U+FFFD. A call whose argument holds `ff` reaches
+  `upstream` with `ef bf bd` in its place, judged and forwarded as such;
+- **a compressed body:** Apigee decompresses it before the callout. A gzipped call naming `forbidden_tool` is denied by
+  P2;
+- **a call just under rail-apigee's cap:** forwarded, so Apigee takes an answer up to about 4 MiB, as the cap assumes.
+
+**Adding or changing an Apigee case:** run it here first, then on the stand-in. These cases are the stand-in's
+specification, so a change to one needs a live run.
 
 ## Auth and TLS
 
-| Hop | Auth |
-|---|---|
-| agent (the driver) → load balancer | none; HTTPS with a self-signed certificate |
-| Apigee → callout | an ID token from `EC-Rail`, checked by Cloud Run; invokers: the proxy's service account and you |
-| callout → `rail-center` | `Bearer rc_svc_e2e…`, which picks the stub's bundle; Cloud Run's IAM check is off |
-| Apigee → `upstream` | the agent's `Authorization`, forwarded as sent; Cloud Run's IAM check is off |
-| driver → each stub's `/__admin` | basic auth, user `e2e`, password `terraform output -raw stub_admin_password` |
+| Hop                                | Auth                                                                                            |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------- |
+| agent (the driver) → load balancer | none; HTTPS with a self-signed certificate                                                      |
+| Apigee → callout                   | an ID token from `EC-Rail`, checked by Cloud Run; invokers: the proxy's service account and you |
+| callout → `rail-center`            | `Bearer rc_svc_e2e…`, which picks the stub's bundle; Cloud Run's IAM check is off               |
+| Apigee → `upstream`                | the agent's `Authorization`, forwarded as sent; Cloud Run's IAM check is off                    |
+| driver → each stub's `/__admin`    | basic auth, user `e2e`, password `terraform output -raw stub_admin_password`                    |
 
-- **The stubs have Cloud Run's IAM check off**, because the credentials
-  they are called with go in `Authorization`, where Cloud Run would want an
-  ID token: the callout's Rail Center credential, and the agent's. Not
-  chosen: `X-Serverless-Authorization`, which the callout would have to send
-  (product code for a test); internal ingress, which would leave the driver
-  no way to read the journals; `RAIL_AUTH_MODE=none`, which Cloud Run would
-  still refuse, and with which the stub could no longer pick a bundle by
-  credential.
-- **The project's org policies** (`iam.allowedPolicyMemberDomains`,
-  `run.managed.requireInvokerIam`) must allow `invoker_iam_disabled`; the
-  stubs fail to deploy otherwise.
-- **The stubs' admin APIs** (journals, mappings) need basic auth, user
-  `e2e`, with a password generated for each session. `up` checks a call
-  without it gets 401.
-- **The agent's credential is fake** (`Bearer e2e-agent`), so `upstream`'s
-  journal can show whether Apigee forwarded it unchanged. Behind Cloud Run's
-  IAM check it couldn't: Cloud Run strips a checked token's signature before
-  the container sees it.
-- **The callout keeps Cloud Run's IAM check:** Apigee calls it with an ID
-  token of the proxy's service account, as in production. You are an
-  invoker too, to call it by hand.
-- **The callout's probes** call its gRPC health service, on
-  `datrail.gateway.Ready` until it holds a bundle, then on liveness: Cloud
-  Run can't run `rail probe`.
-- **The callout logs at `debug`**
-  (`gcloud run services logs read <prefix>-callout`).
-- **The load balancer's certificate is self-signed** for its IP: a
-  Google-managed one needs a DNS name. Clients trust it from
-  `terraform output -raw lb_cert` (`curl --cacert`).
-- **Exposed during a session:** the proxies and the stubs, open to anyone.
-  They serve fake bundles and fake MCP answers, and no real credential is
-  used past Apigee. Nothing is left once `down` has run.
+- **The stubs have Cloud Run's IAM check off**, because the credentials they are called with go in `Authorization`,
+  where Cloud Run would want an ID token: the callout's Rail Center credential, and the agent's. Not chosen:
+  `X-Serverless-Authorization`, which the callout would have to send (product code for a test); internal ingress, which
+  would leave the driver no way to read the journals; `RAIL_AUTH_MODE=none`, which Cloud Run would still refuse, and
+  with which the stub could no longer pick a bundle by credential.
+- **The project's org policies** (`iam.allowedPolicyMemberDomains`, `run.managed.requireInvokerIam`) must allow
+  `invoker_iam_disabled`; the stubs fail to deploy otherwise.
+- **The stubs' admin APIs** (journals, mappings) need basic auth, user `e2e`, with a password generated for each
+  session. `up` checks a call without it gets 401.
+- **The agent's credential is fake** (`Bearer e2e-agent`), so `upstream`'s journal can show whether Apigee forwarded it
+  unchanged. Behind Cloud Run's IAM check it couldn't: Cloud Run strips a checked token's signature before the container
+  sees it.
+- **The callout keeps Cloud Run's IAM check:** Apigee calls it with an ID token of the proxy's service account, as in
+  production. You are an invoker too, to call it by hand.
+- **The callout's probes** call its gRPC health service, on `datrail.gateway.Ready` until it holds a bundle, then on
+  liveness: Cloud Run can't run `rail probe`.
+- **The callout logs at `debug`** (`gcloud run services logs read <prefix>-callout`).
+- **The load balancer's certificate is self-signed** for its IP: a Google-managed one needs a DNS name. Clients trust it
+  from `terraform output -raw lb_cert` (`curl --cacert`).
+- **Exposed during a session:** the proxies and the stubs, open to anyone. They serve fake bundles and fake MCP answers,
+  and no real credential is used past Apigee. Nothing is left once `down` has run.
