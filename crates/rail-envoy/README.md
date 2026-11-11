@@ -1,5 +1,7 @@
 # rail-envoy
 
+The proxy, for AI agents whose calls go out through Envoy. When an agent calls a protected MCP server, rail-envoy adds the ticket Rail Center issued, so the server's gateway can judge the call, and sends the call on to that server. It removes any such header the agent set itself, so an agent can't present a ticket of its own making. It doesn't judge calls yet: it allows every one.
+
 The Envoy host: ext_authz and ext_proc over a unix socket (`RAIL_EXT_SOCKET`, default `/run/rail/ext.sock`). It allows every request.
 
 For a request to a protected host, matched on its `:authority`, it sets:
