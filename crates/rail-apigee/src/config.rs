@@ -1,8 +1,7 @@
 use rail_policy::sanitize;
-use rail_runtime::logging::read_log_level;
 use rail_runtime::{
     BundleSettings, RailCenterSettings, Refused, Settings, read_bundle_settings, read_disabled,
-    read_rail_center,
+    read_log_level, read_rail_center,
 };
 
 const PORT: &str = "RAIL_GATEWAY_PORT";

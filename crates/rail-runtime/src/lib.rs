@@ -31,6 +31,7 @@ pub use gateway::{Answer, Call, UnitSettings};
 pub use gateway_call::{Gateway, GatewaySettings};
 pub use holder::Jitter;
 pub use key_set::{KeySet, KeySetHolder, KeySource, RailCenterKeys};
+pub use logging::read_log_level;
 pub use protected_hosts::{ProtectedHost, ProtectedHosts, read_protected_hosts};
 pub use rail_center::{CenterUrl, RailCenterSettings, read_disabled, read_rail_center};
 pub use rail_center_thread::RailCenterThread;

@@ -1,7 +1,8 @@
-use std::io::Write as _;
+use std::io::{Read as _, Write as _};
 use std::time::Duration;
 
 use flate2::Compression;
+use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
 use rail_runtime::{FetchError, Limits, RailCenterClient, RailCenterSettings};
 use tokio::io::AsyncWriteExt;
@@ -128,7 +129,7 @@ async fn an_unsized_body_past_the_cap_is_refused_while_streaming() {
 
 #[tokio::test]
 async fn a_body_at_the_cap_is_read() {
-    let server = serve(|_| Reply::Raw(unsized_response(&[], &[b'x'; 1024]))).await;
+    let server = serve(|_| Reply::Raw(response("200 OK", &[], &[b'x'; 1024]))).await;
 
     let fetched = client(&server.url).get("/v1/x", &[], LIMITS).await.unwrap();
 
@@ -140,7 +141,7 @@ async fn a_gzip_body_is_decoded() {
     let server = serve(|_| {
         Reply::Raw(response(
             "200 OK",
-            &["content-encoding: gzip"],
+            &["content-encoding: GZIP"],
             &gzip(b"{\"a\":1}"),
         ))
     })
@@ -152,14 +153,57 @@ async fn a_gzip_body_is_decoded() {
 }
 
 #[tokio::test]
+async fn a_gzip_body_with_no_length_is_capped_as_sent_too() {
+    // Empty stored blocks after the header decode to nothing, so only the bytes sent are past it,
+    // and in two chunks each under it, so only their running total.
+    let small = gzip(b"{\"a\":1}");
+    let mut padded = small[..10].to_vec();
+    for _ in 0..300 {
+        padded.extend_from_slice(&[0, 0, 0, 0xff, 0xff]);
+    }
+    padded.extend_from_slice(&small[10..]);
+    let mut decoded = Vec::new();
+    GzDecoder::new(padded.as_slice())
+        .read_to_end(&mut decoded)
+        .unwrap();
+    assert_eq!(decoded, b"{\"a\":1}");
+    let mut chunked = Vec::new();
+    for half in padded.chunks(padded.len().div_ceil(2)) {
+        chunked.extend_from_slice(format!("{:x}\r\n", half.len()).as_bytes());
+        chunked.extend_from_slice(half);
+        chunked.extend_from_slice(b"\r\n");
+    }
+    chunked.extend_from_slice(b"0\r\n\r\n");
+    let server = serve(move |_| {
+        Reply::Raw(unsized_response(
+            &["content-encoding: gzip", "transfer-encoding: chunked"],
+            &chunked,
+        ))
+    })
+    .await;
+
+    let error = client(&server.url)
+        .get("/v1/x", &[], LIMITS)
+        .await
+        .unwrap_err();
+
+    assert!(matches!(error, FetchError::TooLarge { .. }), "{error:?}");
+}
+
+#[tokio::test]
 async fn a_gzip_bomb_is_refused_by_its_decoded_size() {
-    let bomb = gzip(&[0; 64 << 10]);
-    assert!(bomb.len() < LIMITS.max_bytes);
+    // A cap above the decoder's output buffer, so only the decoded running total is past it.
+    let limits = Limits {
+        max_bytes: 48 << 10,
+        ..LIMITS
+    };
+    let bomb = gzip(&vec![0; 1 << 20]);
+    assert!(bomb.len() < limits.max_bytes);
     let server =
         serve(move |_| Reply::Raw(response("200 OK", &["content-encoding: gzip"], &bomb))).await;
 
     let error = client(&server.url)
-        .get("/v1/x", &[], LIMITS)
+        .get("/v1/x", &[], limits)
         .await
         .unwrap_err();
 

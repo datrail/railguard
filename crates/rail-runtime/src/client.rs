@@ -22,7 +22,7 @@ pub struct Limits {
     /// How long Rail Center may send nothing, for the response and then for each chunk of its
     /// body: one gone quiet is given up on before the deadline.
     pub silence: Duration,
-    /// The largest body read, counted after decoding.
+    /// The largest body read, counted as sent and again after decoding, each against it.
     pub max_bytes: usize,
 }
 
@@ -159,11 +159,19 @@ impl RailCenterClient {
         } else {
             Body::Identity(capped)
         };
+        // The bytes sent, for a gzip body with no length: padding decodes to nothing.
+        let mut sent = 0;
         while let Some(chunk) = timeout(limits.silence, response.chunk())
             .await
             .map_err(|_| FetchError::Silent(limits.silence))?
             .map_err(|error| FetchError::Transport(describe(error)))?
         {
+            sent += chunk.len();
+            if sent > limits.max_bytes {
+                return Err(FetchError::TooLarge {
+                    max_bytes: limits.max_bytes,
+                });
+            }
             body.write_all(&chunk)
                 .map_err(|error| read_error(error, limits))?;
         }

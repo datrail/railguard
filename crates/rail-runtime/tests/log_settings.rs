@@ -1,4 +1,4 @@
-use rail_runtime::logging::read_log_level;
+use rail_runtime::read_log_level;
 use tracing::Level;
 
 use crate::common;
