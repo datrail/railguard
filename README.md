@@ -70,6 +70,11 @@ The end-to-end stacks need Docker and run separately; see [`e2e`](e2e/README.md)
 - [RailDash](https://github.com/datrail/raildash) presents captures locally, and is to try a rule on a sample call
   through `datrail-policy`.
 
+## Security
+
+To report a vulnerability, see [SECURITY.md](SECURITY.md): privately, through the repository's Security tab, not as an
+issue.
+
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).
