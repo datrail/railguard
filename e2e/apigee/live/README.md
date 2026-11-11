@@ -52,10 +52,10 @@ rm imports.tf
 ```
 
 **The organisation is shared** with `datrail/gateway`'s harness, whose
-root is the same. If it was applied there, adopt it here as above rather
-than with a copy of that state, so one state manages it; or run sessions
-without applying it here at all, since `apigee-session` finds the instance
-by name. Give each harness's session its own `prefix`, so their resources
+root is the same. If it was applied there, don't apply it here:
+`apigee-session` finds the instance by name, so sessions run without it.
+Adopted here too, it would be in two states, whose roots could fight over
+drift. Give each harness's session its own `prefix`, so their resources
 can't clash; `down` fails while either harness's environment exists.
 
 **Keep the organisation and instance: deleting them costs days.** Deleting a
@@ -110,7 +110,8 @@ wants an ID token for those):
 - Apigee's own behaviour, as the Python gateway's runs found it: a ticket
   split on a comma or sent on two header lines is `undecodable`; a claimed
   status with a comma is dropped; a query string stays out of the endpoint
-  key; a body that isn't UTF-8 never reaches `upstream`; a 3.5 MiB call is
+  key; a body that isn't UTF-8 never reaches `upstream` (Apigee replaces
+  its bytes with U+FFFD, so it isn't JSON); a 3.5 MiB call is
   forwarded, a 5 MiB one refused by rail-apigee, whose answer Apigee
   couldn't take, and an 11 MiB one answered 413 by Apigee itself
   (rail-apigee's README, Caveats);

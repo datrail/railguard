@@ -63,7 +63,7 @@ impl ExternalCalloutService for Callout {
                 let call = Call {
                     path: read_path(&request.uri),
                     method: request.verb.clone(),
-                    // Moved in and back out: it can be 100 MiB.
+                    // Moved in and back out: it can be up to 4 MiB.
                     body: std::mem::take(&mut request.content),
                     headers,
                 };

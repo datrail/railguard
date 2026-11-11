@@ -46,11 +46,11 @@ build_images() {
 # still answers some 502s after its first good answer, so it must give six in
 # a row.
 await_proxy() {
-  local cert url body streak=0
+  local cert url body streak=0 deadline=$((SECONDS + 600))
   cert=$(mktemp)
   terraform output -raw lb_cert > "$cert"
   url=$(terraform output -raw enforce_url)
-  for _ in $(seq 120); do
+  while ((SECONDS < deadline)); do
     body=$(curl -s --max-time 10 --cacert "$cert" "$url" || true)
     if [[ "$body" == *"stream not offered"* ]]; then
       streak=$((streak + 1))
@@ -137,7 +137,7 @@ case "$action" in
     fi
     ;;
   *)
-    sed -n '5,10p' "$0" >&2
+    sed -n '5,11p' "$0" >&2
     exit 1
     ;;
 esac

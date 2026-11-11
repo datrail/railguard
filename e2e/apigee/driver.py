@@ -272,7 +272,7 @@ def _send_raw_post(url, body, headers, timeout=_TIMEOUT_SECONDS):
         connection.endheaders(body)
         response = connection.getresponse()
         return response.status, response.read().decode(errors="replace")
-    except OSError:
+    except (OSError, http.client.HTTPException):
         return None, ""
     finally:
         connection.close()
@@ -492,7 +492,7 @@ def _run_apigee_cases():
     )
     _expect("it named P2, the endpoint rule", 1, _wait_for(lambda: _count_denials_naming(_P2), 1))
 
-    # live §9 #6: Apigee may send such content; whatever answers, it mustn't be forwarded.
+    # Seen live: Apigee replaces such bytes with U+FFFD, so the body isn't JSON, and is refused.
     _start_block("enforce: a body that isn't UTF-8 never reaches the upstream")
     _reset_journals()
     code, body = _send_raw_post(
@@ -619,7 +619,7 @@ def main():
     if _LIVE:
         try:
             _run_live_observations()
-        except OSError as error:
+        except (OSError, http.client.HTTPException) as error:
             _report_seen("the observations stopped", error)
 
     print()
