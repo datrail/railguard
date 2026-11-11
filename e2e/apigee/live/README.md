@@ -1,5 +1,11 @@
 # The live harness
 
+Runs the [apigee stack](../README.md)'s checks against real Apigee, with
+rail-apigee deployed on Cloud Run. The stack itself runs on a stand-in we
+wrote from Apigee's docs and from what earlier live runs saw; only real
+Apigee can show the stand-in is right, and answer what its docs don't say.
+A session costs money while it's up, so it's run by hand, never in CI.
+
 Runs the apigee stack's driver against real Apigee X, with rail-apigee as
 the callout, by hand; never in CI.
 
