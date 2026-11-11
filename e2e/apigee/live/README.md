@@ -152,8 +152,8 @@ specification, so a change to one needs a live run.
   sees it.
 - **The callout keeps Cloud Run's IAM check:** Apigee calls it with an ID token of the proxy's service account, as in
   production. You are an invoker too, to call it by hand.
-- **The callout's probes** call its gRPC health service, on `datrail.gateway.Ready` until it holds a bundle, then on
-  liveness: Cloud Run can't run `rail probe`.
+- **The callout's probes** call its gRPC health service, on `rail.Ready` until it holds a bundle, then on liveness:
+  Cloud Run can't run `rail probe`.
 - **The callout logs at `debug`** (`gcloud run services logs read <prefix>-callout`).
 - **The load balancer's certificate is self-signed** for its IP: a Google-managed one needs a DNS name. Clients trust it
   from `terraform output -raw lb_cert` (`curl --cacert`).

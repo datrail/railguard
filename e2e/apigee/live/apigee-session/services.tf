@@ -103,7 +103,7 @@ resource "google_cloud_run_v2_service" "callout" {
       startup_probe {
         grpc {
           port    = local.callout_port
-          service = "datrail.gateway.Ready"
+          service = "rail.Ready"
         }
         period_seconds    = 2
         failure_threshold = 30

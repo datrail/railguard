@@ -1,4 +1,4 @@
-//! `grpc.health.v1`: `""` is liveness, and `datrail.gateway.Ready` readiness, read from the bundle
+//! `grpc.health.v1`: `""` is liveness, and `rail.Ready` readiness, read from the bundle
 //! holder on each check of it.
 
 use std::sync::Arc;
@@ -11,7 +11,7 @@ use tonic_health::pb::{HealthCheckRequest, HealthCheckResponse};
 use tonic_health::server::{HealthReporter, HealthService};
 
 /// The service a readiness check names.
-pub const READY: &str = "datrail.gateway.Ready";
+pub const READY: &str = "rail.Ready";
 
 /// Sets what the health service answers; clones share it.
 #[derive(Clone)]
