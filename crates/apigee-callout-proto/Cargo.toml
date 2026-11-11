@@ -1,0 +1,15 @@
+[package]
+name = "apigee-callout-proto"
+edition = "2024"
+
+[lib]
+test = false
+doctest = false
+
+[dependencies]
+prost = "0.14"
+tonic = { version = "0.14", default-features = false, features = ["codegen"] }
+tonic-prost = "0.14"
+
+[lints.rust]
+unsafe_code = "forbid"

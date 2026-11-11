@@ -1,4 +1,4 @@
-.PHONY: build test test-py fmt fmt-py lint lint-py check coverage e2e-envoy-images e2e-envoy e2e-down
+.PHONY: build test test-py fmt fmt-py lint lint-py check coverage proto e2e-envoy-images e2e-envoy e2e-down
 
 build:
 	cargo build --locked
@@ -30,6 +30,10 @@ coverage:
 	cargo llvm-cov --html
 	cargo llvm-cov report
 	@echo "Report: target/llvm-cov/html/index.html"
+
+# Regenerates apigee-callout-proto's committed code, after its .proto changes.
+proto:
+	cargo run --locked --manifest-path crates/apigee-callout-proto/codegen/Cargo.toml --target-dir target/codegen
 
 # The stack e2e-down removes.
 STACK = envoy
