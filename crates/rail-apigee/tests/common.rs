@@ -112,20 +112,22 @@ impl RailCenter {
                     let mut body = vec![0; length];
                     stream.read_exact(&mut body).await.unwrap();
                     let line = head.lines().next().unwrap().to_owned();
-                    let reply = if line.starts_with("GET /v1/policy-bundle") {
+                    let (status, reply) = if line.starts_with("GET /v1/policy-bundle") {
                         let _ = released.wait_for(|held| !held).await;
-                        bundle
+                        ("200 OK", bundle)
                     } else if line.starts_with("GET /v1/jwks.json") {
-                        r#"{"keys": []}"#
+                        ("200 OK", r#"{"keys": []}"#)
                     } else {
-                        "{}"
+                        // A denial report, which Rail Center accepts.
+                        ("202 Accepted", "{}")
                     };
-                    log.lock().unwrap().push(line);
                     let response = format!(
-                        "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{reply}",
+                        "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{reply}",
                         reply.len()
                     );
                     let _ = stream.write_all(response.as_bytes()).await;
+                    // Seen once answered, so a test waiting on it sees the caller's answer too.
+                    log.lock().unwrap().push(line);
                 });
             }
         });

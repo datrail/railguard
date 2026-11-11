@@ -10,7 +10,7 @@ use envoy_types::pb::envoy::service::ext_proc::v3::{
     BodyResponse, CommonResponse, HeaderMutation, HeadersResponse, ProcessingRequest,
     ProcessingResponse, TrailersResponse,
 };
-use rail_runtime::{ProtectedHosts, TicketHolder, XRailHeaders};
+use rail_runtime::{ProtectedHosts, Route, TicketHolder, XRailHeader, XRailHeaders};
 use tokio_stream::{Stream, StreamExt};
 use tonic::{Status, Streaming};
 
@@ -48,6 +48,7 @@ impl Authorization for Callouts {
         let authority = http.map_or("", |http| http.host.as_str());
         let ticket = self.tickets.as_deref().map(TicketHolder::current);
         let headers = XRailHeaders::of(ticket, authority, &self.protected_hosts, sent);
+        log_request("ext_authz", authority, &headers);
         let mut response = CheckResponse::with_status(Status::ok(""));
         response.set_http_response(OkHttpResponse {
             headers: as_value(&headers),
@@ -111,6 +112,7 @@ fn continue_after(
                 protected_hosts,
                 sent.map(|header| header.key.as_str()),
             );
+            log_request("ext_proc", authority, &headers);
             Response::RequestHeaders(HeadersResponse {
                 response: Some(CommonResponse {
                     header_mutation: Some(HeaderMutation {
@@ -129,4 +131,22 @@ fn continue_after(
         Request::RequestTrailers(_) => Response::RequestTrailers(TrailersResponse::default()),
         Request::ResponseTrailers(_) => Response::ResponseTrailers(TrailersResponse::default()),
     }
+}
+
+// What a request gets, and never its ticket; one line per request, so at DEBUG.
+fn log_request(callout: &'static str, authority: &str, headers: &XRailHeaders) {
+    let status = match &headers.set {
+        Some(XRailHeader::Status(reason)) => Some(*reason),
+        _ => None,
+    };
+    tracing::debug!(
+        callout,
+        authority,
+        set = headers.set.as_ref().map(XRailHeader::name),
+        status,
+        upstream = headers.route.as_ref().map(Route::upstream),
+        connect = headers.route.as_ref().map(|route| route.authority.as_str()),
+        removed = %headers.remove.join(","),
+        "request headers decided"
+    );
 }

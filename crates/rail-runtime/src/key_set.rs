@@ -134,6 +134,15 @@ impl<S: KeySource> Kind for Keys<S> {
 
     fn step(&self, held: &Self::Held, answer: Self::Answer) -> Step<Self::Held, Outcome> {
         let (keys, dropped) = match read_answer(answer) {
+            // Rail Center publishes none while it signs nothing: an answer, but never one that
+            // erases a set held.
+            Ok(ParsedKeySet { keys, dropped })
+                if keys.is_empty()
+                    && dropped.is_empty()
+                    && fresh(held, &self.clock).is_none_or(|set| set.keys.is_empty()) =>
+            {
+                (Ok(keys), dropped)
+            }
             Ok(ParsedKeySet { keys, dropped }) if keys.is_empty() => {
                 (Err("the set holds no usable key".to_owned()), dropped)
             }
@@ -169,6 +178,11 @@ impl<S: KeySource> Kind for Keys<S> {
         }
         match outcome.read {
             // On a change only: most refreshes say what the last one said.
+            Ok((set, true)) if set.keys.is_empty() => {
+                tracing::info!(
+                    "Rail Center publishes no signing keys, so a signed ticket reads bad_signature"
+                );
+            }
             Ok((set, true)) => {
                 tracing::info!(kids = %format_kids(&set.keys), "holding signing keys");
             }

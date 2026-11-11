@@ -176,13 +176,14 @@ impl DenialReporter {
         let denied_by = denial.denied_by;
         let endpoint_key = endpoint_key(denial.endpoint).map(str::to_owned);
         self.runtime.spawn(async move {
-            if let Err(reason) = read_status(sink.send(body).await, StatusCode::ACCEPTED) {
-                tracing::warn!(
+            match read_status(sink.send(body).await, StatusCode::ACCEPTED) {
+                Ok(_) => tracing::debug!(?denied_by, endpoint_key, "denial reported"),
+                Err(reason) => tracing::warn!(
                     reason,
                     ?denied_by,
                     endpoint_key,
                     "denial report failed; the call stays denied, and Rail Center doesn't list it"
-                );
+                ),
             }
             drop((permit, naming_no_policy));
         });

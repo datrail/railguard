@@ -11,27 +11,105 @@
 use std::error::Error;
 use std::fmt::{self, Write};
 use std::panic::PanicHookInfo;
+use std::sync::OnceLock;
 
-use rail_policy::{escape_unquoted, sanitize_quoted};
+use rail_policy::{escape_unquoted, sanitize, sanitize_quoted};
 use tracing::field::{Field, Visit};
+use tracing_subscriber::Registry;
 use tracing_subscriber::field::RecordFields;
+use tracing_subscriber::filter::{LevelFilter, Targets};
 use tracing_subscriber::fmt::FormatFields;
 use tracing_subscriber::fmt::format::Writer;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::reload;
+use tracing_subscriber::util::SubscriberInitExt;
 
-use crate::config::{Level, Startup};
+use crate::config::{Level, Refused, Settings, Startup};
 
 // Long enough to keep the root cause at the end of an error chain.
 const MAX_FIELD_CHARS: usize = 1024;
 
+const LOG_LEVEL: &str = "RAIL_LOG_LEVEL";
+const LOG_LEVELS: [tracing::Level; 5] = [
+    tracing::Level::ERROR,
+    tracing::Level::WARN,
+    tracing::Level::INFO,
+    tracing::Level::DEBUG,
+    tracing::Level::TRACE,
+];
+// The crates whose lines `RAIL_LOG_LEVEL` sets; the libraries' stay at WARN, since below it
+// they log the wire itself.
+const OWN_TARGETS: [&str; 5] = [
+    "rail_apigee",
+    "rail_envoy",
+    "rail_grpc_host",
+    "rail_policy",
+    "rail_runtime",
+];
+
+static FILTER: OnceLock<reload::Handle<Targets, Registry>> = OnceLock::new();
+
 /// Logs to stderr for the rest of the process, each field written by [`QuotedFields`], panics
-/// included.
+/// included; at INFO until [`set_level`].
 pub fn init() {
-    tracing_subscriber::fmt()
-        .fmt_fields(QuotedFields)
-        .with_writer(std::io::stderr)
+    let (filter, handle) = reload::Layer::new(own_lines_at(tracing::Level::INFO));
+    tracing_subscriber::registry()
+        .with(filter)
+        .with(
+            tracing_subscriber::fmt::layer()
+                .fmt_fields(QuotedFields)
+                .with_writer(std::io::stderr),
+        )
         .init();
+    let _ = FILTER.set(handle);
     // The default hook writes a panic's message raw, outside the formatter.
     std::panic::set_hook(Box::new(log_panic));
+}
+
+/// Logs this workspace's own lines at `level` from now on.
+pub fn set_level(level: tracing::Level) {
+    if let Some(handle) = FILTER.get() {
+        let _ = handle.reload(own_lines_at(level));
+    }
+}
+
+fn own_lines_at(level: tracing::Level) -> Targets {
+    OWN_TARGETS.into_iter().fold(
+        Targets::new().with_default(LevelFilter::WARN),
+        |targets, target| targets.with_target(target, level),
+    )
+}
+
+/// `RAIL_LOG_LEVEL`, INFO by default. Refuses the Python images' names for it, one per host.
+pub fn read_log_level(settings: &mut Settings) -> Result<tracing::Level, Refused> {
+    let instead = format!("{LOG_LEVEL} sets the log level");
+    let retired = [
+        settings.get("RAIL_GATEWAY_LOG_LEVEL").retired(&instead),
+        settings.get("RAIL_PROXY_LOG_LEVEL").retired(&instead),
+    ];
+    let level = settings
+        .get(LOG_LEVEL)
+        .parsed(parse_log_level)
+        .map(|level| level.unwrap_or(tracing::Level::INFO));
+    if let Ok(level) = &level {
+        settings.describe(LOG_LEVEL, level.as_str().to_ascii_lowercase());
+    }
+    for refused in retired {
+        refused?;
+    }
+    level
+}
+
+fn parse_log_level(text: &str) -> Result<tracing::Level, String> {
+    LOG_LEVELS
+        .into_iter()
+        .find(|level| level.as_str().eq_ignore_ascii_case(text))
+        .ok_or_else(|| {
+            format!(
+                "must be error, warn, info, debug or trace, got: {}",
+                sanitize(text)
+            )
+        })
 }
 
 // A formatted message may quote what came from the wire, so only a literal one is logged.
@@ -94,7 +172,9 @@ impl Visitor<'_> {
     }
 
     fn write_field(&mut self, field: Option<&Field>, value: impl fmt::Display) {
-        if self.result.is_err() {
+        // tracing-log's fields repeat the target and name the library's source.
+        let bridged = field.is_some_and(|field| field.name().starts_with("log."));
+        if self.result.is_err() || bridged {
             return;
         }
         self.result = self.try_write_field(field, value);

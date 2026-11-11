@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use rail_runtime::{BundleSettings, Level, read_bundle_settings};
-
 use rail_test_support::describe;
 
 use crate::common;

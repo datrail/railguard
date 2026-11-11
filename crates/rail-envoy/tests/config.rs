@@ -12,7 +12,7 @@ const COMPLETE: [(&str, &str); 10] = [
     ("RAIL_EXT_SOCKET", "/tmp/rail/ext.sock"),
     ("RAIL_DISABLED", "false"),
     ("RAIL_CENTER_URL", "http://rail-center.internal:8080"),
-    ("RAIL_ALLOW_HTTP", "true"),
+    ("RAIL_CENTER_ALLOW_HTTP", "true"),
     ("RAIL_AUTH_MODE", "bearer"),
     ("RAIL_AUTH_TOKEN", TOKEN),
     ("RAIL_HOST_ID", "host-1"),
@@ -52,7 +52,7 @@ fn disabled_describes_every_setting_set_though_its_group_is_incomplete() {
     let pairs = [
         ("RAIL_DISABLED", "true"),
         ("RAIL_TICKET_REFRESH_SECONDS", "600"),
-        ("RAIL_ALLOW_HTTP", "true"),
+        ("RAIL_CENTER_ALLOW_HTTP", "true"),
         ("RAIL_AUTH_MODE", "bearer"),
         ("RAIL_AUTH_TOKEN", TOKEN),
     ];
@@ -66,6 +66,7 @@ fn disabled_describes_every_setting_set_though_its_group_is_incomplete() {
     assert_eq!(
         entries,
         [
+            ("RAIL_LOG_LEVEL", "info".to_owned(), Level::Info),
             (
                 "RAIL_EXT_SOCKET",
                 "/run/rail/ext.sock".to_owned(),
@@ -77,9 +78,9 @@ fn disabled_describes_every_setting_set_though_its_group_is_incomplete() {
                 Level::Warn("Rail Center isn't used: nothing is fetched from it")
             ),
             ("RAIL_PROXY_PROTECTED_HOSTS", "none".to_owned(), Level::Info),
-            ("RAIL_ALLOW_HTTP", "true".to_owned(), Level::Info),
             ("RAIL_AUTH_MODE", "bearer".to_owned(), Level::Info),
             ("RAIL_AUTH_TOKEN", "set".to_owned(), Level::Info),
+            ("RAIL_CENTER_ALLOW_HTTP", "true".to_owned(), Level::Info),
             ("RAIL_TICKET_REFRESH_SECONDS", "600".to_owned(), Level::Info),
         ]
     );
@@ -100,7 +101,7 @@ fn without_a_credential_the_token_is_described_as_unset() {
     let entries = describe(&pairs, Config::read);
 
     assert_eq!(
-        entries[4..6],
+        entries[5..7],
         [
             ("RAIL_AUTH_MODE", "none".to_owned(), Level::Info),
             ("RAIL_AUTH_TOKEN", "unset".to_owned(), Level::Info),
@@ -119,6 +120,7 @@ fn the_description_says_each_value_as_used_and_never_the_token() {
     assert_eq!(
         entries,
         [
+            ("RAIL_LOG_LEVEL", "info", Level::Info),
             ("RAIL_EXT_SOCKET", "/tmp/rail/ext.sock", Level::Info),
             ("RAIL_DISABLED", "false", Level::Info),
             (
@@ -126,7 +128,7 @@ fn the_description_says_each_value_as_used_and_never_the_token() {
                 "http://rail-center.internal:8080",
                 Level::Warn("the credential and what Rail Center returns cross in the clear")
             ),
-            ("RAIL_ALLOW_HTTP", "true", Level::Info),
+            ("RAIL_CENTER_ALLOW_HTTP", "true", Level::Info),
             ("RAIL_AUTH_MODE", "bearer", Level::Info),
             ("RAIL_AUTH_TOKEN", "set", Level::Info),
             ("RAIL_HOST_ID", "host-1", Level::Info),
@@ -159,6 +161,7 @@ fn the_defaults_are_described_as_used_and_disabled_as_a_warning() {
     assert_eq!(
         entries,
         [
+            ("RAIL_LOG_LEVEL", "info", Level::Info, Source::Default),
             (
                 "RAIL_EXT_SOCKET",
                 "/run/rail/ext.sock",

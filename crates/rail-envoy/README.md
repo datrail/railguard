@@ -10,7 +10,9 @@ For a request to a protected host, matched on its `:authority`, it sets:
 
 Any other request gets none of these. From every request it removes the agent's own `x-rail`, `x-rail-status` and `x-rail-upstream` but the one it sets, every other header whose name starts with `x-rail-`, and every header whose name has an `_`.
 
-It serves `grpc.health.v1` on the same socket: SERVING while it serves, NOT_SERVING once it's stopping. `rail-envoy probe` asks it, for an exec probe, and exits 0 only on SERVING; it waits at most 5 s, so give the probe a longer timeout. The ticket never affects health: without one, it fails closed by design, and a restart wouldn't help.
+It serves `grpc.health.v1` on the same socket: SERVING while it serves, NOT_SERVING once it's stopping. `rail-envoy probe` (`rail probe` in its image) asks it, for an exec probe, and exits 0 only on SERVING; it waits at most 5 s, so give the probe a longer timeout. The ticket never affects health: without one, it fails closed by design, and a restart wouldn't help.
+
+At `RAIL_LOG_LEVEL=debug` it logs each request's decision: the host, and for a protected one the header set (`x-rail`, or `x-rail-status` with its reason), the route and where it connects; and the headers removed. Never the ticket.
 
 On SIGTERM or Ctrl-C it reports NOT_SERVING and drains for at most 5 s, then cuts the connections still open: Envoy keeps them, and an ext_proc stream lasts as long as its request. With Rail Center on, its thread then has at most 1 s more to stop, so 6 s in all.
 

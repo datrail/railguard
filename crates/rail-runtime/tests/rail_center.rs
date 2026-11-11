@@ -1,7 +1,6 @@
 use rail_runtime::{
     CenterUrl, Level, RailCenterSettings, Settings, Variables, read_disabled, read_rail_center,
 };
-
 use rail_test_support::read_from;
 
 use rail_test_support::describe;
@@ -119,7 +118,7 @@ fn disabled_requires_nothing() {
         read(&[
             ("RAIL_DISABLED", "true"),
             BEARER,
-            ("RAIL_ALLOW_HTTP", "true")
+            ("RAIL_CENTER_ALLOW_HTTP", "true")
         ]),
         Ok(Read::Disabled(None))
     ));
@@ -139,8 +138,8 @@ fn retired_variables_are_refused_by_name_with_their_replacement() {
         [
             "RAIL_PLUGIN_ENABLED is no longer read; Rail Center is used unless RAIL_DISABLED=true",
             "RAIL_TICKET_MODE is no longer read; Rail Center is used unless RAIL_DISABLED=true",
-            "RAIL_PROXY_ALLOW_INSECURE_CREDENTIAL is no longer read; RAIL_ALLOW_HTTP=true allows \
-             an http:// RAIL_CENTER_URL",
+            "RAIL_PROXY_ALLOW_INSECURE_CREDENTIAL is no longer read; RAIL_CENTER_ALLOW_HTTP=true \
+             allows an http:// RAIL_CENTER_URL",
         ]
     );
 }
@@ -155,7 +154,7 @@ fn every_refusal_is_reported_at_once() {
     let refused = refusals(&[
         ("RAIL_TICKET_MODE", "observe"),
         ("RAIL_CENTER_URL", "ftp://rc"),
-        ("RAIL_ALLOW_HTTP", "maybe"),
+        ("RAIL_CENTER_ALLOW_HTTP", "maybe"),
         ("RAIL_AUTH_MODE", "bearer"),
     ]);
 
@@ -191,7 +190,7 @@ fn http_needs_allow_http() {
 
     let settings = enabled(&[
         ("RAIL_CENTER_URL", "http://rc:8000"),
-        ("RAIL_ALLOW_HTTP", "true"),
+        ("RAIL_CENTER_ALLOW_HTTP", "true"),
     ]);
     assert!(!settings.url.is_https());
 }
@@ -426,7 +425,7 @@ fn the_settings_describe_themselves_with_their_defaults() {
                 "https://rc.example.com".to_owned(),
                 Level::Info
             ),
-            ("RAIL_ALLOW_HTTP", "false".to_owned(), Level::Info),
+            ("RAIL_CENTER_ALLOW_HTTP", "false".to_owned(), Level::Info),
             ("RAIL_AUTH_MODE", "none".to_owned(), Level::Info),
             ("RAIL_AUTH_TOKEN", "unset".to_owned(), Level::Info),
         ]
@@ -457,7 +456,7 @@ fn an_http_url_is_described_as_a_warning() {
     let described = describe(
         &[
             ("RAIL_CENTER_URL", "http://rc.internal:8080/"),
-            ("RAIL_ALLOW_HTTP", "true"),
+            ("RAIL_CENTER_ALLOW_HTTP", "true"),
         ],
         |settings| read_rail_center(settings, true),
     );
@@ -470,7 +469,7 @@ fn an_http_url_is_described_as_a_warning() {
                 "http://rc.internal:8080".to_owned(),
                 Level::Warn("the credential and what Rail Center returns cross in the clear")
             ),
-            ("RAIL_ALLOW_HTTP", "true".to_owned(), Level::Info),
+            ("RAIL_CENTER_ALLOW_HTTP", "true".to_owned(), Level::Info),
         ]
     );
 }

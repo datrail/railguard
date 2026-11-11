@@ -1,7 +1,6 @@
 use rail_runtime::{
     Level, ProtectedHost, ProtectedHosts, Settings, Variables, read_protected_hosts,
 };
-
 use rail_test_support::describe;
 
 use crate::common;

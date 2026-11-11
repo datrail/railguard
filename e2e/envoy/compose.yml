@@ -17,7 +17,7 @@ x-ext: &ext
     context: ../..
     dockerfile: crates/rail-envoy/Dockerfile
   healthcheck:
-    test: ["CMD", "/rail-envoy", "probe"]
+    test: ["CMD", "rail", "probe"]
     interval: 1s
     # Past the probe's own 5 s, so its answer is the one recorded.
     timeout: 6s
@@ -28,7 +28,7 @@ x-ext: &ext
 # Rail Center at the stub, which answers by sandbox name (rail-center/mappings).
 x-attached: &attached
   RAIL_CENTER_URL: http://rail-center:8080
-  RAIL_ALLOW_HTTP: "true"
+  RAIL_CENTER_ALLOW_HTTP: "true"
   RAIL_HOST_ID: host-e2e
   # With a port, at the agent's (or 443), over plain HTTP, a name that doesn't resolve, and one that
   # resolves to a server whose certificate doesn't name it.

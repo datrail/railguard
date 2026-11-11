@@ -7,7 +7,7 @@ use crate::config::{Refused, Secret, Settings};
 
 pub(crate) const DISABLED: &str = "RAIL_DISABLED";
 pub(crate) const CENTER_URL: &str = "RAIL_CENTER_URL";
-pub(crate) const ALLOW_HTTP: &str = "RAIL_ALLOW_HTTP";
+pub(crate) const CENTER_ALLOW_HTTP: &str = "RAIL_CENTER_ALLOW_HTTP";
 pub(crate) const AUTH_MODE: &str = "RAIL_AUTH_MODE";
 pub(crate) const AUTH_TOKEN: &str = "RAIL_AUTH_TOKEN";
 
@@ -21,7 +21,7 @@ const IDLE_TIMEOUT: Duration = Duration::from_secs(4);
 #[derive(Debug)]
 pub struct RailCenterSettings {
     pub url: CenterUrl,
-    /// Whether `RAIL_ALLOW_HTTP` allows an http:// URL.
+    /// Whether `RAIL_CENTER_ALLOW_HTTP` allows an http:// URL.
     pub allow_http: bool,
     /// The `rc_svc_` token sent as a bearer credential, under `RAIL_AUTH_MODE=bearer`.
     pub token: Option<Secret>,
@@ -59,21 +59,23 @@ pub fn read_rail_center(
         settings.get("RAIL_TICKET_MODE").retired(&disable),
         settings
             .get("RAIL_PROXY_ALLOW_INSECURE_CREDENTIAL")
-            .retired(&format!("{ALLOW_HTTP}=true allows an http:// {CENTER_URL}")),
+            .retired(&format!(
+                "{CENTER_ALLOW_HTTP}=true allows an http:// {CENTER_URL}"
+            )),
     ];
     let url = settings
         .get(CENTER_URL)
         .required_if(required)
         .parsed(CenterUrl::parse);
     let allow_http = settings
-        .get(ALLOW_HTTP)
+        .get(CENTER_ALLOW_HTTP)
         .boolean()
         .map(|allow| allow.unwrap_or(false));
     let http = match &url {
         Ok(Some(url)) if !url.is_https() && !allow_http.unwrap_or(false) => {
             Err(settings.get(CENTER_URL).refuse(format_args!(
                 "is http://, which sends the credential and what Rail Center returns in the clear; \
-                 use https://, or set {ALLOW_HTTP}=true"
+                 use https://, or set {CENTER_ALLOW_HTTP}=true"
             )))
         }
         _ => Ok(()),
@@ -105,7 +107,7 @@ fn describe_rail_center(settings: &mut Settings, rail_center: &RailCenterSetting
             "the credential and what Rail Center returns cross in the clear",
         );
     }
-    settings.describe(ALLOW_HTTP, rail_center.allow_http);
+    settings.describe(CENTER_ALLOW_HTTP, rail_center.allow_http);
     let mode = if rail_center.token.is_some() {
         "bearer"
     } else {

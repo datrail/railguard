@@ -1,8 +1,9 @@
 //! The Envoy host, in the proxy role: ext_authz and ext_proc on a unix socket Envoy shares. For
 //! now it allows every request, with this proxy's ticket in `x-rail` to a protected host.
 //!
-//! `rail-envoy` serves, with `grpc.health.v1` on the same socket; `rail-envoy probe` asks it, and
-//! exits 0 if the server answers SERVING, for a container health check in an image with no shell.
+//! `rail-envoy` (`rail` in its image) serves, with `grpc.health.v1` on the same socket;
+//! `rail-envoy probe` asks it, and exits 0 if the server answers SERVING, for a container health
+//! check in an image with no shell.
 //!
 //! The binary as a library: `run`, and the configuration and callouts it serves, which its tests
 //! drive.
@@ -46,11 +47,13 @@ pub async fn run() -> ExitCode {
     let (config, startup) = settings
         .finish("RAIL_", config)
         .unwrap_or_else(|errors| errors.exit());
+    rail_runtime::logging::set_level(config.log_level);
     match std::env::args().nth(1).as_deref() {
         None => serve(config, &startup).await,
         Some("probe") => rail_grpc_host::probe(&Address::Unix(config.socket.clone()), "").await,
         Some(argument) => {
-            eprintln!("unknown argument {argument:?}; usage: rail-envoy [probe]");
+            let program = rail_grpc_host::program_name();
+            eprintln!("unknown argument {argument:?}; usage: {program} [probe]");
             // A usage error shares the exit status of a refused configuration.
             ExitCode::from(rail_runtime::EXIT_CODE)
         }

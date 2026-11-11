@@ -1,8 +1,9 @@
 //! The Apigee host, in the gateway role: Apigee's ExternalCallout service over TCP, each request
 //! judged against the policy bundle held.
 //!
-//! `rail-apigee` serves, with `grpc.health.v1` on the same port; `rail-apigee probe [--ready]`
-//! asks it for liveness or readiness, and exits 0 if it answers SERVING.
+//! `rail-apigee` (`rail` in its image) serves, with `grpc.health.v1` on the same port;
+//! `rail-apigee probe [--ready]` asks it for liveness or readiness, and exits 0 if it answers
+//! SERVING.
 //!
 //! The binary as a library: `run`, and the configuration and services it serves, which its tests
 //! drive.
@@ -46,6 +47,7 @@ pub async fn run() -> ExitCode {
     let (config, startup) = settings
         .finish("RAIL_", config)
         .unwrap_or_else(|errors| errors.exit());
+    rail_runtime::logging::set_level(config.log_level);
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     let arguments: Vec<&str> = arguments.iter().map(String::as_str).collect();
     let local = Address::Tcp(SocketAddr::from((Ipv4Addr::LOCALHOST, config.port)));
@@ -54,7 +56,8 @@ pub async fn run() -> ExitCode {
         ["probe"] => rail_grpc_host::probe(&local, "").await,
         ["probe", "--ready"] => rail_grpc_host::probe(&local, READY).await,
         _ => {
-            eprintln!("unknown arguments {arguments:?}; usage: rail-apigee [probe [--ready]]");
+            let program = rail_grpc_host::program_name();
+            eprintln!("unknown arguments {arguments:?}; usage: {program} [probe [--ready]]");
             // A usage error shares the exit status of a refused configuration.
             ExitCode::from(rail_runtime::EXIT_CODE)
         }

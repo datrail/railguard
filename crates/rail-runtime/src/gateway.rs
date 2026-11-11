@@ -97,7 +97,7 @@ pub(crate) fn judge_call<B: AsRef<[u8]>>(unit: Unit<B>, report: &dyn Fn(&Denial)
     } = unit;
     let endpoint = match read_endpoint(&call.path, call.body.as_ref()) {
         Resolution::Discovery => {
-            tracing::info!("forwarded a session message, unjudged");
+            tracing::debug!("forwarded a session message, unjudged");
             return Answer::Forward;
         }
         Resolution::Judged(endpoint) => endpoint,

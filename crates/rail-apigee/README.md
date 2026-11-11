@@ -4,13 +4,13 @@ The Apigee host: Apigee's ExternalCallout service over TCP on `RAIL_GATEWAY_PORT
 
 `RAIL_GATEWAY_GRPC_MAX_MESSAGE_MB` (default 16, from 1 to 100) bounds each request; an answer may be up to 1 KiB larger, since it echoes the body.
 
-It serves `grpc.health.v1` on the same port: `""` is liveness, SERVING while it serves; `datrail.gateway.Ready` is readiness, SERVING once a bundle is held or with Rail Center disabled. Both are NOT_SERVING once it's stopping. `rail-apigee probe [--ready]` asks it, for an exec probe, and exits 0 only on SERVING.
+It serves `grpc.health.v1` on the same port: `""` is liveness, SERVING while it serves; `datrail.gateway.Ready` is readiness, SERVING once a bundle is held or with Rail Center disabled. Both are NOT_SERVING once it's stopping. `rail-apigee probe [--ready]` (`rail probe [--ready]` in its image) asks it, for an exec probe, and exits 0 only on SERVING.
 
 On SIGTERM or Ctrl-C it drains for at most 5 s, then cuts the connections still open; with Rail Center on, its thread then has at most 1 s more to stop.
 
 ## The image
 
-`docker build -f crates/rail-apigee/Dockerfile .` builds it, from the repository root: distroless, as uid 10001, serving on 8080. `RAIL_CENTER_URL` and `RAIL_GATEWAY_SLUG` are required unless `RAIL_DISABLED=true`; An `http://` `RAIL_CENTER_URL` is refused unless `RAIL_ALLOW_HTTP=true`. `RAIL_AUTH_MODE=bearer` with `RAIL_AUTH_TOKEN`, an `rc_svc_` service token, sends Rail Center a credential. For a health check, run `/rail-apigee probe`, or `/rail-apigee probe --ready` for readiness.
+`docker build -f crates/rail-apigee/Dockerfile .` builds it, from the repository root: distroless, as uid 10001, serving on 8080. `RAIL_CENTER_URL` and `RAIL_GATEWAY_SLUG` are required unless `RAIL_DISABLED=true`; An `http://` `RAIL_CENTER_URL` is refused unless `RAIL_CENTER_ALLOW_HTTP=true`. `RAIL_AUTH_MODE=bearer` with `RAIL_AUTH_TOKEN`, an `rc_svc_` service token, sends Rail Center a credential. The binary is `/usr/local/bin/rail`: for a health check, run `rail probe`, or `rail probe --ready` for readiness.
 
 ## The Apigee proxy
 
