@@ -40,11 +40,11 @@ has an `_`.
 
 ## At startup
 
-It reads every setting, and prints every refusal at once and exits 2, so they're all fixed in one round; a socket it
-can't listen on exits 2 too. A socket left by an earlier run is replaced, and anything else at the path refused; the
-socket is made `0660`, since Envoy runs in its group as another user. Then it logs `starting`, with its version and
-commit, and a `setting` line for each setting it uses, with its value and whether it came from the environment or the
-default, a secret only as `set` or `unset`. A value that weakens something is logged as a warning saying what
+It logs `starting`, with its version and commit, then reads every setting, and prints every refusal at once and exits 2,
+so they're all fixed in one round; a socket it can't listen on exits 2 too. A socket left by an earlier run is replaced,
+and anything else at the path refused; the socket is made `0660`, since Envoy runs in its group as another user. Then it
+logs a `setting` line for each setting it uses, with its value and whether it came from the environment or the default,
+a secret only as `set` or `unset`. A value that weakens something is logged as a warning saying what
 (`RAIL_DISABLED=true`, an `http://` Rail Center), and so is a `RAIL_…` variable nothing reads, as a likely typo. It
 starts fetching the ticket, then logs `serving Envoy`.
 
@@ -105,10 +105,11 @@ more to stop, so 6 s in all.
 
 ## The image
 
-Each release is `ghcr.io/datrail/railguard-envoy:<version>`, also tagged `MAJOR.MINOR` and `latest`, for linux/amd64 and
-linux/arm64. It carries an SBOM and a signed provenance attestation, which
-`gh attestation verify oci://ghcr.io/datrail/railguard-envoy:<version> --owner datrail` checks, and its dependencies'
-licences in `/THIRD-PARTY-NOTICES`. Its first log line, `starting`, gives its version and commit.
+Release `vX.Y.Z` is `ghcr.io/datrail/railguard-envoy:X.Y.Z`, for linux/amd64 and linux/arm64, also tagged `X.Y`, and
+`latest` if it's the highest stable release; a prerelease is tagged only `X.Y.Z-…`. It carries an SBOM and a signed
+provenance attestation, which `gh attestation verify oci://ghcr.io/datrail/railguard-envoy:X.Y.Z --owner datrail`
+checks, and its dependencies' licences in `/THIRD-PARTY-NOTICES`. Its first log line, `starting`, gives the release tag
+and the commit.
 
 `docker build -f crates/rail-envoy/Dockerfile .` builds it, from the repository root: distroless, as uid 10001, serving
 on `/run/rail/ext.sock`, in a volume to share with Envoy. The binary is `/usr/local/bin/rail`: for a health check, run

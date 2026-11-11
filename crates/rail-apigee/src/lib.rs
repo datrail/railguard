@@ -38,6 +38,10 @@ pub use crate::health::{READY, Readiness, Statuses};
 /// The binary: serves, or with `probe [--ready]`, asks the server on the port configured.
 pub async fn run() -> ExitCode {
     rail_runtime::logging::init();
+    // Before the settings, so a refused configuration names the build; not for a probe, run often.
+    if std::env::args().nth(1).is_none() {
+        rail_runtime::logging::log_build();
+    }
     // The probe reads the same configuration, so it asks the port where it's served.
     let variables = Variables::from_process();
     let mut settings = Settings::new(&variables);
@@ -63,7 +67,6 @@ pub async fn run() -> ExitCode {
 }
 
 async fn serve(config: Config, startup: &Startup) -> ExitCode {
-    rail_runtime::logging::log_build();
     rail_runtime::logging::log_settings(startup);
     // SIGTERM is how a container is stopped; as PID 1 nothing handles it unless we do.
     let terminate = match signal(SignalKind::terminate()) {

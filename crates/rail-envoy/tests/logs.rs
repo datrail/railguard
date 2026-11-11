@@ -54,9 +54,10 @@ fn the_log_escapes_a_setting_value_and_an_unread_name() {
     );
 }
 
-// The level is read with the other settings, so it applies only once they're read.
+// The level is read with the other settings, so it applies only once they're read: `starting`
+// comes before.
 #[test]
-fn at_warn_the_binary_logs_its_warnings_and_no_info_line() {
+fn at_warn_the_binary_logs_starting_and_its_warnings_and_no_other_info_line() {
     let socket = TempSocket::new("warn");
     let mut command = rail_envoy(&socket.path);
     command.env("RAIL_LOG_LEVEL", "warn");
@@ -71,7 +72,12 @@ fn at_warn_the_binary_logs_its_warnings_and_no_info_line() {
             .any(|line| line.contains(" WARN ") && line.contains(r#"name="RAIL_DISABLED""#)),
         "{logs}"
     );
-    assert!(!logs.contains(" INFO "), "{logs}");
+    let info: Vec<_> = logs
+        .lines()
+        .filter(|line| line.contains(" INFO "))
+        .collect();
+    assert_eq!(info.len(), 1, "{logs}");
+    assert!(info[0].contains(" starting "), "{logs}");
 }
 
 fn check_request(host: &str, headers: &[(&str, &str)]) -> CheckRequest {

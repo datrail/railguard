@@ -2,14 +2,10 @@
 accepted = [
     "MIT",
     "Apache-2.0",
-    "Apache-2.0 WITH LLVM-exception",
     "BSD-3-Clause",
     "ISC",
     "Unicode-3.0",
     "CDLA-Permissive-2.0",
-    "Zlib",
-    "0BSD",
-    "Unlicense",
 ]
 # Only what's built into the binary.
 ignore-build-dependencies = true
@@ -28,17 +24,17 @@ start = " * Copyright 2025 gRPC authors."
 end = " * IN THE SOFTWARE."
 checksum = "1a1b19b97943f857530a494a53e2c00b5b5f4e338ac4346897a471cf1d4fbefc"
 
-# Its licence is in three files, not its many source headers; cargo-about's ring workaround
-# predates them.
+# Its licences are in these files, not its many source headers, which cargo-about's own ring
+# handling misses. LICENSE-BoringSSL's BSD parts are for its test suite, which isn't linked.
 [ring.clarify]
-license = "Apache-2.0 AND ISC AND BSD-3-Clause AND MIT"
+license = "Apache-2.0 AND ISC AND MIT"
 [[ring.clarify.files]]
 path = "LICENSE-other-bits"
 license = "ISC"
 checksum = "f025ccfb7dfb6bdfedc75ca0f67acc69e6fb4998143d834f7c2f38a29989680f"
 [[ring.clarify.files]]
 path = "LICENSE-BoringSSL"
-license = "Apache-2.0 AND BSD-3-Clause"
+license = "Apache-2.0"
 checksum = "005fc765ddc5115da796cca915baa9557abae13ff35e0a47c47affc56f6c414d"
 [[ring.clarify.files]]
 path = "src/polyfill/once_cell/LICENSE-MIT"
@@ -52,3 +48,7 @@ license = "MIT"
 path = "LICENSE"
 license = "MIT"
 checksum = "5c686e0f7978412b49187ae0e9f77e9b52eea9d8d2e6c0de8694b35817d873b1"
+[[ring.clarify.files]]
+path = "third_party/fiat/LICENSE"
+license = "Apache-2.0"
+checksum = "9eacbcb81be660840c714a560a9d65ba07913db98dd4baf969f78dd499fdd60f"

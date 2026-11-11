@@ -15,11 +15,8 @@ on:
         description: "Version to publish, e.g. v0.1.0"
         required: true
 
-permissions:
-  contents: read
-  packages: write
-  id-token: write
-  attestations: write
+# Each job is granted what it needs.
+permissions: {}
 
 # Per repository, not per ref: two tags at once would race to write `:0.1` and `:latest`. A
 # group keeps one pending run, so a third tag cancels the waiting one: push tags one at a time.
@@ -32,28 +29,35 @@ jobs:
   version:
     runs-on: ubuntu-26.04
     timeout-minutes: 5
-    # The workflow-level grants are for `publish`; `build` takes only what pushing needs.
-    permissions: {}
+    # To list the release tags.
+    permissions:
+      contents: read
     outputs:
       tag: ${{ steps.resolve.outputs.tag }}
       latest: ${{ steps.resolve.outputs.latest }}
     steps:
-      # Only vMAJOR.MINOR.PATCH: a manual run would otherwise tag the branch it was launched from.
+      # Only vMAJOR.MINOR.PATCH, as semver reads it (no leading zeros, no build metadata, which
+      # metadata-action would drop): a manual run would otherwise tag the branch it was launched from.
       - id: resolve
         env:
           RAW_REF: ${{ github.event.inputs.tag || github.ref_name }}
+          REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if [[ ! "$RAW_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+          stable='v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)'
+          if [[ ! "$RAW_REF" =~ ^${stable}(-[0-9A-Za-z.-]+)?$ ]]; then
             echo "::error::'$RAW_REF' is not a vMAJOR.MINOR.PATCH release tag; refusing to publish."
             exit 1
           fi
           echo "tag=$RAW_REF" >> "$GITHUB_OUTPUT"
-          # A prerelease mustn't move `latest`, which asks for the newest stable build.
-          if [[ "$RAW_REF" == *-* ]]; then
-            echo "latest=false" >> "$GITHUB_OUTPUT"
-          else
+          # `latest` is the highest stable release, so neither a prerelease nor an older line's fix moves it.
+          highest=$(gh api "repos/$REPOSITORY/git/matching-refs/tags/v" --paginate --jq '.[].ref | ltrimstr("refs/tags/")' \
+            | { grep -E "^${stable}\$" || true; } | sort -V | tail -n 1)
+          if [[ "$RAW_REF" == "$highest" ]]; then
             echo "latest=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "latest=false" >> "$GITHUB_OUTPUT"
           fi
 
   # Never publish an untested version: the suite runs on the tag itself. Granted read only, since
@@ -146,6 +150,11 @@ jobs:
     needs: [version, build]
     runs-on: ubuntu-26.04
     timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
     strategy:
       fail-fast: false
       matrix:
@@ -176,6 +185,8 @@ jobs:
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ env.IMAGE }}
+          # `latest` only as `version` decides: by default every stable tag would move it.
+          flavor: latest=false
           # `value=` tags what was built, not what a manual run was launched from.
           tags: |
             type=semver,pattern={{version}},value=${{ needs.version.outputs.tag }}
@@ -206,20 +217,15 @@ jobs:
             "${platform_images[@]}"
           echo "digest=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{json .Manifest}}' | jq -r .digest)" >> "$GITHUB_OUTPUT"
 
-      # Checked with `gh attestation verify oci://<image>:<tag> --owner datrail`. Warns rather than
-      # fails: the image is already pushed.
-      - id: attest
-        continue-on-error: true
-        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+      # Checked with `gh attestation verify oci://<image>:<tag> --owner datrail`. A failure leaves the
+      # image pushed unattested: rerunning the job attests it.
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ env.IMAGE }}
           subject-digest: ${{ steps.index.outputs.digest }}
           push-to-registry: true
           # Off: it needs `artifact-metadata: write`, and verification doesn't read it.
           create-storage-record: false
-
-      - if: steps.attest.outcome == 'failure'
-        run: echo "::warning::$IMAGE published without a provenance attestation; attestations need a public repository, or GitHub Enterprise Cloud."
 
       - name: Summary
         env:

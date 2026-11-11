@@ -41,10 +41,10 @@ every name holding `_` (some upstreams read it as `-`), and the flow variable `r
 
 ## At startup
 
-It reads every setting, and prints every refusal at once and exits 2, so they're all fixed in one round; a port it can't
-listen on exits 2 too. Then it logs `starting`, with its version and commit, and a `setting` line for each one it uses,
-with its value and whether it came from the environment or the default, a secret only as `set` or `unset`. A value that
-weakens something is logged as a warning saying what (`RAIL_DISABLED=true`, an `http://` Rail Center), and so is a
+It logs `starting`, with its version and commit, then reads every setting, and prints every refusal at once and exits 2,
+so they're all fixed in one round; a port it can't listen on exits 2 too. Then it logs a `setting` line for each one it
+uses, with its value and whether it came from the environment or the default, a secret only as `set` or `unset`. A value
+that weakens something is logged as a warning saying what (`RAIL_DISABLED=true`, an `http://` Rail Center), and so is a
 `RAIL_…` variable nothing reads, as a likely typo. It starts fetching the bundle and the signing keys, then logs
 `serving the ExternalCallout service`.
 
@@ -110,10 +110,11 @@ Center on, its thread then has at most 1 s more to stop.
 
 ## The image
 
-Each release is `ghcr.io/datrail/railguard-apigee:<version>`, also tagged `MAJOR.MINOR` and `latest`, for linux/amd64
-and linux/arm64. It carries an SBOM and a signed provenance attestation, which
-`gh attestation verify oci://ghcr.io/datrail/railguard-apigee:<version> --owner datrail` checks, and its dependencies'
-licences in `/THIRD-PARTY-NOTICES`. Its first log line, `starting`, gives its version and commit.
+Release `vX.Y.Z` is `ghcr.io/datrail/railguard-apigee:X.Y.Z`, for linux/amd64 and linux/arm64, also tagged `X.Y`, and
+`latest` if it's the highest stable release; a prerelease is tagged only `X.Y.Z-…`. It carries an SBOM and a signed
+provenance attestation, which `gh attestation verify oci://ghcr.io/datrail/railguard-apigee:X.Y.Z --owner datrail`
+checks, and its dependencies' licences in `/THIRD-PARTY-NOTICES`. Its first log line, `starting`, gives the release tag
+and the commit.
 
 `docker build -f crates/rail-apigee/Dockerfile .` builds it, from the repository root: distroless, as uid 10001, serving
 on 8080. The binary is `/usr/local/bin/rail`: for a health check, run `rail probe`, or `rail probe --ready` for

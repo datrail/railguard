@@ -8,10 +8,10 @@ WORKDIR /src
 RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     cargo install --locked cargo-auditable@0.7.7
 COPY . .
-# The startup line's release and commit, which the release workflow sets; here, so a change
-# rebuilds only from this step.
-ARG RAIL_VERSION=dev
-ARG RAIL_REVISION=unknown
+# The startup line's release and commit, set by the release workflow (unset: `dev` and
+# `unknown`); here, so a change rebuilds only from this step.
+ARG RAIL_VERSION
+ARG RAIL_REVISION
 # Locked: two builds at once, as a compose file building it per service, would unpack a crate
 # into the shared cache together.
 RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \

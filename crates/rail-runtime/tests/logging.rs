@@ -252,10 +252,10 @@ fn the_build_is_logged_with_its_version_and_revision() {
 
     let text = logs.text();
     let line = text.split_once(' ').unwrap().1.trim_start();
-    assert!(
-        line.starts_with(r#"INFO rail_runtime::logging: starting version=""#)
-            && line.contains(r#"" revision=""#),
-        "{line}"
+    // Tests build without RAIL_VERSION and RAIL_REVISION.
+    assert_eq!(
+        line.trim_end(),
+        r#"INFO rail_runtime::logging: starting version="dev" revision="unknown""#
     );
 }
 
