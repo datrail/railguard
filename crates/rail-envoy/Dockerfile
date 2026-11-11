@@ -4,6 +4,9 @@ FROM rust:1.99.1-slim-trixie@sha256:f6c4a35d21dbb3c89d7a8d056c193e94fc09037f2b58
 # The image's own toolchain, the one rust-toolchain.toml names, without its clippy and rustfmt.
 ENV RUSTUP_TOOLCHAIN=1.99.1
 WORKDIR /src
+# Records the crates built in, so the image's SBOM lists them. Before the sources, so it's cached.
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+    cargo install --locked cargo-auditable@0.7.7
 # The socket's directory, made here since the runtime image has no shell.
 RUN install -d -m 0750 /out/run/rail
 COPY . .
@@ -11,7 +14,7 @@ COPY . .
 # into the shared cache together.
 RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     --mount=type=cache,target=/src/target,sharing=locked \
-    cargo build --release --locked -p rail-envoy && cp target/release/rail-envoy /out/
+    cargo auditable build --release --locked -p rail-envoy && cp target/release/rail-envoy /out/
 
 FROM gcr.io/distroless/cc-debian13@sha256:e1f5543d45a2cd7c02a5b43dda5f0ff30729b4832113759d01ed39b0b152cddb AS railguard-envoy
 COPY LICENSE crates/rail-envoy/THIRD-PARTY-NOTICES /
