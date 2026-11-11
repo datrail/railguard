@@ -5,8 +5,7 @@ the ticket Rail Center issued, so the server's gateway can judge the call, and s
 removes any such header the agent set itself, so an agent can't present a ticket of its own making. It doesn't judge
 calls yet: it allows every one.
 
-The Envoy host: ext_authz and ext_proc over a unix socket (`RAIL_EXT_SOCKET`, default `/run/rail/ext.sock`). It allows
-every request.
+The Envoy host: ext_authz and ext_proc over a unix socket (`RAIL_EXT_SOCKET`). It allows every request.
 
 For a request to a protected host, matched on its `:authority`, it sets:
 
@@ -31,9 +30,8 @@ On SIGTERM or Ctrl-C it reports NOT_SERVING and drains for at most 5 s, then cut
 keeps them, and an ext_proc stream lasts as long as its request. With Rail Center on, its thread then has at most 1 s
 more to stop, so 6 s in all.
 
-`RAIL_PROXY_PROTECTED_HOSTS` lists the protected hosts, comma-separated, each `[http(s)://]host[:port]`: HTTPS unless it
-says `http://`, and its port if it names one. It's required unless `RAIL_DISABLED=true`. Anything else, and a host
-listed twice, is refused.
+Every setting it reads, its own and those both hosts share, is in
+[`CONFIGURATION.md`](../../CONFIGURATION.md#rail-envoy): `RAIL_PROXY_PROTECTED_HOSTS` lists the protected hosts.
 
 Envoy's configuration is the customer's, so we can only recommend it. rail-envoy needs at least:
 

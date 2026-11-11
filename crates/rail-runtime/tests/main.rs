@@ -5,6 +5,7 @@ mod client;
 mod clock;
 mod common;
 mod config;
+mod configuration_doc;
 mod denials;
 mod gateway;
 mod gateway_call;
