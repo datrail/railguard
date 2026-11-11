@@ -40,6 +40,7 @@ uuid = { version = "1", default-features = false, features = ["serde"] }
 webpki-roots = "1"
 
 [dev-dependencies]
+rail-test-support = { path = "../rail-test-support" }
 tokio = { version = "1", features = ["io-util", "macros", "net", "rt-multi-thread", "test-util"] }
 
 [lints.rust]

@@ -1,0 +1,20 @@
+[package]
+name = "rail-test-support"
+edition = "2024"
+publish = false
+# One test binary, `tests/main.rs`.
+autotests = false
+
+[lib]
+test = false
+doctest = false
+
+[[test]]
+name = "rail-test-support"
+path = "tests/main.rs"
+
+[dependencies]
+rail-runtime = { path = "../rail-runtime" }
+
+[lints.rust]
+unsafe_code = "forbid"

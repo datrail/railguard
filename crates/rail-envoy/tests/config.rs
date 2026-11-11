@@ -3,8 +3,7 @@ use std::time::Duration;
 
 use rail_envoy::Config;
 use rail_runtime::{Level, Source, Startup};
-
-use crate::settings;
+use rail_test_support::describe;
 
 const TOKEN: &str = "rc_svc_abcdefghijklmnopqrstuvwxyzABCDEFGHIJK-_0123";
 
@@ -34,21 +33,11 @@ const ENABLED: [(&str, &str); 5] = [
 ];
 
 fn read_startup(pairs: &[(&str, &str)]) -> Result<(Config, Startup), Vec<String>> {
-    settings::read(pairs, Config::read)
+    rail_test_support::read(pairs, Config::read)
 }
 
 fn read(pairs: &[(&str, &str)]) -> Result<Config, Vec<String>> {
     read_startup(pairs).map(|(config, _)| config)
-}
-
-// Each entry logged, as (name, value, level); `pairs` must be accepted.
-fn describe(pairs: &[(&str, &str)]) -> Vec<(&'static str, String, Level)> {
-    let (_, startup) = read_startup(pairs).unwrap();
-    startup
-        .entries
-        .into_iter()
-        .map(|entry| (entry.name, entry.value, entry.level))
-        .collect()
 }
 
 fn assert_no_token(entries: &[(&'static str, String, Level)]) {
@@ -68,7 +57,7 @@ fn disabled_describes_every_setting_set_though_its_group_is_incomplete() {
         ("RAIL_AUTH_TOKEN", TOKEN),
     ];
 
-    let entries = describe(&pairs);
+    let entries = describe(&pairs, Config::read);
 
     let entries_of = |name| entries.iter().filter(move |(named, ..)| *named == name);
     for (name, _) in pairs {
@@ -108,7 +97,7 @@ fn without_a_credential_the_token_is_described_as_unset() {
         })
         .collect();
 
-    let entries = describe(&pairs);
+    let entries = describe(&pairs, Config::read);
 
     assert_eq!(
         entries[4..6],
@@ -121,7 +110,7 @@ fn without_a_credential_the_token_is_described_as_unset() {
 
 #[test]
 fn the_description_says_each_value_as_used_and_never_the_token() {
-    let described = describe(&COMPLETE);
+    let described = describe(&COMPLETE, Config::read);
 
     let entries: Vec<_> = described
         .iter()

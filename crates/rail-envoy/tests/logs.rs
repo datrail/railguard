@@ -1,7 +1,8 @@
-use std::process::Stdio;
 use std::time::{Duration, Instant};
 
-use crate::common::{Server, TempSocket, rail_envoy};
+use rail_test_support::Server;
+
+use crate::common::{TempSocket, rail_envoy};
 
 // The fields after the target, of the one line holding `needle`: the first ": " ends the target.
 fn find_fields<'a>(logs: &'a str, needle: &str) -> &'a str {
@@ -19,13 +20,9 @@ fn the_log_escapes_a_setting_value_and_an_unread_name() {
     let temp = TempSocket::new("logs");
     let dir = temp.path.parent().unwrap();
     let socket = dir.join("e\u{1b}[31m\"x.sock");
-    let child = rail_envoy(&socket)
-        .env("RAIL_TYPO\nfake", "1")
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
-    let mut server = Server(child);
+    let mut command = rail_envoy(&socket);
+    command.env("RAIL_TYPO\nfake", "1");
+    let mut server = Server::spawn(command);
     // Bound only once SIGTERM is handled.
     let deadline = Instant::now() + Duration::from_secs(10);
     while !socket.exists() {

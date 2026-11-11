@@ -1,5 +1,22 @@
 [workspace]
 resolver = "3"
-members = ["crates/apigee-callout-proto", "crates/rail-apigee", "crates/rail-envoy", "crates/rail-grpc-host", "crates/rail-policy", "crates/rail-policy-py", "crates/rail-runtime"]
+members = [
+    "crates/apigee-callout-proto",
+    "crates/rail-apigee",
+    "crates/rail-envoy",
+    "crates/rail-grpc-host",
+    "crates/rail-policy",
+    "crates/rail-policy-py",
+    "crates/rail-runtime",
+    "crates/rail-test-support",
+]
 # Keeps pyo3 out of everyday builds.
-default-members = ["crates/apigee-callout-proto", "crates/rail-apigee", "crates/rail-envoy", "crates/rail-grpc-host", "crates/rail-policy", "crates/rail-runtime"]
+default-members = [
+    "crates/apigee-callout-proto",
+    "crates/rail-apigee",
+    "crates/rail-envoy",
+    "crates/rail-grpc-host",
+    "crates/rail-policy",
+    "crates/rail-runtime",
+    "crates/rail-test-support",
+]

@@ -27,6 +27,7 @@ tonic = { version = "0.14", default-features = false, features = ["codegen", "ro
 tonic-health = { version = "0.14", default-features = false }
 
 [dev-dependencies]
+rail-test-support = { path = "../rail-test-support" }
 # The tests' client.
 tonic = { version = "0.14", default-features = false, features = ["channel"] }
 

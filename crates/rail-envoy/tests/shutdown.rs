@@ -6,12 +6,12 @@ use envoy_types::pb::envoy::service::ext_proc::v3::{HttpHeaders, ProcessingReque
 use tokio_stream::StreamExt;
 use tonic::transport::Endpoint;
 
-use crate::common::{Server, TempSocket, rail_envoy};
+use crate::common::{TempSocket, rail_envoy, serve, start_serving};
 
 #[test]
 fn with_nothing_open_it_stops_at_once() {
     let socket = TempSocket::new("idle");
-    let mut server = Server::start_serving(&socket.path);
+    let mut server = start_serving(&socket.path);
     let started = Instant::now();
 
     server.terminate();
@@ -37,7 +37,7 @@ fn with_rail_center_unreachable_it_serves_and_stops_at_once() {
         ("RAIL_SANDBOX_NAME", "sandbox-1"),
         ("RAIL_PROXY_PROTECTED_HOSTS", "mcp.example.com"),
     ]);
-    let mut server = Server::serve(command, &socket.path);
+    let mut server = serve(command, &socket.path);
     let started = Instant::now();
 
     server.terminate();
@@ -57,7 +57,7 @@ fn with_rail_center_unreachable_it_serves_and_stops_at_once() {
 #[tokio::test(flavor = "multi_thread")]
 async fn an_open_stream_is_cut_at_the_deadline() {
     let socket = TempSocket::new("open-stream");
-    let mut server = tokio::task::block_in_place(|| Server::start_serving(&socket.path));
+    let mut server = tokio::task::block_in_place(|| start_serving(&socket.path));
     let channel = Endpoint::from_shared(format!("unix:{}", socket.path.display()))
         .unwrap()
         .connect()

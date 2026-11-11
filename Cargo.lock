@@ -1005,6 +1005,7 @@ dependencies = [
  "rail-grpc-host",
  "rail-policy",
  "rail-runtime",
+ "rail-test-support",
  "tokio",
  "tokio-stream",
  "tonic",
@@ -1019,6 +1020,7 @@ dependencies = [
  "envoy-types",
  "rail-grpc-host",
  "rail-runtime",
+ "rail-test-support",
  "tokio",
  "tokio-stream",
  "tonic",
@@ -1070,6 +1072,7 @@ dependencies = [
  "ed25519-dalek",
  "flate2",
  "rail-policy",
+ "rail-test-support",
  "reqwest",
  "rustix",
  "rustls",
@@ -1082,6 +1085,13 @@ dependencies = [
  "tracing-subscriber",
  "uuid",
  "webpki-roots",
+]
+
+[[package]]
+name = "rail-test-support"
+version = "0.0.0"
+dependencies = [
+ "rail-runtime",
 ]
 
 [[package]]
