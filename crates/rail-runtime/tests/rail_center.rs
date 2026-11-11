@@ -127,7 +127,6 @@ fn retired_variables_are_refused_by_name_with_their_replacement() {
     let refused = refusals(&[
         URL,
         ("RAIL_PLUGIN_ENABLED", "true"),
-        ("RAIL_TICKET_MODE", "enforce"),
         ("RAIL_PROXY_ALLOW_INSECURE_CREDENTIAL", "1"),
     ]);
 
@@ -135,7 +134,6 @@ fn retired_variables_are_refused_by_name_with_their_replacement() {
         refused,
         [
             "RAIL_PLUGIN_ENABLED is no longer read; Rail Center is used unless RAIL_DISABLED=true",
-            "RAIL_TICKET_MODE is no longer read; Rail Center is used unless RAIL_DISABLED=true",
             "RAIL_PROXY_ALLOW_INSECURE_CREDENTIAL is no longer read; RAIL_CENTER_ALLOW_HTTP=true \
              allows an http:// RAIL_CENTER_URL",
         ]
@@ -144,13 +142,20 @@ fn retired_variables_are_refused_by_name_with_their_replacement() {
 
 #[test]
 fn a_retired_variable_carrying_no_value_is_not_refused() {
-    assert!(read(&[URL, ("RAIL_TICKET_MODE", ""), ("RAIL_PLUGIN_ENABLED", " ")]).is_ok());
+    assert!(
+        read(&[
+            URL,
+            ("RAIL_PROXY_ALLOW_INSECURE_CREDENTIAL", ""),
+            ("RAIL_PLUGIN_ENABLED", " ")
+        ])
+        .is_ok()
+    );
 }
 
 #[test]
 fn every_refusal_is_reported_at_once() {
     let refused = refusals(&[
-        ("RAIL_TICKET_MODE", "observe"),
+        ("RAIL_PLUGIN_ENABLED", "false"),
         ("RAIL_CENTER_URL", "ftp://rc"),
         ("RAIL_CENTER_ALLOW_HTTP", "maybe"),
         ("RAIL_AUTH_MODE", "bearer"),
@@ -493,7 +498,7 @@ fn anything_refused_is_an_err() {
     let cases: [(&[(&str, &str)], bool); 5] = [
         (&[("RAIL_CENTER_URL", "http://rc.example.com")], true),
         (&[("RAIL_CENTER_URL", "http://rc.example.com")], false),
-        (&[URL, ("RAIL_TICKET_MODE", "enforce")], true),
+        (&[URL, ("RAIL_PLUGIN_ENABLED", "true")], true),
         (&[URL, BEARER, ("RAIL_AUTH_TOKEN", "x")], false),
         (
             &[

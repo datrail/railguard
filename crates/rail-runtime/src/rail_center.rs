@@ -56,7 +56,6 @@ pub fn read_rail_center(
     let disable = format!("Rail Center is used unless {DISABLED}=true");
     let retired = [
         settings.get("RAIL_PLUGIN_ENABLED").retired(&disable),
-        settings.get("RAIL_TICKET_MODE").retired(&disable),
         settings
             .get("RAIL_PROXY_ALLOW_INSECURE_CREDENTIAL")
             .retired(&format!(

@@ -3,3 +3,5 @@
 /pr.md
 .pytest_cache/
 .venv/
+# Terraform's providers, which `terraform init` unpacks.
+.terraform/
