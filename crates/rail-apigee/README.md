@@ -42,10 +42,11 @@ every name holding `_` (some upstreams read it as `-`), and the flow variable `r
 ## At startup
 
 It reads every setting, and prints every refusal at once and exits 2, so they're all fixed in one round; a port it can't
-listen on exits 2 too. Then it logs a `setting` line for each one it uses, with its value and whether it came from the
-environment or the default, a secret only as `set` or `unset`. A value that weakens something is logged as a warning
-saying what (`RAIL_DISABLED=true`, an `http://` Rail Center), and so is a `RAIL_…` variable nothing reads, as a likely
-typo. It starts fetching the bundle and the signing keys, then logs `serving the ExternalCallout service`.
+listen on exits 2 too. Then it logs `starting`, with its version and commit, and a `setting` line for each one it uses,
+with its value and whether it came from the environment or the default, a secret only as `set` or `unset`. A value that
+weakens something is logged as a warning saying what (`RAIL_DISABLED=true`, an `http://` Rail Center), and so is a
+`RAIL_…` variable nothing reads, as a likely typo. It starts fetching the bundle and the signing keys, then logs
+`serving the ExternalCallout service`.
 
 ## When Rail Center is down
 
@@ -108,6 +109,11 @@ Center on, its thread then has at most 1 s more to stop.
 - **A header with commas:** Apigee splits it on its commas, so a ticket holding one reads as undecodable (seen live).
 
 ## The image
+
+Each release is `ghcr.io/datrail/railguard-apigee:<version>`, also tagged `MAJOR.MINOR` and `latest`, for linux/amd64
+and linux/arm64. It carries an SBOM and a signed provenance attestation, which
+`gh attestation verify oci://ghcr.io/datrail/railguard-apigee:<version> --owner datrail` checks, and its dependencies'
+licences in `/THIRD-PARTY-NOTICES`. Its first log line, `starting`, gives its version and commit.
 
 `docker build -f crates/rail-apigee/Dockerfile .` builds it, from the repository root: distroless, as uid 10001, serving
 on 8080. The binary is `/usr/local/bin/rail`: for a health check, run `rail probe`, or `rail probe --ready` for
