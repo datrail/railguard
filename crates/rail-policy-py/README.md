@@ -35,22 +35,28 @@ from datrail_policy import check_condition, compile_bundle, judge_sample
 condition = {"path": "ticket.posture.overall.score", "op": "lt", "value": 50}
 assert check_condition(condition).problems == ()
 
-bundle = compile_bundle(json.dumps({
-    "schema_version": "2.0",
-    "content_hash": "sample",
-    "enforcement": {"mode": "enforce"},
-    "policies": [{
-        "id": "5c8f1e42-0000-4000-8000-000000000001",
-        "name": "Low posture",
-        "priority": 1,
-        "condition": condition,
-        "action": "block",
-        "enabled": True,
-    }],
-    "bindings": [],
-    "binding_fallback": "pass",
-    "ticket_fallback": "pass",
-}))
+bundle = compile_bundle(
+    json.dumps(
+        {
+            "schema_version": "2.0",
+            "content_hash": "sample",
+            "enforcement": {"mode": "enforce"},
+            "policies": [
+                {
+                    "id": "5c8f1e42-0000-4000-8000-000000000001",
+                    "name": "Low posture",
+                    "priority": 1,
+                    "condition": condition,
+                    "action": "block",
+                    "enabled": True,
+                }
+            ],
+            "bindings": [],
+            "binding_fallback": "pass",
+            "ticket_fallback": "pass",
+        }
+    )
+)
 judgement = judge_sample(
     bundle,
     endpoint_key="/mcp#tools/call#search",
