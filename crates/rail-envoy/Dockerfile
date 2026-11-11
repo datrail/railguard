@@ -1,6 +1,6 @@
 # docker build -f crates/rail-envoy/Dockerfile .
 # Pinned by digest: a tag is mutable.
-FROM rust:1.99.1-slim-bookworm@sha256:ed2c95ca377d6571b124b05e75e01207973ded639dce7d5542eb7bcd797e32aa AS build
+FROM rust:1.99.1-slim-trixie@sha256:f6c4a35d21dbb3c89d7a8d056c193e94fc09037f2b58dd858b09c39a47dd02d7 AS build
 # The image's own toolchain, the one rust-toolchain.toml names, without its clippy and rustfmt.
 ENV RUSTUP_TOOLCHAIN=1.99.1
 WORKDIR /src
@@ -13,7 +13,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     --mount=type=cache,target=/src/target,sharing=locked \
     cargo build --release --locked -p rail-envoy && cp target/release/rail-envoy /out/
 
-FROM gcr.io/distroless/cc-debian12@sha256:e5d81ddde149641e2a9ba55be4545bc125c67de07508b03ba4c22e6eb0ded5aa AS railguard-envoy
+FROM gcr.io/distroless/cc-debian13@sha256:e1f5543d45a2cd7c02a5b43dda5f0ff30729b4832113759d01ed39b0b152cddb AS railguard-envoy
 COPY LICENSE /
 # One name for every host's binary, so probes and commands outlive which binary it is.
 COPY --from=build /out/rail-envoy /usr/local/bin/rail
