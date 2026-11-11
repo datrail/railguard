@@ -39,4 +39,4 @@ pub use ticket::{
     read_ticket_settings,
 };
 pub use ticket_holder::{TicketHolder, WallClock};
-pub use xrail::{Route, Unavailable, XRailHeader, XRailHeaders};
+pub use xrail::{Route, Unavailable, XRAIL, XRailHeader, XRailHeaders, is_withheld_header};

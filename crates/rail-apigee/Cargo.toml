@@ -1,0 +1,39 @@
+[package]
+name = "rail-apigee"
+edition = "2024"
+# One test binary, `tests/main.rs`, its modules beside it.
+autotests = false
+
+[lib]
+test = false
+doctest = false
+
+[[bin]]
+name = "rail-apigee"
+test = false
+
+[[test]]
+name = "rail-apigee"
+path = "tests/main.rs"
+
+[dependencies]
+apigee-callout-proto = { path = "../apigee-callout-proto" }
+# Python's `unquote`, as uvicorn decodes the path.
+percent-encoding = "2"
+rail-grpc-host = { path = "../rail-grpc-host" }
+rail-policy = { path = "../rail-policy" }
+rail-runtime = { path = "../rail-runtime" }
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync"] }
+tokio-stream = { version = "0.1", features = ["net"] }
+tonic = { version = "0.14", default-features = false, features = ["codegen", "router", "server"] }
+tonic-health = { version = "0.14", default-features = false }
+tracing = "0.1"
+
+[dev-dependencies]
+prost = "0.14"
+tokio = { version = "1", features = ["io-util"] }
+# The tests' client.
+tonic = { version = "0.14", default-features = false, features = ["channel"] }
+
+[lints.rust]
+unsafe_code = "forbid"

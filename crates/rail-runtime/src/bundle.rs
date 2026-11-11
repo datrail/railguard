@@ -31,6 +31,7 @@ const DEFAULT_REFRESH_INTERVAL: Duration = Duration::from_secs(60);
 pub struct BundleSettings {
     /// Which gateway this is, and so whose bundle Rail Center builds.
     pub gateway_slug: String,
+    /// How often a held bundle is fetched again, before jitter.
     pub refresh_interval: Duration,
 }
 
