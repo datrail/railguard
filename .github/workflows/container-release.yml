@@ -1,0 +1,153 @@
+# Publishes each host's image to GitHub Packages (ghcr.io).
+#
+# `git tag v0.1.0 && git push origin v0.1.0` publishes :0.1.0, :0.1 and :latest of each image,
+# for linux/amd64 and linux/arm64, each with an SBOM and a signed build-provenance attestation.
+name: Release Container Images
+
+on:
+  push:
+    # Narrower than `v*`; `version` is the real check, since a filter can't anchor the end.
+    tags: ["v[0-9]+.[0-9]+.[0-9]+*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version to publish, e.g. v0.1.0"
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  attestations: write
+
+# Per repository, not per ref: two tags at once would race to write `:0.1` and `:latest`. A
+# group keeps one pending run, so a third tag cancels the waiting one: push tags one at a time.
+concurrency:
+  group: container-release-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  # Its own job, so `ci` can be gated on it: a job-level `uses:` reads only another job's outputs.
+  version:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    # The workflow-level grants are for `publish`.
+    permissions: {}
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      latest: ${{ steps.resolve.outputs.latest }}
+    steps:
+      # Only vMAJOR.MINOR.PATCH: a manual run would otherwise tag the branch it was launched from.
+      - id: resolve
+        env:
+          RAW_REF: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$RAW_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::'$RAW_REF' is not a vMAJOR.MINOR.PATCH release tag; refusing to publish."
+            exit 1
+          fi
+          echo "tag=$RAW_REF" >> "$GITHUB_OUTPUT"
+          # A prerelease mustn't move `latest`, which asks for the newest stable build.
+          if [[ "$RAW_REF" == *-* ]]; then
+            echo "latest=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "latest=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Never publish an untested version: the suite runs on the tag itself. Granted read only, since
+  # a called workflow otherwise inherits this one's write grants.
+  ci:
+    needs: version
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.version.outputs.tag }}
+    permissions:
+      contents: read
+
+  publish:
+    needs: [version, ci]
+    runs-on: ubuntu-26.04
+    # arm64 is built under QEMU: a release build there is slow.
+    timeout-minutes: 120
+    # Not fail-fast: a cancelled job doesn't unpublish, and rerunning the failed one completes it.
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [apigee, envoy]
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.host }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.version.outputs.tag }}
+
+      # The tag's commit: on a manual run, `github.sha` is the branch it was launched from.
+      - id: commit
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE }}
+          # `value=` tags what was built, not what a manual run was launched from.
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.version.outputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.version.outputs.tag }}
+            type=raw,value=latest,enable=${{ needs.version.outputs.latest == 'true' }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ steps.commit.outputs.sha }}
+
+      - id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: crates/rail-${{ matrix.host }}/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          sbom: true
+          # Off: the signed attestation below replaces buildx's unsigned provenance.
+          provenance: false
+
+      # Checked with `gh attestation verify oci://<image>:<tag> --owner datrail`. Warns rather than
+      # fails: the image is already pushed.
+      - id: attest
+        continue-on-error: true
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+          # Off: it needs `artifact-metadata: write`, and verification doesn't read it.
+          create-storage-record: false
+
+      - if: steps.attest.outcome == 'failure'
+        run: echo "::warning::$IMAGE published without a provenance attestation; attestations need a public repository, or GitHub Enterprise Cloud."
+
+      # Values reach the shell through env, never `${{ }}` inside run:, which bash would see raw.
+      - name: Summary
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          {
+            echo "### Published $IMAGE"
+            echo
+            echo '```'
+            echo "$TAGS"
+            echo '```'
+            echo
+            echo "digest: \`$DIGEST\`"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -4,6 +4,13 @@ on:
   pull_request:
   push:
     branches: [main]
+  # So a release runs the suite on its tag, which may be on a commit that saw neither trigger.
+  workflow_call:
+    inputs:
+      ref:
+        description: "Commit or tag to check. Defaults to the triggering ref."
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -16,6 +23,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
 
       # rustup installs the toolchain from rust-toolchain.toml on first use.
       # The cache is keyed by job, so this and check-python each keep their own.
@@ -33,6 +42,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
 
       # The wheel compiles rail-policy through maturin, so this job needs Rust too.
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
@@ -54,6 +65,8 @@ jobs:
         stack: [envoy, apigee]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
 
       # Its own step, so the build's time shows apart from the run's.
       - run: make e2e-${{ matrix.stack }}-images
