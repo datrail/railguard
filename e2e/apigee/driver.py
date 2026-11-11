@@ -29,7 +29,7 @@ _CALLOUT = "callout:8080"
 _UNREACHABLE = "callout-unreachable:9100"
 _MCP = os.environ.get("E2E_MCP_URL", "http://apigee:8080/mcp")
 _NO_CALLOUT = os.environ.get("E2E_NO_CALLOUT_URL", "http://apigee:8080/no-callout")
-_READY = "datrail.gateway.Ready"
+_READY = "rail.Ready"
 _TIMEOUT_SECONDS = 15
 # http.client sends a body in one call, which the timeout bounds whole.
 _UPLOAD_TIMEOUT_SECONDS = 300

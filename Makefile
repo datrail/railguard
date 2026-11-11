@@ -1,4 +1,4 @@
-.PHONY: build test test-py fmt fmt-py lint lint-py check coverage proto e2e-envoy-images e2e-envoy e2e-apigee-images e2e-apigee e2e-down
+.PHONY: build test test-py fmt fmt-py fmt-md lint lint-py lint-md check coverage proto e2e-envoy-images e2e-envoy e2e-apigee-images e2e-apigee e2e-down
 
 build:
 	cargo build --locked
@@ -15,6 +15,12 @@ fmt:
 fmt-py:
 	$(MAKE) -C crates/rail-policy-py fmt
 
+# Pinned, so every run formats the same; needs npx.
+PRETTIER = npx --yes prettier@3.6.2
+
+fmt-md:
+	$(PRETTIER) --write "**/*.md"
+
 lint:
 	cargo fmt --check
 	cargo clippy --locked --all-targets -- -D warnings
@@ -22,6 +28,9 @@ lint:
 
 lint-py:
 	$(MAKE) -C crates/rail-policy-py lint
+
+lint-md:
+	$(PRETTIER) --check "**/*.md"
 
 check: lint lint-py test test-py
 
