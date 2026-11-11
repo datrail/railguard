@@ -47,7 +47,7 @@ proto:
 # Each image's third-party licences, from its dependencies; needs cargo-about.
 notices:
 	for host in apigee envoy; do \
-		cargo about generate --frozen --fail -m crates/rail-$$host/Cargo.toml -o crates/rail-$$host/THIRD-PARTY-NOTICES about.hbs || exit 1; \
+		cargo about generate --frozen --fail -m crates/rail-$$host/Cargo.toml -c .notices/about.toml -o crates/rail-$$host/THIRD-PARTY-NOTICES .notices/about.hbs || exit 1; \
 	done
 
 # The stack e2e-down removes.
