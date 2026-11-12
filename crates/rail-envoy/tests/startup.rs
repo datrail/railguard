@@ -3,7 +3,7 @@ use std::os::unix::net::UnixListener;
 use std::path::Path;
 use std::time::Duration;
 
-use rail_test_support::Server;
+use rail_test_support::{Server, free_port, isolate, stdout};
 
 use crate::common::{TempSocket, probe, rail_envoy, start_serving, with_settings};
 
@@ -11,6 +11,57 @@ use crate::common::{TempSocket, probe, rail_envoy, start_serving, with_settings}
 fn refused_configuration() -> Option<i32> {
     let mut server = Server::spawn(rail_envoy(Path::new("relative.sock")));
     server.wait_for_exit(Duration::from_secs(5)).unwrap()
+}
+
+#[test]
+fn on_a_port_it_serves_and_the_probe_finds_it_there() {
+    let port = free_port().to_string();
+    let on_port = || {
+        let mut command = isolate(env!("CARGO_BIN_EXE_rail-envoy"));
+        command
+            .env("RAIL_DISABLED", "true")
+            .env("RAIL_LOG_FORMAT", "text")
+            .env("RAIL_CALLOUT_PORT", &port);
+        command
+    };
+    let probe = || on_port().args(["probe", "--ready"]).output().unwrap();
+
+    let mut proxy = on_port();
+    proxy.arg("proxy");
+    let mut server = Server::serve(proxy, || probe().status.success());
+
+    assert_eq!(stdout(&probe()), "serving (proxy: disabled)\n");
+    server.terminate();
+    assert_eq!(server.wait_for_exit(Duration::from_secs(2)), Some(Some(0)));
+}
+
+#[test]
+fn with_both_listeners_or_neither_it_refuses_to_start_and_the_probe_to_ask() {
+    let socket = TempSocket::new("both");
+    let refused = refused_configuration();
+    for both in [true, false] {
+        for arguments in [&["proxy"][..], &["probe"]] {
+            let mut command = isolate(env!("CARGO_BIN_EXE_rail-envoy"));
+            command
+                .env("RAIL_DISABLED", "true")
+                .env("RAIL_LOG_FORMAT", "text");
+            if both {
+                command
+                    .env("RAIL_EXT_SOCKET", &socket.path)
+                    .env("RAIL_CALLOUT_PORT", "8080");
+            }
+
+            let output = command.args(arguments).output().unwrap();
+
+            assert_eq!(output.status.code(), refused, "{both} {arguments:?}");
+            let logs = String::from_utf8_lossy(&output.stderr);
+            assert!(
+                logs.contains("RAIL_EXT_SOCKET"),
+                "{both} {arguments:?}: {logs}"
+            );
+        }
+    }
+    assert!(!socket.path.exists());
 }
 
 #[test]

@@ -15,14 +15,14 @@ flowchart LR
     route -->|tls| tls[HTTPS forward proxy]
     route -->|plain| plain[plain forward proxy]
   end
-  filter <-->|gRPC over a unix socket| ext[rail-envoy]
+  filter <-->|gRPC over a unix socket or TCP| ext[rail-envoy]
   tls --> server[MCP server]
   plain --> server
   center[Rail Center] -->|ticket| ext
 ```
 
-ext_authz and ext_proc over a unix socket, `RAIL_EXT_SOCKET`. For a request to a protected host, matched on its
-`:authority`, it sets:
+ext_authz and ext_proc over a unix socket, `RAIL_EXT_SOCKET`, or TCP, `RAIL_CALLOUT_PORT`: exactly one must be set. For
+a request to a protected host, matched on its `:authority`, it sets:
 
 - `x-rail` with this proxy's ticket from Rail Center, or `x-rail-status` with why there is none (neither under
   `RAIL_DISABLED=true`);
@@ -90,16 +90,16 @@ Every setting it reads, its own and those both hosts share, is in
 
 ## Health
 
-It serves `grpc.health.v1` on the same socket: `""`, ext_authz's and ext_proc's service names are liveness, SERVING
+It serves `grpc.health.v1` on the same listener: `""`, ext_authz's and ext_proc's service names are liveness, SERVING
 while it serves; `rail.Ready` is readiness, SERVING while it holds a valid ticket, or with Rail Center disabled. All are
 NOT_SERVING once it's stopping. A readiness answer gives the proxy's state in its metadata, `rail-ready-proxy`: `valid`,
 `expired`, `not-found` or `issuer-unreachable` (`x-rail-status`'s words), `disabled`, or `stopping`.
 
 `rail-envoy probe [--ready]` (`rail probe [--ready]` in its image) asks it, for an exec probe, and exits 0 only on
 SERVING; it waits at most 5 s, so give the probe a longer timeout. It names no role, since the server answers for its
-own, and reads only `RAIL_EXT_SOCKET`. With `--ready` it prints the state after the status, e.g.
-`not serving: NOT_SERVING (proxy: expired)`. Use readiness to hold traffic back until a ticket is held, never to restart
-it: a ticket that lapses turns it not ready, and a restart wouldn't bring one.
+own, and reads only `RAIL_EXT_SOCKET` and `RAIL_CALLOUT_PORT`, asking `127.0.0.1` for a port. With `--ready` it prints
+the state after the status, e.g. `not serving: NOT_SERVING (proxy: expired)`. Use readiness to hold traffic back until a
+ticket is held, never to restart it: a ticket that lapses turns it not ready, and a restart wouldn't bring one.
 
 ## Shutdown
 
@@ -121,9 +121,10 @@ provenance attestation, which `gh attestation verify oci://ghcr.io/datrail/railg
 checks, and its dependencies' licences in `/THIRD-PARTY-NOTICES`. Its first log line, `starting`, gives the release tag
 and the commit.
 
-`docker build -f crates/rail-envoy/Dockerfile .` builds it, from the repository root: distroless, as uid 10001, serving
-on `/run/rail/ext.sock`, in a volume to share with Envoy. The binary is `/usr/local/bin/rail`, the entrypoint, with no
-default role: run the image with `proxy`, and for a health check, run `rail probe`.
+`docker build -f crates/rail-envoy/Dockerfile .` builds it, from the repository root: distroless, as uid 10001, with
+`/run/rail` a volume to share the socket with Envoy (set `RAIL_EXT_SOCKET=/run/rail/ext.sock`). The binary is
+`/usr/local/bin/rail`, the entrypoint, with no default role: run the image with `proxy`, and for a health check, run
+`rail probe`.
 
 ## From source
 

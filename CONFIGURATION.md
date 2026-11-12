@@ -100,11 +100,11 @@ How each log line is written, on stderr.
 
 ### `RAIL_CALLOUT_PORT`
 
-The TCP port the callout and its health checks are served on.
+The TCP port the callout and its health checks are served on, on every interface; `rail probe` asks `127.0.0.1`.
 
-- **Default:** `8080`.
+- **Default:** `8080` in `rail-apigee`; none in `rail-envoy`, which needs exactly one of it and `RAIL_EXT_SOCKET`.
 - **Accepted:** `1` to `65535`.
-- **Read by:** `rail-apigee`; it's the only setting `rail probe` judges, to ask this port.
+- **Read by:** both hosts; it's what `rail probe` judges to ask the server (with `RAIL_EXT_SOCKET` in `rail-envoy`).
 
 ### `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`
 
@@ -114,7 +114,7 @@ The largest request read from Apigee, in MiB.
 - **Accepted:** `1` to `100`, a whole number of MiB; the maximum is high enough that no limit a deployment already sets
   is refused.
 - **Read by:** `rail-apigee`.
-- **Past 4 MiB less 1 KiB, a request is refused unjudged** (503, with a warning logged), whatever this allows: Apigee
+- **Past 4 MiB less 1 KiB, a request is refused unjudged** (413, with a warning logged), whatever this allows: Apigee
   takes a callout's answer of at most 4 MiB, and the answer echoes the body. An answer may be up to 1 KiB larger than
   the request.
 
@@ -138,15 +138,29 @@ How often the bundle held is fetched again.
   doubling to at most 320 s or the interval, whichever is less. The 5 s floor isn't a setting: a lower one would let a
   fleet hammer Rail Center.
 
+### `RAIL_MAX_BODY_MB`
+
+The largest request body judged, in MiB, as sent (an encoded body isn't decoded).
+
+- **Default:** `15`.
+- **Accepted:** `1` to `100`, a whole number of MiB.
+- **Read by:** `rail-apigee`.
+- **Past it, a call is refused unjudged,** 413 `{"error": "request body too large"}`, with a warning logged, and isn't
+  reported; with `RAIL_DISABLED=true`, nothing is judged, and this isn't applied. Apigee's own limits come first: past 4
+  MiB less 1 KiB rail-apigee refuses a request (above), and past 10 MB Apigee answers 413 itself, so a value above 4 is
+  logged with the limit in force.
+
 ## rail-envoy
 
 ### `RAIL_EXT_SOCKET`
 
-The unix socket ext_authz, ext_proc and the health checks are served on.
+The unix socket ext_authz, ext_proc and the health checks are served on, for an Envoy sharing it.
 
-- **Default:** `/run/rail/ext.sock`.
+- **Required** unless `RAIL_CALLOUT_PORT` is set, and refused with it: exactly one says where it listens. No default, so
+  a deployment can't serve on a socket where it meant a port. In the image, `/run/rail/ext.sock`, in the `/run/rail`
+  volume.
 - **Accepted:** an absolute path.
-- **Read by:** `rail-envoy`; it's the only setting `rail probe` judges, to ask this socket.
+- **Read by:** `rail-envoy`; with `RAIL_CALLOUT_PORT`, the only settings `rail probe` judges, to ask the server.
 
 ### `RAIL_PROXY_PROTECTED_HOSTS`
 

@@ -91,6 +91,15 @@ impl BundleHolder {
         self.holder.snapshot().as_ref().clone()
     }
 
+    /// Whether a gateway judging by this holder is ready, and its state in readiness's words:
+    /// `held` once it holds a bundle, else `none`.
+    pub fn readiness(&self) -> (bool, &'static str) {
+        match self.snapshot() {
+            Some(_) => (true, "held"),
+            None => (false, "none"),
+        }
+    }
+
     /// The bundle held, waiting up to `limit` while none is, if an attempt is in flight or due
     /// within it. It never starts a fetch.
     pub async fn wait_for_bundle(&self, limit: Duration) -> Option<Arc<HeldBundle>> {

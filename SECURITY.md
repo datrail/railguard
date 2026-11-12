@@ -47,9 +47,9 @@ Anything that gets a call past rail-apigee that its rules refuse:
 - **the denial reports:** anything that suppresses or forges them, since they're the audit trail. Past 64 reports in
   flight, 16 of them naming no policy, a report is dropped and logged; the call stays denied.
 
-A refusal names no policy: 403 for a denial, 503 for a call the rules can't be applied to. On Apigee, a request past 4
-MiB less 1 KiB is refused unjudged, 503. If the callout is down or answers no decision, the reference Apigee proxy
-refuses the call, 503.
+A refusal names no policy: 403 for a denial, 503 for a call the rules can't be applied to. A body past
+`RAIL_MAX_BODY_MB` is refused unjudged, 413; on Apigee, so is a request past 4 MiB less 1 KiB. If the callout is down or
+answers no decision, the reference Apigee proxy refuses the call, 503.
 
 **The callout's port.** It receives every header and the body, bearer token included, and logs no header value.
 rail-apigee authenticates no caller, so only Apigee may reach it: a caller could otherwise ask for verdicts, and send

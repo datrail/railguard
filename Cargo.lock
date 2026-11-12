@@ -1000,7 +1000,6 @@ name = "rail-apigee"
 version = "0.0.0"
 dependencies = [
  "apigee-callout-proto",
- "percent-encoding",
  "prost",
  "rail-grpc-host",
  "rail-policy",
@@ -1072,6 +1071,7 @@ dependencies = [
  "ed25519-dalek",
  "flate2",
  "log",
+ "percent-encoding",
  "rail-policy",
  "rail-test-support",
  "reqwest",

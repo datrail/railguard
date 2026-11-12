@@ -1,8 +1,9 @@
-//! The Envoy host, in the proxy role: ext_authz and ext_proc on a unix socket Envoy shares. For
-//! now it allows every request, with this proxy's ticket in `x-rail` to a protected host.
+//! The Envoy host, in the proxy role: ext_authz and ext_proc on a unix socket Envoy shares, or on
+//! a port. For now it allows every request, with this proxy's ticket in `x-rail` to a protected
+//! host.
 //!
 //! `rail-envoy proxy` (`rail proxy` in its image) serves, with `grpc.health.v1` on the same
-//! socket; `rail-envoy probe [--ready]` asks it for liveness or readiness, and exits 0 if it
+//! listener; `rail-envoy probe [--ready]` asks it for liveness or readiness, and exits 0 if it
 //! answers SERVING, for a container health check in an image with no shell.
 //!
 //! The binary as a library: `run`, and the configuration and callouts it serves, which its tests
@@ -14,6 +15,7 @@ mod services;
 mod xrail;
 
 use std::fs;
+use std::net::{Ipv4Addr, SocketAddr};
 use std::os::unix::fs::{FileTypeExt, PermissionsExt};
 use std::path::Path;
 use std::process::ExitCode;
@@ -27,19 +29,19 @@ use rail_runtime::{
     Jitter, RailCenterClient, RailCenterSettings, RailCenterThread, RailCenterTickets, Settings,
     Startup, TicketHolder, TicketSettings, Variables,
 };
-use tokio::net::UnixListener;
+use tokio::net::{TcpListener, UnixListener};
 use tokio::signal::unix::{SignalKind, signal};
 use tokio::sync::oneshot;
-use tokio_stream::wrappers::UnixListenerStream;
+use tokio_stream::wrappers::{TcpListenerStream, UnixListenerStream};
 use tonic::server::NamedService;
 use tonic_health::pb::health_server::HealthServer;
 
-pub use crate::config::{Config, read_socket};
+pub use crate::config::{Config, Listener, read_listener};
 pub use crate::health::check_proxy;
 pub use crate::services::Callouts;
 
-/// The binary: serves as the role named, or with `probe [--ready]`, asks the server on the
-/// socket configured.
+/// The binary: serves as the role named, or with `probe [--ready]`, asks the server where it's
+/// configured to listen.
 pub async fn run() -> ExitCode {
     rail_runtime::logging::init();
     let command_line: Vec<String> = std::env::args().collect();
@@ -64,14 +66,17 @@ pub async fn run() -> ExitCode {
             rail_runtime::logging::set_level(config.log_level);
             serve(role, config, &startup).await
         }
-        // Only the socket: the rest is the server's to judge, and the probe names no role.
+        // Only the listener: the rest is the server's to judge, and the probe names no role.
         Command::Probe { ready } => {
-            let socket = read_socket(&mut settings);
-            let (socket, _) = settings
-                .finish("RAIL_", socket)
+            let listener = read_listener(&mut settings);
+            let (listener, _) = settings
+                .finish("RAIL_", listener)
                 .unwrap_or_else(|errors| errors.exit());
-            rail_grpc_host::probe(&Address::Unix(socket), rail_grpc_host::probe_service(ready))
-                .await
+            let address = match listener {
+                Listener::Unix(socket) => Address::Unix(socket),
+                Listener::Tcp(port) => Address::Tcp(SocketAddr::from((Ipv4Addr::LOCALHOST, port))),
+            };
+            rail_grpc_host::probe(&address, rail_grpc_host::probe_service(ready)).await
         }
     }
 }
@@ -86,11 +91,11 @@ async fn serve(role: Role, config: Config, startup: &Startup) -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let listener = match bind(&config.socket) {
-        Ok(listener) => listener,
+    let bound = match bind(&config.listener).await {
+        Ok(bound) => bound,
         Err(error) => {
-            tracing::error!(error = %error, "can't listen on the socket");
-            // The socket path is configuration, so it fails as a refused configuration does.
+            tracing::error!(error = %error, "can't listen");
+            // Where it listens is configuration, so it fails as a refused configuration does.
             return ExitCode::from(rail_runtime::EXIT_CODE);
         }
     };
@@ -114,19 +119,30 @@ async fn serve(role: Role, config: Config, startup: &Startup) -> ExitCode {
         vec![(role, check_proxy(callouts.tickets.clone()))],
     )
     .await;
-    tracing::info!("serving Envoy");
+    tracing::info!(listener = %config.listener, "serving Envoy");
     let (draining, drain_started) = oneshot::channel();
     let stopping = async {
         rail_grpc_host::terminated(terminate).await;
         statuses.stop().await;
         let _ = draining.send(());
     };
-    let server = tonic::transport::Server::builder()
+    let router = tonic::transport::Server::builder()
         .add_service(HealthServer::new(readiness))
         .add_service(AuthorizationServer::new(callouts.clone()))
-        .add_service(ExternalProcessorServer::new(callouts))
-        .serve_with_incoming_shutdown(UnixListenerStream::new(listener), stopping);
-    let served = rail_grpc_host::drain_until_deadline(server, drain_started).await;
+        .add_service(ExternalProcessorServer::new(callouts));
+    // Two incoming types, so a server each.
+    let served = match bound {
+        Bound::Unix(listener) => {
+            let incoming = UnixListenerStream::new(listener);
+            let server = router.serve_with_incoming_shutdown(incoming, stopping);
+            rail_grpc_host::drain_until_deadline(server, drain_started).await
+        }
+        Bound::Tcp(listener) => {
+            let incoming = TcpListenerStream::new(listener);
+            let server = router.serve_with_incoming_shutdown(incoming, stopping);
+            rail_grpc_host::drain_until_deadline(server, drain_started).await
+        }
+    };
     // Its stop blocks on a join, so it's kept off the async workers.
     if let Some(thread) = rail_center {
         let _ = tokio::task::spawn_blocking(move || thread.stop()).await;
@@ -159,8 +175,24 @@ fn start_tickets(
     Ok((thread, Arc::new(tickets)))
 }
 
+enum Bound {
+    Unix(UnixListener),
+    Tcp(TcpListener),
+}
+
+// On every interface for a port, as a callout reached over the network; the probe asks loopback.
+async fn bind(listener: &Listener) -> Result<Bound, String> {
+    match listener {
+        Listener::Unix(socket) => bind_socket(socket).map(Bound::Unix),
+        Listener::Tcp(port) => TcpListener::bind((Ipv4Addr::UNSPECIFIED, *port))
+            .await
+            .map(Bound::Tcp)
+            .map_err(|error| format!("can't listen on port {port}: {error}")),
+    }
+}
+
 // A socket left by an earlier run is replaced; anything else at the path is refused.
-fn bind(socket: &Path) -> Result<UnixListener, String> {
+fn bind_socket(socket: &Path) -> Result<UnixListener, String> {
     match fs::symlink_metadata(socket) {
         Ok(metadata) if metadata.file_type().is_socket() => {
             fs::remove_file(socket).map_err(|error| {

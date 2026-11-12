@@ -96,6 +96,36 @@ async fn with_no_bundle_a_post_takes_the_setting_and_any_other_call_is_forwarded
 }
 
 #[tokio::test(start_paused = true)]
+async fn a_body_past_the_cap_is_refused_unjudged_whatever_the_method_and_one_at_it_judged() {
+    let clock = TestClock::new();
+    let bundle = bundles::denying_unticketed(json!({}));
+    let at_cap = call("POST", None);
+    let settings = GatewaySettings {
+        max_body_bytes: at_cap.body.len(),
+        ..GatewaySettings::default()
+    };
+    let started = start(
+        &clock,
+        Script::new(&clock, move |_| bundles::ok(&bundle)),
+        settings,
+    );
+    until(&clock, 0).await;
+    let past = |method| Call {
+        body: format!("{} ", at_cap.body),
+        ..call(method, None)
+    };
+
+    for method in ["POST", "GET"] {
+        let sent = past(method);
+        let (answer, back) = started.gateway.handle(sent.clone()).await;
+        assert_eq!(answer, Answer::TooLarge, "{method}");
+        assert_eq!(back.body, sent.body);
+    }
+    assert!(started.sink.reports().is_empty());
+    assert_eq!(started.gateway.handle(at_cap).await.0, Answer::Deny);
+}
+
+#[tokio::test(start_paused = true)]
 async fn a_key_not_held_is_waited_for_only_where_the_bundle_can_accept_a_signed_ticket() {
     let tenant = json!({"ticket_issuer": "https://rc/tenants/t", "ticket_audience": "t"});
     let issuer_only = json!({"ticket_issuer": "https://rc/tenants/t"});
@@ -171,6 +201,7 @@ async fn a_call_answered_unjudged_or_dropped_has_its_judgement_stopped() {
             unit: UnitSettings {
                 step_limit: u64::MAX,
             },
+            ..GatewaySettings::default()
         };
         let started = start(
             &clock,

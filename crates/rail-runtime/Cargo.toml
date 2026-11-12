@@ -23,6 +23,8 @@ arc-swap = "1"
 # The key type rail-policy's SignedTicketConfig holds, so its major version.
 ed25519-dalek = { version = "3", default-features = false }
 flate2 = "1"
+# Decodes a call's path, keeping an invalid escape and replacing invalid UTF-8.
+percent-encoding = "2"
 rail-policy = { path = "../rail-policy" }
 # No system proxy, no platform verifier, no decoding: the roots are compiled in, the provider is
 # ours, and gzip is decoded here, capped.

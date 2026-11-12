@@ -1,24 +1,16 @@
 //! The real binary, on a port of its own, and a Rail Center it can fetch from.
 
-use std::net::{Ipv4Addr, SocketAddr, TcpListener as StdTcpListener};
+use std::net::{Ipv4Addr, SocketAddr};
 use std::process::{Command, Output};
 use std::sync::{Arc, Mutex};
 
 use apigee_callout_proto::apigee::external_callout_service_client::ExternalCalloutServiceClient;
+pub use rail_test_support::free_port;
 use rail_test_support::{Server, isolate};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::sync::watch;
 use tonic::transport::{Channel, Endpoint};
-
-/// A port nothing listens on, for the server to bind.
-pub fn free_port() -> u16 {
-    StdTcpListener::bind((Ipv4Addr::LOCALHOST, 0))
-        .unwrap()
-        .local_addr()
-        .unwrap()
-        .port()
-}
 
 /// The binary serving as the gateway on `port`, with Rail Center disabled.
 pub fn rail_apigee(port: u16) -> Command {

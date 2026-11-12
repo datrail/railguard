@@ -33,6 +33,8 @@ pub struct GatewaySettings {
     pub max_concurrent_judgements: NonZeroUsize,
     /// What a call gets while no bundle is held: `pass` forwards it, `block` answers 503.
     pub no_bundle_fallback: Fallback,
+    /// The largest body judged; a call past it is refused unjudged, 413.
+    pub max_body_bytes: usize,
     /// How each call is judged.
     pub unit: UnitSettings,
 }
@@ -43,6 +45,7 @@ impl Default for GatewaySettings {
             deadline: Duration::from_secs(5),
             max_concurrent_judgements: available_parallelism().unwrap_or(NonZeroUsize::MIN),
             no_bundle_fallback: Fallback::Pass,
+            max_body_bytes: 15 * 1024 * 1024,
             unit: UnitSettings::default(),
         }
     }
@@ -79,11 +82,21 @@ impl Gateway {
         }
     }
 
-    /// What to do with `call`, by its deadline, and the call back. Only a `POST` is judged.
+    /// What to do with `call`, by its deadline, and the call back. Only a `POST` is judged, and
+    /// no call whose body is past `max_body_bytes` is forwarded.
     pub async fn handle<B>(&self, call: Call<B>) -> (Answer, Call<B>)
     where
         B: AsRef<[u8]> + Clone + Send + Sync + 'static,
     {
+        let bytes = call.body.as_ref().len();
+        if bytes > self.settings.max_body_bytes {
+            tracing::warn!(
+                bytes,
+                limit = self.settings.max_body_bytes,
+                "refused unjudged: the body is past RAIL_MAX_BODY_MB"
+            );
+            return (Answer::TooLarge, call);
+        }
         if call.method != "POST" {
             return (Answer::Forward, call);
         }

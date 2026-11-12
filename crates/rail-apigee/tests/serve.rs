@@ -188,7 +188,7 @@ async fn a_request_whose_answer_apigee_could_not_take_is_refused_unjudged() {
     assert_eq!(flow(&answered, "rail.decision").as_deref(), Some("allow"));
     assert!(answered.encoded_len() <= 4 * 1024 * 1024);
     assert_eq!(flow(&refused, "rail.decision").as_deref(), Some("refuse"));
-    assert_eq!(flow(&refused, "rail.status").as_deref(), Some("503"));
+    assert_eq!(flow(&refused, "rail.status").as_deref(), Some("413"));
     assert!(refused.request.unwrap().content.is_empty());
     server.terminate();
     let (_, logs) = tokio::task::block_in_place(|| read_exit(server));
@@ -424,5 +424,25 @@ async fn with_rail_center_enabled_a_request_whose_answer_apigee_could_not_take_i
         .unwrap()
         .into_inner();
 
-    assert_eq!(flow(&refused, "rail.status").as_deref(), Some("503"));
+    assert_eq!(flow(&refused, "rail.status").as_deref(), Some("413"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn with_rail_center_enabled_a_body_past_the_cap_set_is_refused_without_waiting() {
+    let port = free_port();
+    let mut command = with_rail_center(port, "http://127.0.0.1:1");
+    command.env("RAIL_MAX_BODY_MB", "1");
+    let _server = tokio::task::block_in_place(|| serve(command, port));
+
+    // Rail Center is unreachable: a call judged would first wait 2 s for a bundle.
+    let sent = Instant::now();
+    let refused = client(port)
+        .await
+        .process_message(call(&"a".repeat(1024 * 1024 + 1)))
+        .await
+        .unwrap()
+        .into_inner();
+
+    assert_eq!(flow(&refused, "rail.status").as_deref(), Some("413"));
+    assert!(sent.elapsed() < Duration::from_secs(1));
 }

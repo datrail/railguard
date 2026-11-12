@@ -34,6 +34,8 @@ every name holding `_` (some upstreams read it as `-`), and the flow variable `r
 - **A refusal names no policy.** 403 `{"error": "denied by policy"}` for a call the rules deny, 503
   `{"error": "policy ruleset cannot be applied"}` for one they can't be applied to, so a caller can't map the rules one
   attempt at a time.
+- **A body past `RAIL_MAX_BODY_MB` is refused unjudged,** 413 `{"error": "request body too large"}`, with a warning
+  logged; it isn't reported.
 - **Answers within 5 s** of the request's arrival. A call not judged by then is forwarded unjudged, and logged as an
   error: the bundle's `judge_fallback` decides that, at `enforce` only, and is `pass` until Rail Center publishes one.
 - **Fails closed when it's down,** with the proxy below: a callout that's down, times out or answers without a decision
@@ -101,7 +103,7 @@ Center on, its thread then has at most 1 s more to stop.
 ## Caveats
 
 - **The 4 MiB answer:** Apigee takes a callout's answer of at most 4 MiB, and the answer must echo the body (an empty
-  `content` would remove it). So a request past 4 MiB less 1 KiB is refused unjudged, 503, with a warning naming
+  `content` would remove it). So a request past 4 MiB less 1 KiB is refused unjudged, 413, with a warning naming
   Apigee's message id, whatever `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB` allows (seen live: a call just under the cap is
   forwarded, so Apigee takes an answer up to about 4 MiB).
 - **Apigee's 10 MB request:** Apigee answers a request body past 10 MB itself, 413 `protocol.http.TooBigBody`, before

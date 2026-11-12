@@ -9,15 +9,9 @@ use rail_runtime::BundleHolder;
 pub fn check_gateway(bundles: Option<Arc<BundleHolder>>) -> RoleCheck {
     match bundles {
         None => Arc::new(|| RoleState::DISABLED),
-        Some(bundles) => Arc::new(move || match bundles.snapshot() {
-            Some(_) => RoleState {
-                ready: true,
-                state: "held",
-            },
-            None => RoleState {
-                ready: false,
-                state: "none",
-            },
+        Some(bundles) => Arc::new(move || {
+            let (ready, state) = bundles.readiness();
+            RoleState { ready, state }
         }),
     }
 }
