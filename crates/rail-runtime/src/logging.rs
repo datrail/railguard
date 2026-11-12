@@ -1,7 +1,7 @@
 //! The log, on stderr: the one place text is made safe to read in it.
 //!
 //! [`QuotedFields`] writes each field of an event or span. The message stays unquoted, escaped as
-//! [`escape_unquoted`] escapes it, so it can't start a line or reach the terminal. Any other text
+//! [`sanitize_unquoted`] escapes it, so it can't start a line or reach the terminal. Any other text
 //! is written `name="…"`, through [`sanitize_quoted`] cut at 1024 characters, and a number or a
 //! bool bare. So code logs text as a `%` or `&str` field, and never sanitizes it for the log.
 //!
@@ -9,14 +9,14 @@
 //! escaping inside the quotes: text is logged with `%`.
 //!
 //! Under `RAIL_LOG_FORMAT=json` or `gcp`, [`JsonLines`] writes each event as one JSON object
-//! instead, its text escaped as [`escape_hidden`] escapes it, and cut alike.
+//! instead, its text escaped as [`sanitize_for_json`] escapes it, and cut alike.
 
 use std::error::Error;
 use std::fmt::{self, Write};
 use std::panic::PanicHookInfo;
 use std::sync::OnceLock;
 
-use rail_policy::{escape_hidden, escape_unquoted, sanitize, sanitize_quoted};
+use rail_policy::{sanitize, sanitize_for_json, sanitize_quoted, sanitize_unquoted};
 use tracing::field::{Field, Visit};
 use tracing::{Event, Subscriber};
 use tracing_log::NormalizeEvent;
@@ -283,7 +283,7 @@ struct Visitor<'writer> {
 impl Visitor<'_> {
     fn write_text(&mut self, field: &Field, text: &str) {
         if field.name() == "message" {
-            self.write_field(None, escape_unquoted(text));
+            self.write_field(None, sanitize_unquoted(text));
         } else {
             self.write_field(Some(field), sanitize_quoted(text, MAX_FIELD_CHARS));
         }
@@ -431,9 +431,9 @@ struct JsonFields {
 impl JsonFields {
     fn push_text(&mut self, field: &Field, text: &str) {
         if field.name() == "message" {
-            self.message = Some(escape_hidden(text, None).to_string());
+            self.message = Some(sanitize_for_json(text, None).to_string());
         } else {
-            let text = escape_hidden(text, Some(MAX_FIELD_CHARS)).to_string();
+            let text = sanitize_for_json(text, Some(MAX_FIELD_CHARS)).to_string();
             self.push(field, json_string(&text));
         }
     }

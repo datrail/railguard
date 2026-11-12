@@ -19,14 +19,14 @@ pub fn sanitize_quoted(text: &str, max_chars: usize) -> impl fmt::Display + '_ {
 }
 
 /// `text` escaped as [`sanitize_quoted`] escapes it, with no quotes and no cut.
-pub fn escape_unquoted(text: &str) -> impl fmt::Display + '_ {
+pub fn sanitize_unquoted(text: &str) -> impl fmt::Display + '_ {
     Unquoted(text)
 }
 
 /// `text` escaped as [`sanitize`] escapes it, `"` and `\` left as they are, for a channel that
 /// encodes them itself, such as a JSON string; cut at `max_chars`, if given, ending in `…`.
-pub fn escape_hidden(text: &str, max_chars: Option<usize>) -> impl fmt::Display + '_ {
-    Hidden(text, max_chars)
+pub fn sanitize_for_json(text: &str, max_chars: Option<usize>) -> impl fmt::Display + '_ {
+    ForJson(text, max_chars)
 }
 
 struct Sanitized<'a>(&'a str);
@@ -47,9 +47,9 @@ impl fmt::Display for Quoted<'_> {
     }
 }
 
-struct Hidden<'a>(&'a str, Option<usize>);
+struct ForJson<'a>(&'a str, Option<usize>);
 
-impl fmt::Display for Hidden<'_> {
+impl fmt::Display for ForJson<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write_escaped(f, self.0, false, self.1)
     }
