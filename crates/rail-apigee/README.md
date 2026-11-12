@@ -85,9 +85,12 @@ Every setting it reads, its own and those both hosts share, is in
 ## Health
 
 It serves `grpc.health.v1` on the same port: `""` is liveness, SERVING while it serves; `rail.Ready` is readiness,
-SERVING once a bundle is held or with Rail Center disabled. Both are NOT_SERVING once it's stopping.
+SERVING once a bundle is held or with Rail Center disabled. Both are NOT_SERVING once it's stopping. A readiness answer
+gives the gateway's state in its metadata, `rail-ready-gateway`: `held`, `none`, `disabled`, or `stopping`.
+
 `rail-apigee probe [--ready]` (`rail probe [--ready]` in its image) asks it, for an exec probe, and exits 0 only on
-SERVING. It names no role, since the server answers for its own, and reads only `RAIL_CALLOUT_PORT`.
+SERVING. It names no role, since the server answers for its own, and reads only `RAIL_CALLOUT_PORT`. With `--ready` it
+prints the state after the status, e.g. `serving (gateway: held)`.
 
 ## Shutdown
 

@@ -1,8 +1,9 @@
-//! The parts of a gRPC host process both binaries share: the command line, waiting for SIGTERM,
-//! draining the server until a deadline, and the probe, a health check on the server's own
-//! address.
+//! The parts of a gRPC host process both binaries share: the command line, the health service,
+//! waiting for SIGTERM, draining the server until a deadline, and the probe, a health check on the
+//! server's own address.
 
 mod command;
+mod health;
 
 use std::error::Error;
 use std::fmt;
@@ -21,9 +22,7 @@ use tonic_health::pb::health_check_response::ServingStatus as WireStatus;
 use tonic_health::pb::health_client::HealthClient;
 
 pub use crate::command::{Command, Role, parse_command};
-
-/// The service a readiness check names, whatever the role.
-pub const READY: &str = "rail.Ready";
+pub use crate::health::{READY, Readiness, RoleCheck, RoleState, Statuses, breakdown_header};
 
 // Envoy keeps its connections open, and an ext_proc stream lasts as long as its request.
 const SHUTDOWN_DEADLINE: Duration = Duration::from_secs(5);
@@ -107,12 +106,17 @@ pub async fn probe(address: &Address, service: &str) -> ExitCode {
     }
 }
 
-/// The line [`probe`] prints: `Ok` only on SERVING.
+/// The line [`probe`] prints: `Ok` only on SERVING, each role's state after the status when the
+/// server gives them, e.g. `not serving: NOT_SERVING (proxy: expired)`.
 // A connection alone proves nothing: the kernel completes it from the backlog of a hung process.
 pub async fn ask_health(address: &Address, service: &str) -> Result<String, String> {
     match tokio::time::timeout(PROBE_TIMEOUT, check_health(address, service)).await {
-        Ok(Ok(WireStatus::Serving)) => Ok("serving".to_owned()),
-        Ok(Ok(status)) => Err(format!("not serving: {}", status.as_str_name())),
+        Ok(Ok((WireStatus::Serving, roles))) => Ok(format!("serving{}", format_roles(&roles))),
+        Ok(Ok((status, roles))) => Err(format!(
+            "not serving: {}{}",
+            status.as_str_name(),
+            format_roles(&roles)
+        )),
         Ok(Err(error)) => Err(format!(
             "can't check health on {}: {}",
             sanitize(&address.to_string()),
@@ -126,7 +130,22 @@ pub async fn ask_health(address: &Address, service: &str) -> Result<String, Stri
     }
 }
 
-async fn check_health(address: &Address, service: &str) -> Result<WireStatus, String> {
+// ` (gateway: held, proxy: valid)`, by role name; nothing for a server that gives none.
+fn format_roles(roles: &[(String, String)]) -> String {
+    if roles.is_empty() {
+        return String::new();
+    }
+    let roles: Vec<String> = roles
+        .iter()
+        .map(|(role, state)| format!("{}: {}", sanitize(role), sanitize(state)))
+        .collect();
+    format!(" ({})", roles.join(", "))
+}
+
+async fn check_health(
+    address: &Address,
+    service: &str,
+) -> Result<(WireStatus, Vec<(String, String)>), String> {
     let uri = match address {
         Address::Unix(socket) => format!("unix:{}", socket.display()),
         Address::Tcp(address) => format!("http://{address}"),
@@ -148,7 +167,24 @@ async fn check_health(address: &Address, service: &str) -> Result<WireStatus, St
         })
         .await
         .map_err(|status| format!("{:?}: {}", status.code(), status.message()))?;
+    let mut roles: Vec<(String, String)> = response
+        .metadata()
+        .clone()
+        .into_headers()
+        .iter()
+        .filter_map(|(name, value)| {
+            let role = name.as_str().strip_prefix(health::BREAKDOWN_PREFIX)?;
+            Some((
+                role.to_owned(),
+                String::from_utf8_lossy(value.as_bytes()).into_owned(),
+            ))
+        })
+        .collect();
+    roles.sort();
     let status = response.into_inner().status;
     // A value this version doesn't know isn't SERVING.
-    Ok(WireStatus::try_from(status).unwrap_or(WireStatus::Unknown))
+    Ok((
+        WireStatus::try_from(status).unwrap_or(WireStatus::Unknown),
+        roles,
+    ))
 }

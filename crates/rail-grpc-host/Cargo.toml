@@ -18,8 +18,8 @@ path = "tests/main.rs"
 rail-policy = { path = "../rail-policy" }
 tokio = { version = "1", features = ["macros", "signal", "sync", "time"] }
 tracing = "0.1"
-# The channel is the probe's client.
-tonic = { version = "0.14", default-features = false, features = ["channel"] }
+# The channel is the probe's client; codegen, the health service's trait.
+tonic = { version = "0.14", default-features = false, features = ["channel", "codegen"] }
 tonic-health = { version = "0.14", default-features = false }
 
 [dev-dependencies]

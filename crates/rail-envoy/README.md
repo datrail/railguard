@@ -35,7 +35,8 @@ has an `_`.
 
 - **Allows every request.** It doesn't judge calls yet: the gateway does.
 - **Presents only its own ticket.** The agent's `x-rail` headers never reach an upstream through it.
-- **The ticket never affects health.** Without one, it fails closed by design, and a restart wouldn't help.
+- **The ticket never affects liveness,** only readiness. Without one, it fails closed by design, and a restart wouldn't
+  help.
 - **Never logs the ticket,** only a fingerprint showing that it rotated.
 
 ## At startup
@@ -88,10 +89,16 @@ Every setting it reads, its own and those both hosts share, is in
 
 ## Health
 
-It serves `grpc.health.v1` on the same socket: SERVING while it serves, NOT_SERVING once it's stopping.
-`rail-envoy probe` (`rail probe` in its image) asks it, for an exec probe, and exits 0 only on SERVING; it waits at most
-5 s, so give the probe a longer timeout. It names no role, since the server answers for its own, and reads only
-`RAIL_EXT_SOCKET`.
+It serves `grpc.health.v1` on the same socket: `""`, ext_authz's and ext_proc's service names are liveness, SERVING
+while it serves; `rail.Ready` is readiness, SERVING while it holds a valid ticket, or with Rail Center disabled. All are
+NOT_SERVING once it's stopping. A readiness answer gives the proxy's state in its metadata, `rail-ready-proxy`: `valid`,
+`expired`, `not-found` or `issuer-unreachable` (`x-rail-status`'s words), `disabled`, or `stopping`.
+
+`rail-envoy probe [--ready]` (`rail probe [--ready]` in its image) asks it, for an exec probe, and exits 0 only on
+SERVING; it waits at most 5 s, so give the probe a longer timeout. It names no role, since the server answers for its
+own, and reads only `RAIL_EXT_SOCKET`. With `--ready` it prints the state after the status, e.g.
+`not serving: NOT_SERVING (proxy: expired)`. Use readiness to hold traffic back until a ticket is held, never to restart
+it: a ticket that lapses turns it not ready, and a restart wouldn't bring one.
 
 ## Shutdown
 

@@ -17,8 +17,8 @@ Runs the host without Rail Center: nothing is fetched from it and nothing report
 - **Default:** `false`.
 - **Accepted:** a boolean.
 - **Read by:** both hosts.
-- `rail-apigee` then allows every call it can answer, and is ready at once. `rail-envoy` still routes the protected
-  hosts, but sets neither `x-rail` nor `x-rail-status`.
+- Both hosts are then ready at once. `rail-apigee` allows every call it can answer. `rail-envoy` still routes the
+  protected hosts, but sets neither `x-rail` nor `x-rail-status`.
 - The other settings are still judged if they're set, so a mistake in one shows before Rail Center is turned on. It's
   logged as a warning when `true`.
 

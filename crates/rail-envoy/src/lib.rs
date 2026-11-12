@@ -9,6 +9,7 @@
 //! drive.
 
 mod config;
+mod health;
 mod services;
 mod xrail;
 
@@ -21,7 +22,7 @@ use std::time::SystemTime;
 
 use envoy_types::ext_authz::v3::pb::AuthorizationServer;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
-use rail_grpc_host::{Address, Command, Role};
+use rail_grpc_host::{Address, Command, Role, Statuses};
 use rail_runtime::{
     Jitter, RailCenterClient, RailCenterSettings, RailCenterThread, RailCenterTickets, Settings,
     Startup, TicketHolder, TicketSettings, Variables,
@@ -31,10 +32,10 @@ use tokio::signal::unix::{SignalKind, signal};
 use tokio::sync::oneshot;
 use tokio_stream::wrappers::UnixListenerStream;
 use tonic::server::NamedService;
-use tonic_health::ServingStatus;
-use tonic_health::server::HealthReporter;
+use tonic_health::pb::health_server::HealthServer;
 
 pub use crate::config::{Config, read_socket};
+pub use crate::health::check_proxy;
 pub use crate::services::Callouts;
 
 /// The binary: serves as the role named, or with `probe [--ready]`, asks the server on the
@@ -61,7 +62,7 @@ pub async fn run() -> ExitCode {
                 .finish("RAIL_", config)
                 .unwrap_or_else(|errors| errors.exit());
             rail_runtime::logging::set_level(config.log_level);
-            serve(config, &startup).await
+            serve(role, config, &startup).await
         }
         // Only the socket: the rest is the server's to judge, and the probe names no role.
         Command::Probe { ready } => {
@@ -75,7 +76,7 @@ pub async fn run() -> ExitCode {
     }
 }
 
-async fn serve(config: Config, startup: &Startup) -> ExitCode {
+async fn serve(role: Role, config: Config, startup: &Startup) -> ExitCode {
     rail_runtime::logging::log_settings(startup);
     // SIGTERM is how a container is stopped; as PID 1 nothing handles it unless we do.
     let terminate = match signal(SignalKind::terminate()) {
@@ -104,18 +105,24 @@ async fn serve(config: Config, startup: &Startup) -> ExitCode {
         tickets,
         protected_hosts: Arc::new(config.protected_hosts),
     };
-    // Only answered once serving; the ticket never changes it, so nothing restarts us for it.
-    let (health, health_service) = tonic_health::server::health_reporter();
-    report_status(&health, ServingStatus::Serving).await;
+    // Liveness never reads the ticket, so nothing restarts us for it; readiness does.
+    let (statuses, readiness) = Statuses::start(
+        &[
+            AuthorizationServer::<Callouts>::NAME,
+            ExternalProcessorServer::<Callouts>::NAME,
+        ],
+        vec![(role, check_proxy(callouts.tickets.clone()))],
+    )
+    .await;
     tracing::info!("serving Envoy");
     let (draining, drain_started) = oneshot::channel();
     let stopping = async {
         rail_grpc_host::terminated(terminate).await;
-        report_status(&health, ServingStatus::NotServing).await;
+        statuses.stop().await;
         let _ = draining.send(());
     };
     let server = tonic::transport::Server::builder()
-        .add_service(health_service)
+        .add_service(HealthServer::new(readiness))
         .add_service(AuthorizationServer::new(callouts.clone()))
         .add_service(ExternalProcessorServer::new(callouts))
         .serve_with_incoming_shutdown(UnixListenerStream::new(listener), stopping);
@@ -178,15 +185,4 @@ fn bind(socket: &Path) -> Result<UnixListener, String> {
         )
     })?;
     Ok(listener)
-}
-
-// The server as a whole, and each callout by its service name.
-async fn report_status(health: &HealthReporter, status: ServingStatus) {
-    health.set_service_status("", status).await;
-    health
-        .set_service_status(AuthorizationServer::<Callouts>::NAME, status)
-        .await;
-    health
-        .set_service_status(ExternalProcessorServer::<Callouts>::NAME, status)
-        .await;
 }

@@ -117,7 +117,7 @@ async fn with_rail_center_disabled_it_is_ready_and_allows_every_call() {
     let port = free_port();
     let server = tokio::task::block_in_place(|| serve(rail_apigee(port), port));
     let ready = tokio::task::block_in_place(|| probe(port, &["--ready"]));
-    assert_eq!(stdout(&ready), "serving\n");
+    assert_eq!(stdout(&ready), "serving (gateway: disabled)\n");
 
     let answer = client(port)
         .await
@@ -237,7 +237,7 @@ async fn with_no_bundle_it_is_not_ready_and_a_call_is_forwarded() {
     let _server = tokio::task::block_in_place(|| serve(command, port));
     let ready = tokio::task::block_in_place(|| probe(port, &["--ready"]));
     assert_eq!(ready.status.code(), Some(1));
-    assert_eq!(stdout(&ready), "not serving: NOT_SERVING\n");
+    assert_eq!(stdout(&ready), "not serving: NOT_SERVING (gateway: none)\n");
 
     let answer = client(port)
         .await
@@ -356,12 +356,16 @@ async fn readiness_checks_alone_see_the_bundle_arrive() {
         let _server = serve(with_rail_center(port, &rail_center.url()), port);
         assert_eq!(
             stdout(&probe(port, &["--ready"])),
-            "not serving: NOT_SERVING\n"
+            "not serving: NOT_SERVING (gateway: none)\n"
         );
 
         rail_center.release_bundle();
 
         wait_until(|| probe(port, &["--ready"]).status.success());
+        assert_eq!(
+            stdout(&probe(port, &["--ready"])),
+            "serving (gateway: held)\n"
+        );
     });
 }
 
