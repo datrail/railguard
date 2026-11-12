@@ -14,16 +14,10 @@ mod health;
 
 use std::net::{Ipv4Addr, SocketAddr};
 use std::process::ExitCode;
-use std::sync::Arc;
-use std::time::SystemTime;
 
 use apigee_callout_proto::apigee::external_callout_service_server::ExternalCalloutServiceServer;
 use rail_grpc_host::{Address, Command, Role, Statuses};
-use rail_runtime::{
-    BundleHolder, BundleSettings, Clock, DenialReporter, Gateway, GatewaySettings, Jitter,
-    KeySetHolder, RailCenterBundles, RailCenterClient, RailCenterDenials, RailCenterKeys,
-    RailCenterSettings, RailCenterThread, Settings, Startup, Variables,
-};
+use rail_runtime::{GatewaySettings, Settings, Startup, Variables, start_gateway};
 use tokio::net::TcpListener;
 use tokio::signal::unix::{SignalKind, signal};
 use tokio::sync::oneshot;
@@ -31,7 +25,7 @@ use tokio_stream::wrappers::TcpListenerStream;
 use tonic_health::pb::health_server::HealthServer;
 
 use crate::callout::SEND_HEADROOM_BYTES;
-pub use crate::callout::{Callout, MAX_ANSWERED_BYTES, build_answer, read_path};
+pub use crate::callout::{Callout, MAX_ANSWERED_BYTES, build_answer};
 pub use crate::config::{Config, read_port};
 pub use crate::health::check_gateway;
 
@@ -91,23 +85,26 @@ async fn serve(role: Role, config: Config, startup: &Startup) -> ExitCode {
             return ExitCode::from(rail_runtime::EXIT_CODE);
         }
     };
-    let started = match config.rail_center.map(start_gateway).transpose() {
+    let settings = GatewaySettings {
+        max_body_bytes: config.max_body_bytes,
+        ..GatewaySettings::default()
+    };
+    let started = config
+        .rail_center
+        .map(|rail_center| start_gateway(rail_center, settings))
+        .transpose();
+    let started = match started {
         Ok(started) => started,
         Err(error) => {
             tracing::error!(error = %error, "can't start fetching from Rail Center");
             return ExitCode::FAILURE;
         }
     };
-    let (rail_center, bundles, gateway) = match started {
-        Some(started) => (
-            Some(started.thread),
-            Some(started.bundles),
-            Some(started.gateway),
-        ),
-        None => (None, None, None),
+    let (rail_center, gateway) = started.unzip();
+    let callout = Callout {
+        gateway: gateway.clone(),
     };
-    let callout = Callout { gateway };
-    let (statuses, readiness) = Statuses::start(&[], vec![(role, check_gateway(bundles))]).await;
+    let (statuses, readiness) = Statuses::start(&[], vec![(role, check_gateway(gateway))]).await;
     tracing::info!(port = config.port, "serving the ExternalCallout service");
     let (draining, drain_started) = oneshot::channel();
     let stopping = async {
@@ -134,54 +131,4 @@ async fn serve(role: Role, config: Config, startup: &Startup) -> ExitCode {
             ExitCode::FAILURE
         }
     }
-}
-
-struct Started {
-    thread: RailCenterThread,
-    bundles: Arc<BundleHolder>,
-    gateway: Arc<Gateway>,
-}
-
-// The bundle, the key set and the denial reports go through the Rail Center thread; calls only
-// read what's held.
-fn start_gateway(
-    (rail_center, bundle): (RailCenterSettings, BundleSettings),
-) -> Result<Started, String> {
-    let client = RailCenterClient::new(&rail_center)?;
-    let thread = RailCenterThread::start()?;
-    let runtime = thread.runtime();
-    let bundles = Arc::new(BundleHolder::start(
-        runtime,
-        RailCenterBundles {
-            client: client.clone(),
-            gateway_slug: bundle.gateway_slug,
-        },
-        bundle.refresh_interval,
-        Jitter::random(),
-    ));
-    let key_sets = Arc::new(KeySetHolder::start(
-        runtime,
-        RailCenterKeys {
-            client: client.clone(),
-        },
-        Clock::system(),
-        Jitter::random(),
-    ));
-    let reporter = Arc::new(DenialReporter::new(
-        runtime,
-        RailCenterDenials { client },
-        Arc::new(SystemTime::now),
-    ));
-    let gateway = Gateway::new(
-        Arc::clone(&bundles),
-        key_sets,
-        reporter,
-        Arc::new(SystemTime::now),
-        GatewaySettings::default(),
-    );
-    Ok(Started {
-        thread,
-        bundles,
-        gateway: Arc::new(gateway),
-    })
 }

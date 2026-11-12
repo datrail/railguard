@@ -49,6 +49,7 @@ _P2 = "11111111-0000-4000-8000-000000000002"
 _AGENT = {"Authorization": "Bearer e2e-agent"}
 _REFUSED = '{"error": "denied by policy"}'
 _CALLOUT_FAILED = '{"error": "policy ruleset cannot be applied"}'
+_TOO_LARGE = '{"error": "request body too large"}'
 _OPERATOR_FAULT = '{"error": "e2e operator fault"}'
 # Apigee's own fault for a body past its limit.
 _TOO_BIG = "protocol.http.TooBigBody"
@@ -376,7 +377,8 @@ def _run_callout_cases():
         "refuse",
         large.get("rail.decision"),
     )
-    _expect("with 503", "503", large.get("rail.status"))
+    _expect("with 413", "413", large.get("rail.status"))
+    _expect("and the refusal's body", _TOO_LARGE, large.get("rail.body"))
 
     _start_block("unreachable: serves on the port it was given, and isn't ready")
     _expect("liveness on 9100", "SERVING", _check_health(_UNREACHABLE))
@@ -504,8 +506,8 @@ def _run_apigee_cases():
         _report_fail(f"the 3.5 MiB call returns the upstream's answer: got {code} {body[:300]}")
     _reset_journals()
     code, body = _call_tool(_MCP, "track_package", {"pad": "x" * 5 * 1024 * 1024}, good)
-    _expect("the 5 MiB call is answered 503", 503, code)
-    _expect("with the refusal's body", _CALLOUT_FAILED, body)
+    _expect("the 5 MiB call is answered 413", 413, code)
+    _expect("with the refusal's body", _TOO_LARGE, body)
     _expect("nothing reached the upstream", 0, _count_upstream_requests())
     _reset_journals()
     arguments = {"pad": "x" * 11 * 1024 * 1024}

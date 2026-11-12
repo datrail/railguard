@@ -3,6 +3,7 @@
 
 use std::ffi::OsStr;
 use std::io::Read;
+use std::net::{Ipv4Addr, TcpListener};
 use std::process::{Child, Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
@@ -51,6 +52,15 @@ pub fn protect(value: &str) -> ProtectedHosts {
     read(&pairs, |settings| read_protected_hosts(settings, true))
         .unwrap()
         .0
+}
+
+/// A port nothing listens on, for the server to bind.
+pub fn free_port() -> u16 {
+    TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port()
 }
 
 /// `program` with an empty environment, so the caller's own RAIL_* variables can't change a run.

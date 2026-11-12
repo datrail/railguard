@@ -3,12 +3,14 @@
 mod body;
 mod bundle;
 mod bundle_holder;
+mod callout;
 mod client;
 mod clock;
 mod config;
 mod denial;
 mod gateway;
 mod gateway_call;
+mod gateway_start;
 mod holder;
 mod key_set;
 pub mod logging;
@@ -21,14 +23,16 @@ mod xrail;
 
 pub use bundle::{BundleSettings, BundleSource, RailCenterBundles, read_bundle_settings};
 pub use bundle_holder::{BundleHolder, HeldBundle, Posture};
+pub use callout::{HostLimit, read_callout_port, read_max_body_bytes, read_max_message_bytes};
 pub use client::{FetchError, Limits, RailCenterClient, Response};
 pub use clock::{Clock, Stamp};
 pub use config::{
     ConfigErrors, EXIT_CODE, Entry, Level, Refused, Secret, Settings, Source, Startup, Variables,
 };
 pub use denial::{Denial, DenialReporter, DenialSink, DeniedBy, RailCenterDenials};
-pub use gateway::{Answer, Call, UnitSettings};
+pub use gateway::{Answer, Call, UnitSettings, read_path};
 pub use gateway_call::{Gateway, GatewaySettings};
+pub use gateway_start::start_gateway;
 pub use holder::Jitter;
 pub use key_set::{KeySet, KeySetHolder, KeySource, RailCenterKeys};
 pub use logging::{read_log_format, read_log_level};

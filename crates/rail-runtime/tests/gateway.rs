@@ -4,7 +4,7 @@ use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::Value;
 
-use rail_runtime::{Call, Gateway, GatewaySettings};
+use rail_runtime::{Call, Gateway, GatewaySettings, read_path};
 
 use crate::bundles::{self, Script};
 use crate::holder::{TestClock, until};
@@ -13,6 +13,23 @@ use crate::scripted::answer;
 use crate::sink::Sink;
 
 const VECTORS: &str = include_str!("../../../vectors/gateway_enforcement_conformance_cases.json");
+
+#[test]
+fn the_path_is_the_uri_without_its_query_percent_decoded() {
+    let cases = [
+        ("/mcp", "/mcp"),
+        ("/mcp?session=1", "/mcp"),
+        ("/a%20b/%2Fc?x=%20", "/a b//c"),
+        // An invalid escape is kept, invalid UTF-8 replaced.
+        ("/a%zz", "/a%zz"),
+        ("/a%ff", "/a\u{fffd}"),
+        ("", "/"),
+        ("?only=query", "/"),
+    ];
+    for (uri, path) in cases {
+        assert_eq!(read_path(uri), path, "{uri:?}");
+    }
+}
 
 #[derive(Deserialize)]
 struct Vectors {

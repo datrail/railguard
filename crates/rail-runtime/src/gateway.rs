@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use percent_encoding::percent_decode_str;
 use rail_policy::{
     Budget, DEFAULT_STEP_LIMIT, Decision, DecodedTicket, Endpoint, Environment, Headers,
     JudgingMode, Outcome, Resolution, SignedTicketConfig, TicketState, decode_ticket, judge,
@@ -53,6 +54,8 @@ pub enum Answer {
     Deny,
     /// The rules couldn't be applied to the call: 503.
     CannotApply,
+    /// The body is past what's judged: 413.
+    TooLarge,
 }
 
 impl Answer {
@@ -63,7 +66,20 @@ impl Answer {
             Self::Forward => None,
             Self::Deny => Some((403, r#"{"error": "denied by policy"}"#)),
             Self::CannotApply => Some((503, r#"{"error": "policy ruleset cannot be applied"}"#)),
+            Self::TooLarge => Some((413, r#"{"error": "request body too large"}"#)),
         }
+    }
+}
+
+/// The path of `uri`, without the query, percent-decoded: an invalid escape is kept, and invalid
+/// UTF-8 replaced.
+pub fn read_path(uri: &str) -> String {
+    let path = uri.split_once('?').map_or(uri, |(path, _)| path);
+    let path = percent_decode_str(path).decode_utf8_lossy();
+    if path.is_empty() {
+        "/".to_owned()
+    } else {
+        path.into_owned()
     }
 }
 

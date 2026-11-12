@@ -47,9 +47,9 @@ Anything that gets a call past rail-apigee that its rules refuse:
 - **the denial reports:** anything that suppresses or forges them, since they're the audit trail. Past 64 reports in
   flight, 16 of them naming no policy, a report is dropped and logged; the call stays denied.
 
-A refusal names no policy: 403 for a denial, 503 for a call the rules can't be applied to. On Apigee, a request past 4
-MiB less 1 KiB is refused unjudged, 503. If the callout is down or answers no decision, the reference Apigee proxy
-refuses the call, 503.
+A refusal names no policy: 403 for a denial, 503 for a call the rules can't be applied to. A body past
+`RAIL_MAX_BODY_MB` is refused unjudged, 413; on Apigee, so is a request past 4 MiB less 1 KiB. If the callout is down or
+answers no decision, the reference Apigee proxy refuses the call, 503.
 
 **The callout's port.** It receives every header and the body, bearer token included, and logs no header value.
 rail-apigee authenticates no caller, so only Apigee may reach it: a caller could otherwise ask for verdicts, and send
@@ -77,9 +77,11 @@ alone. Elsewhere, keep it reachable from Apigee only.
   name, over TLS unless the entry says `http://`; the reference configs check the certificate against that name. An
   entry without a port sends it to whatever port the agent names on that host. A ticket reaching a host the config
   didn't name is a report.
-- **The socket.** Whatever can connect to it can ask what rail-envoy would attach to a request, ticket included. It's
-  made `0660`, for rail-envoy's own user and group, and there's no TCP port, since anything on localhost in a pod is
-  reachable by the agent. Envoy reaches it by sharing the group: don't put the agent in it.
+- **The socket, or the port.** Whatever can connect to it can ask what rail-envoy would attach to a request, ticket
+  included. The socket is made `0660`, for rail-envoy's own user and group; Envoy reaches it by sharing the group: don't
+  put the agent in it. A port (`RAIL_CALLOUT_PORT`) is bound on every interface, so anything that reaches it can read
+  the ticket, the agent included if it shares the pod or network: the proxy should listen on the socket, and a port must
+  be reachable only by Envoy.
 
 ## Both hosts
 

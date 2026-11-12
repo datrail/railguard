@@ -1,9 +1,8 @@
-use std::path::Path;
+use std::path::PathBuf;
 use std::time::Duration;
 
-use rail_envoy::Config;
+use rail_envoy::{Config, Listener};
 use rail_runtime::{Level, Source, Startup};
-use rail_test_support::describe;
 
 const TOKEN: &str = "rc_svc_abcdefghijklmnopqrstuvwxyzABCDEFGHIJK-_0123";
 
@@ -32,8 +31,24 @@ const ENABLED: [(&str, &str); 5] = [
     ("RAIL_TICKET_REFRESH_SECONDS", "600"),
 ];
 
+// Where a case names no listener, the socket: one is required.
+fn listening<'a>(pairs: &[(&'a str, &'a str)]) -> Vec<(&'a str, &'a str)> {
+    let mut pairs = pairs.to_vec();
+    let names_one = pairs
+        .iter()
+        .any(|(name, _)| ["RAIL_EXT_SOCKET", "RAIL_CALLOUT_PORT"].contains(name));
+    if !names_one {
+        pairs.insert(0, ("RAIL_EXT_SOCKET", "/run/rail/ext.sock"));
+    }
+    pairs
+}
+
 fn read_startup(pairs: &[(&str, &str)]) -> Result<(Config, Startup), Vec<String>> {
-    rail_test_support::read(pairs, Config::read)
+    rail_test_support::read(&listening(pairs), Config::read)
+}
+
+fn describe(pairs: &[(&str, &str)]) -> Vec<(&'static str, String, Level)> {
+    rail_test_support::describe(&listening(pairs), Config::read)
 }
 
 fn read(pairs: &[(&str, &str)]) -> Result<Config, Vec<String>> {
@@ -57,7 +72,7 @@ fn disabled_describes_every_setting_set_though_its_group_is_incomplete() {
         ("RAIL_AUTH_TOKEN", TOKEN),
     ];
 
-    let entries = describe(&pairs, Config::read);
+    let entries = describe(&pairs);
 
     let entries_of = |name| entries.iter().filter(move |(named, ..)| *named == name);
     for (name, _) in pairs {
@@ -99,7 +114,7 @@ fn without_a_credential_the_token_is_described_as_unset() {
         })
         .collect();
 
-    let entries = describe(&pairs, Config::read);
+    let entries = describe(&pairs);
 
     assert_eq!(
         entries[6..8],
@@ -112,7 +127,7 @@ fn without_a_credential_the_token_is_described_as_unset() {
 
 #[test]
 fn the_description_says_each_value_as_used_and_never_the_token() {
-    let described = describe(&COMPLETE, Config::read);
+    let described = describe(&COMPLETE);
 
     let entries: Vec<_> = described
         .iter()
@@ -169,7 +184,7 @@ fn the_defaults_are_described_as_used_and_disabled_as_a_warning() {
                 "RAIL_EXT_SOCKET",
                 "/run/rail/ext.sock",
                 Level::Info,
-                Source::Default
+                Source::Env
             ),
             (
                 "RAIL_DISABLED",
@@ -228,7 +243,10 @@ fn nothing_set_and_unused_is_unread() {
 fn rail_center_and_the_ticket_are_read_together() {
     let config = read(&ENABLED).unwrap();
 
-    assert_eq!(config.socket, Path::new("/run/rail/ext.sock"));
+    assert_eq!(
+        config.listener,
+        Listener::Unix(PathBuf::from("/run/rail/ext.sock"))
+    );
     let (rail_center, ticket) = config.ticket.unwrap();
     assert_eq!(rail_center.url.to_string(), "https://rail-center.example");
     assert_eq!(ticket.query.host_id, "host-1");
@@ -319,10 +337,55 @@ fn the_socket_path_is_set_absolute() {
         ("RAIL_EXT_SOCKET", "/tmp/x.sock"),
     ])
     .unwrap();
-    assert_eq!(config.socket, Path::new("/tmp/x.sock"));
+    assert_eq!(
+        config.listener,
+        Listener::Unix(PathBuf::from("/tmp/x.sock"))
+    );
 
     let errors = read(&[("RAIL_DISABLED", "true"), ("RAIL_EXT_SOCKET", "x.sock")]).unwrap_err();
     assert_eq!(errors, ["RAIL_EXT_SOCKET must be an absolute path"]);
+}
+
+#[test]
+fn it_listens_on_exactly_one_of_the_socket_and_the_port() {
+    let (config, startup) =
+        read_startup(&[("RAIL_DISABLED", "true"), ("RAIL_CALLOUT_PORT", "8080")]).unwrap();
+    assert_eq!(config.listener, Listener::Tcp(8080));
+    let described: Vec<_> = startup.entries.iter().map(|entry| entry.name).collect();
+    assert!(described.contains(&"RAIL_CALLOUT_PORT"), "{described:?}");
+    assert!(!described.contains(&"RAIL_EXT_SOCKET"), "{described:?}");
+
+    let both = read(&[
+        ("RAIL_DISABLED", "true"),
+        ("RAIL_EXT_SOCKET", "/tmp/x.sock"),
+        ("RAIL_CALLOUT_PORT", "8080"),
+    ])
+    .unwrap_err();
+    assert_eq!(
+        both,
+        [
+            "RAIL_EXT_SOCKET and RAIL_CALLOUT_PORT are both set: set only one, the socket or the port to listen on"
+        ]
+    );
+    let neither = rail_test_support::read(&[("RAIL_DISABLED", "true")], Config::read).unwrap_err();
+    assert_eq!(
+        neither,
+        [
+            "RAIL_EXT_SOCKET or RAIL_CALLOUT_PORT is required, the socket or the port to listen on, and neither is set"
+        ]
+    );
+    // A port refused is refused for itself, not as a second listener.
+    let refused = read(&[
+        ("RAIL_DISABLED", "true"),
+        ("RAIL_EXT_SOCKET", "/tmp/x.sock"),
+        ("RAIL_CALLOUT_PORT", "0"),
+    ])
+    .unwrap_err();
+    assert_eq!(refused.len(), 1, "{refused:?}");
+    assert!(
+        refused[0].starts_with("RAIL_CALLOUT_PORT must be a port"),
+        "{refused:?}"
+    );
 }
 
 #[test]

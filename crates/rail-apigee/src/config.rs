@@ -1,8 +1,10 @@
-use rail_policy::sanitize;
 use rail_runtime::{
-    BundleSettings, RailCenterSettings, Refused, Settings, read_bundle_settings, read_disabled,
-    read_log_format, read_log_level, read_rail_center,
+    BundleSettings, HostLimit, RailCenterSettings, Refused, Settings, read_bundle_settings,
+    read_callout_port, read_disabled, read_log_format, read_log_level, read_max_body_bytes,
+    read_max_message_bytes, read_rail_center,
 };
+
+use crate::callout::MAX_ANSWERED_BYTES;
 
 // The callout's settings are named for any host serving a callout, not the gateway's alone;
 // the retired names are refused, so a deployment still setting one can't quietly lose it.
@@ -12,11 +14,12 @@ const DEFAULT_PORT: u16 = 8080;
 
 const MAX_MESSAGE_MB: &str = "RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB";
 const RETIRED_MAX_MESSAGE_MB: &str = "RAIL_GATEWAY_GRPC_MAX_MESSAGE_MB";
-// Apigee X takes request bodies up to 10 MB, and gRPC's own default is 4 MB.
-const DEFAULT_MAX_MESSAGE_MB: usize = 16;
-// High enough that no limit a deployment already sets is refused.
-const MAX_MAX_MESSAGE_MB: usize = 100;
-const MB: usize = 1024 * 1024;
+
+// The answer echoes the request, so Apigee's 4 MiB answer limit can refuse before the cap.
+const APIGEE_LIMIT: HostLimit = HostLimit {
+    bytes: MAX_ANSWERED_BYTES,
+    why: "Apigee's answer limit, on the whole request",
+};
 
 /// What this process runs with.
 #[derive(Debug)]
@@ -26,6 +29,8 @@ pub struct Config {
     pub port: u16,
     /// The largest gRPC message received, in bytes.
     pub max_message_bytes: usize,
+    /// The largest body judged, in bytes; Apigee's answer limit refuses first when lower.
+    pub max_body_bytes: usize,
     /// Where the bundle and keys come from and denials go; `None` when Rail Center is disabled.
     pub rail_center: Option<(RailCenterSettings, BundleSettings)>,
 }
@@ -45,13 +50,8 @@ impl Config {
                 .retired(&format!("{MAX_MESSAGE_MB} sets the limit")),
         ];
         let port = read_port(settings);
-        let max_message_mb = settings
-            .get(MAX_MESSAGE_MB)
-            .parsed(parse_max_message_mb)
-            .map(|mb| mb.unwrap_or(DEFAULT_MAX_MESSAGE_MB));
-        if let Ok(mb) = &max_message_mb {
-            settings.describe(MAX_MESSAGE_MB, mb);
-        }
+        let max_message_bytes = read_max_message_bytes(settings);
+        let max_body_bytes = read_max_body_bytes(settings, Some(APIGEE_LIMIT));
         // Whatever is set is judged either way; only an enabled Rail Center requires its settings.
         let disabled = read_disabled(settings);
         let enabled = disabled == Ok(false);
@@ -60,8 +60,14 @@ impl Config {
         disabled?;
         retired.into_iter().try_for_each(|retired| retired)?;
         log_format?;
-        let (log_level, port, max_message_mb, rail_center, bundle) =
-            (log_level?, port?, max_message_mb?, rail_center?, bundle?);
+        let (log_level, port, max_message_bytes, max_body_bytes, rail_center, bundle) = (
+            log_level?,
+            port?,
+            max_message_bytes?,
+            max_body_bytes?,
+            rail_center?,
+            bundle?,
+        );
         // Enabled, both are required, so both are Some.
         let rail_center = enabled.then(|| {
             rail_center
@@ -71,7 +77,8 @@ impl Config {
         Ok(Self {
             log_level,
             port,
-            max_message_bytes: max_message_mb * MB,
+            max_message_bytes,
+            max_body_bytes,
             rail_center,
         })
     }
@@ -79,32 +86,5 @@ impl Config {
 
 /// `RAIL_CALLOUT_PORT`, where the server listens: all `rail probe` reads.
 pub fn read_port(settings: &mut Settings) -> Result<u16, Refused> {
-    let port = settings
-        .get(PORT)
-        .parsed(parse_port)
-        .map(|port| port.unwrap_or(DEFAULT_PORT));
-    if let Ok(port) = &port {
-        settings.describe(PORT, port);
-    }
-    port
-}
-
-fn parse_port(text: &str) -> Result<u16, String> {
-    match text.parse::<u16>() {
-        Ok(port) if port != 0 => Ok(port),
-        _ => Err(format!(
-            "must be a port, from 1 to 65535, got: {}",
-            sanitize(text)
-        )),
-    }
-}
-
-fn parse_max_message_mb(text: &str) -> Result<usize, String> {
-    match text.parse::<usize>() {
-        Ok(mb) if (1..=MAX_MAX_MESSAGE_MB).contains(&mb) => Ok(mb),
-        _ => Err(format!(
-            "must be a whole number of MiB, from 1 to {MAX_MAX_MESSAGE_MB}, got: {}",
-            sanitize(text)
-        )),
-    }
+    read_callout_port(settings, Some(DEFAULT_PORT)).map(|port| port.expect("a default is given"))
 }
