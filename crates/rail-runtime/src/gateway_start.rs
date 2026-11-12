@@ -14,20 +14,12 @@ use crate::key_set::{KeySetHolder, RailCenterKeys};
 use crate::rail_center::RailCenterSettings;
 use crate::rail_center_thread::RailCenterThread;
 
-/// What a host serving the gateway holds: the thread to stop on exit, the bundles for its
-/// readiness, and the gateway its calls go to.
-pub struct StartedGateway {
-    pub thread: RailCenterThread,
-    pub bundles: Arc<BundleHolder>,
-    pub gateway: Arc<Gateway>,
-}
-
 // The bundle, the key set and the denial reports go through the Rail Center thread; calls only
 // read what's held.
 pub fn start_gateway(
     (rail_center, bundle): (RailCenterSettings, BundleSettings),
     settings: GatewaySettings,
-) -> Result<StartedGateway, String> {
+) -> Result<(RailCenterThread, Arc<Gateway>), String> {
     let client = RailCenterClient::new(&rail_center)?;
     let thread = RailCenterThread::start()?;
     let runtime = thread.runtime();
@@ -54,15 +46,11 @@ pub fn start_gateway(
         Arc::new(SystemTime::now),
     ));
     let gateway = Gateway::new(
-        Arc::clone(&bundles),
+        bundles,
         key_sets,
         reporter,
         Arc::new(SystemTime::now),
         settings,
     );
-    Ok(StartedGateway {
-        thread,
-        bundles,
-        gateway: Arc::new(gateway),
-    })
+    Ok((thread, Arc::new(gateway)))
 }

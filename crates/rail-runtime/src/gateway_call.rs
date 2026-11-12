@@ -12,6 +12,7 @@ use tokio::task::spawn_blocking;
 use tokio::time::{Instant, timeout_at};
 
 use crate::bundle_holder::{BundleHolder, HeldBundle};
+use crate::callout::{DEFAULT_MAX_BODY_MB, MB};
 use crate::denial::DenialReporter;
 use crate::gateway::{Answer, Call, Unit, UnitSettings, decode_x_rail, judge_call};
 use crate::key_set::KeySetHolder;
@@ -45,7 +46,7 @@ impl Default for GatewaySettings {
             deadline: Duration::from_secs(5),
             max_concurrent_judgements: available_parallelism().unwrap_or(NonZeroUsize::MIN),
             no_bundle_fallback: Fallback::Pass,
-            max_body_bytes: 15 * 1024 * 1024,
+            max_body_bytes: DEFAULT_MAX_BODY_MB * MB,
             unit: UnitSettings::default(),
         }
     }
@@ -79,6 +80,15 @@ impl Gateway {
             now,
             judgements: Arc::new(Semaphore::new(settings.max_concurrent_judgements.get())),
             settings,
+        }
+    }
+
+    /// Whether it's ready, and its state in readiness's words: `held` once a bundle is, else
+    /// `none`.
+    pub fn readiness(&self) -> (bool, &'static str) {
+        match self.bundles.snapshot() {
+            Some(_) => (true, "held"),
+            None => (false, "none"),
         }
     }
 

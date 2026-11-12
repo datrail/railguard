@@ -14,10 +14,10 @@ const DEFAULT_MAX_MESSAGE_MB: usize = 16;
 const MAX_MAX_MESSAGE_MB: usize = 100;
 
 const MAX_BODY_MB: &str = "RAIL_MAX_BODY_MB";
-const DEFAULT_MAX_BODY_MB: usize = 15;
+pub(crate) const DEFAULT_MAX_BODY_MB: usize = 15;
 const MAX_MAX_BODY_MB: usize = 100;
 
-const MB: usize = 1024 * 1024;
+pub(crate) const MB: usize = 1024 * 1024;
 
 /// A limit of the host's own below which the body cap can't be reached, for the startup line.
 #[derive(Clone, Copy, Debug)]

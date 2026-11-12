@@ -32,7 +32,7 @@ pub use config::{
 pub use denial::{Denial, DenialReporter, DenialSink, DeniedBy, RailCenterDenials};
 pub use gateway::{Answer, Call, UnitSettings, read_path};
 pub use gateway_call::{Gateway, GatewaySettings};
-pub use gateway_start::{StartedGateway, start_gateway};
+pub use gateway_start::start_gateway;
 pub use holder::Jitter;
 pub use key_set::{KeySet, KeySetHolder, KeySource, RailCenterKeys};
 pub use logging::{read_log_format, read_log_level};

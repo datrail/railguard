@@ -15,7 +15,7 @@ const DEFAULT_PORT: u16 = 8080;
 const MAX_MESSAGE_MB: &str = "RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB";
 const RETIRED_MAX_MESSAGE_MB: &str = "RAIL_GATEWAY_GRPC_MAX_MESSAGE_MB";
 
-// Below any body cap: a larger request's answer, echoing it, is past what Apigee takes.
+// The answer echoes the request, so Apigee's 4 MiB answer limit can refuse before the cap.
 const APIGEE_LIMIT: HostLimit = HostLimit {
     bytes: MAX_ANSWERED_BYTES,
     why: "Apigee's answer limit, on the whole request",

@@ -40,33 +40,22 @@ fn on_a_port_it_serves_and_the_probe_finds_it_there() {
     assert_eq!(server.wait_for_exit(Duration::from_secs(2)), Some(Some(0)));
 }
 
+// Both is refused the same way; config.rs checks each refusal's words.
 #[test]
-fn with_both_listeners_or_neither_it_refuses_to_start_and_the_probe_to_ask() {
-    let socket = TempSocket::new("both");
+fn with_no_listener_it_refuses_to_start_and_the_probe_to_ask() {
     let refused = refused_configuration();
-    for both in [true, false] {
-        for arguments in [&["proxy"][..], &["probe"]] {
-            let mut command = isolate(env!("CARGO_BIN_EXE_rail-envoy"));
-            command
-                .env("RAIL_DISABLED", "true")
-                .env("RAIL_LOG_FORMAT", "text");
-            if both {
-                command
-                    .env("RAIL_EXT_SOCKET", &socket.path)
-                    .env("RAIL_CALLOUT_PORT", "8080");
-            }
+    for arguments in [&["proxy"][..], &["probe"]] {
+        let mut command = isolate(env!("CARGO_BIN_EXE_rail-envoy"));
+        command
+            .env("RAIL_DISABLED", "true")
+            .env("RAIL_LOG_FORMAT", "text");
 
-            let output = command.args(arguments).output().unwrap();
+        let output = command.args(arguments).output().unwrap();
 
-            assert_eq!(output.status.code(), refused, "{both} {arguments:?}");
-            let logs = String::from_utf8_lossy(&output.stderr);
-            assert!(
-                logs.contains("RAIL_EXT_SOCKET"),
-                "{both} {arguments:?}: {logs}"
-            );
-        }
+        assert_eq!(output.status.code(), refused, "{arguments:?}");
+        let logs = String::from_utf8_lossy(&output.stderr);
+        assert!(logs.contains("RAIL_EXT_SOCKET"), "{arguments:?}: {logs}");
     }
-    assert!(!socket.path.exists());
 }
 
 #[test]

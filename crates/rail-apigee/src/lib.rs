@@ -100,16 +100,11 @@ async fn serve(role: Role, config: Config, startup: &Startup) -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let (rail_center, bundles, gateway) = match started {
-        Some(started) => (
-            Some(started.thread),
-            Some(started.bundles),
-            Some(started.gateway),
-        ),
-        None => (None, None, None),
+    let (rail_center, gateway) = started.unzip();
+    let callout = Callout {
+        gateway: gateway.clone(),
     };
-    let callout = Callout { gateway };
-    let (statuses, readiness) = Statuses::start(&[], vec![(role, check_gateway(bundles))]).await;
+    let (statuses, readiness) = Statuses::start(&[], vec![(role, check_gateway(gateway))]).await;
     tracing::info!(port = config.port, "serving the ExternalCallout service");
     let (draining, drain_started) = oneshot::channel();
     let stopping = async {
