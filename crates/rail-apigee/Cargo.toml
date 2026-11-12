@@ -23,7 +23,6 @@ apigee-callout-proto = { path = "../apigee-callout-proto" }
 # A request's encoded size, against what Apigee takes back.
 prost = "0.14"
 rail-grpc-host = { path = "../rail-grpc-host" }
-rail-policy = { path = "../rail-policy" }
 rail-runtime = { path = "../rail-runtime" }
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync"] }
 tokio-stream = { version = "0.1", features = ["net"] }

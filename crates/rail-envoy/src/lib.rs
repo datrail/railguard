@@ -26,23 +26,22 @@ use std::time::SystemTime;
 
 use envoy_types::ext_authz::v3::pb::AuthorizationServer;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
-use rail_grpc_host::{Address, Command, Role, Statuses};
+use rail_grpc_host::{Address, Command, Role, Statuses, check_held};
 use rail_runtime::{
-    GatewaySettings, Jitter, RailCenterClient, RailCenterSettings, RailCenterThread,
-    RailCenterTickets, Refused, Settings, Startup, TicketHolder, TicketSettings, Variables,
-    start_gateway,
+    Gateway, GatewaySettings, Jitter, RailCenterClient, RailCenterSettings, RailCenterThread,
+    RailCenterTickets, Settings, Startup, TicketHolder, TicketSettings, Variables, start_gateway,
 };
 use tokio::net::{TcpListener, UnixListener};
 use tokio::signal::unix::{Signal, SignalKind, signal};
-use tokio::sync::oneshot;
 use tokio_stream::wrappers::{TcpListenerStream, UnixListenerStream};
 use tonic::server::NamedService;
 use tonic::transport::server::Router;
 use tonic_health::pb::health_server::HealthServer;
 
-pub use crate::config::{GatewayConfig, Listener, ProxyConfig, read_listener};
-pub use crate::gateway::GatewayCallouts;
-pub use crate::health::{check_gateway, check_proxy};
+use crate::config::read_listener;
+pub use crate::config::{GatewayConfig, Listener, ProxyConfig};
+use crate::gateway::GatewayCallouts;
+pub use crate::health::check_proxy;
 pub use crate::services::Callouts;
 
 /// The binary: serves as the role named, or with `probe [--ready]`, asks the server where it's
@@ -60,19 +59,19 @@ pub async fn run() -> ExitCode {
         }
     };
     let variables = Variables::from_process();
-    let mut settings = Settings::new(&variables);
+    let settings = Settings::new(&variables);
     match command {
         Command::Serve(role) => {
             // Before the settings, so a refused configuration names the build.
             rail_runtime::logging::log_build(role.as_str());
             match role {
                 Role::Proxy => {
-                    let (config, startup) = read_config(settings, ProxyConfig::read);
+                    let (config, startup) = settings.finish_or_exit("RAIL_", ProxyConfig::read);
                     rail_runtime::logging::set_level(config.log_level);
                     serve_proxy(config, &startup).await
                 }
                 Role::Gateway => {
-                    let (config, startup) = read_config(settings, GatewayConfig::read);
+                    let (config, startup) = settings.finish_or_exit("RAIL_", GatewayConfig::read);
                     rail_runtime::logging::set_level(config.log_level);
                     serve_gateway(config, &startup).await
                 }
@@ -80,28 +79,14 @@ pub async fn run() -> ExitCode {
         }
         // Only the listener: the rest is the server's to judge, and the probe names no role.
         Command::Probe { ready } => {
-            let listener = read_listener(&mut settings);
-            let (listener, _) = settings
-                .finish("RAIL_", listener)
-                .unwrap_or_else(|errors| errors.exit());
+            let (listener, _) = settings.finish_or_exit("RAIL_", read_listener);
             let address = match listener {
                 Listener::Unix(socket) => Address::Unix(socket),
                 Listener::Tcp(port) => Address::Tcp(SocketAddr::from((Ipv4Addr::LOCALHOST, port))),
             };
-            rail_grpc_host::probe(&address, rail_grpc_host::probe_service(ready)).await
+            rail_grpc_host::probe(&address, ready).await
         }
     }
-}
-
-// Exits as a refused configuration does when anything is refused.
-fn read_config<T>(
-    mut settings: Settings,
-    read: impl FnOnce(&mut Settings) -> Result<T, Refused>,
-) -> (T, Startup) {
-    let config = read(&mut settings);
-    settings
-        .finish("RAIL_", config)
-        .unwrap_or_else(|errors| errors.exit())
 }
 
 async fn serve_proxy(config: ProxyConfig, startup: &Startup) -> ExitCode {
@@ -165,7 +150,7 @@ async fn serve_gateway(config: GatewayConfig, startup: &Startup) -> ExitCode {
             AuthorizationServer::<GatewayCallouts>::NAME,
             ExternalProcessorServer::<GatewayCallouts>::NAME,
         ],
-        vec![(Role::Gateway, check_gateway(gateway))],
+        vec![(Role::Gateway, check_held(gateway, Gateway::readiness))],
     )
     .await;
     tracing::info!(listener = %config.listener, "serving Envoy");
@@ -193,6 +178,7 @@ async fn prepare(listener: &Listener, startup: &Startup) -> Result<(Signal, Boun
     Ok((terminate, bound))
 }
 
+// One server per incoming type.
 async fn serve_until_stopped(
     bound: Bound,
     router: Router,
@@ -200,34 +186,15 @@ async fn serve_until_stopped(
     terminate: Signal,
     rail_center: Option<RailCenterThread>,
 ) -> ExitCode {
-    let (draining, drain_started) = oneshot::channel();
-    let stopping = async {
-        rail_grpc_host::terminated(terminate).await;
-        statuses.stop().await;
-        let _ = draining.send(());
-    };
-    // Two incoming types, so a server each.
-    let served = match bound {
+    let stop = rail_center.map(|thread| move || thread.stop());
+    match bound {
         Bound::Unix(listener) => {
             let incoming = UnixListenerStream::new(listener);
-            let server = router.serve_with_incoming_shutdown(incoming, stopping);
-            rail_grpc_host::drain_until_deadline(server, drain_started).await
+            rail_grpc_host::serve_until_stopped(router, incoming, statuses, terminate, stop).await
         }
         Bound::Tcp(listener) => {
             let incoming = TcpListenerStream::new(listener);
-            let server = router.serve_with_incoming_shutdown(incoming, stopping);
-            rail_grpc_host::drain_until_deadline(server, drain_started).await
-        }
-    };
-    // Its stop blocks on a join, so it's kept off the async workers.
-    if let Some(thread) = rail_center {
-        let _ = tokio::task::spawn_blocking(move || thread.stop()).await;
-    }
-    match served {
-        Ok(()) => ExitCode::SUCCESS,
-        Err(error) => {
-            tracing::error!(error = %error, "the gRPC server failed");
-            ExitCode::FAILURE
+            rail_grpc_host::serve_until_stopped(router, incoming, statuses, terminate, stop).await
         }
     }
 }

@@ -3,9 +3,8 @@ use std::path::PathBuf;
 
 use rail_runtime::{
     BundleSettings, ProtectedHosts, RailCenterSettings, Refused, Settings, TicketSettings,
-    read_bundle_settings, read_callout_port, read_disabled, read_log_format, read_log_level,
-    read_max_body_bytes, read_max_message_bytes, read_protected_hosts, read_rail_center,
-    read_ticket_settings,
+    read_bundle_settings, read_callout_port, read_log_format, read_log_level, read_max_body_bytes,
+    read_max_message_bytes, read_protected_hosts, read_rail_center_with, read_ticket_settings,
 };
 
 const EXT_SOCKET: &str = "RAIL_EXT_SOCKET";
@@ -47,27 +46,11 @@ impl ProxyConfig {
         let log_format = read_log_format(settings);
         let log_level = read_log_level(settings);
         let listener = read_listener(settings);
-        // Whatever is set is judged either way; only an enabled Rail Center requires its settings.
-        let disabled = read_disabled(settings);
-        let enabled = disabled == Ok(false);
-        let rail_center = read_rail_center(settings, enabled);
-        let ticket = read_ticket_settings(settings, enabled);
+        let (enabled, ticket) = read_rail_center_with(settings, read_ticket_settings);
         let protected_hosts = read_protected_hosts(settings, enabled);
-        disabled?;
         log_format?;
-        let (log_level, listener, rail_center, ticket, protected_hosts) = (
-            log_level?,
-            listener?,
-            rail_center?,
-            ticket?,
-            protected_hosts?,
-        );
-        // Enabled, both are required, so both are Some.
-        let ticket = enabled.then(|| {
-            rail_center
-                .zip(ticket)
-                .expect("both are required when Rail Center is used")
-        });
+        let (log_level, listener, ticket, protected_hosts) =
+            (log_level?, listener?, ticket?, protected_hosts?);
         Ok(Self {
             log_level,
             listener,
@@ -108,28 +91,16 @@ impl GatewayConfig {
             )),
             _ => Ok(()),
         };
-        // Whatever is set is judged either way; only an enabled Rail Center requires its settings.
-        let disabled = read_disabled(settings);
-        let enabled = disabled == Ok(false);
-        let rail_center = read_rail_center(settings, enabled);
-        let bundle = read_bundle_settings(settings, enabled);
-        disabled?;
+        let (_, rail_center) = read_rail_center_with(settings, read_bundle_settings);
         log_format?;
         reachable?;
-        let (log_level, listener, max_message_bytes, max_body_bytes, rail_center, bundle) = (
+        let (log_level, listener, max_message_bytes, max_body_bytes, rail_center) = (
             log_level?,
             listener?,
             max_message_bytes?,
             max_body_bytes?,
             rail_center?,
-            bundle?,
         );
-        // Enabled, both are required, so both are Some.
-        let rail_center = enabled.then(|| {
-            rail_center
-                .zip(bundle)
-                .expect("both are required when Rail Center is used")
-        });
         Ok(Self {
             log_level,
             listener,
@@ -143,7 +114,7 @@ impl GatewayConfig {
 /// `RAIL_EXT_SOCKET` or `RAIL_CALLOUT_PORT`, exactly one, where the server listens: all
 /// `rail probe` reads.
 // No default: a socket where a port was meant, or the reverse, would serve where nothing calls.
-pub fn read_listener(settings: &mut Settings) -> Result<Listener, Refused> {
+pub(crate) fn read_listener(settings: &mut Settings) -> Result<Listener, Refused> {
     let socket = settings.get(EXT_SOCKET).parsed(|text| {
         let path = PathBuf::from(text);
         path.is_absolute()

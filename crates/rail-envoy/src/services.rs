@@ -59,7 +59,8 @@ impl Authorization for Callouts {
     }
 }
 
-type ProcessStream = Pin<Box<dyn Stream<Item = Result<ProcessingResponse, Status>> + Send>>;
+pub(crate) type ProcessStream =
+    Pin<Box<dyn Stream<Item = Result<ProcessingResponse, Status>> + Send>>;
 
 /// ext_proc: lets every phase continue, changing the request's headers as ext_authz does.
 #[tonic::async_trait]
@@ -125,6 +126,14 @@ fn continue_after(
                 }),
             })
         }
+        other => continue_unchanged(other),
+    }
+}
+
+/// Lets a phase go on unchanged, with the empty response of its kind.
+pub(crate) fn continue_unchanged(request: Request) -> Response {
+    match request {
+        Request::RequestHeaders(_) => Response::RequestHeaders(HeadersResponse::default()),
         Request::ResponseHeaders(_) => Response::ResponseHeaders(HeadersResponse::default()),
         Request::RequestBody(_) => Response::RequestBody(BodyResponse::default()),
         Request::ResponseBody(_) => Response::ResponseBody(BodyResponse::default()),

@@ -37,6 +37,21 @@ impl RoleState {
 /// How a role tells its state, on each readiness check.
 pub type RoleCheck = Arc<dyn Fn() -> RoleState + Send + Sync>;
 
+/// A role's check on what `held` holds, `read` giving whether it's ready and its state; with
+/// nothing held, Rail Center is disabled, and the role has nothing to wait for.
+pub fn check_held<T: Send + Sync + 'static>(
+    held: Option<Arc<T>>,
+    read: impl Fn(&T) -> (bool, &'static str) + Send + Sync + 'static,
+) -> RoleCheck {
+    match held {
+        None => Arc::new(|| RoleState::DISABLED),
+        Some(held) => Arc::new(move || {
+            let (ready, state) = read(&held);
+            RoleState { ready, state }
+        }),
+    }
+}
+
 /// Sets what the health service answers; clones share it.
 #[derive(Clone)]
 pub struct Statuses {

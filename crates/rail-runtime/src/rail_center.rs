@@ -45,6 +45,28 @@ pub fn read_disabled(settings: &mut Settings) -> Result<bool, Refused> {
     Ok(disabled)
 }
 
+/// Whether Rail Center is used, and its settings with a role's own, read by `read` (told whether
+/// they're required): `None` when it's disabled. Whatever is set is judged either way.
+pub fn read_rail_center_with<T>(
+    settings: &mut Settings,
+    read: impl FnOnce(&mut Settings, bool) -> Result<Option<T>, Refused>,
+) -> (bool, Result<Option<(RailCenterSettings, T)>, Refused>) {
+    let disabled = read_disabled(settings);
+    let enabled = disabled == Ok(false);
+    let rail_center = read_rail_center(settings, enabled);
+    let own = read(settings, enabled);
+    let read = disabled.and(rail_center).and_then(|rail_center| {
+        let own = own?;
+        // Enabled, both are required, so both are Some.
+        Ok(enabled.then(|| {
+            rail_center
+                .zip(own)
+                .expect("both are required when Rail Center is used")
+        }))
+    });
+    (enabled, read)
+}
+
 /// The Rail Center settings, every one set judged, `None` if the URL or token is missing; both
 /// are required if `required`, which is whether Rail Center is used. Described only when read
 /// whole. Refuses the retired names too, which aren't described, since none can be set.

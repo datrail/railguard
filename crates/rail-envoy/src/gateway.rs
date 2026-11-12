@@ -1,14 +1,13 @@
 //! The gateway role's callouts: each request judged whole, then forwarded without the agent's
 //! withheld headers, or refused with the gateway's status and body.
 
-use std::pin::Pin;
 use std::sync::Arc;
 
 use envoy_types::ext_authz::v3::CheckResponseExt;
 use envoy_types::ext_authz::v3::pb::{
     Authorization, CheckRequest, CheckResponse, DeniedHttpResponse, OkHttpResponse,
 };
-use envoy_types::pb::envoy::config::core::v3::{HeaderValue, HeaderValueOption};
+use envoy_types::pb::envoy::config::core::v3::HeaderValue;
 use envoy_types::pb::envoy::extensions::filters::http::ext_proc::v3::processing_mode::BodySendMode;
 use envoy_types::pb::envoy::service::ext_proc::v3::body_mutation::Mutation;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessor;
@@ -20,10 +19,13 @@ use envoy_types::pb::envoy::service::ext_proc::v3::{
     TrailersResponse,
 };
 use envoy_types::pb::envoy::r#type::v3::HttpStatus;
-use rail_runtime::{Answer, Call, Gateway, is_withheld_header, read_path};
+use rail_runtime::{Answer, Call, Gateway, read_path, withheld_headers};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
-use tokio_stream::{Stream, StreamExt};
+
+use crate::services::{ProcessStream, continue_unchanged};
+use crate::xrail::{raw_value_option, value_option};
+use tokio_stream::StreamExt;
 use tonic::{Status, Streaming};
 
 // Envoy recommends full-duplex chunks of at most 64 KiB; GCP's load balancer takes 128 kB.
@@ -35,8 +37,8 @@ const PARTIAL_BODY: &str = "x-envoy-auth-partial-body";
 /// Both callouts in the gateway role; with no gateway, Rail Center is disabled and every request
 /// forwarded.
 #[derive(Clone)]
-pub struct GatewayCallouts {
-    pub gateway: Option<Arc<Gateway>>,
+pub(crate) struct GatewayCallouts {
+    pub(crate) gateway: Option<Arc<Gateway>>,
 }
 
 /// ext_authz: judges the request with the body Envoy sends (`with_request_body`).
@@ -53,7 +55,10 @@ impl Authorization for GatewayCallouts {
             .and_then(|request| request.http)
             .unwrap_or_default();
         // Envoy sends the headers in one of the two, `header_map` when asked for raw headers.
-        let sent = http.headers.into_iter().chain(
+        // The path and method as ext_authz gives them, then every header.
+        let line = [(":path", http.path), (":method", http.method)]
+            .map(|(name, value)| (name.to_owned(), value));
+        let sent = line.into_iter().chain(http.headers).chain(
             http.header_map
                 .into_iter()
                 .flat_map(|map| map.headers)
@@ -65,14 +70,14 @@ impl Authorization for GatewayCallouts {
         } else {
             http.raw_body
         };
-        let removed = withheld(&request.lines);
+        let removed = withheld_headers(request.lines.iter().map(|(name, _)| name.as_str()));
         let partial = request
             .lines
             .iter()
             .any(|(name, value)| name.eq_ignore_ascii_case(PARTIAL_BODY) && value == "true");
         let short = usize::try_from(http.size).is_ok_and(|size| body.len() < size);
         // An MCP call always has a body: none, where the size isn't known to be 0, is one not sent.
-        let unsent = http.method == "POST" && body.is_empty() && http.size != 0;
+        let unsent = request.method == "POST" && body.is_empty() && http.size != 0;
         let answer = match &self.gateway {
             None => Answer::Forward,
             Some(_) if unsent => {
@@ -91,8 +96,8 @@ impl Authorization for GatewayCallouts {
             }
             Some(gateway) => {
                 let call = Call {
-                    path: read_path(&http.path),
-                    method: http.method,
+                    path: request.path,
+                    method: request.method,
                     body,
                     headers: request.lines,
                 };
@@ -114,7 +119,7 @@ impl Authorization for GatewayCallouts {
                     status: Some(HttpStatus {
                         code: i32::from(status),
                     }),
-                    headers: vec![json_content_type(|value| (value.to_owned(), Vec::new()))],
+                    headers: vec![value_option("content-type", "application/json")],
                     body: body.to_owned(),
                 });
                 response
@@ -123,8 +128,6 @@ impl Authorization for GatewayCallouts {
         Ok(tonic::Response::new(response))
     }
 }
-
-type ProcessStream = Pin<Box<dyn Stream<Item = Result<ProcessingResponse, Status>> + Send>>;
 
 /// ext_proc: gathers the headers and the whole body, then answers them in order, or refuses.
 #[tonic::async_trait]
@@ -268,17 +271,7 @@ impl Exchange {
             Request::RequestHeaders(headers) => self.on_headers(headers).await,
             Request::RequestBody(body) => self.on_body(body).await,
             Request::RequestTrailers(_) => self.on_trailers().await,
-            Request::ResponseHeaders(_) => {
-                Answers::Now(vec![Response::ResponseHeaders(HeadersResponse::default())])
-            }
-            Request::ResponseBody(_) => {
-                Answers::Now(vec![Response::ResponseBody(BodyResponse::default())])
-            }
-            Request::ResponseTrailers(_) => {
-                Answers::Now(vec![
-                    Response::ResponseTrailers(TrailersResponse::default()),
-                ])
-            }
+            response_phase => Answers::Now(vec![continue_unchanged(response_phase)]),
         })
     }
 
@@ -289,7 +282,7 @@ impl Exchange {
             .flat_map(|map| &map.headers)
             .map(|header| (header.key.clone(), read_value(header)));
         let request = read_request(sent);
-        let removed = withheld(&request.lines);
+        let removed = withheld_headers(request.lines.iter().map(|(name, _)| name.as_str()));
         let Some(gateway) = self.gateway.clone() else {
             // Disabled: nothing to judge, so nothing to gather.
             self.stage = Stage::Passing;
@@ -470,27 +463,12 @@ fn immediate(answer: Answer) -> Response {
             code: i32::from(status),
         }),
         headers: Some(HeaderMutation {
-            set_headers: vec![json_content_type(|value| {
-                (String::new(), value.as_bytes().to_vec())
-            })],
+            set_headers: vec![raw_value_option("content-type", "application/json")],
             ..Default::default()
         }),
         body: body.as_bytes().to_vec(),
         ..Default::default()
     })
-}
-
-// ext_authz reads a header's `value`, ext_proc its `raw_value`.
-fn json_content_type(encode: impl Fn(&str) -> (String, Vec<u8>)) -> HeaderValueOption {
-    let (value, raw_value) = encode("application/json");
-    HeaderValueOption {
-        header: Some(HeaderValue {
-            key: "content-type".to_owned(),
-            value,
-            raw_value,
-        }),
-        ..Default::default()
-    }
 }
 
 struct ReadRequest {
@@ -533,16 +511,4 @@ fn read_value(header: &HeaderValue) -> String {
         [] => header.value.clone(),
         raw => String::from_utf8_lossy(raw).into_owned(),
     }
-}
-
-// The agent's `x-rail*` and `_` headers, which never reach the upstream.
-fn withheld(headers: &[(String, String)]) -> Vec<String> {
-    let mut names: Vec<String> = headers
-        .iter()
-        .map(|(name, _)| name.to_ascii_lowercase())
-        .filter(|name| is_withheld_header(name))
-        .collect();
-    names.sort();
-    names.dedup();
-    names
 }
