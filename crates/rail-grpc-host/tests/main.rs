@@ -1,4 +1,5 @@
 mod command;
+mod health;
 
 use std::os::unix::net::UnixListener as StdUnixListener;
 use std::path::PathBuf;

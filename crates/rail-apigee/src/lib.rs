@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use apigee_callout_proto::apigee::external_callout_service_server::ExternalCalloutServiceServer;
-use rail_grpc_host::{Address, Command, Role};
+use rail_grpc_host::{Address, Command, Role, Statuses};
 use rail_runtime::{
     BundleHolder, BundleSettings, Clock, DenialReporter, Gateway, GatewaySettings, Jitter,
     KeySetHolder, RailCenterBundles, RailCenterClient, RailCenterDenials, RailCenterKeys,
@@ -33,7 +33,8 @@ use tonic_health::pb::health_server::HealthServer;
 use crate::callout::SEND_HEADROOM_BYTES;
 pub use crate::callout::{Callout, MAX_ANSWERED_BYTES, build_answer, read_path};
 pub use crate::config::{Config, read_port};
-pub use crate::health::{READY, Readiness, Statuses};
+pub use crate::health::check_gateway;
+pub use rail_grpc_host::READY;
 
 /// The binary: serves as the role named, or with `probe [--ready]`, asks the server on the port
 /// configured.
@@ -59,7 +60,7 @@ pub async fn run() -> ExitCode {
                 .finish("RAIL_", config)
                 .unwrap_or_else(|errors| errors.exit());
             rail_runtime::logging::set_level(config.log_level);
-            serve(config, &startup).await
+            serve(role, config, &startup).await
         }
         // Only the port: the rest is the server's to judge, and the probe names no role.
         Command::Probe { ready } => {
@@ -73,7 +74,7 @@ pub async fn run() -> ExitCode {
     }
 }
 
-async fn serve(config: Config, startup: &Startup) -> ExitCode {
+async fn serve(role: Role, config: Config, startup: &Startup) -> ExitCode {
     rail_runtime::logging::log_settings(startup);
     // SIGTERM is how a container is stopped; as PID 1 nothing handles it unless we do.
     let terminate = match signal(SignalKind::terminate()) {
@@ -107,7 +108,7 @@ async fn serve(config: Config, startup: &Startup) -> ExitCode {
         None => (None, None, None),
     };
     let callout = Callout { gateway };
-    let (statuses, readiness) = Statuses::start(bundles).await;
+    let (statuses, readiness) = Statuses::start(&[], vec![(role, check_gateway(bundles))]).await;
     tracing::info!(port = config.port, "serving the ExternalCallout service");
     let (draining, drain_started) = oneshot::channel();
     let stopping = async {
