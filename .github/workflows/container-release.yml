@@ -2,8 +2,8 @@
 #
 # `git tag v0.1.0 && git push origin v0.1.0` publishes :0.1.0, :0.1 and :latest of each image,
 # for linux/amd64 and linux/arm64, each built natively, with an SBOM and a signed build-provenance
-# attestation. A manual run with no tag publishes the commit it's launched on as :sha-<12 hex>,
-# to try it before a release; it moves no version tag.
+# attestation. A manual run publishes the commit it's launched on as :sha-<12 hex>, to try it
+# before a release; it moves no version tag. A failed release is rerun from its own run.
 name: Release Container Images
 
 on:
@@ -11,10 +11,6 @@ on:
     # Narrower than `v*`; `version` is the real check, since a filter can't anchor the end.
     tags: ["v[0-9]+.[0-9]+.[0-9]+*"]
   workflow_dispatch:
-    inputs:
-      tag:
-        description: "Release tag to publish, e.g. v0.1.0; empty publishes this commit as sha-<12 hex>"
-        required: false
 
 # Each job is granted what it needs.
 permissions: {}
@@ -33,49 +29,45 @@ jobs:
     # To list the release tags.
     permissions:
       contents: read
-    # `ref` is what's checked out and tested; `version` names it, in the images and their log.
+    # `version` names what's built, `github.sha`, in the images and their log.
     outputs:
-      ref: ${{ steps.resolve.outputs.ref }}
       version: ${{ steps.resolve.outputs.version }}
       release: ${{ steps.resolve.outputs.release }}
       latest: ${{ steps.resolve.outputs.latest }}
     steps:
-      # A release is only vMAJOR.MINOR.PATCH, as semver reads it (no leading zeros, no build
-      # metadata, which metadata-action would drop).
+      # A release is only vMAJOR.MINOR.PATCH[-PRERELEASE], as semver reads it (no leading zeros,
+      # no build metadata, which metadata-action would drop).
       - id: resolve
         env:
           EVENT: ${{ github.event_name }}
-          INPUT_TAG: ${{ github.event.inputs.tag }}
-          REF_NAME: ${{ github.ref_name }}
+          TAG: ${{ github.ref_name }}
           SHA: ${{ github.sha }}
           REPOSITORY: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if [[ "$EVENT" == workflow_dispatch && -z "$INPUT_TAG" ]]; then
+          if [[ "$EVENT" == workflow_dispatch ]]; then
             {
-              echo "ref=$SHA"
               echo "version=sha-${SHA:0:12}"
               echo "release=false"
               echo "latest=false"
             } >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          RAW_REF=${INPUT_TAG:-$REF_NAME}
           stable='v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)'
-          if [[ ! "$RAW_REF" =~ ^${stable}(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "::error::'$RAW_REF' is not a vMAJOR.MINOR.PATCH release tag; refusing to publish."
+          identifier='(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)'
+          if [[ ! "$TAG" =~ ^${stable}(-${identifier}(\.${identifier})*)?$ ]]; then
+            echo "::error::'$TAG' is not a vMAJOR.MINOR.PATCH release tag; refusing to publish."
             exit 1
           fi
           {
-            echo "ref=$RAW_REF"
-            echo "version=$RAW_REF"
+            echo "version=$TAG"
             echo "release=true"
           } >> "$GITHUB_OUTPUT"
           # `latest` is the highest stable release, so neither a prerelease nor an older line's fix moves it.
           highest=$(gh api "repos/$REPOSITORY/git/matching-refs/tags/v" --paginate --jq '.[].ref | ltrimstr("refs/tags/")' \
             | { grep -E "^${stable}\$" || true; } | sort -V | tail -n 1)
-          if [[ "$RAW_REF" == "$highest" ]]; then
+          if [[ "$TAG" == "$highest" ]]; then
             echo "latest=true" >> "$GITHUB_OUTPUT"
           else
             echo "latest=false" >> "$GITHUB_OUTPUT"
@@ -87,7 +79,7 @@ jobs:
     needs: version
     uses: ./.github/workflows/ci.yml
     with:
-      ref: ${{ needs.version.outputs.ref }}
+      ref: ${{ github.sha }}
     permissions:
       contents: read
 
@@ -118,13 +110,10 @@ jobs:
     env:
       IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.host }}
     steps:
+      # The commit the attestation names too.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.version.outputs.ref }}
-
-      # What's built: on a manual run of a tag, `github.sha` is the branch it was launched from.
-      - id: commit
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          ref: ${{ github.sha }}
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
@@ -142,12 +131,12 @@ jobs:
           platforms: linux/${{ matrix.platform }}
           build-args: |
             RAIL_VERSION=${{ needs.version.outputs.version }}
-            RAIL_REVISION=${{ steps.commit.outputs.sha }}
+            RAIL_REVISION=${{ github.sha }}
           labels: |
             org.opencontainers.image.title=railguard-${{ matrix.host }}
             org.opencontainers.image.description=${{ matrix.description }}
             org.opencontainers.image.version=${{ needs.version.outputs.version }}
-            org.opencontainers.image.revision=${{ steps.commit.outputs.sha }}
+            org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.licenses=Apache-2.0
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
@@ -208,10 +197,9 @@ jobs:
           images: ${{ env.IMAGE }}
           # `latest` only as `version` decides: by default every stable tag would move it.
           flavor: latest=false
-          # `value=` tags what was built, not what a manual run was launched from.
           tags: |
-            type=semver,pattern={{version}},value=${{ needs.version.outputs.ref }},enable=${{ needs.version.outputs.release == 'true' }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ needs.version.outputs.ref }},enable=${{ needs.version.outputs.release == 'true' }}
+            type=semver,pattern={{version}},enable=${{ needs.version.outputs.release == 'true' }}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ needs.version.outputs.release == 'true' }}
             type=raw,value=latest,enable=${{ needs.version.outputs.latest == 'true' }}
             type=raw,value=${{ needs.version.outputs.version }},enable=${{ needs.version.outputs.release != 'true' }}
 
