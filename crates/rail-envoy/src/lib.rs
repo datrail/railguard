@@ -2,8 +2,8 @@
 //! now it allows every request, with this proxy's ticket in `x-rail` to a protected host.
 //!
 //! `rail-envoy proxy` (`rail proxy` in its image) serves, with `grpc.health.v1` on the same
-//! socket; `rail-envoy probe` asks it, and exits 0 if the server answers SERVING, for a container
-//! health check in an image with no shell.
+//! socket; `rail-envoy probe [--ready]` asks it for liveness or readiness, and exits 0 if it
+//! answers SERVING, for a container health check in an image with no shell.
 //!
 //! The binary as a library: `run`, and the configuration and callouts it serves, which its tests
 //! drive.
@@ -46,7 +46,7 @@ pub async fn run() -> ExitCode {
     let command = match rail_grpc_host::parse_command(&[Role::Proxy], &arguments) {
         Ok(command) => command,
         Err(usage) => {
-            eprintln!("{usage}");
+            rail_runtime::logging::log_usage(&usage);
             // A usage error shares the exit status of a refused configuration.
             return ExitCode::from(rail_runtime::EXIT_CODE);
         }

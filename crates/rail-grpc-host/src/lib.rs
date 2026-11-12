@@ -167,9 +167,8 @@ async fn check_health(
         })
         .await
         .map_err(|status| format!("{:?}: {}", status.code(), status.message()))?;
-    let mut roles: Vec<(String, String)> = response
-        .metadata()
-        .clone()
+    let (metadata, message, _) = response.into_parts();
+    let mut roles: Vec<(String, String)> = metadata
         .into_headers()
         .iter()
         .filter_map(|(name, value)| {
@@ -181,7 +180,7 @@ async fn check_health(
         })
         .collect();
     roles.sort();
-    let status = response.into_inner().status;
+    let status = message.status;
     // A value this version doesn't know isn't SERVING.
     Ok((
         WireStatus::try_from(status).unwrap_or(WireStatus::Unknown),

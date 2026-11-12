@@ -69,7 +69,8 @@ impl Statuses {
                 .set_service_status(service, ServingStatus::Serving)
                 .await;
         }
-        statuses.update_readiness().await;
+        // Before anything can stop it, and before the first check, for a watch opened first.
+        statuses.set_readiness(&statuses.read_roles()).await;
         let service = Readiness {
             inner: HealthService::from_health_reporter(reporter),
             statuses: statuses.clone(),
@@ -97,13 +98,6 @@ impl Statuses {
     }
 
     // `set_service_status` also tells anyone watching.
-    async fn update_readiness(&self) {
-        let stopping = self.stopping.lock().await;
-        if !*stopping {
-            self.set_readiness(&self.read_roles()).await;
-        }
-    }
-
     async fn set_readiness(&self, roles: &[(Role, RoleState)]) {
         let status = if roles.iter().all(|(_, state)| state.ready) {
             ServingStatus::Serving

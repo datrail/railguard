@@ -5,6 +5,7 @@ use rail_grpc_host::{
     Address, READY, Readiness, Role, RoleCheck, RoleState, Statuses, ask_health, breakdown_header,
 };
 use tokio::net::TcpListener;
+use tokio_stream::StreamExt;
 use tokio_stream::wrappers::TcpListenerStream;
 use tonic::metadata::MetadataValue;
 use tonic_health::pb::health_check_response::ServingStatus;
@@ -87,7 +88,7 @@ async fn readiness_follows_the_role_on_each_check() {
 #[tokio::test]
 async fn ready_only_while_every_role_is() {
     let (proxy, proxy_check) = switch(true);
-    let (_gateway, gateway_check) = switch(false);
+    let (gateway, gateway_check) = switch(false);
     let (statuses, readiness) = Statuses::start(
         &[],
         vec![(Role::Proxy, proxy_check), (Role::Gateway, gateway_check)],
@@ -116,6 +117,25 @@ async fn ready_only_while_every_role_is() {
     );
     proxy.store(false, Ordering::SeqCst);
     assert_eq!(check(&readiness, READY).await, ServingStatus::NotServing);
+    gateway.store(true, Ordering::SeqCst);
+    assert_eq!(check(&readiness, READY).await, ServingStatus::NotServing);
+    proxy.store(true, Ordering::SeqCst);
+    assert_eq!(check(&readiness, READY).await, ServingStatus::Serving);
+}
+
+// Set at the start, so a watch opened before any check gets it first.
+#[tokio::test]
+async fn a_watch_gets_readiness_before_any_check() {
+    let (_switch, role) = switch(true);
+    let (_statuses, readiness) = Statuses::start(&[], vec![(Role::Gateway, role)]).await;
+
+    let request = tonic::Request::new(HealthCheckRequest {
+        service: READY.to_owned(),
+    });
+    let mut stream = readiness.watch(request).await.unwrap().into_inner();
+    let first = stream.next().await.unwrap().unwrap();
+
+    assert_eq!(first.status(), ServingStatus::Serving);
 }
 
 // A check made while draining, on a connection still open, mustn't bring readiness back.

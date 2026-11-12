@@ -65,8 +65,19 @@ const OWN_TARGETS: [&str; 5] = [
 ];
 
 const LOG_FORMAT: &str = "RAIL_LOG_FORMAT";
-// A JSON line's own keys: a field of the same name is written `field.<name>`.
-const RESERVED_KEYS: [&str; 4] = ["timestamp", "level", "severity", "target"];
+// A JSON line's own keys, and those Cloud Logging lifts out of a line: a field of the same name,
+// or under `logging.googleapis.com/`, is written `field.<name>`.
+const RESERVED_KEYS: [&str; 8] = [
+    "timestamp",
+    "level",
+    "severity",
+    "target",
+    "time",
+    "timestampSeconds",
+    "timestampNanos",
+    "httpRequest",
+];
+const CLOUD_LOGGING_PREFIX: &str = "logging.googleapis.com/";
 
 static FILTER: OnceLock<reload::Handle<Targets, Registry>> = OnceLock::new();
 static FORMAT: OnceLock<LogFormat> = OnceLock::new();
@@ -101,10 +112,8 @@ pub fn init() {
     // Read here, before the settings, so the first line is already in it; the platform's if it's
     // refused, so the refusal is too.
     let variables = Variables::from_process();
-    let format = std::env::var(LOG_FORMAT)
-        .ok()
-        .and_then(|text| parse_log_format(text.trim()).ok())
-        .unwrap_or_else(|| detect_log_format(&variables).0);
+    let format = read_log_format(&mut Settings::new(&variables))
+        .unwrap_or_else(|_| detect_log_format(&variables).0);
     let (filter, handle) = reload::Layer::new(own_lines_at(tracing::Level::INFO));
     let text = (format == LogFormat::Text).then(|| {
         tracing_subscriber::fmt::layer()
@@ -222,6 +231,16 @@ pub(crate) fn log_refusals(refusals: &[String]) -> bool {
         tracing::error!(refusal = %refusal, "invalid configuration");
     }
     true
+}
+
+/// A usage error, before the settings: as it is in text, else an error line in the format [`init`]
+/// chose, so a JSON reader sees it as an error.
+pub fn log_usage(usage: &str) {
+    if FORMAT.get().is_none_or(|format| *format == LogFormat::Text) {
+        eprintln!("{usage}");
+    } else {
+        tracing::error!(reason = %usage, "invalid arguments");
+    }
 }
 
 // A formatted message may quote what came from the wire, so only a literal one is logged.
@@ -445,7 +464,7 @@ impl JsonFields {
             return;
         }
         let name = name.strip_prefix("r#").unwrap_or(name);
-        let name = if RESERVED_KEYS.contains(&name) {
+        let name = if RESERVED_KEYS.contains(&name) || name.starts_with(CLOUD_LOGGING_PREFIX) {
             format!("field.{name}")
         } else {
             name.to_owned()

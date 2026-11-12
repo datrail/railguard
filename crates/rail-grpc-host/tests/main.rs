@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
-use rail_grpc_host::{Address, ask_health, probe};
+use rail_grpc_host::{Address, READY, ask_health, probe, probe_service};
 use tokio::net::TcpListener;
 use tokio_stream::wrappers::TcpListenerStream;
 use tonic_health::ServingStatus;
@@ -95,4 +95,10 @@ async fn the_probe_fails_on_a_socket_nothing_answers() {
         Err(format!("no answer on {} within 5s", socket.path.display()))
     );
     assert!(started.elapsed() < Duration::from_secs(8));
+}
+
+#[test]
+fn the_probe_asks_readiness_only_with_ready() {
+    assert_eq!(probe_service(true), READY);
+    assert_eq!(probe_service(false), "");
 }

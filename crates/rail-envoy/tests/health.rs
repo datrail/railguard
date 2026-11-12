@@ -1,3 +1,4 @@
+use rail_grpc_host::{Address, ask_health};
 use rail_test_support::stdout;
 
 use crate::common::{TempSocket, probe, rail_envoy, serve, start_serving, with_settings};
@@ -15,6 +16,23 @@ fn the_probe_passes_on_a_serving_server_and_fails_once_it_is_dropped() {
     // Dropping it kills it, so no test leaves a server running.
     drop(server);
     assert!(!probe(&socket.path).status.success());
+}
+
+// The names Envoy's config gives each callout's health check.
+#[test]
+fn liveness_answers_for_ext_authz_and_ext_proc() {
+    let socket = TempSocket::new("live-services");
+    let _server = start_serving(&socket.path);
+    let address = Address::Unix(socket.path.clone());
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+
+    for service in [
+        "envoy.service.auth.v3.Authorization",
+        "envoy.service.ext_proc.v3.ExternalProcessor",
+    ] {
+        let answer = runtime.block_on(ask_health(&address, service));
+        assert_eq!(answer, Ok("serving".to_owned()), "{service}");
+    }
 }
 
 fn probe_ready(socket: &std::path::Path) -> std::process::Output {
