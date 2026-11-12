@@ -1,6 +1,7 @@
-# rail-envoy behind Envoy, per ticket state and host, over each callout; run with `make e2e-envoy`.
+# rail-envoy behind Envoy, per ticket state and host, over each callout; run with
+# `make e2e-envoy-proxy`.
 
-name: railguard-e2e-envoy
+name: railguard-e2e-envoy-proxy
 
 x-wiremock: &wiremock
   # Pinned by digest: a tag is mutable.

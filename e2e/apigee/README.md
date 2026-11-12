@@ -23,13 +23,14 @@ flowchart LR
 `compose.yml` holds:
 
 - `rail-center`, a WireMock stub serving the bundle (to the service token only), the signing keys, and taking denials
-  (`rail-center-mappings`);
-- `upstream`, a WireMock MCP server (`upstream-mappings`);
+  (`../gateway/rail-center-mappings`);
+- `upstream`, a WireMock MCP server (`../gateway/upstream-mappings`);
 - `callout`, rail-apigee enrolled with the stub; and `callout-unreachable`, on port 9100 with a Rail Center it can't
   reach, which must still start;
 - `apigee`, the stand-in, with two proxies: `/mcp`, judged by `callout`, and `/no-callout`, whose callout never
   resolves;
-- `driver.py`, which asserts what reached each stub, from their request journals.
+- `driver.py`, which asserts what reached each stub, from their request journals: the gateway's cases every host passes
+  alike, in [`../gateway/gateway_cases.py`](../gateway/README.md), then Apigee's own.
 
 ## The tree
 
@@ -40,7 +41,7 @@ flowchart LR
 - `apigee_standin.py`, each of its rules naming its source, and `driver.py` run on Python with gRPC
   (`python.Dockerfile`): the ExternalCallout stubs generated from the vendored `.proto`, the packages pinned by hash
   (`requirements.txt`).
-- `rail-center-mappings/` and `upstream-mappings/` are the stubs' answers.
+- The stubs' answers are in [`../gateway/`](../gateway/README.md), shared with the envoy-gateway stack.
 
 ## Running it
 

@@ -1,4 +1,4 @@
-.PHONY: build test test-py fmt fmt-py fmt-md lint lint-py lint-md check coverage proto notices e2e-envoy-images e2e-envoy e2e-apigee-images e2e-apigee e2e-down
+.PHONY: build test test-py fmt fmt-py fmt-md lint lint-py lint-md check coverage proto notices e2e-envoy-proxy-images e2e-envoy-proxy e2e-envoy-gateway-images e2e-envoy-gateway e2e-apigee-images e2e-apigee e2e-down
 
 build:
 	cargo build --locked
@@ -51,16 +51,23 @@ notices:
 	done
 
 # The stack e2e-down removes.
-STACK = envoy
+STACK = envoy-proxy
 
 # Builds the stack's images and pulls the others, so the run finds them ready.
-e2e-envoy-images:
-	docker compose -f e2e/envoy/compose.yml build
-	docker compose -f e2e/envoy/compose.yml pull --ignore-buildable
+e2e-envoy-proxy-images:
+	docker compose -f e2e/envoy-proxy/compose.yml build
+	docker compose -f e2e/envoy-proxy/compose.yml pull --ignore-buildable
 
 # The result is the driver's exit code.
-e2e-envoy:
-	docker compose -f e2e/envoy/compose.yml up --build --force-recreate --abort-on-container-exit --exit-code-from driver
+e2e-envoy-proxy:
+	docker compose -f e2e/envoy-proxy/compose.yml up --build --force-recreate --abort-on-container-exit --exit-code-from driver
+
+e2e-envoy-gateway-images:
+	docker compose -f e2e/envoy-gateway/compose.yml build
+	docker compose -f e2e/envoy-gateway/compose.yml pull --ignore-buildable
+
+e2e-envoy-gateway:
+	docker compose -f e2e/envoy-gateway/compose.yml up --build --force-recreate --abort-on-container-exit --exit-code-from driver
 
 e2e-apigee-images:
 	docker compose -f e2e/apigee/compose.yml build

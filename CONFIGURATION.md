@@ -105,16 +105,19 @@ The TCP port the callout and its health checks are served on, on every interface
 - **Read by:** both hosts; it's what `rail probe` judges to ask the server (with `RAIL_EXT_SOCKET` in `rail-envoy`).
 - Whatever reaches it reaches the callout: in `rail-envoy`'s proxy role, that's the ticket, so only Envoy may reach it.
 
-## rail-apigee
+## The gateway
+
+Read by `rail-apigee`, and by `rail-envoy` as the gateway (`rail gateway`).
 
 ### `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`
 
-The largest request read from Apigee, in MiB.
+The largest gRPC message read, in MiB: from Apigee, a whole request; from Envoy, one ext_authz request, or one ext_proc
+message, which holds a whole buffered body.
 
 - **Default:** `16`, above Apigee's 10 MB request limit.
 - **Accepted:** `1` to `100`, a whole number of MiB; the maximum is high enough that no limit a deployment already sets
   is refused.
-- **Read by:** `rail-apigee`.
+- **Read by:** both hosts' gateways.
 - **Past 4 MiB less 1 KiB, a request is refused unjudged** (413, with a warning logged), whatever this allows: Apigee
   takes a callout's answer of at most 4 MiB, and the answer echoes the body. An answer may be up to 1 KiB larger than
   the request.
@@ -126,7 +129,7 @@ Which gateway this is in Rail Center, and so whose policy bundle it fetches.
 - **Required** unless `RAIL_DISABLED=true`.
 - **Accepted:** ASCII letters, digits, `-` and `_`, up to 64 characters, as Rail Center's slugs are; another it would
   refuse on each fetch.
-- **Read by:** `rail-apigee`.
+- **Read by:** both hosts' gateways.
 
 ### `RAIL_GATEWAY_BUNDLE_REFRESH_SECONDS`
 
@@ -134,7 +137,7 @@ How often the bundle held is fetched again.
 
 - **Default:** `60`, so a rule changed in Rail Center reaches every gateway within about a minute.
 - **Accepted:** `5` to `86400`, whole seconds: a bundle polled less often than daily is surely a mistake.
-- **Read by:** `rail-apigee`.
+- **Read by:** both hosts' gateways.
 - Each wait is scaled by 0.8 to 1.2, so a fleet doesn't poll in step. After a failure, the next attempt comes in 5 s,
   doubling to at most 320 s or the interval, whichever is less. The 5 s floor isn't a setting: a lower one would let a
   fleet hammer Rail Center.
@@ -144,12 +147,14 @@ How often the bundle held is fetched again.
 The largest request body judged, in MiB, as sent (an encoded body isn't decoded).
 
 - **Default:** `15`.
-- **Accepted:** `1` to `100`, a whole number of MiB.
-- **Read by:** `rail-apigee`.
+- **Accepted:** `1` to `100`, a whole number of MiB; in `rail-envoy`, no more than `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`,
+  since a buffered body arrives as one message.
+- **Read by:** both hosts' gateways.
 - **Past it, a call is refused unjudged,** 413 `{"error": "request body too large"}`, with a warning logged, and isn't
   reported; with `RAIL_DISABLED=true`, nothing is judged, and this isn't applied. Apigee's own limits come first: past 4
   MiB less 1 KiB rail-apigee refuses a request (above), and past 10 MB Apigee answers 413 itself, so a value of 4 or
-  more is logged with the limit in force.
+  more is logged with the limit in force. In `rail-envoy`, a body streamed in full duplex is refused as soon as it's
+  past it.
 
 ## rail-envoy
 
@@ -161,7 +166,8 @@ The unix socket ext_authz, ext_proc and the health checks are served on, for an 
   a deployment can't serve on a socket where it meant a port. In the image, `/run/rail/ext.sock`, in the `/run/rail`
   volume.
 - **Accepted:** an absolute path.
-- **Read by:** `rail-envoy`; with `RAIL_CALLOUT_PORT`, the only settings `rail probe` judges, to ask the server.
+- **Read by:** `rail-envoy`, either role; with `RAIL_CALLOUT_PORT`, the only settings `rail probe` judges, to ask the
+  server.
 
 ### `RAIL_PROXY_PROTECTED_HOSTS`
 
@@ -171,7 +177,7 @@ The hosts the ticket is attached for, and how a request to each is routed.
   With Rail Center disabled, it's still read and routed.
 - **Accepted:** comma-separated entries, each `[http(s)://]host[:port]`: HTTPS unless it says `http://`, and the entry's
   port if it names one, else the agent's. A host is a name or an IP address; a port is `1` to `65535`.
-- **Read by:** `rail-envoy`.
+- **Read by:** `rail-envoy` as the proxy (`rail proxy`).
 - **Refused:** an empty entry, a path, another scheme, and a host listed twice, since a host is matched without its
   scheme or port. A credential, query or fragment is refused without being quoted, since it may hold a secret.
 - Over `http://`, the ticket crosses in the clear.
@@ -182,7 +188,7 @@ Which host this proxy is in Rail Center, for the ticket fetch.
 
 - **Required** unless `RAIL_DISABLED=true`.
 - **Accepted:** up to 64 characters, Rail Center's bound.
-- **Read by:** `rail-envoy`.
+- **Read by:** `rail-envoy` as the proxy (`rail proxy`).
 
 ### `RAIL_SANDBOX_NAME`
 
@@ -190,7 +196,7 @@ The one sandbox this proxy serves, for the ticket fetch.
 
 - **Required** unless `RAIL_DISABLED=true`.
 - **Accepted:** up to 255 characters, Rail Center's bound.
-- **Read by:** `rail-envoy`.
+- **Read by:** `rail-envoy` as the proxy (`rail proxy`).
 
 ### `RAIL_TICKET_REFRESH_SECONDS`
 
@@ -198,7 +204,7 @@ The longest a valid ticket goes without being fetched again.
 
 - **Default:** `3600`.
 - **Accepted:** `5` to `86400`, whole seconds: a ticket lives no longer than a day.
-- **Read by:** `rail-envoy`.
+- **Read by:** `rail-envoy` as the proxy (`rail proxy`).
 - A ticket is fetched again at half its remaining life when that comes sooner, so a short one is replaced before it
   lapses. The waits are scaled and backed off as the bundle's are (`RAIL_GATEWAY_BUNDLE_REFRESH_SECONDS`).
 

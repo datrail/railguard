@@ -70,8 +70,8 @@ alone. Elsewhere, keep it reachable from Apigee only.
 - **The identity boundary.** No `x-rail` or `x-rail-*` header the agent wrote, nor any header whose name has an `_`
   (many servers read `x_rail` as `x-rail`), may reach an upstream: rail-envoy removes them from every request. The
   agent's other headers, `Authorization` included, are forwarded as sent, by design. An Envoy config that fails open
-  must remove them too, before the callout, as the reference configs in `e2e/envoy` do. An agent-written `x-rail` header
-  reaching an upstream is a report.
+  must remove them too, before the callout, as the reference configs in `e2e/envoy-proxy` do. An agent-written `x-rail`
+  header reaching an upstream is a report.
 - **The ticket.** It's a bearer credential for its lifetime. It must not reach a log, an error, or any host but a
   protected one. It's attached only for a host in `RAIL_PROXY_PROTECTED_HOSTS`, at the address Envoy resolves for that
   name, over TLS unless the entry says `http://`; the reference configs check the certificate against that name. An

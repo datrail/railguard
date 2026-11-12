@@ -2,8 +2,11 @@
 
 The proxy, for AI agents whose calls go out through Envoy. When an agent calls a protected MCP server, rail-envoy adds
 the ticket Rail Center issued, so the server's gateway can judge the call, and sends the call on to that server. It
-removes any such header the agent set itself, so an agent can't present a ticket of its own making. See the
-[main README](../../README.md) for the system around it.
+removes any such header the agent set itself, so an agent can't present a ticket of its own making.
+
+It's also the gateway, for MCP servers behind Envoy, or behind GCP's Application Load Balancer, which calls it through a
+Service Extension: it judges each call against the policy bundle, as rail-apigee does on Apigee (see
+[As the gateway](#as-the-gateway)). See the [main README](../../README.md) for the system around it.
 
 ## Architecture
 
@@ -42,14 +45,15 @@ has an `_`.
 
 ## At startup
 
-It runs as `rail-envoy proxy` (`rail proxy` in its image), its one role. The role has no default: none, or another, is a
-usage error, exit 2. It logs `starting`, with its version, commit and role, then reads every setting, and prints every
-refusal at once and exits 2, so they're all fixed in one round; a socket it can't listen on exits 2 too. A socket left
-by an earlier run is replaced, and anything else at the path refused; the socket is made `0660`, since Envoy runs in its
-group as another user. Then it logs a `setting` line for each setting it uses, with its value and whether it came from
-the environment or the default, a secret only as `set` or `unset`. A value that weakens something is logged as a warning
-saying what (`RAIL_DISABLED=true`, an `http://` Rail Center), and so is a `RAIL_…` variable nothing reads, as a likely
-typo. It starts fetching the ticket, then logs `serving Envoy`. Every line, `starting` included, is in the format
+It runs as `rail-envoy proxy` or `rail-envoy gateway` (`rail proxy`, `rail gateway` in its image), one role per process.
+The role has no default: none, or another, is a usage error, exit 2. It logs `starting`, with its version, commit and
+role, then reads every setting, and prints every refusal at once and exits 2, so they're all fixed in one round; a
+socket it can't listen on exits 2 too. A socket left by an earlier run is replaced, and anything else at the path
+refused; the socket is made `0660`, since Envoy runs in its group as another user. Then it logs a `setting` line for
+each setting it uses, with its value and whether it came from the environment or the default, a secret only as `set` or
+`unset`. A value that weakens something is logged as a warning saying what (`RAIL_DISABLED=true`, an `http://` Rail
+Center), and so is a `RAIL_…` variable nothing reads, as a likely typo. It starts fetching the ticket, or as the gateway
+the bundle and the signing keys, then logs `serving Envoy`. Every line, `starting` included, is in the format
 `RAIL_LOG_FORMAT` names: JSON by default, Cloud Logging's on Cloud Run, or text.
 
 ## When Rail Center is down
@@ -81,8 +85,57 @@ Envoy's configuration is the customer's, so we can only recommend it. rail-envoy
 - routes on `x-rail-upstream` to an HTTPS and a plain dynamic forward proxy cluster, each removing the header before the
   upstream.
 
-[`e2e/envoy/envoy-ext-authz.yaml`](../../e2e/envoy/envoy-ext-authz.yaml) and
-[`envoy-ext-proc.yaml`](../../e2e/envoy/envoy-ext-proc.yaml) are working examples; they fail open.
+[`e2e/envoy-proxy/envoy-ext-authz.yaml`](../../e2e/envoy-proxy/envoy-ext-authz.yaml) and
+[`envoy-ext-proc.yaml`](../../e2e/envoy-proxy/envoy-ext-proc.yaml) are working examples; they fail open.
+
+## As the gateway
+
+```mermaid
+flowchart LR
+  agent[Agent] -->|MCP call| filter
+  subgraph lb[Envoy, or GCP's load balancer]
+    filter[ext_proc or ext_authz]
+  end
+  filter <-->|gRPC over TCP or a unix socket| gw[rail-envoy gateway]
+  filter -->|allowed| server[MCP server]
+  center[Rail Center] -->|bundle, keys| gw
+  gw -->|denials| center
+```
+
+`rail gateway` judges each call whole, its headers and its body, through the same gateway as rail-apigee: the same
+waits, deadline, posture, fallbacks, denial reports and answers. A call allowed goes on without the agent's `x-rail`,
+`x-rail-*` and `_` headers; one refused gets 403 `{"error": "denied by policy"}`, or 503
+`{"error": "policy ruleset cannot be applied"}`, or, past `RAIL_MAX_BODY_MB`, 413 `{"error": "request body too large"}`.
+
+- **ext_proc** must send the request's headers, and its body `FULL_DUPLEX_STREAMED` or `BUFFERED`:
+  - **full duplex** (GCP's load balancer): every answer is held until the body ends, by its last chunk or the trailers
+    (`request_trailer_mode: SEND`); then the headers are answered, the body sent back in chunks of at most 64 KiB, and
+    the trailers. A streamed body is refused as soon as it's past the cap;
+  - **buffered:** the headers are answered at once, and the one body message judged; Envoy holds the body up to the
+    listener's `per_connection_buffer_limit_bytes` (1 MiB by default), and answers 413 itself past it;
+  - **any other body mode** (`STREAMED`, Envoy's and the load balancer's default, `BUFFERED_PARTIAL`, `NONE`), or a
+    stream that doesn't say its mode, is refused with 503 and an error line naming it, since the whole body can't be
+    seen first. So is a stream in `observability_mode`, whose answers Envoy ignores.
+- **ext_authz** must send the body: `with_request_body`, with `allow_partial_message: false`. A body cut short, or none
+  where the request has one, is refused, never judged as if whole.
+- **Fail closed:** `failure_mode_allow: false`, on either filter, so a call the gateway didn't answer never reaches the
+  server.
+- **Time:** Envoy's `message_timeout` (ext_proc) or `timeout` (ext_authz), both 200 ms by default, must be at least 6 s:
+  a call can wait 2 s for a bundle and 2 s for a key, within the gateway's 5 s.
+- **Every request header reported:** no `forward_rules` or `allowed_headers`, or a rule reading a header can't see it.
+
+[`e2e/envoy-gateway/envoy.yaml`](../../e2e/envoy-gateway/envoy.yaml) is a working example of each.
+
+### Behind GCP's load balancer
+
+On Cloud Run, as a serverless NEG behind an HTTP/2 backend service, called by an `LbTrafficExtension`:
+
+- `args = ["gateway"]`, `RAIL_CALLOUT_PORT` set to the container port, and HTTP/2 end to end, since it speaks gRPC over
+  plaintext HTTP/2; its startup probe on `rail.Ready`;
+- the extension's events `REQUEST_HEADERS`, `REQUEST_BODY` and `REQUEST_TRAILERS`,
+  `request_body_send_mode: FULL_DUPLEX_STREAMED`, `failOpen: false`, and its `timeout` at least 6 s;
+- the service's ingress internal and load balancing only: a Service Extension needs it to allow unauthenticated calls,
+  so anything else that reaches it could drive judgements and denial reports.
 
 ## Configuration
 
@@ -92,9 +145,10 @@ Every setting it reads, its own and those both hosts share, is in
 ## Health
 
 It serves `grpc.health.v1` on the same listener: `""`, ext_authz's and ext_proc's service names are liveness, SERVING
-while it serves; `rail.Ready` is readiness, SERVING while it holds a valid ticket, or with Rail Center disabled. All are
-NOT_SERVING once it's stopping. A readiness answer gives the proxy's state in its metadata, `rail-ready-proxy`: `valid`,
-`expired`, `not-found` or `issuer-unreachable` (`x-rail-status`'s words), `disabled`, or `stopping`.
+while it serves; `rail.Ready` is readiness, SERVING while the proxy holds a valid ticket, or the gateway a bundle, or
+with Rail Center disabled. All are NOT_SERVING once it's stopping. A readiness answer gives the role's state in its
+metadata, `rail-ready-proxy`: `valid`, `expired`, `not-found` or `issuer-unreachable` (`x-rail-status`'s words); or
+`rail-ready-gateway`: `held` or `none`; either `disabled`, or `stopping`.
 
 `rail-envoy probe [--ready]` (`rail probe [--ready]` in its image) asks it, for an exec probe, and exits 0 only on
 SERVING; it waits at most 5 s, so give the probe a longer timeout. It names no role, since the server answers for its
@@ -110,8 +164,16 @@ more to stop, so 6 s in all.
 
 ## Caveats
 
-- **ext_proc's full-duplex body mode fails:** rail-envoy doesn't send that body back yet, so Envoy answers 500 and
-  nothing reaches the upstream. Every other body mode, and ext_authz with a body, passes the body whole.
+- **The proxy and ext_proc's full-duplex body mode:** the proxy doesn't send that body back yet, so Envoy answers 500
+  and nothing reaches the upstream. Every other body mode, and ext_authz with a body, passes the body whole. The gateway
+  supports full duplex.
+- **The gateway's memory:** it holds each call's body until it's judged, so up to `RAIL_MAX_BODY_MB` per call in flight:
+  size its memory for the calls it serves at once.
+- **An encoded body isn't decoded:** a `Content-Encoding: gzip` call reads as naming no endpoint, so under
+  `binding_fallback: pass` it escapes every rule on `request.endpoint_key`. Apigee decompresses before its callout;
+  Envoy and GCP's load balancer don't.
+- **GCP's load balancer, failing open:** its docs say a full-duplex extension fails open on errors before the first body
+  chunk; untested here.
 - **An `http://` protected host** gets the ticket in the clear.
 
 ## The image
@@ -124,10 +186,10 @@ and the commit.
 
 `docker build -f crates/rail-envoy/Dockerfile .` builds it, from the repository root: distroless, as uid 10001, with
 `/run/rail` a volume to share the socket with Envoy (set `RAIL_EXT_SOCKET=/run/rail/ext.sock`). The binary is
-`/usr/local/bin/rail`, the entrypoint, with no default role: run the image with `proxy`, and for a health check, run
-`rail probe`.
+`/usr/local/bin/rail`, the entrypoint, with no default role: run the image with `proxy` or `gateway`, and for a health
+check, run `rail probe`.
 
 ## From source
 
 `cargo build --release -p rail-envoy` builds `target/release/rail-envoy`. `make test` runs its tests, and
-`make e2e-envoy` runs it behind Envoy (see [the stacks](../../e2e/README.md)).
+`make e2e-envoy-proxy` and `make e2e-envoy-gateway` run it behind Envoy (see [the stacks](../../e2e/README.md)).

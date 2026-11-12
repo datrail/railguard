@@ -1,4 +1,4 @@
-# The envoy stack
+# The envoy-proxy stack
 
 Checks that rail-envoy, behind a real Envoy, attaches tickets as it should: for each state a ticket can be in (held, not
 found, expired, Rail Center down, disabled), and for each kind of protected host, the right headers reach the right
@@ -42,7 +42,8 @@ flowchart LR
 
 ## Running it
 
-`make e2e-envoy`, or `make e2e-envoy-images` first to build and pull ahead; `make e2e-down` removes what's left.
+`make e2e-envoy-proxy`, or `make e2e-envoy-proxy-images` first to build and pull ahead; `make e2e-down` removes what's
+left.
 
 ## What it proves that the unit suite cannot
 

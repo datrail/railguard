@@ -27,7 +27,8 @@ flowchart LR
 - **Proxy to gateway.** The call with its ticket in `x-rail`. rail-apigee checks a signed ticket against Rail Center's
   keys; an unsigned one is read as it is, so it's only as good as the path from the proxy.
 - **Gateway to MCP server.** A call the rules deny gets rail-apigee's refusal instead; any other is forwarded, with the
-  `x-rail` headers removed.
+  `x-rail` headers removed. Where the MCP servers are behind Envoy, or GCP's Application Load Balancer, rail-envoy is
+  the gateway instead (`rail gateway`), judging each call the same way.
 - **Rail Center to both.** Each host fetches what it needs and keeps it through an outage: the proxy its ticket while
   it's valid, the gateway its bundle, and the keys tickets are signed with for 900 s. The gateway reports each denial
   back, so people can see what was stopped and why.
@@ -45,7 +46,7 @@ Each host's README has its own flow: [rail-apigee](crates/rail-apigee/README.md#
 | [`crates/rail-grpc-host`](crates/rail-grpc-host/README.md)             | The process parts both gRPC hosts share: the command line, health checks and shutdown.                           |
 | [`crates/rail-apigee`](crates/rail-apigee/README.md)                   | The gateway, as an Apigee callout.                                                                               |
 | [`crates/apigee-callout-proto`](crates/apigee-callout-proto/README.md) | Apigee's callout interface, as Rust code.                                                                        |
-| [`crates/rail-envoy`](crates/rail-envoy/README.md)                     | The proxy, as an Envoy extension.                                                                                |
+| [`crates/rail-envoy`](crates/rail-envoy/README.md)                     | The proxy, and the gateway, as an Envoy extension.                                                               |
 | [`crates/rail-test-support`](crates/rail-test-support/README.md)       | What the tests share.                                                                                            |
 | [`e2e`](e2e/README.md)                                                 | End-to-end tests: each host's image in front of the software it plugs into.                                      |
 | [`CONFIGURATION.md`](CONFIGURATION.md)                                 | Every setting both hosts read.                                                                                   |

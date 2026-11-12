@@ -83,7 +83,7 @@ deployment:
 ## Configuration
 
 Every setting it reads, its own and those both hosts share, is in
-[`CONFIGURATION.md`](../../CONFIGURATION.md#rail-apigee).
+[`CONFIGURATION.md`](../../CONFIGURATION.md#the-gateway).
 
 ## Health
 

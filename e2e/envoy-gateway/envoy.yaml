@@ -1,0 +1,282 @@
+# Envoy v1.39 in GCP's load balancer's place, in front of an MCP server: one listener per way
+# of calling rail-envoy's gateway, over TCP, as the load balancer calls it on Cloud Run.
+
+static_resources:
+  listeners:
+    - name: full_duplex
+      # 0.0.0.0 because the driver calls across the stack's network.
+      address:
+        socket_address: { address: 0.0.0.0, port_value: 10000 }
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: full_duplex
+                codec_type: AUTO
+                access_log:
+                  - name: envoy.access_loggers.stdout
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+                      log_format:
+                        # No request headers, which carry the ticket.
+                        text_format_source:
+                          inline_string: "[%START_TIME%] full_duplex %REQ(:METHOD)% %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED%\n"
+                route_config:
+                  name: full_duplex
+                  virtual_hosts:
+                    - name: all
+                      domains: ["*"]
+                      routes:
+                        - match: { prefix: / }
+                          route: { cluster: upstream, timeout: 0s }
+                http_filters:
+                  - name: envoy.filters.http.ext_proc
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExternalProcessor
+                      grpc_service:
+                        envoy_grpc: { cluster_name: rail_gateway }
+                      # Past rail-envoy's 5 s deadline, as its README asks.
+                      message_timeout: 6s
+                      # Fails closed: a call the gateway didn't judge never reaches the upstream.
+                      failure_mode_allow: false
+                      processing_mode:
+                        request_header_mode: SEND
+                        response_header_mode: SKIP
+                        request_body_mode: FULL_DUPLEX_STREAMED
+                        request_trailer_mode: SEND
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+                      suppress_envoy_headers: true
+
+    - name: buffered
+      # 0.0.0.0 because the driver calls across the stack's network.
+      address:
+        socket_address: { address: 0.0.0.0, port_value: 10001 }
+      # Envoy holds a buffered body or one for ext_authz, up to this (1 MiB by default).
+      per_connection_buffer_limit_bytes: 8388608
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: buffered
+                codec_type: AUTO
+                access_log:
+                  - name: envoy.access_loggers.stdout
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+                      log_format:
+                        # No request headers, which carry the ticket.
+                        text_format_source:
+                          inline_string: "[%START_TIME%] buffered %REQ(:METHOD)% %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED%\n"
+                route_config:
+                  name: buffered
+                  virtual_hosts:
+                    - name: all
+                      domains: ["*"]
+                      routes:
+                        - match: { prefix: / }
+                          route: { cluster: upstream, timeout: 0s }
+                http_filters:
+                  - name: envoy.filters.http.ext_proc
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExternalProcessor
+                      grpc_service:
+                        envoy_grpc: { cluster_name: rail_gateway }
+                      # Past rail-envoy's 5 s deadline, as its README asks.
+                      message_timeout: 6s
+                      # Fails closed: a call the gateway didn't judge never reaches the upstream.
+                      failure_mode_allow: false
+                      processing_mode:
+                        request_header_mode: SEND
+                        response_header_mode: SKIP
+                        request_body_mode: BUFFERED
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+                      suppress_envoy_headers: true
+
+    - name: ext_authz
+      # 0.0.0.0 because the driver calls across the stack's network.
+      address:
+        socket_address: { address: 0.0.0.0, port_value: 10002 }
+      # Envoy holds a buffered body or one for ext_authz, up to this (1 MiB by default).
+      per_connection_buffer_limit_bytes: 8388608
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: ext_authz
+                codec_type: AUTO
+                access_log:
+                  - name: envoy.access_loggers.stdout
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+                      log_format:
+                        # No request headers, which carry the ticket.
+                        text_format_source:
+                          inline_string: "[%START_TIME%] ext_authz %REQ(:METHOD)% %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED%\n"
+                route_config:
+                  name: ext_authz
+                  virtual_hosts:
+                    - name: all
+                      domains: ["*"]
+                      routes:
+                        - match: { prefix: / }
+                          route: { cluster: upstream, timeout: 0s }
+                http_filters:
+                  - name: envoy.filters.http.ext_authz
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+                      transport_api_version: V3
+                      grpc_service:
+                        envoy_grpc: { cluster_name: rail_gateway }
+                        # Past rail-envoy's 5 s deadline, as its README asks.
+                        timeout: 6s
+                      failure_mode_allow: false
+                      # The whole body, never part of it: past the limit, Envoy answers 413 itself.
+                      with_request_body:
+                        max_request_bytes: 8388608
+                        allow_partial_message: false
+                        pack_as_bytes: true
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+                      suppress_envoy_headers: true
+
+    # Envoy's default body mode, which the gateway refuses: it can't see the whole body first.
+    - name: streamed
+      # 0.0.0.0 because the driver calls across the stack's network.
+      address:
+        socket_address: { address: 0.0.0.0, port_value: 10003 }
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: streamed
+                codec_type: AUTO
+                access_log:
+                  - name: envoy.access_loggers.stdout
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+                      log_format:
+                        # No request headers, which carry the ticket.
+                        text_format_source:
+                          inline_string: "[%START_TIME%] streamed %REQ(:METHOD)% %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED%\n"
+                route_config:
+                  name: streamed
+                  virtual_hosts:
+                    - name: all
+                      domains: ["*"]
+                      routes:
+                        - match: { prefix: / }
+                          route: { cluster: upstream, timeout: 0s }
+                http_filters:
+                  - name: envoy.filters.http.ext_proc
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExternalProcessor
+                      grpc_service:
+                        envoy_grpc: { cluster_name: rail_gateway }
+                      # Past rail-envoy's 5 s deadline, as its README asks.
+                      message_timeout: 6s
+                      # Fails closed: a call the gateway didn't judge never reaches the upstream.
+                      failure_mode_allow: false
+                      processing_mode:
+                        request_header_mode: SEND
+                        response_header_mode: SKIP
+                        request_body_mode: STREAMED
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+                      suppress_envoy_headers: true
+
+    # A gateway that never answers.
+    - name: no_gateway
+      # 0.0.0.0 because the driver calls across the stack's network.
+      address:
+        socket_address: { address: 0.0.0.0, port_value: 10004 }
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: no_gateway
+                codec_type: AUTO
+                access_log:
+                  - name: envoy.access_loggers.stdout
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+                      log_format:
+                        # No request headers, which carry the ticket.
+                        text_format_source:
+                          inline_string: "[%START_TIME%] no_gateway %REQ(:METHOD)% %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED%\n"
+                route_config:
+                  name: no_gateway
+                  virtual_hosts:
+                    - name: all
+                      domains: ["*"]
+                      routes:
+                        - match: { prefix: / }
+                          route: { cluster: upstream, timeout: 0s }
+                http_filters:
+                  - name: envoy.filters.http.ext_proc
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.ext_proc.v3.ExternalProcessor
+                      grpc_service:
+                        envoy_grpc: { cluster_name: no_gateway }
+                      # Past rail-envoy's 5 s deadline, as its README asks.
+                      message_timeout: 6s
+                      # Fails closed: a call the gateway didn't judge never reaches the upstream.
+                      failure_mode_allow: false
+                      processing_mode:
+                        request_header_mode: SEND
+                        response_header_mode: SKIP
+                        request_body_mode: FULL_DUPLEX_STREAMED
+                        request_trailer_mode: SEND
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+                      suppress_envoy_headers: true
+
+  clusters:
+    - name: rail_gateway
+      type: STRICT_DNS
+      typed_extension_protocol_options:
+        envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+          "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+          explicit_http_config: { http2_protocol_options: {} }
+      load_assignment:
+        cluster_name: rail_gateway
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address: { address: gateway, port_value: 8080 }
+
+    - name: no_gateway
+      type: STRICT_DNS
+      typed_extension_protocol_options:
+        envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+          "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+          explicit_http_config: { http2_protocol_options: {} }
+      load_assignment:
+        cluster_name: no_gateway
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address: { address: no-gateway.invalid, port_value: 8080 }
+
+    - name: upstream
+      type: STRICT_DNS
+      load_assignment:
+        cluster_name: upstream
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address: { address: upstream, port_value: 8080 }
