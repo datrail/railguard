@@ -19,8 +19,9 @@ locals {
       mode    = "BODY_SEND_MODE_FULL_DUPLEX_STREAMED"
     },
     {
-      name    = "judged"
-      match   = "request.path.startsWith('/')"
+      name = "judged"
+      # Only the driver's path, so a scanner's call is never judged and reported as a denial.
+      match   = "request.path.startsWith('/mcp')"
       backend = "gateway"
       mode    = "BODY_SEND_MODE_FULL_DUPLEX_STREAMED"
     },

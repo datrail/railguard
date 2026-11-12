@@ -31,12 +31,12 @@ The traffic extension has three chains, tried in order, the first whose conditio
 | ------------ | -------------------------------- | --------------------------------------------------- | ------------------------- |
 | `streamed`   | header `x-e2e-chain: streamed`   | the gateway                                         | `STREAMED`, GCP's default |
 | `no-gateway` | header `x-e2e-chain: no-gateway` | a serverless NEG naming a service that never exists | `FULL_DUPLEX_STREAMED`    |
-| `judged`     | every other request              | the gateway                                         | `FULL_DUPLEX_STREAMED`    |
+| `judged`     | any other call to `/mcp`         | the gateway                                         | `FULL_DUPLEX_STREAMED`    |
 
 Each has `REQUEST_HEADERS`, `REQUEST_BODY` and `REQUEST_TRAILERS`, `failOpen: false`, and a timeout of `timeout_ms`
 (6000 by default, past the gateway's 5 s deadline). A header picks the chain, not a path, so every call reaches the
-upstream's `/mcp` unchanged. Only `/mcp` reaches the upstream; any other path is redirected to it, so a scanner on the
-public IP can't show in the upstream's journal.
+upstream's `/mcp` unchanged. Only `/mcp` reaches the gateway and the upstream; any other path is redirected to it.
+Scanners find the public IP within minutes, and their calls must show in neither the upstream's journal nor the denials.
 
 **The extension is imported with `gcloud`, not made by the google provider:** the provider (8.11.0, the latest) can't
 set `requestBodySendMode`, lists no `REQUEST_TRAILERS`, and says the timeout is at most 1000 ms, where the API takes 10
@@ -61,7 +61,8 @@ cp terraform.tfvars.example terraform.tfvars   # your values
 - **`up` waits** until a `GET` through the load balancer gets the upstream stub's 405 six times in a row, 5 s apart, for
   up to 10 minutes: that answer means the extension called the gateway and the gateway let the call through. It then
   checks the stubs' `/__admin` refuses a call without the password. If the wait times out, it prints the last answer.
-- **`up` again** on a running session redeploys what changed (the gateway, a stub, the extension).
+- **`up` again** on a running session rebuilds the images, whose digests change on every build, so it redeploys the
+  three services, and the extension if it changed: about 3 minutes.
 
 ## What the driver checks
 
@@ -78,22 +79,21 @@ its answer, and whether it reached `upstream`. After the driver, `session.sh` pr
 above from the run: the `streamed` refusal names the mode the load balancer said it sends, or `unknown` if it sent no
 `protocol_config`.
 
-## What a session finds
+## What sessions showed
 
-What the gateway's design leaves to check on GCP, and where a session shows it:
+What the gateway's design left to check on GCP (first session, 2026-11-12):
 
-- **Whether the load balancer fails open with no gateway:** Google's docs say a full-duplex extension fails open on
-  errors before the first body chunk. The `no-gateway` `seen` lines show it: a call reaching `upstream` means it does,
-  which no other host does; stop there and take it up before any production use.
-- **Whether it sends `protocol_config`:** without it, the gateway can't tell full duplex, so it refuses every call with
-  a body, 503, and the `judged` cases fail. The `streamed` refusal's log line names the mode it sent.
-- **The extension's timeout range:** applying `timeout_ms` (6000) fails if the API takes less.
-- **Cloud Run as an extension's backend:** a serverless NEG behind an `HTTP2` backend service; applying, then `up`'s
-  wait, shows the load balancer reaches it.
-- **Its buffer limit:** the 3 MiB case shows a body at least that large is held while the gateway judges; a larger one
-  needs `RAIL_MAX_BODY_MB` raised in `services.tf`.
-- **Cloud Logging's timestamp:** the gateway logs in Cloud Logging's format on Cloud Run; its lines' time in the Logs
-  Explorer shows whether `time` is taken as the entry's timestamp.
+- **The load balancer fails closed with a gateway it can't reach:** a call through `no-gateway` is answered 500, and
+  nothing reaches `upstream`, in spite of Google's docs on errors before the first body chunk. Only an unreachable
+  backend is tried; a gateway failing its stream after accepting it isn't.
+- **It sends `protocol_config`:** the `streamed` refusal's log line names `STREAMED`, and full duplex is read from it,
+  so no setting naming the mode is needed.
+- **The extension takes a 6 s timeout,** as the API says (10 to 10000 ms), not the provider's docs (1000).
+- **Cloud Run serves as an extension's backend:** a serverless NEG behind an `HTTP2` backend service, its ingress
+  internal and load balancing.
+- **A 3 MiB body in full duplex** reaches `upstream` byte for byte, so the load balancer holds at least that while the
+  gateway judges; a larger one needs `RAIL_MAX_BODY_MB` raised in `services.tf`.
+- **Cloud Logging takes the gateway's `time` as the entry's timestamp,** and its `severity` as the entry's.
 
 ## Auth and TLS
 

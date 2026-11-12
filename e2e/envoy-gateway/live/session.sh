@@ -27,7 +27,7 @@ elapsed() { local s=$(($(date +%s) - $1)); echo "$((s / 60))m $((s % 60))s"; }
 project=$(sed -n 's/^project_id *= *"\(.*\)"/\1/p' terraform.tfvars)
 prefix=$(sed -n 's/^prefix *= *"\(.*\)"/\1/p' terraform.tfvars)
 # The images the local stack pins.
-pinned() { sed -n "s#^ *image: \($1:.*\)$#\1#p" "$stack/compose.yml"; }
+pinned() { sed -n "s#^ *image: \($1:.*\)\$#\1#p" "$stack/compose.yml"; }
 
 build_images() {
   local registry wiremock
@@ -99,6 +99,15 @@ print_gateway_warnings() {
     --format='value(timestamp, severity, jsonPayload.message, jsonPayload.mode)'
 }
 
+# Now by Google's clock, not this machine's, which may be off by more than a run lasts.
+read_google_time() {
+  local _ day month year time months=JanFebMarAprMayJunJulAugSepOctNovDec before
+  read -r _ day month year time _ < <(curl -sI https://www.googleapis.com/ | tr -d '\r' |
+    sed -n 's/^[Dd]ate: //p')
+  before=${months%%"$month"*}
+  printf '%s-%02d-%sT%sZ' "$year" $((${#before} / 3 + 1)) "$day" "$time"
+}
+
 action=${1:-}
 start=$(date +%s)
 case "$action" in
@@ -118,7 +127,7 @@ case "$action" in
     echo "END THE SESSION WITH ./session.sh down: it is billed while it exists."
     ;;
   test)
-    since=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+    since=$(read_google_time)
     # The image's user reads the certificate.
     cert=$(mktemp)
     chmod 644 "$cert"
@@ -139,9 +148,14 @@ case "$action" in
       "$(pinned python)" python -u /e2e/driver.py || result=$?
     echo
     echo "== The gateway's warnings and errors during the run"
-    # Cloud Logging takes a few seconds to show a line.
-    sleep 15
-    print_gateway_warnings "$since" || true
+    # A query sees a line only some time after it's logged; the streamed refusal is the run's last.
+    warnings=""
+    for _ in {1..8}; do
+      sleep 15
+      warnings=$(print_gateway_warnings "$since" || true)
+      [[ "$warnings" == *"must send the body"* ]] && break
+    done
+    echo "${warnings:-none found}"
     exit "$result"
     ;;
   down)
