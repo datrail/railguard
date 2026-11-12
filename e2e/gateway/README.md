@@ -9,3 +9,4 @@ through each Envoy listener. See [the stacks](../README.md).
   Each driver mounts it beside itself.
 - `rail-center-mappings/`: the bundle (to the service token only), the signing keys, and the denials route.
 - `upstream-mappings/`: the MCP server.
+- `stub.Dockerfile`: either stub with its mappings baked in, for the live harnesses on Cloud Run.

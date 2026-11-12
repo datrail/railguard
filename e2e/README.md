@@ -11,12 +11,13 @@ A Docker Compose project: one host's image, built from this checkout as it ships
 stubs for Rail Center and for the MCP servers; and a driver, which sends calls through it and reads back from each
 stub's request journal what arrived. The stack exits with the driver.
 
-| Suite                                      | What it tests                                                                                               |
-| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| [`envoy-proxy`](envoy-proxy/README.md)     | rail-envoy's proxy behind Envoy, per ticket state and host, over ext_authz and ext_proc, and their variants |
-| [`envoy-gateway`](envoy-gateway/README.md) | rail-envoy's gateway behind Envoy in GCP's load balancer's place, over each way Envoy calls it              |
-| [`apigee`](apigee/README.md)               | rail-apigee on its own, then behind a stand-in for Apigee running `apigee/apiproxy`                         |
-| [`apigee/live`](apigee/live/README.md)     | the apigee suite's driver against real Apigee X, with rail-apigee on Cloud Run: paid, by hand, never in CI  |
+| Suite                                                | What it tests                                                                                                                    |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| [`envoy-proxy`](envoy-proxy/README.md)               | rail-envoy's proxy behind Envoy, per ticket state and host, over ext_authz and ext_proc, and their variants                      |
+| [`envoy-gateway`](envoy-gateway/README.md)           | rail-envoy's gateway behind Envoy in GCP's load balancer's place, over each way Envoy calls it                                   |
+| [`apigee`](apigee/README.md)                         | rail-apigee on its own, then behind a stand-in for Apigee running `apigee/apiproxy`                                              |
+| [`apigee/live`](apigee/live/README.md)               | the apigee suite's driver against real Apigee X, with rail-apigee on Cloud Run: paid, by hand, never in CI                       |
+| [`envoy-gateway/live`](envoy-gateway/live/README.md) | the envoy-gateway suite's driver through GCP's load balancer, with rail-envoy's gateway on Cloud Run: paid, by hand, never in CI |
 
 ## Commands
 

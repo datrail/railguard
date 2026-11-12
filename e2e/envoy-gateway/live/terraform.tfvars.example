@@ -1,0 +1,4 @@
+# Copy to terraform.tfvars, which terraform plan/apply load automatically.
+project_id = "your-project"
+region     = "us-central1"
+prefix     = "rg-eg"

@@ -36,9 +36,9 @@ build_images() {
   docker build --platform linux/amd64 -t "$registry/callout:session" \
     -f "$repo/crates/rail-apigee/Dockerfile" "$repo"
   docker build --platform linux/amd64 -t "$registry/rail-center:session" \
-    -f "$live/stub.Dockerfile" --build-arg "WIREMOCK=$wiremock" "$e2e/../gateway/rail-center-mappings"
+    -f "$e2e/../gateway/stub.Dockerfile" --build-arg "WIREMOCK=$wiremock" "$e2e/../gateway/rail-center-mappings"
   docker build --platform linux/amd64 -t "$registry/upstream:session" \
-    -f "$live/stub.Dockerfile" --build-arg "WIREMOCK=$wiremock" "$e2e/../gateway/upstream-mappings"
+    -f "$e2e/../gateway/stub.Dockerfile" --build-arg "WIREMOCK=$wiremock" "$e2e/../gateway/upstream-mappings"
   for image in callout rail-center upstream; do
     docker push --quiet "$registry/$image:session"
   done

@@ -49,6 +49,6 @@ flowchart LR
 
 ## Not covered here
 
-- **GCP's load balancer itself:** a live harness, to come.
+- **GCP's load balancer itself:** [the live harness](live/README.md), paid and run by hand.
 - **Signed tickets:** no case sends one.
 - **An encoded body:** not decoded; no case sends one.

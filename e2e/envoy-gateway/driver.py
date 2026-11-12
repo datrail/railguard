@@ -1,11 +1,15 @@
 """Checks rail-envoy's gateway behind Envoy, through each way Envoy calls it: ext_proc full duplex
 (as GCP's load balancer does), ext_proc buffered and ext_authz with the body; then what only Envoy
 shows: the body sent back whole, the cap, a body mode refused, and a gateway nothing can reach.
+With E2E_TARGET=live (live/session.sh test), through GCP's load balancer, in full duplex only, a
+traffic extension chain picked by header; what the load balancer does without a gateway is seen,
+not asserted.
 
 The cases every host passes alike are in gateway_cases.py.
 """
 
 import json
+import os
 
 from gateway_cases import (
     AGENT,
@@ -15,26 +19,36 @@ from gateway_cases import (
     TOO_LARGE,
     UPLOAD_TIMEOUT_SECONDS,
     check_every_request_matched,
+    clear_journals,
     count_upstream_requests,
     exit_with_result,
     expect,
     read_last_received_body,
     report_fail,
     report_ok,
+    report_seen,
     reset_journals,
     run_gateway_cases,
     send_raw_post,
     start_block,
 )
 
-_ENVOY = "http://envoy"
-_JUDGING = {
-    "full duplex": f"{_ENVOY}:10000/mcp",
-    "buffered": f"{_ENVOY}:10001/mcp",
-    "ext_authz": f"{_ENVOY}:10002/mcp",
-}
-_STREAMED = f"{_ENVOY}:10003/mcp"
-_NO_GATEWAY = f"{_ENVOY}:10004/mcp"
+_LIVE = os.environ.get("E2E_TARGET", "local") == "live"
+# The streamed and no-gateway cases: a URL, and the headers picking its route.
+if _LIVE:
+    _MCP = os.environ["E2E_MCP_URL"]
+    _JUDGING = {"full duplex": _MCP}
+    _STREAMED = (_MCP, [("x-e2e-chain", "streamed")])
+    _NO_GATEWAY = (_MCP, [("x-e2e-chain", "no-gateway")])
+else:
+    _ENVOY = "http://envoy"
+    _JUDGING = {
+        "full duplex": f"{_ENVOY}:10000/mcp",
+        "buffered": f"{_ENVOY}:10001/mcp",
+        "ext_authz": f"{_ENVOY}:10002/mcp",
+    }
+    _STREAMED = (f"{_ENVOY}:10003/mcp", [])
+    _NO_GATEWAY = (f"{_ENVOY}:10004/mcp", [])
 
 
 # A `tools/call` padded to about `size` bytes.
@@ -78,14 +92,27 @@ def _run_envoy_cases():
 
     start_block("streamed: a body Envoy streams is refused")
     reset_journals()
-    code, answer = send_raw_post(_STREAMED, call, good)
+    url, route = _STREAMED
+    code, answer = send_raw_post(url, call, [*good, *route])
     expect("the call is answered 503", 503, code)
     expect("with the refusal's body", CALLOUT_FAILED, answer)
     expect("nothing reached the upstream", 0, count_upstream_requests())
 
+    url, route = _NO_GATEWAY
+    if _LIVE:
+        # Google's docs say full duplex fails open on errors before the first body chunk.
+        start_block("no gateway: what the load balancer does")
+        clear_journals()
+        code, answer = send_raw_post(url, call, [*good, *route])
+        report_seen("the call's answer", f"{code} {answer[:300]}")
+        report_seen("requests that reached the upstream", count_upstream_requests())
+        # A call let through finds no session, so it can't fail the unmatched sweep.
+        clear_journals()
+        return
+
     start_block("no gateway: Envoy fails closed")
     reset_journals()
-    code, answer = send_raw_post(_NO_GATEWAY, call, good)
+    code, answer = send_raw_post(url, call, [*good, *route])
     if code is not None and code >= 500:
         report_ok(f"the call is refused ({code})")
     else:

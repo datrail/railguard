@@ -1,0 +1,6 @@
+# Local state and downloaded providers; the lock file is committed.
+.terraform/
+*.tfstate
+*.tfstate.*
+# Each person's values; the .example file is committed.
+terraform.tfvars
