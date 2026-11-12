@@ -26,7 +26,9 @@ locals {
     },
   ]
 
+  extension_name = "projects/${var.project_id}/locations/global/lbTrafficExtensions/${var.prefix}-ext"
   extension = {
+    name                = local.extension_name
     loadBalancingScheme = "EXTERNAL_MANAGED"
     forwardingRules     = [google_compute_global_forwarding_rule.lb.self_link]
     extensionChains = [
@@ -52,41 +54,33 @@ resource "terraform_data" "traffic_extension" {
   # Replaced on any change, so the import runs again.
   triggers_replace = local.extension
   input = {
-    name    = "${var.prefix}-ext"
-    project = var.project_id
-    source  = jsonencode(local.extension)
+    name   = local.extension_name
+    source = jsonencode(local.extension)
   }
 
-  # JSON is YAML, so gcloud reads it as is.
+  # JSON is YAML, so gcloud reads it from stdin as is.
   provisioner "local-exec" {
     interpreter = ["bash", "-c"]
     command     = <<-EOT
       set -euo pipefail
-      source=$(mktemp --suffix=.yaml)
-      trap 'rm -f "$source"' EXIT
-      printf '%s' "$SOURCE" > "$source"
-      gcloud service-extensions lb-traffic-extensions import "$NAME" \
-        --location=global --project="$PROJECT" --source="$source" --quiet
+      printf '%s' "$SOURCE" | gcloud service-extensions lb-traffic-extensions import "$NAME" --quiet
     EOT
     environment = {
-      NAME    = self.input.name
-      PROJECT = self.input.project
-      SOURCE  = self.input.source
+      NAME   = self.input.name
+      SOURCE = self.input.source
     }
   }
 
   provisioner "local-exec" {
     when        = destroy
     interpreter = ["bash", "-c"]
-    command     = <<-EOT
-      gcloud service-extensions lb-traffic-extensions delete "$NAME" \
-        --location=global --project="$PROJECT" --quiet
+    # Already gone is done.
+    command = <<-EOT
+      gcloud service-extensions lb-traffic-extensions delete "$NAME" --quiet ||
+        ! gcloud service-extensions lb-traffic-extensions describe "$NAME" >/dev/null 2>&1
     EOT
     environment = {
-      NAME    = self.input.name
-      PROJECT = self.input.project
+      NAME = self.input.name
     }
   }
-
-  depends_on = [google_project_service.apis]
 }

@@ -141,11 +141,13 @@ case "$action" in
     echo "== The gateway's warnings and errors during the run"
     # Cloud Logging takes a few seconds to show a line.
     sleep 15
-    print_gateway_warnings "$since"
+    print_gateway_warnings "$since" || true
     exit "$result"
     ;;
   down)
-    terraform destroy -auto-approve -input=false
+    # The check below is for a failed destroy too.
+    failed=0
+    terraform destroy -auto-approve -input=false || failed=$?
     echo
     echo "Session down in $(elapsed "$start")."
     left=$(gcloud service-extensions lb-traffic-extensions list --location=global \
@@ -155,6 +157,7 @@ case "$action" in
       echo "WARNING: an extension left holds the forwarding rule; delete it, then down again." >&2
       exit 1
     fi
+    exit "$failed"
     ;;
   *)
     sed -n '6,14p' "$0" >&2

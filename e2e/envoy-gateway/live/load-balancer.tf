@@ -82,9 +82,33 @@ resource "google_compute_backend_service" "backend" {
   }
 }
 
+# Only /mcp reaches the upstream, so a scanner on the public IP can't show in its journal.
 resource "google_compute_url_map" "lb" {
-  name            = "${var.prefix}-um"
-  default_service = google_compute_backend_service.backend["upstream"].id
+  name = "${var.prefix}-um"
+
+  default_url_redirect {
+    path_redirect = "/mcp"
+    strip_query   = true
+  }
+
+  host_rule {
+    hosts        = ["*"]
+    path_matcher = "mcp"
+  }
+
+  path_matcher {
+    name = "mcp"
+
+    default_url_redirect {
+      path_redirect = "/mcp"
+      strip_query   = true
+    }
+
+    path_rule {
+      paths   = ["/mcp"]
+      service = google_compute_backend_service.backend["upstream"].id
+    }
+  }
 }
 
 resource "google_compute_target_https_proxy" "lb" {

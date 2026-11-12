@@ -108,8 +108,7 @@ resource "google_cloud_run_v2_service" "gateway" {
         value = "debug"
       }
 
-      # Serves only once it holds a bundle. Cloud Run probes can't run `rail probe`, so it asks
-      # the readiness service itself.
+      # Ready once it holds a bundle; Cloud Run can't exec `rail probe`.
       startup_probe {
         grpc {
           port    = local.gateway_port

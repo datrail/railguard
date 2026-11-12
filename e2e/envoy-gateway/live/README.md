@@ -35,7 +35,8 @@ The traffic extension has three chains, tried in order, the first whose conditio
 
 Each has `REQUEST_HEADERS`, `REQUEST_BODY` and `REQUEST_TRAILERS`, `failOpen: false`, and a timeout of `timeout_ms`
 (6000 by default, past the gateway's 5 s deadline). A header picks the chain, not a path, so every call reaches the
-upstream's `/mcp` unchanged.
+upstream's `/mcp` unchanged. Only `/mcp` reaches the upstream; any other path is redirected to it, so a scanner on the
+public IP can't show in the upstream's journal.
 
 **The extension is imported with `gcloud`, not made by the google provider:** the provider (8.11.0, the latest) can't
 set `requestBodySendMode`, lists no `REQUEST_TRAILERS`, and says the timeout is at most 1000 ms, where the API takes 10

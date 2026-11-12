@@ -102,7 +102,7 @@ def _run_envoy_cases():
     if _LIVE:
         # Google's docs say full duplex fails open on errors before the first body chunk.
         start_block("no gateway: what the load balancer does")
-        clear_journals()
+        reset_journals()
         code, answer = send_raw_post(url, call, [*good, *route])
         report_seen("the call's answer", f"{code} {answer[:300]}")
         report_seen("requests that reached the upstream", count_upstream_requests())
