@@ -1094,6 +1094,7 @@ name = "rail-test-support"
 version = "0.0.0"
 dependencies = [
  "rail-runtime",
+ "tokio",
 ]
 
 [[package]]

@@ -203,7 +203,7 @@ fn under_gcp_every_line_is_json_from_starting_to_each_refusal() {
 #[test]
 fn under_json_a_usage_error_is_one_error_line() {
     let mut command = with_settings(Path::new("/run/rail/unused.sock"));
-    command.env("RAIL_LOG_FORMAT", "json").arg("gateway");
+    command.env("RAIL_LOG_FORMAT", "json").arg("standalone");
 
     let output = command.output().unwrap();
 
@@ -214,7 +214,7 @@ fn under_json_a_usage_error_is_one_error_line() {
     assert!(lines[0].starts_with(r#"{"timestamp":""#), "{logs}");
     assert!(
         lines[0].ends_with(
-            r#""level":"ERROR","target":"rail_runtime::logging","message":"invalid arguments","reason":"unknown arguments [\"gateway\"]; usage: rail-envoy proxy | rail-envoy probe [--ready]"}"#
+            r#""level":"ERROR","target":"rail_runtime::logging","message":"invalid arguments","reason":"unknown arguments [\"standalone\"]; usage: rail-envoy proxy | rail-envoy gateway | rail-envoy probe [--ready]"}"#
         ),
         "{logs}"
     );

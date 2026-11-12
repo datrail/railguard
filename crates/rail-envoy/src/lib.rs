@@ -1,15 +1,16 @@
-//! The Envoy host, in the proxy role: ext_authz and ext_proc on a unix socket Envoy shares, or on
-//! a port. For now it allows every request, with this proxy's ticket in `x-rail` to a protected
-//! host.
+//! The Envoy host: ext_authz and ext_proc on a unix socket Envoy shares, or on a port. As the
+//! proxy, it allows every request, with this proxy's ticket in `x-rail` to a protected host; as
+//! the gateway, it judges each request against the policy bundle held.
 //!
-//! `rail-envoy proxy` (`rail proxy` in its image) serves, with `grpc.health.v1` on the same
-//! listener; `rail-envoy probe [--ready]` asks it for liveness or readiness, and exits 0 if it
+//! `rail-envoy proxy` or `rail-envoy gateway` (`rail proxy`, `rail gateway` in its image) serves,
+//! with `grpc.health.v1` on the same listener; `rail-envoy probe [--ready]` asks it for liveness or readiness, and exits 0 if it
 //! answers SERVING, for a container health check in an image with no shell.
 //!
 //! The binary as a library: `run`, and the configuration and callouts it serves, which its tests
 //! drive.
 
 mod config;
+mod gateway;
 mod health;
 mod services;
 mod xrail;
@@ -26,18 +27,21 @@ use envoy_types::ext_authz::v3::pb::AuthorizationServer;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
 use rail_grpc_host::{Address, Command, Role, Statuses};
 use rail_runtime::{
-    Jitter, RailCenterClient, RailCenterSettings, RailCenterThread, RailCenterTickets, Settings,
-    Startup, TicketHolder, TicketSettings, Variables,
+    GatewaySettings, Jitter, RailCenterClient, RailCenterSettings, RailCenterThread,
+    RailCenterTickets, Refused, Settings, Startup, TicketHolder, TicketSettings, Variables,
+    start_gateway,
 };
 use tokio::net::{TcpListener, UnixListener};
-use tokio::signal::unix::{SignalKind, signal};
+use tokio::signal::unix::{Signal, SignalKind, signal};
 use tokio::sync::oneshot;
 use tokio_stream::wrappers::{TcpListenerStream, UnixListenerStream};
 use tonic::server::NamedService;
+use tonic::transport::server::Router;
 use tonic_health::pb::health_server::HealthServer;
 
-pub use crate::config::{Config, Listener, read_listener};
-pub use crate::health::check_proxy;
+pub use crate::config::{GatewayConfig, Listener, ProxyConfig, read_listener};
+pub use crate::gateway::GatewayCallouts;
+pub use crate::health::{check_gateway, check_proxy};
 pub use crate::services::Callouts;
 
 /// The binary: serves as the role named, or with `probe [--ready]`, asks the server where it's
@@ -45,7 +49,8 @@ pub use crate::services::Callouts;
 pub async fn run() -> ExitCode {
     rail_runtime::logging::init();
     let command_line: Vec<String> = std::env::args().collect();
-    let command = match rail_grpc_host::parse_command(&[Role::Proxy], &command_line) {
+    let command = match rail_grpc_host::parse_command(&[Role::Proxy, Role::Gateway], &command_line)
+    {
         Ok(command) => command,
         Err(usage) => {
             rail_runtime::logging::log_usage(&usage);
@@ -59,12 +64,18 @@ pub async fn run() -> ExitCode {
         Command::Serve(role) => {
             // Before the settings, so a refused configuration names the build.
             rail_runtime::logging::log_build(role.as_str());
-            let config = Config::read(&mut settings);
-            let (config, startup) = settings
-                .finish("RAIL_", config)
-                .unwrap_or_else(|errors| errors.exit());
-            rail_runtime::logging::set_level(config.log_level);
-            serve(role, config, &startup).await
+            match role {
+                Role::Proxy => {
+                    let (config, startup) = read_config(settings, ProxyConfig::read);
+                    rail_runtime::logging::set_level(config.log_level);
+                    serve_proxy(config, &startup).await
+                }
+                Role::Gateway => {
+                    let (config, startup) = read_config(settings, GatewayConfig::read);
+                    rail_runtime::logging::set_level(config.log_level);
+                    serve_gateway(config, &startup).await
+                }
+            }
         }
         // Only the listener: the rest is the server's to judge, and the probe names no role.
         Command::Probe { ready } => {
@@ -81,23 +92,22 @@ pub async fn run() -> ExitCode {
     }
 }
 
-async fn serve(role: Role, config: Config, startup: &Startup) -> ExitCode {
-    rail_runtime::logging::log_settings(startup);
-    // SIGTERM is how a container is stopped; as PID 1 nothing handles it unless we do.
-    let terminate = match signal(SignalKind::terminate()) {
-        Ok(terminate) => terminate,
-        Err(error) => {
-            tracing::error!(error = %error, "can't handle SIGTERM");
-            return ExitCode::FAILURE;
-        }
-    };
-    let bound = match bind(&config.listener).await {
-        Ok(bound) => bound,
-        Err(error) => {
-            tracing::error!(error = %error, "can't listen");
-            // Where it listens is configuration, so it fails as a refused configuration does.
-            return ExitCode::from(rail_runtime::EXIT_CODE);
-        }
+// Exits as a refused configuration does when anything is refused.
+fn read_config<T>(
+    settings: Settings,
+    read: impl FnOnce(&mut Settings) -> Result<T, Refused>,
+) -> (T, Startup) {
+    let mut settings = settings;
+    let config = read(&mut settings);
+    settings
+        .finish("RAIL_", config)
+        .unwrap_or_else(|errors| errors.exit())
+}
+
+async fn serve_proxy(config: ProxyConfig, startup: &Startup) -> ExitCode {
+    let (terminate, bound) = match prepare(&config.listener, startup).await {
+        Ok(prepared) => prepared,
+        Err(code) => return code,
     };
     let (rail_center, tickets) = match config.ticket.map(start_tickets).transpose() {
         Ok(started) => started.unzip(),
@@ -116,20 +126,87 @@ async fn serve(role: Role, config: Config, startup: &Startup) -> ExitCode {
             AuthorizationServer::<Callouts>::NAME,
             ExternalProcessorServer::<Callouts>::NAME,
         ],
-        vec![(role, check_proxy(callouts.tickets.clone()))],
+        vec![(Role::Proxy, check_proxy(callouts.tickets.clone()))],
     )
     .await;
     tracing::info!(listener = %config.listener, "serving Envoy");
+    let router = tonic::transport::Server::builder()
+        .add_service(HealthServer::new(readiness))
+        .add_service(AuthorizationServer::new(callouts.clone()))
+        .add_service(ExternalProcessorServer::new(callouts));
+    serve_until_stopped(bound, router, statuses, terminate, rail_center).await
+}
+
+async fn serve_gateway(config: GatewayConfig, startup: &Startup) -> ExitCode {
+    let (terminate, bound) = match prepare(&config.listener, startup).await {
+        Ok(prepared) => prepared,
+        Err(code) => return code,
+    };
+    let settings = GatewaySettings {
+        max_body_bytes: config.max_body_bytes,
+        ..GatewaySettings::default()
+    };
+    let started = config
+        .rail_center
+        .map(|rail_center| start_gateway(rail_center, settings))
+        .transpose();
+    let (rail_center, gateway) = match started {
+        Ok(started) => started.unzip(),
+        Err(error) => {
+            tracing::error!(error = %error, "can't start fetching from Rail Center");
+            return ExitCode::FAILURE;
+        }
+    };
+    let callouts = GatewayCallouts {
+        gateway: gateway.clone(),
+        max_body_bytes: config.max_body_bytes,
+    };
+    let (statuses, readiness) = Statuses::start(
+        &[
+            AuthorizationServer::<GatewayCallouts>::NAME,
+            ExternalProcessorServer::<GatewayCallouts>::NAME,
+        ],
+        vec![(Role::Gateway, check_gateway(gateway))],
+    )
+    .await;
+    tracing::info!(listener = %config.listener, "serving Envoy");
+    let limit = config.max_message_bytes;
+    let router = tonic::transport::Server::builder()
+        .add_service(HealthServer::new(readiness))
+        .add_service(AuthorizationServer::new(callouts.clone()).max_decoding_message_size(limit))
+        .add_service(ExternalProcessorServer::new(callouts).max_decoding_message_size(limit));
+    serve_until_stopped(bound, router, statuses, terminate, rail_center).await
+}
+
+// The settings logged, SIGTERM handled and the listener bound, before anything starts.
+async fn prepare(listener: &Listener, startup: &Startup) -> Result<(Signal, Bound), ExitCode> {
+    rail_runtime::logging::log_settings(startup);
+    // SIGTERM is how a container is stopped; as PID 1 nothing handles it unless we do.
+    let terminate = signal(SignalKind::terminate()).map_err(|error| {
+        tracing::error!(error = %error, "can't handle SIGTERM");
+        ExitCode::FAILURE
+    })?;
+    let bound = bind(listener).await.map_err(|error| {
+        tracing::error!(error = %error, "can't listen");
+        // Where it listens is configuration, so it fails as a refused configuration does.
+        ExitCode::from(rail_runtime::EXIT_CODE)
+    })?;
+    Ok((terminate, bound))
+}
+
+async fn serve_until_stopped(
+    bound: Bound,
+    router: Router,
+    statuses: Statuses,
+    terminate: Signal,
+    rail_center: Option<RailCenterThread>,
+) -> ExitCode {
     let (draining, drain_started) = oneshot::channel();
     let stopping = async {
         rail_grpc_host::terminated(terminate).await;
         statuses.stop().await;
         let _ = draining.send(());
     };
-    let router = tonic::transport::Server::builder()
-        .add_service(HealthServer::new(readiness))
-        .add_service(AuthorizationServer::new(callouts.clone()))
-        .add_service(ExternalProcessorServer::new(callouts));
     // Two incoming types, so a server each.
     let served = match bound {
         Bound::Unix(listener) => {

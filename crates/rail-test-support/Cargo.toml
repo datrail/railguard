@@ -16,6 +16,8 @@ path = "tests/main.rs"
 
 [dependencies]
 rail-runtime = { path = "../rail-runtime" }
+# The stub Rail Center a host's tests fetch from.
+tokio = { version = "1", features = ["io-util", "net", "rt", "sync"] }
 
 [lints.rust]
 unsafe_code = "forbid"
