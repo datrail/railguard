@@ -20,20 +20,20 @@ fn write_line(severity: bool, log: impl FnOnce()) -> String {
     lines[0].to_owned()
 }
 
-// That line's members, but the timestamp, checked to be RFC 3339 in UTC.
+// That line's members, but the timestamp, checked to be RFC 3339 in UTC: `time` with
+// `severity`, as Cloud Logging reads it, else `timestamp`.
 fn read_line(severity: bool, log: impl FnOnce()) -> Value {
     let line = write_line(severity, log);
     let mut value: Value =
         serde_json::from_str(&line).unwrap_or_else(|error| panic!("{error}: {line}"));
-    let timestamp = value["timestamp"]
-        .as_str()
-        .unwrap_or_else(|| panic!("{line}"));
+    let key = if severity { "time" } else { "timestamp" };
+    let timestamp = value[key].as_str().unwrap_or_else(|| panic!("{line}"));
     assert!(
         time::OffsetDateTime::parse(timestamp, &time::format_description::well_known::Rfc3339)
             .is_ok_and(|instant| instant.offset().is_utc()),
         "{line}"
     );
-    value.as_object_mut().unwrap().remove("timestamp");
+    value.as_object_mut().unwrap().remove(key);
     value
 }
 
@@ -173,11 +173,14 @@ fn a_field_named_as_a_key_of_the_line_is_prefixed() {
             timestampNanos = 8,
             httpRequest = 9,
             "logging.googleapis.com/trace" = 10,
+            r#message = 11,
+            "field.timestamp" = 12,
             "m"
         );
     });
 
     assert_eq!(line["severity"], "INFO");
+    assert_eq!(line["message"], "m");
     assert_eq!(line["target"], module_path!());
     for (name, value) in [
         ("field.timestamp", 1),
@@ -190,6 +193,8 @@ fn a_field_named_as_a_key_of_the_line_is_prefixed() {
         ("field.timestampNanos", 8),
         ("field.httpRequest", 9),
         ("field.logging.googleapis.com/trace", 10),
+        ("field.message", 11),
+        ("field.field.timestamp", 12),
     ] {
         assert_eq!(line[name], json!(value), "{line}");
     }
@@ -284,7 +289,7 @@ fn init_reads_the_format_from_the_environment() {
     assert_eq!(lines[1]["severity"], "WARNING", "{stderr}");
     assert_eq!(
         lines[1].as_object().unwrap().keys().collect::<Vec<_>>(),
-        ["message", "severity", "target", "timestamp"],
+        ["message", "severity", "target", "time"],
         "{stderr}"
     );
     assert_eq!(lines[2]["message"], "a thread panicked", "{stderr}");

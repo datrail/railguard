@@ -66,8 +66,9 @@ const OWN_TARGETS: [&str; 5] = [
 
 const LOG_FORMAT: &str = "RAIL_LOG_FORMAT";
 // A JSON line's own keys, and those Cloud Logging lifts out of a line: a field of the same name,
-// or under `logging.googleapis.com/`, is written `field.<name>`.
-const RESERVED_KEYS: [&str; 8] = [
+// under `logging.googleapis.com/`, or already `field.…`, is written `field.<name>`.
+const RESERVED_KEYS: [&str; 9] = [
+    "message",
     "timestamp",
     "level",
     "severity",
@@ -77,7 +78,7 @@ const RESERVED_KEYS: [&str; 8] = [
     "timestampNanos",
     "httpRequest",
 ];
-const CLOUD_LOGGING_PREFIX: &str = "logging.googleapis.com/";
+const RESERVED_PREFIXES: [&str; 2] = ["logging.googleapis.com/", "field."];
 
 static FILTER: OnceLock<reload::Handle<Targets, Registry>> = OnceLock::new();
 static FORMAT: OnceLock<LogFormat> = OnceLock::new();
@@ -187,23 +188,16 @@ fn parse_log_level(text: &str) -> Result<tracing::Level, String> {
 /// `RAIL_LOG_FORMAT`: `gcp` by default on Cloud Run, else `json`. [`init`] has already read it;
 /// this judges it and logs it.
 pub fn read_log_format(settings: &mut Settings) -> Result<LogFormat, Refused> {
-    let format = settings.get(LOG_FORMAT).parsed(parse_log_format)?;
-    match format {
-        Some(format) => {
-            settings.describe(LOG_FORMAT, format.as_str());
-            Ok(format)
-        }
-        None => match detect_log_format(settings.variables()) {
-            (format, true) => {
-                settings.describe_detected(LOG_FORMAT, format.as_str());
-                Ok(format)
-            }
-            (format, false) => {
-                settings.describe(LOG_FORMAT, format.as_str());
-                Ok(format)
-            }
-        },
+    let (format, detected) = match settings.get(LOG_FORMAT).parsed(parse_log_format)? {
+        Some(format) => (format, false),
+        None => detect_log_format(settings.variables()),
+    };
+    if detected {
+        settings.describe_detected(LOG_FORMAT, format.as_str());
+    } else {
+        settings.describe(LOG_FORMAT, format.as_str());
     }
+    Ok(format)
 }
 
 // The format with none set, and whether it's the platform's: Cloud Logging's on Cloud Run.
@@ -222,7 +216,8 @@ fn parse_log_format(text: &str) -> Result<LogFormat, String> {
         .ok_or_else(|| format!("must be text, json or gcp, got: {}", sanitize(text)))
 }
 
-// Text keeps its block; a JSON reader wants each refusal as an error line of its own.
+// Text keeps its block; a JSON reader wants each refusal as an error line of its own. A refusal
+// is already sanitized, so a `\` it holds reads doubled once decoded.
 pub(crate) fn log_refusals(refusals: &[String]) -> bool {
     if FORMAT.get().is_none_or(|format| *format == LogFormat::Text) {
         return false;
@@ -370,7 +365,7 @@ impl Visit for Visitor<'_> {
 }
 
 /// The event formatter [`init`] installs for a JSON format: one object per line, `timestamp`
-/// (RFC 3339, UTC), the level, `target` and `message`, then each field, a number or a bool bare.
+/// (`time` with `severity`; RFC 3339, UTC), the level, `target` and `message`, then each field, a number or a bool bare.
 /// No span is written: this workspace opens none, and the libraries' are filtered out below WARN.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct JsonLines {
@@ -399,7 +394,9 @@ where
         event.record(&mut fields);
         let (level_key, level) = self.name_level(*metadata.level());
         let mut line = String::from("{");
-        write_member(&mut line, "timestamp", &json_string(&timestamp));
+        // Cloud Logging reads an RFC 3339 string only as `time`.
+        let time_key = if self.severity { "time" } else { "timestamp" };
+        write_member(&mut line, time_key, &json_string(&timestamp));
         write_member(&mut line, level_key, &json_string(level));
         write_member(&mut line, "target", &json_string(metadata.target()));
         let message = fields.message.unwrap_or_default();
@@ -464,7 +461,11 @@ impl JsonFields {
             return;
         }
         let name = name.strip_prefix("r#").unwrap_or(name);
-        let name = if RESERVED_KEYS.contains(&name) || name.starts_with(CLOUD_LOGGING_PREFIX) {
+        let reserved = RESERVED_KEYS.contains(&name)
+            || RESERVED_PREFIXES
+                .iter()
+                .any(|prefix| name.starts_with(prefix));
+        let name = if reserved {
             format!("field.{name}")
         } else {
             name.to_owned()

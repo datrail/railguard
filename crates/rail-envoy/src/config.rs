@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use rail_runtime::logging::LogFormat;
 use rail_runtime::{
     ProtectedHosts, RailCenterSettings, Refused, Settings, TicketSettings, read_disabled,
     read_log_format, read_log_level, read_protected_hosts, read_rail_center, read_ticket_settings,
@@ -12,8 +11,6 @@ const DEFAULT_SOCKET: &str = "/run/rail/ext.sock";
 /// What this process runs with.
 #[derive(Debug)]
 pub struct Config {
-    /// How each log line is written, as `logging::init` has already read it.
-    pub log_format: LogFormat,
     /// The level of this workspace's own log lines.
     pub log_level: tracing::Level,
     pub socket: PathBuf,
@@ -27,6 +24,7 @@ impl Config {
     /// The configuration, every setting judged, or `Err` if anything is refused; `settings` keeps
     /// the refusals.
     pub fn read(settings: &mut Settings) -> Result<Self, Refused> {
+        // Only judged and described here: `logging::init` has already used it.
         let log_format = read_log_format(settings);
         let log_level = read_log_level(settings);
         let socket = read_socket(settings);
@@ -37,7 +35,7 @@ impl Config {
         let ticket = read_ticket_settings(settings, enabled);
         let protected_hosts = read_protected_hosts(settings, enabled);
         disabled?;
-        let (log_format, log_level, socket, rail_center, ticket, protected_hosts) = (
+        let (_, log_level, socket, rail_center, ticket, protected_hosts) = (
             log_format?,
             log_level?,
             socket?,
@@ -52,7 +50,6 @@ impl Config {
                 .expect("both are required when Rail Center is used")
         });
         Ok(Self {
-            log_format,
             log_level,
             socket,
             ticket,

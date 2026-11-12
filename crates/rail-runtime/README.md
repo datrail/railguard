@@ -17,7 +17,8 @@ behave the same. See the [main README](../../README.md) for the system around it
   or refuse it as one the rules can't apply to (503). `DenialReporter` reports each denial without the call waiting.
 - **The proxy:** `XRailHeaders` are the proxy's changes to a request, for a protected host or any other.
 - **The log:** `logging` writes both hosts' log to stderr as JSON lines, Cloud Logging's on Cloud Run, or as text under
-  `RAIL_LOG_FORMAT=text`, each field quoted so a call's text can't forge a line.
+  `RAIL_LOG_FORMAT=text`, each field quoted or a JSON string, with what hides escaped, so a call's text can't forge a
+  line.
 
 ## What it doesn't do
 

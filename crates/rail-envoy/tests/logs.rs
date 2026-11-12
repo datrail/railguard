@@ -10,7 +10,7 @@ use tonic::transport::Endpoint;
 
 use rail_test_support::Server;
 
-use crate::common::{TempSocket, rail_envoy, serve};
+use crate::common::{TempSocket, rail_envoy, serve, with_settings};
 
 // The fields after the target, of the one line holding `needle`: the first ": " ends the target.
 fn find_fields<'a>(logs: &'a str, needle: &str) -> &'a str {
@@ -175,9 +175,7 @@ fn under_gcp_every_line_is_json_from_starting_to_each_refusal() {
     let lines: Vec<_> = logs.lines().collect();
     assert_eq!(lines.len(), 3, "{logs}");
     assert!(
-        lines
-            .iter()
-            .all(|line| line.starts_with(r#"{"timestamp":""#)),
+        lines.iter().all(|line| line.starts_with(r#"{"time":""#)),
         "{logs}"
     );
     assert!(
@@ -236,4 +234,25 @@ fn unset_the_format_is_json_or_on_cloud_run_gcp() {
             "{logs}"
         );
     }
+}
+
+// Before the settings, but already in the format: one error line, and nothing else.
+#[test]
+fn under_json_a_usage_error_is_one_error_line() {
+    let mut command = with_settings(Path::new("/run/rail/unused.sock"));
+    command.env("RAIL_LOG_FORMAT", "json").arg("gateway");
+
+    let output = command.output().unwrap();
+
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    let logs = String::from_utf8(output.stderr).unwrap();
+    let lines: Vec<_> = logs.lines().collect();
+    assert_eq!(lines.len(), 1, "{logs}");
+    assert!(lines[0].starts_with(r#"{"timestamp":""#), "{logs}");
+    assert!(
+        lines[0].ends_with(
+            r#""level":"ERROR","target":"rail_runtime::logging","message":"invalid arguments","reason":"unknown arguments [\"gateway\"]; usage: rail-envoy proxy | rail-envoy probe [--ready]"}"#
+        ),
+        "{logs}"
+    );
 }

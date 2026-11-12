@@ -79,19 +79,22 @@ The level of the hosts' own log lines, on stderr.
 How each log line is written, on stderr.
 
 - **Default:** `json`, or `gcp` on Cloud Run (`K_SERVICE` or `CLOUD_RUN_JOB` set), logged as `source="detected"`. A
-  value set always wins.
+  value set always wins. Nothing else is detected: on GKE or GCE, set `gcp` for Cloud Logging to read each line's
+  severity.
 - **Accepted:** `text`, `json` or `gcp`, in any case.
 - **Read by:** both hosts, before anything is logged, so the `starting` line is already in it; an invalid value is
-  refused, its refusal written in the default format.
+  refused, its refusal written in the default format. `rail probe` uses it too, but doesn't judge it: it falls back to
+  the default.
 - `text` is the message then `name="value"` fields. `json` and `gcp` write one JSON object per line: `timestamp` (RFC
-  3339, UTC), the level, `target`, `message`, then each field, a number or a bool bare. `json` names the level `level`
-  (`ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE`); `gcp` names it `severity`, as Cloud Logging reads it (`WARN` as
-  `WARNING`, `TRACE` as `DEBUG`).
+  3339, UTC; `time` in `gcp`, the name Cloud Logging reads it by), the level, `target`, `message`, then each field, a
+  number or a bool bare. `json` names the level `level` (`ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE`); `gcp` names it
+  `severity`, as Cloud Logging reads it (`WARN` as `WARNING`, `TRACE` as `DEBUG`).
 - In either JSON format, hidden characters and `\` are escaped as in `text`, `"` is left to JSON, and a field is cut at
-  1024 characters, but not the message. A field named `timestamp`, `level`, `severity`, `target`, or one Cloud Logging
-  reads (`time`, `timestampSeconds`, `timestampNanos`, `httpRequest`, or under `logging.googleapis.com/`), is written
-  `field.<name>`. Each refusal is an `ERROR` line of its own, `invalid configuration` with the reason in `refusal`, and
-  a usage error is one too, `invalid arguments` with the reason in `reason`.
+  1024 characters, but not the message. A field named `message`, `timestamp`, `level`, `severity`, `target`, or one
+  Cloud Logging reads (`time`, `timestampSeconds`, `timestampNanos`, `httpRequest`, or under `logging.googleapis.com/`),
+  or already starting `field.`, is written `field.<name>`. Each refusal is an `ERROR` line of its own,
+  `invalid configuration` with the reason in `refusal`, and a usage error is one too, `invalid arguments` with the
+  reason in `reason`.
 
 ## rail-apigee
 
