@@ -33,6 +33,8 @@ pub fn with_settings(port: u16) -> Command {
     let mut command = isolate(env!("CARGO_BIN_EXE_rail-apigee"));
     command
         .env("RAIL_DISABLED", "true")
+        // The tests read text lines; JSON is asked for where it's tested.
+        .env("RAIL_LOG_FORMAT", "text")
         .env("RAIL_CALLOUT_PORT", port.to_string());
     command
 }

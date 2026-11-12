@@ -31,7 +31,7 @@ use tracing_subscriber::registry::LookupSpan;
 use tracing_subscriber::reload;
 use tracing_subscriber::util::SubscriberInitExt;
 
-use crate::config::{Level, Refused, Settings, Startup};
+use crate::config::{Level, Refused, Settings, Startup, Variables};
 
 // Long enough to keep the root cause at the end of an error chain.
 const MAX_FIELD_CHARS: usize = 1024;
@@ -71,11 +71,13 @@ const RESERVED_KEYS: [&str; 4] = ["timestamp", "level", "severity", "target"];
 static FILTER: OnceLock<reload::Handle<Targets, Registry>> = OnceLock::new();
 static FORMAT: OnceLock<LogFormat> = OnceLock::new();
 
+// Cloud Run sets one of these in every service's and job's container.
+const CLOUD_RUN: [&str; 2] = ["K_SERVICE", "CLOUD_RUN_JOB"];
+
 /// How each line is written: `RAIL_LOG_FORMAT`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LogFormat {
     /// The message, then `name=value` fields, by [`QuotedFields`].
-    #[default]
     Text,
     /// One JSON object per line, by [`JsonLines`], its level as `level`.
     Json,
@@ -96,11 +98,13 @@ impl LogFormat {
 /// Logs to stderr for the rest of the process, in the format `RAIL_LOG_FORMAT` names, panics
 /// included; at INFO until [`set_level`].
 pub fn init() {
-    // Read here, before the settings, so the first line is already in it; text if it's refused.
+    // Read here, before the settings, so the first line is already in it; the platform's if it's
+    // refused, so the refusal is too.
+    let variables = Variables::from_process();
     let format = std::env::var(LOG_FORMAT)
         .ok()
         .and_then(|text| parse_log_format(text.trim()).ok())
-        .unwrap_or_default();
+        .unwrap_or_else(|| detect_log_format(&variables).0);
     let (filter, handle) = reload::Layer::new(own_lines_at(tracing::Level::INFO));
     let text = (format == LogFormat::Text).then(|| {
         tracing_subscriber::fmt::layer()
@@ -171,16 +175,35 @@ fn parse_log_level(text: &str) -> Result<tracing::Level, String> {
         })
 }
 
-/// `RAIL_LOG_FORMAT`, `text` by default. [`init`] has already read it; this judges it and logs it.
+/// `RAIL_LOG_FORMAT`: `gcp` by default on Cloud Run, else `json`. [`init`] has already read it;
+/// this judges it and logs it.
 pub fn read_log_format(settings: &mut Settings) -> Result<LogFormat, Refused> {
-    let format = settings
-        .get(LOG_FORMAT)
-        .parsed(parse_log_format)
-        .map(Option::unwrap_or_default);
-    if let Ok(format) = &format {
-        settings.describe(LOG_FORMAT, format.as_str());
+    let format = settings.get(LOG_FORMAT).parsed(parse_log_format)?;
+    match format {
+        Some(format) => {
+            settings.describe(LOG_FORMAT, format.as_str());
+            Ok(format)
+        }
+        None => match detect_log_format(settings.variables()) {
+            (format, true) => {
+                settings.describe_detected(LOG_FORMAT, format.as_str());
+                Ok(format)
+            }
+            (format, false) => {
+                settings.describe(LOG_FORMAT, format.as_str());
+                Ok(format)
+            }
+        },
     }
-    format
+}
+
+// The format with none set, and whether it's the platform's: Cloud Logging's on Cloud Run.
+fn detect_log_format(variables: &Variables) -> (LogFormat, bool) {
+    if CLOUD_RUN.iter().any(|name| variables.is_set(name)) {
+        (LogFormat::Gcp, true)
+    } else {
+        (LogFormat::Json, false)
+    }
 }
 
 fn parse_log_format(text: &str) -> Result<LogFormat, String> {

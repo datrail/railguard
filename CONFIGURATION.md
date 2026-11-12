@@ -78,10 +78,11 @@ The level of the hosts' own log lines, on stderr.
 
 How each log line is written, on stderr.
 
-- **Default:** `text`.
+- **Default:** `json`, or `gcp` on Cloud Run (`K_SERVICE` or `CLOUD_RUN_JOB` set), logged as `source="detected"`. A
+  value set always wins.
 - **Accepted:** `text`, `json` or `gcp`, in any case.
 - **Read by:** both hosts, before anything is logged, so the `starting` line is already in it; an invalid value is
-  refused, its refusal written as text.
+  refused, its refusal written in the default format.
 - `text` is the message then `name="value"` fields. `json` and `gcp` write one JSON object per line: `timestamp` (RFC
   3339, UTC), the level, `target`, `message`, then each field, a number or a bool bare. `json` names the level `level`
   (`ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE`); `gcp` names it `severity`, as Cloud Logging reads it (`WARN` as

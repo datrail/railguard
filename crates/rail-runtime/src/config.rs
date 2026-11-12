@@ -91,6 +91,23 @@ impl<'a> Settings<'a> {
         self.push(name, value, Level::Warn(weakens));
     }
 
+    /// `name`, unset, as taken from the platform it runs on.
+    pub fn describe_detected(&mut self, name: &'static str, value: impl fmt::Display) {
+        self.mark_read(name);
+        self.entries.push(Entry {
+            name,
+            value: value.to_string(),
+            level: Level::Info,
+            source: Source::Detected,
+        });
+    }
+
+    /// The environment read, for what isn't a setting, such as the platform's own variables;
+    /// reading it records nothing.
+    pub fn variables(&self) -> &'a Variables {
+        self.variables
+    }
+
     /// A secret, only ever as set or unset.
     pub fn describe_secret(&mut self, name: &'static str, secret: Option<&Secret>) {
         self.describe(name, if secret.is_some() { "set" } else { "unset" });
@@ -378,11 +395,13 @@ pub enum Level {
     Warn(&'static str),
 }
 
-/// Where an entry's value comes from: its variable, or a default when that's unset.
+/// Where an entry's value comes from: its variable, a default when that's unset, or what the
+/// platform it runs on says.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Source {
     Env,
     Default,
+    Detected,
 }
 
 impl Source {
@@ -390,6 +409,7 @@ impl Source {
         match self {
             Self::Env => "env",
             Self::Default => "default",
+            Self::Detected => "detected",
         }
     }
 }

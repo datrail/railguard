@@ -66,7 +66,7 @@ fn disabled_describes_every_setting_set_though_its_group_is_incomplete() {
     assert_eq!(
         entries,
         [
-            ("RAIL_LOG_FORMAT", "text".to_owned(), Level::Info),
+            ("RAIL_LOG_FORMAT", "json".to_owned(), Level::Info),
             ("RAIL_LOG_LEVEL", "info".to_owned(), Level::Info),
             (
                 "RAIL_EXT_SOCKET",
@@ -121,7 +121,7 @@ fn the_description_says_each_value_as_used_and_never_the_token() {
     assert_eq!(
         entries,
         [
-            ("RAIL_LOG_FORMAT", "text", Level::Info),
+            ("RAIL_LOG_FORMAT", "json", Level::Info),
             ("RAIL_LOG_LEVEL", "info", Level::Info),
             ("RAIL_EXT_SOCKET", "/tmp/rail/ext.sock", Level::Info),
             ("RAIL_DISABLED", "false", Level::Info),
@@ -163,7 +163,7 @@ fn the_defaults_are_described_as_used_and_disabled_as_a_warning() {
     assert_eq!(
         entries,
         [
-            ("RAIL_LOG_FORMAT", "text", Level::Info, Source::Default),
+            ("RAIL_LOG_FORMAT", "json", Level::Info, Source::Default),
             ("RAIL_LOG_LEVEL", "info", Level::Info, Source::Default),
             (
                 "RAIL_EXT_SOCKET",

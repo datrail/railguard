@@ -48,7 +48,7 @@ logs a `setting` line for each one it uses, with its value and whether it came f
 secret only as `set` or `unset`. A value that weakens something is logged as a warning saying what
 (`RAIL_DISABLED=true`, an `http://` Rail Center), and so is a `RAIL_…` variable nothing reads, as a likely typo. It
 starts fetching the bundle and the signing keys, then logs `serving the ExternalCallout service`. Every line, `starting`
-included, is in the format `RAIL_LOG_FORMAT` names: text by default, or JSON.
+included, is in the format `RAIL_LOG_FORMAT` names: JSON by default, Cloud Logging's on Cloud Run, or text.
 
 ## When Rail Center is down
 

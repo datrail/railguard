@@ -1,5 +1,7 @@
 use rail_runtime::logging::LogFormat;
-use rail_runtime::{read_log_format, read_log_level};
+use rail_runtime::{
+    ConfigErrors, Settings, Source, Startup, Variables, read_log_format, read_log_level,
+};
 use tracing::Level;
 
 use crate::common;
@@ -47,12 +49,48 @@ fn read_format(value: &str) -> Result<LogFormat, Vec<String>> {
 }
 
 #[test]
-fn the_log_format_is_text_by_default_and_case_folded() {
-    assert_eq!(common::read(&[], read_log_format).unwrap(), LogFormat::Text);
-    assert_eq!(read_format(" ").unwrap(), LogFormat::Text);
+fn the_log_format_is_json_by_default_and_case_folded() {
+    assert_eq!(common::read(&[], read_log_format).unwrap(), LogFormat::Json);
+    assert_eq!(read_format(" ").unwrap(), LogFormat::Json);
     assert_eq!(read_format("JSON").unwrap(), LogFormat::Json);
     assert_eq!(read_format(" gcp ").unwrap(), LogFormat::Gcp);
     assert_eq!(read_format("text").unwrap(), LogFormat::Text);
+}
+
+// Cloud Run sets one of these; an explicit value still wins.
+#[test]
+fn on_cloud_run_the_log_format_is_detected_as_gcp() {
+    for platform in ["K_SERVICE", "CLOUD_RUN_JOB"] {
+        let (format, startup) = read_startup(&[(platform, "callout")]).unwrap();
+        assert_eq!(format, LogFormat::Gcp, "{platform}");
+        assert_eq!(
+            startup
+                .entries
+                .iter()
+                .map(|entry| (entry.name, entry.value.as_str(), entry.source))
+                .collect::<Vec<_>>(),
+            [("RAIL_LOG_FORMAT", "gcp", Source::Detected)],
+            "{platform}"
+        );
+        assert!(startup.unread.is_empty());
+
+        let (format, startup) =
+            read_startup(&[(platform, "callout"), ("RAIL_LOG_FORMAT", "text")]).unwrap();
+        assert_eq!(format, LogFormat::Text);
+        assert_eq!(startup.entries[0].source, Source::Env);
+    }
+    // Blank is unset, as for any variable.
+    assert_eq!(
+        read_startup(&[("K_SERVICE", " ")]).unwrap().0,
+        LogFormat::Json
+    );
+}
+
+fn read_startup(pairs: &[(&str, &str)]) -> Result<(LogFormat, Startup), ConfigErrors> {
+    let variables: Variables = pairs.iter().copied().collect();
+    let mut settings = Settings::new(&variables);
+    let format = read_log_format(&mut settings);
+    settings.finish("RAIL_", format)
 }
 
 #[test]
