@@ -25,6 +25,7 @@ fn unset_the_port_and_limit_take_their_defaults_and_rail_center_needs_its_settin
     assert_eq!(
         entries,
         [
+            ("RAIL_LOG_FORMAT", "text".to_owned()),
             ("RAIL_LOG_LEVEL", "info".to_owned()),
             ("RAIL_CALLOUT_PORT", "8080".to_owned()),
             ("RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB", "16".to_owned()),

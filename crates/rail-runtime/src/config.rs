@@ -331,9 +331,12 @@ impl<'s, 'a> Setting<'s, 'a> {
 pub struct ConfigErrors(pub Vec<String>);
 
 impl ConfigErrors {
-    /// Writes the refusals to stderr and exits with [`EXIT_CODE`].
+    /// Writes the refusals to stderr, as one ERROR line each in a JSON log format, and exits with
+    /// [`EXIT_CODE`].
     pub fn exit(&self) -> ! {
-        eprintln!("{self}");
+        if !crate::logging::log_refusals(&self.0) {
+            eprintln!("{self}");
+        }
         std::process::exit(EXIT_CODE.into())
     }
 }

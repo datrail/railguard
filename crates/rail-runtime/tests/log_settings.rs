@@ -1,4 +1,5 @@
-use rail_runtime::read_log_level;
+use rail_runtime::logging::LogFormat;
+use rail_runtime::{read_log_format, read_log_level};
 use tracing::Level;
 
 use crate::common;
@@ -36,6 +37,31 @@ fn other_level_names_and_the_retired_per_host_settings_are_refused() {
             errors,
             [format!(
                 "{name} is no longer read; RAIL_LOG_LEVEL sets the log level"
+            )]
+        );
+    }
+}
+
+fn read_format(value: &str) -> Result<LogFormat, Vec<String>> {
+    common::read(&[("RAIL_LOG_FORMAT", value)], read_log_format)
+}
+
+#[test]
+fn the_log_format_is_text_by_default_and_case_folded() {
+    assert_eq!(common::read(&[], read_log_format).unwrap(), LogFormat::Text);
+    assert_eq!(read_format(" ").unwrap(), LogFormat::Text);
+    assert_eq!(read_format("JSON").unwrap(), LogFormat::Json);
+    assert_eq!(read_format(" gcp ").unwrap(), LogFormat::Gcp);
+    assert_eq!(read_format("text").unwrap(), LogFormat::Text);
+}
+
+#[test]
+fn another_log_format_is_refused() {
+    for value in ["logfmt", "gcp-json", "stackdriver"] {
+        assert_eq!(
+            read_format(value).unwrap_err(),
+            [format!(
+                "RAIL_LOG_FORMAT must be text, json or gcp, got: {value}"
             )]
         );
     }
