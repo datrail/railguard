@@ -1,4 +1,4 @@
-.PHONY: build test test-py fmt fmt-py fmt-md lint lint-py lint-md check coverage proto e2e-envoy-images e2e-envoy e2e-apigee-images e2e-apigee e2e-down
+.PHONY: build test test-py fmt fmt-py fmt-md lint lint-py lint-md check coverage proto notices e2e-envoy-images e2e-envoy e2e-apigee-images e2e-apigee e2e-down
 
 build:
 	cargo build --locked
@@ -43,6 +43,12 @@ coverage:
 # Regenerates apigee-callout-proto's committed code, after its .proto changes.
 proto:
 	cargo run --locked --manifest-path crates/apigee-callout-proto/codegen/Cargo.toml --target-dir target/codegen
+
+# Each image's third-party licences, from its dependencies; needs cargo-about.
+notices:
+	for host in apigee envoy; do \
+		cargo about generate --frozen --fail -m crates/rail-$$host/Cargo.toml -c .notices/about.toml -o crates/rail-$$host/THIRD-PARTY-NOTICES .notices/about.hbs || exit 1; \
+	done
 
 # The stack e2e-down removes.
 STACK = envoy

@@ -4,5 +4,6 @@
 !Cargo.lock
 !rust-toolchain.toml
 !LICENSE
+!crates/*/THIRD-PARTY-NOTICES
 !crates/*/Cargo.toml
 !crates/*/src

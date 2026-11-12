@@ -1,6 +1,8 @@
 [package]
 name = "rail-runtime"
 edition = "2024"
+license.workspace = true
+publish.workspace = true
 # Two test binaries, their modules beside them in `tests/`.
 autotests = false
 

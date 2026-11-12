@@ -1,0 +1,12 @@
+Third-party crates built into this image's binary, and the licences they're used under. The binary also
+holds Rust's standard library, under MIT or Apache-2.0: https://github.com/rust-lang/rust/blob/master/COPYRIGHT
+{{#each licenses}}
+
+================================================================================
+{{{name}}}, used by:
+{{#each used_by}}
+- {{crate.name}} {{crate.version}}
+{{/each}}
+
+{{{text}}}
+{{/each}}

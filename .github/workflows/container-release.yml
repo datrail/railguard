@@ -1,0 +1,264 @@
+# Publishes each host's image to GitHub Packages (ghcr.io).
+#
+# `git tag v0.1.0 && git push origin v0.1.0` publishes :0.1.0, :0.1 and :latest of each image,
+# for linux/amd64 and linux/arm64, each built natively, with an SBOM and a signed build-provenance
+# attestation. A manual run with no tag publishes the commit it's launched on as :sha-<12 hex>,
+# to try it before a release; it moves no version tag.
+name: Release Container Images
+
+on:
+  push:
+    # Narrower than `v*`; `version` is the real check, since a filter can't anchor the end.
+    tags: ["v[0-9]+.[0-9]+.[0-9]+*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish, e.g. v0.1.0; empty publishes this commit as sha-<12 hex>"
+        required: false
+
+# Each job is granted what it needs.
+permissions: {}
+
+# Per repository, not per ref: two tags at once would race to write `:0.1` and `:latest`. A
+# group keeps one pending run, so a third tag cancels the waiting one: push tags one at a time.
+concurrency:
+  group: container-release-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  # Its own job, so `ci` can be gated on it: a job-level `uses:` reads only another job's outputs.
+  version:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    # To list the release tags.
+    permissions:
+      contents: read
+    # `ref` is what's checked out and tested; `version` names it, in the images and their log.
+    outputs:
+      ref: ${{ steps.resolve.outputs.ref }}
+      version: ${{ steps.resolve.outputs.version }}
+      release: ${{ steps.resolve.outputs.release }}
+      latest: ${{ steps.resolve.outputs.latest }}
+    steps:
+      # A release is only vMAJOR.MINOR.PATCH, as semver reads it (no leading zeros, no build
+      # metadata, which metadata-action would drop).
+      - id: resolve
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT" == workflow_dispatch && -z "$INPUT_TAG" ]]; then
+            {
+              echo "ref=$SHA"
+              echo "version=sha-${SHA:0:12}"
+              echo "release=false"
+              echo "latest=false"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          RAW_REF=${INPUT_TAG:-$REF_NAME}
+          stable='v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)'
+          if [[ ! "$RAW_REF" =~ ^${stable}(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::'$RAW_REF' is not a vMAJOR.MINOR.PATCH release tag; refusing to publish."
+            exit 1
+          fi
+          {
+            echo "ref=$RAW_REF"
+            echo "version=$RAW_REF"
+            echo "release=true"
+          } >> "$GITHUB_OUTPUT"
+          # `latest` is the highest stable release, so neither a prerelease nor an older line's fix moves it.
+          highest=$(gh api "repos/$REPOSITORY/git/matching-refs/tags/v" --paginate --jq '.[].ref | ltrimstr("refs/tags/")' \
+            | { grep -E "^${stable}\$" || true; } | sort -V | tail -n 1)
+          if [[ "$RAW_REF" == "$highest" ]]; then
+            echo "latest=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "latest=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Never publish an untested version: the suite runs on what's built. Granted read only, since
+  # a called workflow otherwise inherits this one's write grants.
+  ci:
+    needs: version
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.version.outputs.ref }}
+    permissions:
+      contents: read
+
+  # Each platform on a runner of its own, native, pushed by digest; `publish` tags them together.
+  # The arm64 runner is free only for a public repository.
+  build:
+    needs: [version, ci]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    # Not fail-fast: a cancelled job doesn't unpublish, and rerunning the failed one completes it.
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [apigee, envoy]
+        platform: [amd64, arm64]
+        include:
+          - platform: amd64
+            runner: ubuntu-26.04
+          - platform: arm64
+            runner: ubuntu-26.04-arm
+          - host: apigee
+            description: RailGuard's gateway, as an Apigee ExternalCallout service
+          - host: envoy
+            description: RailGuard's proxy, as an Envoy ext_authz and ext_proc service
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.host }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.version.outputs.ref }}
+
+      # What's built: on a manual run of a tag, `github.sha` is the branch it was launched from.
+      - id: commit
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: crates/rail-${{ matrix.host }}/Dockerfile
+          platforms: linux/${{ matrix.platform }}
+          build-args: |
+            RAIL_VERSION=${{ needs.version.outputs.version }}
+            RAIL_REVISION=${{ steps.commit.outputs.sha }}
+          labels: |
+            org.opencontainers.image.title=railguard-${{ matrix.host }}
+            org.opencontainers.image.description=${{ matrix.description }}
+            org.opencontainers.image.version=${{ needs.version.outputs.version }}
+            org.opencontainers.image.revision=${{ steps.commit.outputs.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.licenses=Apache-2.0
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          sbom: true
+          # Off: the signed attestation in `publish` replaces buildx's unsigned provenance.
+          provenance: false
+
+      - env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: mkdir -p digests && touch "digests/${DIGEST#sha256:}"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: digests-${{ matrix.host }}-${{ matrix.platform }}
+          path: digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # Each host's platform images as one multi-arch image, tagged and attested.
+  publish:
+    needs: [version, build]
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [apigee, envoy]
+        include:
+          - host: apigee
+            description: RailGuard's gateway, as an Apigee ExternalCallout service
+          - host: envoy
+            description: RailGuard's proxy, as an Envoy ext_authz and ext_proc service
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.host }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: digests-${{ matrix.host }}-*
+          path: digests
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE }}
+          # `latest` only as `version` decides: by default every stable tag would move it.
+          flavor: latest=false
+          # `value=` tags what was built, not what a manual run was launched from.
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.version.outputs.ref }},enable=${{ needs.version.outputs.release == 'true' }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.version.outputs.ref }},enable=${{ needs.version.outputs.release == 'true' }}
+            type=raw,value=latest,enable=${{ needs.version.outputs.latest == 'true' }}
+            type=raw,value=${{ needs.version.outputs.version }},enable=${{ needs.version.outputs.release != 'true' }}
+
+      # Values reach the shell through env, never `${{ }}` inside run:, which bash would see raw.
+      - id: index
+        working-directory: digests
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          VERSION: ${{ needs.version.outputs.version }}
+          DESCRIPTION: ${{ matrix.description }}
+          SOURCE: https://github.com/${{ github.repository }}
+        run: |
+          set -euo pipefail
+          tag_args=()
+          while read -r tag; do [[ -n "$tag" ]] && tag_args+=(-t "$tag"); done <<< "$TAGS"
+          platform_images=()
+          for digest in *; do platform_images+=("$IMAGE@sha256:$digest"); done
+          # On the index, where GHCR reads a multi-arch package's source and description.
+          docker buildx imagetools create "${tag_args[@]}" \
+            --annotation "index:org.opencontainers.image.source=$SOURCE" \
+            --annotation "index:org.opencontainers.image.description=$DESCRIPTION" \
+            --annotation "index:org.opencontainers.image.version=$VERSION" \
+            --annotation "index:org.opencontainers.image.licenses=Apache-2.0" \
+            "${platform_images[@]}"
+          echo "digest=$(docker buildx imagetools inspect "$(head -n 1 <<< "$TAGS")" --format '{{json .Manifest}}' | jq -r .digest)" >> "$GITHUB_OUTPUT"
+
+      # Checked with `gh attestation verify oci://<image>:<tag> --owner datrail`. A failure leaves the
+      # image pushed unattested: rerunning the job attests it.
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.index.outputs.digest }}
+          push-to-registry: true
+          # Off: it needs `artifact-metadata: write`, and verification doesn't read it.
+          create-storage-record: false
+
+      - name: Summary
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.index.outputs.digest }}
+        run: |
+          {
+            echo "### Published $IMAGE"
+            echo
+            echo '```'
+            echo "$TAGS"
+            echo '```'
+            echo
+            echo "digest: \`$DIGEST\`"
+          } >> "$GITHUB_STEP_SUMMARY"

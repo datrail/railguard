@@ -29,6 +29,16 @@ use crate::config::{Level, Refused, Settings, Startup};
 // Long enough to keep the root cause at the end of an error chain.
 const MAX_FIELD_CHARS: usize = 1024;
 
+// The image build sets both; a build outside it is `dev`, at no known commit.
+const VERSION: &str = match option_env!("RAIL_VERSION") {
+    Some(version) => version,
+    None => "dev",
+};
+const REVISION: &str = match option_env!("RAIL_REVISION") {
+    Some(revision) => revision,
+    None => "unknown",
+};
+
 const LOG_LEVEL: &str = "RAIL_LOG_LEVEL";
 const LOG_LEVELS: [tracing::Level; 5] = [
     tracing::Level::ERROR,
@@ -120,6 +130,11 @@ fn log_panic(info: &PanicHookInfo<'_>) {
         Some(&panic_message) => tracing::error!(location, panic_message, "a thread panicked"),
         None => tracing::error!(location, "a thread panicked; its message is withheld"),
     }
+}
+
+/// The release this binary was built as, and its commit: the first line a host logs.
+pub fn log_build() {
+    tracing::info!(version = VERSION, revision = REVISION, "starting");
 }
 
 // Each setting as used, then each RAIL_ variable nothing read, likely a typo; never its value.

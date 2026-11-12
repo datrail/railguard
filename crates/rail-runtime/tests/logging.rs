@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt;
 
-use rail_runtime::logging::log_settings;
+use rail_runtime::logging::{log_build, log_settings};
 use rail_runtime::{Entry, Level, Source, Startup};
 
 use crate::logs::Logs;
@@ -239,6 +239,23 @@ fn the_settings_are_logged_each_at_its_level_then_each_unread_name() {
             r#"WARN rail_runtime::logging: setting name="RAIL_DISABLED" value="true" source="env" weakens="nothing is fetched""#,
             r#"WARN rail_runtime::logging: set but not read name="RAIL_TYPO""#,
         ]
+    );
+}
+
+#[test]
+fn the_build_is_logged_with_its_version_and_revision() {
+    let logs = Logs::default();
+    {
+        let _logging = logs.capture();
+        log_build();
+    }
+
+    let text = logs.text();
+    let line = text.split_once(' ').unwrap().1.trim_start();
+    // Tests build without RAIL_VERSION and RAIL_REVISION.
+    assert_eq!(
+        line.trim_end(),
+        r#"INFO rail_runtime::logging: starting version="dev" revision="unknown""#
     );
 }
 

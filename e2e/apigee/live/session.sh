@@ -10,7 +10,7 @@
 #         image; its exit code is the result.
 #   down  terraform destroy, then lists the org's environments, which must
 #         be [].
-# ../apigee-org must be applied first, once (README.md).
+# An Apigee organisation must exist first: README.md, "One-time setup".
 set -euo pipefail
 live=$(cd "$(dirname "$0")" && pwd)
 e2e=$(cd "$live/.." && pwd)

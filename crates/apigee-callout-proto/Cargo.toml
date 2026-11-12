@@ -1,6 +1,8 @@
 [package]
 name = "apigee-callout-proto"
 edition = "2024"
+license.workspace = true
+publish.workspace = true
 
 [lib]
 test = false
