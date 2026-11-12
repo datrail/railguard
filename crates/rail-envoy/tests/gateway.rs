@@ -16,12 +16,13 @@ use envoy_types::pb::envoy::service::ext_proc::v3::processing_response::Response
 use envoy_types::pb::envoy::service::ext_proc::v3::{
     HttpBody, HttpHeaders, HttpTrailers, ProcessingRequest, ProtocolConfiguration,
 };
-use rail_test_support::{RailCenter, Server, isolate};
+use rail_test_support::{RailCenter, Server, isolate, stdout};
 use tonic::transport::{Channel, Endpoint};
 
 use crate::common::TempSocket;
 
-// At `enforce`, denying the tool `forbidden`; every other call is allowed.
+// At `enforce`, denying the tool `forbidden` and the host `denied.example`; every other call is
+// allowed.
 const DENYING_FORBIDDEN: &str = r#"{
     "schema_version": "2.1",
     "content_hash": "v1",
@@ -32,6 +33,13 @@ const DENYING_FORBIDDEN: &str = r#"{
         "name": "F",
         "priority": 1,
         "condition": {"path": "request.endpoint_key", "op": "eq", "value": "/mcp#tools/call#forbidden"},
+        "action": "block",
+        "enabled": true
+    }, {
+        "id": "5c8f1e42-0000-4000-8000-0000000000a2",
+        "name": "H",
+        "priority": 2,
+        "condition": {"path": "request.headers.host", "op": "eq", "value": "denied.example"},
         "action": "block",
         "enabled": true
     }],
@@ -50,8 +58,13 @@ fn tool_call(name: &str, pad: usize) -> Vec<u8> {
     .into_bytes()
 }
 
-// The binary in the gateway role on `socket`, `settings` beside the listener's.
+// The binary in the gateway role on `socket`, `settings` beside the listener's, once ready.
 fn gateway(socket: &Path, settings: &[(&str, &str)]) -> Server {
+    gateway_once(socket, settings, &["probe", "--ready"])
+}
+
+// As `gateway`, once `probe` (its arguments) passes.
+fn gateway_once(socket: &Path, settings: &[(&str, &str)], probe: &[&str]) -> Server {
     let command = || {
         let mut command = isolate(env!("CARGO_BIN_EXE_rail-envoy"));
         command
@@ -62,15 +75,8 @@ fn gateway(socket: &Path, settings: &[(&str, &str)]) -> Server {
     };
     let mut serving = command();
     serving.arg("gateway");
-    let ready = || {
-        command()
-            .args(["probe", "--ready"])
-            .output()
-            .unwrap()
-            .status
-            .success()
-    };
-    Server::serve(serving, ready)
+    let passes = || command().args(probe).output().unwrap().status.success();
+    Server::serve(serving, passes)
 }
 
 // Judging against `bundle`, from a stub Rail Center the caller keeps up.
@@ -109,12 +115,16 @@ fn header(key: &str, value: &str) -> HeaderValue {
 
 // A POST to `/mcp`, from an agent sending its own `x-rail` and an `_` header.
 fn post(end_of_stream: bool) -> Phase {
+    post_to("mcp.example", end_of_stream)
+}
+
+fn post_to(authority: &str, end_of_stream: bool) -> Phase {
     Phase::RequestHeaders(HttpHeaders {
         headers: Some(HeaderMap {
             headers: vec![
                 header(":method", "POST"),
                 header(":path", "/mcp?session=1"),
-                header(":authority", "mcp.example"),
+                header(":authority", authority),
                 header("content-type", "application/json"),
                 header("x-rail", "forged"),
                 header("x_team", "a"),
@@ -178,6 +188,14 @@ fn refused(response: &Response) -> (i32, String) {
     let Response::ImmediateResponse(immediate) = response else {
         panic!("not refused: {response:?}");
     };
+    let set = &immediate.headers.as_ref().unwrap().set_headers;
+    let content_type = set.iter().filter_map(|option| option.header.as_ref());
+    assert!(
+        content_type
+            .into_iter()
+            .any(|header| header.key == "content-type" && header.raw_value == b"application/json"),
+        "{immediate:?}"
+    );
     let body = String::from_utf8(immediate.body.clone()).unwrap();
     (immediate.status.unwrap().code, body)
 }
@@ -244,6 +262,31 @@ async fn full_duplex_holds_every_answer_until_judged_then_sends_the_body_back_wh
     assert!(!ended);
     assert!(matches!(trailed.last(), Some(Response::RequestTrailers(_))));
 
+    // No body at all, only trailers: nothing is sent back for a body that never came.
+    let bodiless = process(
+        &socket.path,
+        duplex,
+        vec![post(false), Phase::RequestTrailers(HttpTrailers::default())],
+    )
+    .await
+    .unwrap();
+    assert_eq!(bodiless.len(), 2, "{bodiless:?}");
+    assert_eq!(removed(&bodiless[0]), WITHHELD);
+    assert!(matches!(bodiless[1], Response::RequestTrailers(_)));
+
+    // `:authority` reads as `host`, as an HTTP/1 request's would.
+    let by_host = process(
+        &socket.path,
+        duplex,
+        vec![
+            post_to("denied.example", false),
+            chunk(&tool_call("allowed", 0), true),
+        ],
+    )
+    .await
+    .unwrap();
+    assert_eq!(refused(&by_host[0]).0, 403);
+
     let denied = process(
         &socket.path,
         duplex,
@@ -296,6 +339,56 @@ async fn buffered_answers_the_headers_at_once_and_judges_the_one_body_message() 
     .unwrap();
     assert_eq!(removed(&denied[0]), WITHHELD);
     assert_eq!(refused(&denied[1]).0, 403);
+    let allowed = process(
+        &socket.path,
+        buffered,
+        vec![
+            post(false),
+            chunk(&tool_call("allowed", 0), false),
+            Phase::RequestTrailers(HttpTrailers::default()),
+        ],
+    )
+    .await
+    .unwrap();
+    assert_eq!(allowed.len(), 3, "{allowed:?}");
+    assert!(matches!(allowed[1], Response::RequestBody(_)));
+    assert!(matches!(allowed[2], Response::RequestTrailers(_)));
+
+    // Trailers and no body: judged when they come, and only they are answered.
+    let bodiless = process(
+        &socket.path,
+        buffered,
+        vec![
+            post_to("denied.example", false),
+            Phase::RequestTrailers(HttpTrailers::default()),
+        ],
+    )
+    .await
+    .unwrap();
+    assert_eq!(bodiless.len(), 2, "{bodiless:?}");
+    assert_eq!(removed(&bodiless[0]), WITHHELD);
+    assert_eq!(refused(&bodiless[1]).0, 403);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_body_past_grpcs_own_4_mib_default_is_judged_whole_in_one_message() {
+    let socket = TempSocket::new("gw-message");
+    let (_server, _rail_center) = judging(&socket.path, DENYING_FORBIDDEN, &[]).await;
+    let body = tool_call("allowed", 5 * 1024 * 1024);
+
+    let buffered = process(
+        &socket.path,
+        Some(BodySendMode::Buffered),
+        vec![post(false), chunk(&body, true)],
+    )
+    .await
+    .unwrap();
+    assert!(
+        matches!(buffered[1], Response::RequestBody(_)),
+        "{buffered:?}"
+    );
+    let size = i64::try_from(body.len()).unwrap();
+    assert!(check(&socket.path, &[], &body, size).await.is_ok());
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -311,6 +404,14 @@ async fn a_request_without_a_body_is_judged_from_its_headers_and_other_modes_ref
         503,
         r#"{"error": "policy ruleset cannot be applied"}"#.to_owned(),
     );
+    let body_first = process(
+        &socket.path,
+        Some(BodySendMode::FullDuplexStreamed),
+        vec![chunk(&tool_call("allowed", 0), true), post(false)],
+    )
+    .await
+    .unwrap();
+    assert_eq!(refused(&body_first[0]), cannot_apply);
     for mode in [
         Some(BodySendMode::Streamed),
         Some(BodySendMode::BufferedPartial),
@@ -340,26 +441,77 @@ async fn a_streamed_body_past_the_cap_is_refused_as_soon_as_it_is() {
     .await;
     let half = vec![b' '; 512 * 1024];
 
-    // Refused at the third chunk, before the body ends: the fourth gets no answer.
+    let duplex = Some(BodySendMode::FullDuplexStreamed);
+
+    // Refused at the third chunk, before the body ends, which it never does here.
     let replies = process(
         &socket.path,
-        Some(BodySendMode::FullDuplexStreamed),
+        duplex,
         vec![
             post(false),
             chunk(&half, false),
             chunk(&half, false),
             chunk(b" ", false),
-            chunk(&tool_call("allowed", 0), true),
         ],
     )
     .await
     .unwrap();
-
     assert_eq!(replies.len(), 1, "{replies:?}");
     assert_eq!(
         refused(&replies[0]),
         (413, r#"{"error": "request body too large"}"#.to_owned())
     );
+
+    // At the cap, to the byte, it's judged.
+    let short = tool_call("allowed", 0).len();
+    let at_cap = tool_call("allowed", 1024 * 1024 - short);
+    assert_eq!(at_cap.len(), 1024 * 1024);
+    let forwarded = process(
+        &socket.path,
+        duplex,
+        vec![post(false), chunk(&at_cap, true)],
+    )
+    .await
+    .unwrap();
+    assert!(streamed_back(&forwarded[1..]).0 == at_cap);
+
+    // ext_authz, whole and past it.
+    let past = tool_call("allowed", 1024 * 1024);
+    let size = i64::try_from(past.len()).unwrap();
+    assert_eq!(
+        check(&socket.path, &[], &past, size).await.unwrap_err().0,
+        413
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn it_is_ready_once_it_holds_a_bundle() {
+    let socket = TempSocket::new("gw-ready");
+    let rail_center = RailCenter::start_holding_bundle(DENYING_FORBIDDEN).await;
+    let url = rail_center.url();
+    let settings = [
+        ("RAIL_CENTER_URL", url.as_str()),
+        ("RAIL_CENTER_ALLOW_HTTP", "true"),
+        ("RAIL_GATEWAY_SLUG", "gw-1"),
+    ];
+    let _server = tokio::task::block_in_place(|| gateway_once(&socket.path, &settings, &["probe"]));
+    let ready = || {
+        let mut command = isolate(env!("CARGO_BIN_EXE_rail-envoy"));
+        command
+            .env("RAIL_EXT_SOCKET", &socket.path)
+            .args(["probe", "--ready"]);
+        command.output().unwrap()
+    };
+
+    let before = tokio::task::block_in_place(ready);
+    assert!(!before.status.success());
+    assert_eq!(
+        stdout(&before),
+        "not serving: NOT_SERVING (gateway: none)\n"
+    );
+    rail_center.release_bundle();
+    tokio::task::block_in_place(|| rail_test_support::wait_until(|| ready().status.success()));
+    assert_eq!(stdout(&ready()), "serving (gateway: held)\n");
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -430,7 +582,19 @@ async fn check(
             removed.sort();
             Ok(removed)
         }
-        HttpResponse::DeniedResponse(denied) => Err((denied.status.unwrap().code, denied.body)),
+        HttpResponse::DeniedResponse(denied) => {
+            assert!(
+                denied
+                    .headers
+                    .iter()
+                    .filter_map(|option| option.header.as_ref())
+                    .any(
+                        |header| header.key == "content-type" && header.value == "application/json"
+                    ),
+                "{denied:?}"
+            );
+            Err((denied.status.unwrap().code, denied.body))
+        }
         other => panic!("neither allowed nor denied: {other:?}"),
     }
 }
@@ -465,13 +629,33 @@ async fn ext_authz_judges_the_body_sent_and_never_a_body_cut_short() {
         check(&socket.path, &[], &allowed, length(&allowed) + 1).await,
         too_large
     );
-    // No body sent at all: the filter has no `with_request_body`.
+    // No body sent at all, its size known or not: the filter has no `with_request_body`.
+    let cannot_apply = Err((
+        503,
+        r#"{"error": "policy ruleset cannot be applied"}"#.to_owned(),
+    ));
     assert_eq!(
         check(&socket.path, &[], &[], length(&allowed)).await,
-        Err((
-            503,
-            r#"{"error": "policy ruleset cannot be applied"}"#.to_owned()
-        ))
+        cannot_apply
+    );
+    assert_eq!(check(&socket.path, &[], &[], -1).await, cannot_apply);
+    // Only Envoy's header saying so makes a body partial.
+    for flag in [("x-flag", "true"), ("x-envoy-auth-partial-body", "false")] {
+        assert!(
+            check(&socket.path, &[flag], &allowed, length(&allowed))
+                .await
+                .is_ok(),
+            "{flag:?}"
+        );
+    }
+    // `:authority` reads as `host`.
+    let host = [(":authority", "denied.example")];
+    assert_eq!(
+        check(&socket.path, &host, &allowed, length(&allowed))
+            .await
+            .unwrap_err()
+            .0,
+        403
     );
 }
 
@@ -490,7 +674,9 @@ async fn disabled_it_forwards_everything_removing_the_withheld_headers() {
     .await
     .unwrap();
     assert_eq!(removed(&replies[0]), WITHHELD);
-    assert!(streamed_back(&replies[1..]).0 == forbidden);
+    let (back, _, ended) = streamed_back(&replies[1..]);
+    assert!(back == forbidden);
+    assert!(ended);
 
     let length = i64::try_from(forbidden.len()).unwrap();
     assert!(check(&socket.path, &[], &forbidden, length).await.is_ok());

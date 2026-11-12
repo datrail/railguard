@@ -55,45 +55,48 @@ impl Authorization for GatewayCallouts {
             .and_then(|request| request.http)
             .unwrap_or_default();
         // Envoy sends the headers in one of the two, `header_map` when asked for raw headers.
-        let mut headers: Vec<(String, String)> = http.headers.into_iter().collect();
-        headers.extend(
+        let sent = http.headers.into_iter().chain(
             http.header_map
                 .into_iter()
                 .flat_map(|map| map.headers)
                 .map(|header| (header.key.clone(), read_value(&header))),
         );
+        let request = read_request(sent);
         let body = if http.raw_body.is_empty() {
             http.body.into_bytes()
         } else {
             http.raw_body
         };
-        let removed = withheld(&headers);
-        let partial = headers
+        let removed = withheld(&request.lines);
+        let partial = request
+            .lines
             .iter()
             .any(|(name, value)| name.eq_ignore_ascii_case(PARTIAL_BODY) && value == "true");
         let short = usize::try_from(http.size).is_ok_and(|size| body.len() < size);
+        // An MCP call always has a body: none, where the size isn't known to be 0, is one not sent.
+        let unsent = http.method == "POST" && body.is_empty() && http.size != 0;
         let answer = match &self.gateway {
             None => Answer::Forward,
+            Some(_) if unsent => {
+                tracing::error!(
+                    "refused unjudged: Envoy sent no body; its ext_authz filter needs with_request_body"
+                );
+                Answer::CannotApply
+            }
             // A body cut short could read as another call, so it's never judged as whole.
-            Some(_) if partial || (short && !body.is_empty()) => {
+            Some(_) if partial || short => {
                 tracing::warn!(
                     bytes = body.len(),
                     "refused unjudged: Envoy sent part of the body"
                 );
                 Answer::TooLarge
             }
-            Some(_) if short => {
-                tracing::error!(
-                    "refused unjudged: Envoy sent no body; its ext_authz filter needs with_request_body"
-                );
-                Answer::CannotApply
-            }
             Some(gateway) => {
                 let call = Call {
                     path: read_path(&http.path),
                     method: http.method,
                     body,
-                    headers,
+                    headers: request.lines,
                 };
                 gateway.handle(call).await.0
             }
@@ -146,16 +149,14 @@ impl ExternalProcessor for GatewayCallouts {
         // Several answers can follow one message, so they go through a channel.
         tokio::spawn(async move {
             while let Some(Ok(message)) = inbound.next().await {
-                let (answers, ends) = match exchange.on(message).await {
-                    Ok(answers) => (answers.into_iter().map(Ok).collect(), false),
-                    Err(status) => (vec![Err(status)], true),
-                };
-                for answer in answers {
-                    if replies.send(answer).await.is_err() {
-                        return;
+                let sent = match exchange.on(message).await {
+                    Ok(answers) => send(&replies, answers).await,
+                    Err(status) => {
+                        let _ = replies.send(Err(status)).await;
+                        Err(())
                     }
-                }
-                if ends {
+                };
+                if sent.is_err() {
                     return;
                 }
             }
@@ -164,6 +165,58 @@ impl ExternalProcessor for GatewayCallouts {
             outbound,
         ))))
     }
+}
+
+// What one message is answered with: answers ready now, or a full-duplex request forwarded,
+// whose body goes back a chunk at a time, so it's never copied whole.
+enum Answers {
+    Now(Vec<Response>),
+    BodyBack {
+        removed: Vec<String>,
+        body: Vec<u8>,
+        trailers: bool,
+    },
+}
+
+async fn send(
+    replies: &mpsc::Sender<Result<ProcessingResponse, Status>>,
+    answers: Answers,
+) -> Result<(), ()> {
+    let send_one = |response| replies.send(Ok(reply(response)));
+    match answers {
+        Answers::Now(responses) => {
+            for response in responses {
+                send_one(response).await.map_err(|_| ())?;
+            }
+        }
+        Answers::BodyBack {
+            removed,
+            body,
+            trailers,
+        } => {
+            send_one(headers_response(removed)).await.map_err(|_| ())?;
+            // With trailers, they end the stream; without, the last chunk does, even an empty one.
+            let mut chunks: Vec<&[u8]> = body.chunks(CHUNK_BYTES).collect();
+            if chunks.is_empty() && !trailers {
+                chunks.push(&[]);
+            }
+            let last = chunks.len().saturating_sub(1);
+            for (index, chunk) in chunks.into_iter().enumerate() {
+                let chunk = StreamedBodyResponse {
+                    body: chunk.to_vec(),
+                    end_of_stream: !trailers && index == last,
+                    ..Default::default()
+                };
+                send_one(streamed(chunk)).await.map_err(|_| ())?;
+            }
+            if trailers {
+                send_one(Response::RequestTrailers(TrailersResponse::default()))
+                    .await
+                    .map_err(|_| ())?;
+            }
+        }
+    }
+    Ok(())
 }
 
 // One request's stream: what's gathered of it, and how Envoy sends its body.
@@ -185,7 +238,7 @@ struct Pending {
 }
 
 impl Exchange {
-    async fn on(&mut self, message: ProcessingRequest) -> Result<Vec<ProcessingResponse>, Status> {
+    async fn on(&mut self, message: ProcessingRequest) -> Result<Answers, Status> {
         if std::mem::take(&mut self.first) {
             if message.observability_mode {
                 tracing::error!(
@@ -202,41 +255,46 @@ impl Exchange {
         let request = message
             .request
             .ok_or_else(|| Status::invalid_argument("the message names no phase"))?;
-        let replies = match request {
+        Ok(match request {
             Request::RequestHeaders(headers) => self.on_headers(headers).await,
             Request::RequestBody(body) => self.on_body(body).await,
             Request::RequestTrailers(_) => self.on_trailers().await,
             Request::ResponseHeaders(_) => {
-                vec![Response::ResponseHeaders(HeadersResponse::default())]
+                Answers::Now(vec![Response::ResponseHeaders(HeadersResponse::default())])
             }
-            Request::ResponseBody(_) => vec![Response::ResponseBody(BodyResponse::default())],
+            Request::ResponseBody(_) => {
+                Answers::Now(vec![Response::ResponseBody(BodyResponse::default())])
+            }
             Request::ResponseTrailers(_) => {
-                vec![Response::ResponseTrailers(TrailersResponse::default())]
+                Answers::Now(vec![
+                    Response::ResponseTrailers(TrailersResponse::default()),
+                ])
             }
-        };
-        Ok(replies.into_iter().map(reply).collect())
+        })
     }
 
-    async fn on_headers(&mut self, headers: HttpHeaders) -> Vec<Response> {
-        let mut path = String::new();
-        let mut method = String::new();
-        let mut lines = Vec::new();
-        for header in headers.headers.iter().flat_map(|map| &map.headers) {
-            let value = read_value(header);
-            match header.key.as_str() {
-                ":path" => path = read_path(&value),
-                ":method" => method = value,
-                key if key.starts_with(':') => {}
-                key => lines.push((key.to_owned(), value)),
-            }
-        }
-        let removed = withheld(&lines);
+    async fn on_headers(&mut self, headers: HttpHeaders) -> Answers {
+        let sent = headers
+            .headers
+            .iter()
+            .flat_map(|map| &map.headers)
+            .map(|header| (header.key.clone(), read_value(header)));
+        let request = read_request(sent);
+        let removed = withheld(&request.lines);
+        // Reserved once, when its size is known and within the cap.
+        let capacity = request
+            .lines
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case("content-length"))
+            .and_then(|(_, value)| value.parse::<usize>().ok())
+            .filter(|&length| length <= self.callouts.max_body_bytes)
+            .unwrap_or(0);
         let pending = Pending {
-            path,
-            method,
-            headers: lines,
+            path: request.path,
+            method: request.method,
+            headers: request.lines,
             removed,
-            body: Vec::new(),
+            body: Vec::with_capacity(capacity),
         };
         if headers.end_of_stream {
             self.done = true;
@@ -244,17 +302,17 @@ impl Exchange {
         }
         if self.callouts.gateway.is_none() {
             // Disabled: nothing to judge, so nothing to gather.
-            return vec![headers_response(pending.removed)];
+            return Answers::Now(vec![headers_response(pending.removed)]);
         }
         match self.mode {
             Some(BodySendMode::Buffered) => {
                 let answer = headers_response(pending.removed.clone());
                 self.pending = Some(pending);
-                vec![answer]
+                Answers::Now(vec![answer])
             }
             Some(BodySendMode::FullDuplexStreamed) => {
                 self.pending = Some(pending);
-                Vec::new()
+                Answers::Now(Vec::new())
             }
             mode => {
                 let mode = mode.map_or("unknown", |mode| mode.as_str_name());
@@ -262,19 +320,22 @@ impl Exchange {
                     mode,
                     "refused unjudged: ext_proc must send the body BUFFERED or FULL_DUPLEX_STREAMED"
                 );
-                self.done = true;
-                vec![immediate(Answer::CannotApply)]
+                self.refuse(Answer::CannotApply)
             }
         }
     }
 
-    async fn on_body(&mut self, body: HttpBody) -> Vec<Response> {
+    async fn on_body(&mut self, body: HttpBody) -> Answers {
         if self.done {
-            return Vec::new();
+            return Answers::Now(Vec::new());
         }
         let Some(pending) = self.pending.as_mut() else {
-            // Disabled, or a body before its headers: passed on as it came.
-            return vec![pass_body(body, self.mode)];
+            if self.callouts.gateway.is_some() {
+                tracing::error!("refused unjudged: ext_proc sent a body before its headers");
+                return self.refuse(Answer::CannotApply);
+            }
+            // Disabled: passed on as it came.
+            return Answers::Now(vec![pass_body(body, self.mode)]);
         };
         pending.body.extend_from_slice(&body.body);
         if pending.body.len() > self.callouts.max_body_bytes {
@@ -283,60 +344,62 @@ impl Exchange {
                 limit = self.callouts.max_body_bytes,
                 "refused unjudged: the body is past RAIL_MAX_BODY_MB"
             );
-            self.done = true;
-            self.pending = None;
-            return vec![immediate(Answer::TooLarge)];
+            return self.refuse(Answer::TooLarge);
         }
         // Buffered, the one message is the whole body, trailers or not.
         if !body.end_of_stream && self.mode != Some(BodySendMode::Buffered) {
-            return Vec::new();
+            return Answers::Now(Vec::new());
         }
         let pending = self.pending.take().expect("held above");
         self.done = true;
         self.judge(pending, Ending::Body).await
     }
 
-    async fn on_trailers(&mut self) -> Vec<Response> {
+    // The trailers end a request still gathered: full duplex's body, or no body at all.
+    async fn on_trailers(&mut self) -> Answers {
         match self.pending.take() {
-            // Full duplex: the trailers say the body is complete.
             Some(pending) if !self.done => {
                 self.done = true;
                 self.judge(pending, Ending::Trailers).await
             }
-            _ => vec![Response::RequestTrailers(TrailersResponse::default())],
+            _ => Answers::Now(vec![Response::RequestTrailers(TrailersResponse::default())]),
         }
     }
 
+    fn refuse(&mut self, answer: Answer) -> Answers {
+        self.done = true;
+        self.pending = None;
+        Answers::Now(vec![immediate(answer)])
+    }
+
     // The answers to every phase held, in order, or a refusal.
-    async fn judge(&self, pending: Pending, ending: Ending) -> Vec<Response> {
+    async fn judge(&self, pending: Pending, ending: Ending) -> Answers {
         let removed = pending.removed;
-        let (answer, call) = match &self.callouts.gateway {
-            Some(gateway) => {
-                let call = Call {
-                    path: pending.path,
-                    method: pending.method,
-                    body: pending.body,
-                    headers: pending.headers,
-                };
-                gateway.handle(call).await
-            }
-            None => return vec![headers_response(removed)],
+        let Some(gateway) = &self.callouts.gateway else {
+            return Answers::Now(vec![headers_response(removed)]);
         };
+        let call = Call {
+            path: pending.path,
+            method: pending.method,
+            body: pending.body,
+            headers: pending.headers,
+        };
+        let (answer, call) = gateway.handle(call).await;
         if answer != Answer::Forward {
-            return vec![immediate(answer)];
+            return Answers::Now(vec![immediate(answer)]);
         }
         let full_duplex = self.mode == Some(BodySendMode::FullDuplexStreamed);
         match ending {
-            Ending::Headers => vec![headers_response(removed)],
-            // Its headers were answered when they came.
-            Ending::Body if !full_duplex => vec![Response::RequestBody(BodyResponse::default())],
-            Ending::Body | Ending::Trailers => {
-                let mut replies = vec![headers_response(removed)];
-                replies.extend(stream_back(&call.body, ending == Ending::Body));
-                if ending == Ending::Trailers {
-                    replies.push(Response::RequestTrailers(TrailersResponse::default()));
-                }
-                replies
+            Ending::Headers => Answers::Now(vec![headers_response(removed)]),
+            Ending::Body | Ending::Trailers if full_duplex => Answers::BodyBack {
+                removed,
+                body: call.body,
+                trailers: ending == Ending::Trailers,
+            },
+            // Buffered, its headers were answered when they came.
+            Ending::Body => Answers::Now(vec![Response::RequestBody(BodyResponse::default())]),
+            Ending::Trailers => {
+                Answers::Now(vec![Response::RequestTrailers(TrailersResponse::default())])
             }
         }
     }
@@ -355,28 +418,6 @@ fn reply(response: Response) -> ProcessingResponse {
         response: Some(response),
         ..Default::default()
     }
-}
-
-// The body sent back in chunks Envoy and the load balancer take, the last ending the stream
-// unless trailers follow.
-fn stream_back(body: &[u8], ends_stream: bool) -> Vec<Response> {
-    let chunks: Vec<&[u8]> = if body.is_empty() {
-        vec![&[]]
-    } else {
-        body.chunks(CHUNK_BYTES).collect()
-    };
-    let last = chunks.len() - 1;
-    chunks
-        .into_iter()
-        .enumerate()
-        .map(|(index, chunk)| {
-            streamed(StreamedBodyResponse {
-                body: chunk.to_vec(),
-                end_of_stream: ends_stream && index == last,
-                ..Default::default()
-            })
-        })
-        .collect()
 }
 
 fn streamed(chunk: StreamedBodyResponse) -> Response {
@@ -445,6 +486,40 @@ fn json_content_type(encode: impl Fn(&str) -> (String, Vec<u8>)) -> HeaderValueO
         }),
         ..Default::default()
     }
+}
+
+struct ReadRequest {
+    path: String,
+    method: String,
+    // Every header line but the pseudo-headers, `:authority` as `host`.
+    lines: Vec<(String, String)>,
+}
+
+// One rule for both callouts: rules read `host` whether the request came as HTTP/1 or HTTP/2.
+fn read_request(sent: impl Iterator<Item = (String, String)>) -> ReadRequest {
+    let mut request = ReadRequest {
+        path: "/".to_owned(),
+        method: String::new(),
+        lines: Vec::new(),
+    };
+    let mut authority = None;
+    for (key, value) in sent {
+        match key.as_str() {
+            ":path" => request.path = read_path(&value),
+            ":method" => request.method = value,
+            ":authority" => authority = Some(value),
+            key if key.starts_with(':') => {}
+            _ => request.lines.push((key, value)),
+        }
+    }
+    let has_host = request
+        .lines
+        .iter()
+        .any(|(name, _)| name.eq_ignore_ascii_case("host"));
+    if let (Some(authority), false) = (authority, has_host) {
+        request.lines.push(("host".to_owned(), authority));
+    }
+    request
 }
 
 // Envoy sends a value in `raw_value`, or in `value` when not asked for raw headers.

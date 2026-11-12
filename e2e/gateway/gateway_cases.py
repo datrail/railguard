@@ -15,9 +15,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-UPSTREAM = os.environ.get("E2E_UPSTREAM", "http://upstream:8080")
-RAIL_CENTER = os.environ.get("E2E_RAIL_CENTER", "http://rail-center:8080")
-TIMEOUT_SECONDS = 15
+_UPSTREAM = os.environ.get("E2E_UPSTREAM", "http://upstream:8080")
+_RAIL_CENTER = os.environ.get("E2E_RAIL_CENTER", "http://rail-center:8080")
+_TIMEOUT_SECONDS = 15
 # http.client sends a body in one call, which the timeout bounds whole.
 UPLOAD_TIMEOUT_SECONDS = 300
 
@@ -72,7 +72,7 @@ if os.environ.get("E2E_STUB_ADMIN_PASSWORD"):
 
 _fails = 0
 # Set by any sweep: each reset sweeps first, so the last check covers the whole run.
-_unmatched = {UPSTREAM: 0, RAIL_CENTER: 0}
+_unmatched = {_UPSTREAM: 0, _RAIL_CENTER: 0}
 
 
 def report_ok(what):
@@ -109,7 +109,7 @@ def _send_json(method, url, body=None, headers=None):
         method=method,
         headers={"Content-Type": "application/json", **(headers or {})},
     )
-    return urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS, context=_TLS)
+    return urllib.request.urlopen(request, timeout=_TIMEOUT_SECONDS, context=_TLS)
 
 
 # Raises on failure: a reset that silently failed would leave the last block's traffic behind.
@@ -128,9 +128,9 @@ def _count(base, pattern):
 
 
 # Session messages are forwarded unjudged; a refusal must stop the `tools/call`.
-def count_forwarded_tool_calls():
+def _count_forwarded_tool_calls():
     return _count(
-        UPSTREAM,
+        _UPSTREAM,
         {
             "method": "POST",
             "urlPath": "/mcp",
@@ -140,21 +140,21 @@ def count_forwarded_tool_calls():
 
 
 def count_upstream_requests():
-    return _count(UPSTREAM, {"method": "ANY", "urlPattern": ".*"})
+    return _count(_UPSTREAM, {"method": "ANY", "urlPattern": ".*"})
 
 
 def count_denials():
-    return _count(RAIL_CENTER, {"method": "POST", "urlPath": "/v1/denials"})
+    return _count(_RAIL_CENTER, {"method": "POST", "urlPath": "/v1/denials"})
 
 
 def count_bundle_fetches():
-    return _count(RAIL_CENTER, {"method": "GET", "urlPath": "/v1/policy-bundle"})
+    return _count(_RAIL_CENTER, {"method": "GET", "urlPath": "/v1/policy-bundle"})
 
 
 def count_denials_naming(policy):
     pattern = f"$[?(@.policy_id == '{policy}')]"
     return _count(
-        RAIL_CENTER,
+        _RAIL_CENTER,
         {
             "method": "POST",
             "urlPath": "/v1/denials",
@@ -166,7 +166,7 @@ def count_denials_naming(policy):
 # A fallback refusal omits `policy_id`; this matches its absence, not a null.
 def count_denials_naming_no_policy():
     return _count(
-        RAIL_CENTER,
+        _RAIL_CENTER,
         {
             "method": "POST",
             "urlPath": "/v1/denials",
@@ -178,7 +178,7 @@ def count_denials_naming_no_policy():
 def _read_denials():
     """The denial reports Rail Center's stub received, newest first; [] if it couldn't be asked."""
     try:
-        requests = _ask_admin("GET", RAIL_CENTER, "/__admin/requests")["requests"]
+        requests = _ask_admin("GET", _RAIL_CENTER, "/__admin/requests")["requests"]
     except (OSError, ValueError, KeyError):
         return []
     return [
@@ -205,10 +205,10 @@ def wait_for_last_denial():
     return (_read_denials() or [{}])[0]
 
 
-def read_received_headers():
+def _read_received_headers():
     """The headers of each request the upstream logged, newest first, names lower-cased."""
     try:
-        requests = _ask_admin("GET", UPSTREAM, "/__admin/requests")["requests"]
+        requests = _ask_admin("GET", _UPSTREAM, "/__admin/requests")["requests"]
     except (OSError, ValueError, KeyError):
         return None
     return [
@@ -226,32 +226,32 @@ def _has_unmatched(base):
     return 0 if not requests else 1
 
 
-def sweep_unmatched():
+def _sweep_unmatched():
     for base in _unmatched:
         _unmatched[base] |= _has_unmatched(base)
 
 
 def reset_journals():
-    sweep_unmatched()
+    _sweep_unmatched()
     clear_journals()
 
 
 # Without the sweep: what's only seen can't fail the run.
 def clear_journals():
-    _ask_admin("DELETE", UPSTREAM, "/__admin/requests")
-    _ask_admin("DELETE", RAIL_CENTER, "/__admin/requests")
+    _ask_admin("DELETE", _UPSTREAM, "/__admin/requests")
+    _ask_admin("DELETE", _RAIL_CENTER, "/__admin/requests")
 
 
 def read_last_received_body():
     """The body of the newest request the upstream logged, as bytes, or None."""
     try:
-        requests = _ask_admin("GET", UPSTREAM, "/__admin/requests")["requests"]
+        requests = _ask_admin("GET", _UPSTREAM, "/__admin/requests")["requests"]
         return base64.b64decode(requests[0]["request"]["bodyAsBase64"])
     except (OSError, ValueError, KeyError, IndexError):
         return None
 
 
-def send_raw_post(url, body, headers, timeout=TIMEOUT_SECONDS):
+def send_raw_post(url, body, headers, timeout=_TIMEOUT_SECONDS):
     """The status and body of a POST of `body` (bytes) with `headers`, a list of (name, value)
     pairs, so a header can repeat; (None, "") if nothing answered."""
     parts = urllib.parse.urlsplit(url)
@@ -287,7 +287,7 @@ def _post_mcp(url, payload, headers):
 
 
 # The upstream is stateful: every call after `initialize` carries its session id.
-def open_session(url, headers):
+def _open_session(url, headers):
     """A session id from a full handshake at `url`, or None if it failed."""
     try:
         status, _, answer = _post_mcp(url, _INITIALIZE, headers)
@@ -334,7 +334,7 @@ def run_gateway_cases(mcp):
     code, body = call_tool(mcp, "track_package", headers=AGENT)
     expect("the call is refused 403", 403, code)
     expect("with the refusal's body", REFUSED, body)
-    expect("no call reached the upstream", 0, count_forwarded_tool_calls())
+    expect("no call reached the upstream", 0, _count_forwarded_tool_calls())
     expect(
         "the ticket fallback refused it, naming no policy",
         1,
@@ -343,7 +343,7 @@ def run_gateway_cases(mcp):
 
     start_block("mcp: a good ticket is forwarded, with only the agent's headers")
     reset_journals()
-    sid = open_session(mcp, good)
+    sid = _open_session(mcp, good)
     if sid is None:
         report_fail("the handshake didn't return a session id")
         sid = "none"
@@ -358,7 +358,7 @@ def run_gateway_cases(mcp):
         report_ok("the tool call returns the upstream's answer")
     else:
         report_fail(f"the tool call returns the upstream's answer: got {code} {body}")
-    received = (read_received_headers() or [{}])[0]
+    received = (_read_received_headers() or [{}])[0]
     expect(
         "no x-rail* or _ header reaches the upstream",
         "[]",
@@ -428,9 +428,9 @@ def run_gateway_cases(mcp):
 
 def check_every_request_matched():
     start_block("every request found a stub")
-    sweep_unmatched()
-    expect("no unmatched request reached the upstream", 0, _unmatched[UPSTREAM])
-    expect("no unmatched request reached rail-center", 0, _unmatched[RAIL_CENTER])
+    _sweep_unmatched()
+    expect("no unmatched request reached the upstream", 0, _unmatched[_UPSTREAM])
+    expect("no unmatched request reached rail-center", 0, _unmatched[_RAIL_CENTER])
 
 
 def exit_with_result():

@@ -100,11 +100,11 @@ impl GatewayConfig {
         let listener = read_listener(settings);
         let max_message_bytes = read_max_message_bytes(settings);
         let max_body_bytes = read_max_body_bytes(settings, None);
-        // A body Envoy sends whole is one message, so a cap past the limit could never be reached.
+        // A body Envoy sends whole is one message with its framing, so the cap must be below.
         let reachable = match (&max_body_bytes, &max_message_bytes) {
-            (Ok(body), Ok(message)) if body > message => Err(settings.get(MAX_BODY_MB).refuse(
-                "is past RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB, the largest message read: a body Envoy \
-                 buffers arrives as one",
+            (Ok(body), Ok(message)) if body >= message => Err(settings.get(MAX_BODY_MB).refuse(
+                "must be below RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB, the largest message read: a body \
+                 Envoy buffers arrives as one, with the request's headers",
             )),
             _ => Ok(()),
         };

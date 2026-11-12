@@ -1,6 +1,6 @@
 """Checks rail-envoy's gateway behind Envoy, through each way Envoy calls it: ext_proc full duplex
 (as GCP's load balancer does), ext_proc buffered and ext_authz with the body; then what only Envoy
-shows: the body sent back whole, the cap, a body mode refused, and a gateway that never answers.
+shows: the body sent back whole, the cap, a body mode refused, and a gateway nothing can reach.
 
 The cases every host passes alike are in gateway_cases.py.
 """
@@ -39,7 +39,10 @@ _NO_GATEWAY = f"{_ENVOY}:10004/mcp"
 
 # A `tools/call` padded to about `size` bytes.
 def _build_padded_call(size):
-    payload = {**CALL, "params": {"name": "track_package", "arguments": {"pad": "x" * size}}}
+    payload = {
+        **CALL,
+        "params": {"name": "track_package", "arguments": {"pad": "x" * size}},
+    }
     return json.dumps(payload).encode()
 
 
@@ -54,8 +57,14 @@ def _run_envoy_cases():
         if code == 200 and '"text":"delivered"' in answer:
             report_ok("the call returns the upstream's answer")
         else:
-            report_fail(f"the call returns the upstream's answer: got {code} {answer[:300]}")
-        expect("the upstream received the body as sent", True, read_last_received_body() == body)
+            report_fail(
+                f"the call returns the upstream's answer: got {code} {answer[:300]}"
+            )
+        expect(
+            "the upstream received the body as sent",
+            True,
+            read_last_received_body() == body,
+        )
 
         start_block(f"{name}: a 5 MiB call is past RAIL_MAX_BODY_MB")
         reset_journals()

@@ -2,9 +2,10 @@
 //! proxy, it allows every request, with this proxy's ticket in `x-rail` to a protected host; as
 //! the gateway, it judges each request against the policy bundle held.
 //!
-//! `rail-envoy proxy` or `rail-envoy gateway` (`rail proxy`, `rail gateway` in its image) serves,
-//! with `grpc.health.v1` on the same listener; `rail-envoy probe [--ready]` asks it for liveness or readiness, and exits 0 if it
-//! answers SERVING, for a container health check in an image with no shell.
+//! `rail-envoy proxy` or `rail-envoy gateway` (`rail proxy`, `rail gateway` in its image)
+//! serves, with `grpc.health.v1` on the same listener; `rail-envoy probe [--ready]` asks it for
+//! liveness or readiness, and exits 0 if it answers SERVING, for a container health check in an
+//! image with no shell.
 //!
 //! The binary as a library: `run`, and the configuration and callouts it serves, which its tests
 //! drive.
@@ -94,10 +95,9 @@ pub async fn run() -> ExitCode {
 
 // Exits as a refused configuration does when anything is refused.
 fn read_config<T>(
-    settings: Settings,
+    mut settings: Settings,
     read: impl FnOnce(&mut Settings) -> Result<T, Refused>,
 ) -> (T, Startup) {
-    let mut settings = settings;
     let config = read(&mut settings);
     settings
         .finish("RAIL_", config)

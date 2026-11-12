@@ -22,7 +22,7 @@ flowchart LR
 - `rail-center` and `upstream`, the stubs the apigee stack uses too (`../gateway/`);
 - `gateway`, rail-envoy as `rail gateway` on port 8080, as on Cloud Run, with `RAIL_MAX_BODY_MB=4`;
 - `envoy`, with `envoy.yaml`'s listeners: 10000 ext_proc `FULL_DUPLEX_STREAMED`, 10001 ext_proc `BUFFERED`, 10002
-  ext_authz with the body, 10003 ext_proc `STREAMED` (refused), and 10004 a gateway that never answers;
+  ext_authz with the body, 10003 ext_proc `STREAMED` (refused), and 10004 a gateway nothing can reach;
 - `driver.py`, which runs [`../gateway/gateway_cases.py`](../gateway/README.md) through the first three, then this
   stack's own cases.
 
@@ -37,7 +37,7 @@ flowchart LR
   refusals reach the agent as sent, and a 3 MiB body sent back in full duplex arrives byte for byte.
 - **The cap through Envoy:** a 5 MiB call is refused 413 by the gateway in every mode, and nothing reaches `upstream`.
 - **The modes it refuses:** Envoy's default, `STREAMED`, is answered 503.
-- **Failing closed:** with `failure_mode_allow: false`, a gateway that never answers lets nothing through.
+- **Failing closed:** with `failure_mode_allow: false`, a gateway nothing can reach lets nothing through.
 
 ## Easy to get wrong
 

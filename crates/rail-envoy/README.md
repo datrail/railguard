@@ -112,12 +112,13 @@ waits, deadline, posture, fallbacks, denial reports and answers. A call allowed 
     (`request_trailer_mode: SEND`); then the headers are answered, the body sent back in chunks of at most 64 KiB, and
     the trailers. A streamed body is refused as soon as it's past the cap;
   - **buffered:** the headers are answered at once, and the one body message judged; Envoy holds the body up to the
-    listener's `per_connection_buffer_limit_bytes` (1 MiB by default), and answers 413 itself past it;
+    listener's `per_connection_buffer_limit_bytes` (1 MiB by default), and answers 413 itself past it. Set
+    `request_trailer_mode: SEND` too, or a request with trailers and no body goes on unjudged;
   - **any other body mode** (`STREAMED`, Envoy's and the load balancer's default, `BUFFERED_PARTIAL`, `NONE`), or a
     stream that doesn't say its mode, is refused with 503 and an error line naming it, since the whole body can't be
     seen first. So is a stream in `observability_mode`, whose answers Envoy ignores.
-- **ext_authz** must send the body: `with_request_body`, with `allow_partial_message: false`. A body cut short, or none
-  where the request has one, is refused, never judged as if whole.
+- **ext_authz** must send the body: `with_request_body`, with `allow_partial_message: false`. A body cut short is
+  refused 413, and a `POST` with none, unless its size is known to be 0, 503: never judged as if whole.
 - **Fail closed:** `failure_mode_allow: false`, on either filter, so a call the gateway didn't answer never reaches the
   server.
 - **Time:** Envoy's `message_timeout` (ext_proc) or `timeout` (ext_authz), both 200 ms by default, must be at least 6 s:
@@ -167,8 +168,8 @@ more to stop, so 6 s in all.
 - **The proxy and ext_proc's full-duplex body mode:** the proxy doesn't send that body back yet, so Envoy answers 500
   and nothing reaches the upstream. Every other body mode, and ext_authz with a body, passes the body whole. The gateway
   supports full duplex.
-- **The gateway's memory:** it holds each call's body until it's judged, so up to `RAIL_MAX_BODY_MB` per call in flight:
-  size its memory for the calls it serves at once.
+- **The gateway's memory:** it holds each call's body until it's judged: up to `RAIL_MAX_BODY_MB` per call in flight, or
+  about twice that for a body sent without a `content-length`. Size its memory for the calls it serves at once.
 - **An encoded body isn't decoded:** a `Content-Encoding: gzip` call reads as naming no endpoint, so under
   `binding_fallback: pass` it escapes every rule on `request.endpoint_key`. Apigee decompresses before its callout;
   Envoy and GCP's load balancer don't.

@@ -420,12 +420,12 @@ fn the_gateway_reads_its_own_settings_and_refuses_a_cap_past_the_message_limit()
     .unwrap();
     assert_eq!(enabled.rail_center.unwrap().1.gateway_slug, "gw-1");
 
-    // At the limit is fine; past it, refused, naming both.
-    assert!(gateway(&[("RAIL_DISABLED", "true"), ("RAIL_MAX_BODY_MB", "16")]).is_ok());
-    let errors = gateway(&[("RAIL_DISABLED", "true"), ("RAIL_MAX_BODY_MB", "17")]).unwrap_err();
+    // Below the limit is fine; at it, refused, naming both.
+    assert!(gateway(&[("RAIL_DISABLED", "true"), ("RAIL_MAX_BODY_MB", "15")]).is_ok());
+    let errors = gateway(&[("RAIL_DISABLED", "true"), ("RAIL_MAX_BODY_MB", "16")]).unwrap_err();
     assert_eq!(errors.len(), 1, "{errors:?}");
     assert!(
-        errors[0].starts_with("RAIL_MAX_BODY_MB is past RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB"),
+        errors[0].starts_with("RAIL_MAX_BODY_MB must be below RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB"),
         "{errors:?}"
     );
 }

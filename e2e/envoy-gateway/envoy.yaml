@@ -93,6 +93,8 @@ static_resources:
                         request_header_mode: SEND
                         response_header_mode: SKIP
                         request_body_mode: BUFFERED
+                        # So a request with trailers and no body is still judged.
+                        request_trailer_mode: SEND
                   - name: envoy.filters.http.router
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
@@ -194,7 +196,7 @@ static_resources:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
                       suppress_envoy_headers: true
 
-    # A gateway that never answers.
+    # A gateway nothing can reach.
     - name: no_gateway
       # 0.0.0.0 because the driver calls across the stack's network.
       address:

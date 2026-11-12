@@ -147,8 +147,8 @@ How often the bundle held is fetched again.
 The largest request body judged, in MiB, as sent (an encoded body isn't decoded).
 
 - **Default:** `15`.
-- **Accepted:** `1` to `100`, a whole number of MiB; in `rail-envoy`, no more than `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`,
-  since a buffered body arrives as one message.
+- **Accepted:** `1` to `100`, a whole number of MiB; in `rail-envoy`, below `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`, since a
+  buffered body arrives as one message, with the request's headers.
 - **Read by:** both hosts' gateways.
 - **Past it, a call is refused unjudged,** 413 `{"error": "request body too large"}`, with a warning logged, and isn't
   reported; with `RAIL_DISABLED=true`, nothing is judged, and this isn't applied. Apigee's own limits come first: past 4
