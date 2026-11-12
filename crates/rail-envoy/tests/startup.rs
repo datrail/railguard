@@ -40,35 +40,18 @@ fn a_socket_left_by_an_earlier_run_is_replaced() {
     assert_eq!(server.wait_for_exit(Duration::from_secs(2)), Some(Some(0)));
 }
 
-#[test]
-fn an_unknown_argument_is_a_usage_error_and_serves_nothing() {
-    let socket = TempSocket::new("usage");
-    let mut command = with_settings(&socket.path);
-    command.arg("serve");
-    let mut server = Server::spawn(command);
-
-    let exit = server.wait_for_exit(Duration::from_secs(5));
-
-    assert_eq!(exit, Some(refused_configuration()));
-    let logs = server.read_logs();
-    assert!(
-        logs.contains(
-            r#"unknown arguments ["serve"]; usage: rail-envoy proxy | rail-envoy probe [--ready]"#
-        ),
-        "{logs}"
-    );
-    assert!(!socket.path.exists());
-}
-
 // The role has no default, and a role this binary doesn't carry is refused like any argument.
 #[test]
 fn with_no_role_or_another_binarys_it_serves_nothing() {
     for (arguments, expected) in [
         (
             &[][..],
-            "no role given; usage: rail-envoy proxy | rail-envoy probe",
+            "no role given; usage: rail-envoy proxy | rail-envoy probe [--ready]",
         ),
-        (&["gateway"][..], r#"unknown arguments ["gateway"]; usage:"#),
+        (
+            &["gateway"][..],
+            r#"unknown arguments ["gateway"]; usage: rail-envoy proxy | rail-envoy probe [--ready]"#,
+        ),
     ] {
         let socket = TempSocket::new("no-role");
         let mut command = with_settings(&socket.path);
@@ -83,21 +66,6 @@ fn with_no_role_or_another_binarys_it_serves_nothing() {
         assert!(!logs.contains("starting"), "{logs}");
         assert!(!socket.path.exists());
     }
-}
-
-#[test]
-fn starting_names_the_role() {
-    let socket = TempSocket::new("role");
-    let mut server = start_serving(&socket.path);
-    server.terminate();
-    server.wait_for_exit(Duration::from_secs(2));
-
-    let logs = server.read_logs();
-    let first = logs.lines().next().unwrap_or_default();
-    assert!(
-        first.contains(r#"starting version="dev" revision="unknown" role="proxy""#),
-        "{logs}"
-    );
 }
 
 // It reads only the socket, so a setting only the server reads, refused there, can't fail it.

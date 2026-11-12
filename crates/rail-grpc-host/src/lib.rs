@@ -8,7 +8,7 @@ mod health;
 use std::error::Error;
 use std::fmt;
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::pin::pin;
 use std::process::ExitCode;
 use std::time::Duration;
@@ -22,7 +22,7 @@ use tonic_health::pb::health_check_response::ServingStatus as WireStatus;
 use tonic_health::pb::health_client::HealthClient;
 
 pub use crate::command::{Command, Role, parse_command};
-pub use crate::health::{READY, Readiness, RoleCheck, RoleState, Statuses, breakdown_header};
+pub use crate::health::{READY, Readiness, RoleCheck, RoleState, Statuses};
 
 // Envoy keeps its connections open, and an ext_proc stream lasts as long as its request.
 const SHUTDOWN_DEADLINE: Duration = Duration::from_secs(5);
@@ -78,14 +78,6 @@ impl fmt::Display for Address {
     }
 }
 
-/// The name the binary was run under, for its usage line: `rail` in its image, the crate's from
-/// cargo.
-pub fn program_name() -> String {
-    let program = std::env::args_os().next().unwrap_or_default();
-    let name = Path::new(&program).file_name().unwrap_or_default();
-    sanitize(&name.to_string_lossy()).to_string()
-}
-
 /// The service `rail probe` asks for: readiness with `--ready`, else the server as a whole.
 pub fn probe_service(ready: bool) -> &'static str {
     if ready { READY } else { "" }
@@ -94,15 +86,13 @@ pub fn probe_service(ready: bool) -> &'static str {
 /// Asks the server at `address` for `service`'s health, `""` being the server as a whole; prints
 /// the answer, and exits 0 only on SERVING.
 pub async fn probe(address: &Address, service: &str) -> ExitCode {
-    match ask_health(address, service).await {
-        Ok(line) => {
-            println!("{line}");
-            ExitCode::SUCCESS
-        }
-        Err(line) => {
-            println!("{line}");
-            ExitCode::FAILURE
-        }
+    let answer = ask_health(address, service).await;
+    let (Ok(line) | Err(line)) = &answer;
+    println!("{line}");
+    if answer.is_ok() {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
     }
 }
 

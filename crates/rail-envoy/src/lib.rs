@@ -42,8 +42,8 @@ pub use crate::services::Callouts;
 /// socket configured.
 pub async fn run() -> ExitCode {
     rail_runtime::logging::init();
-    let arguments: Vec<String> = std::env::args().skip(1).collect();
-    let command = match rail_grpc_host::parse_command(&[Role::Proxy], &arguments) {
+    let command_line: Vec<String> = std::env::args().collect();
+    let command = match rail_grpc_host::parse_command(&[Role::Proxy], &command_line) {
         Ok(command) => command,
         Err(usage) => {
             eprintln!("{usage}");

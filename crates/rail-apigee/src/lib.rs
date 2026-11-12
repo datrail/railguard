@@ -34,14 +34,13 @@ use crate::callout::SEND_HEADROOM_BYTES;
 pub use crate::callout::{Callout, MAX_ANSWERED_BYTES, build_answer, read_path};
 pub use crate::config::{Config, read_port};
 pub use crate::health::check_gateway;
-pub use rail_grpc_host::READY;
 
 /// The binary: serves as the role named, or with `probe [--ready]`, asks the server on the port
 /// configured.
 pub async fn run() -> ExitCode {
     rail_runtime::logging::init();
-    let arguments: Vec<String> = std::env::args().skip(1).collect();
-    let command = match rail_grpc_host::parse_command(&[Role::Gateway], &arguments) {
+    let command_line: Vec<String> = std::env::args().collect();
+    let command = match rail_grpc_host::parse_command(&[Role::Gateway], &command_line) {
         Ok(command) => command,
         Err(usage) => {
             eprintln!("{usage}");

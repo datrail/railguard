@@ -5,7 +5,8 @@ use std::time::{Duration, Instant};
 
 use apigee_callout_proto::apigee::{MessageContext, Request, Strings, flow_variable};
 use prost::Message;
-use rail_apigee::{MAX_ANSWERED_BYTES, READY};
+use rail_apigee::MAX_ANSWERED_BYTES;
+use rail_grpc_host::READY;
 use tonic::transport::Endpoint;
 use tonic_health::pb::HealthCheckRequest;
 use tonic_health::pb::health_check_response::ServingStatus;
@@ -131,15 +132,6 @@ async fn with_rail_center_disabled_it_is_ready_and_allows_every_call() {
     server.terminate();
     let (code, logs) = tokio::task::block_in_place(|| read_exit(server));
     assert_eq!(code, Some(0), "{logs}");
-}
-
-#[test]
-fn starting_names_the_role() {
-    let port = free_port();
-    let server = serve(rail_apigee(port), port);
-    server.terminate();
-    let (_, logs) = read_exit(server);
-
     let first = logs.lines().next().unwrap_or_default();
     assert!(
         first.contains(r#"starting version="dev" revision="unknown" role="gateway""#),
@@ -264,25 +256,18 @@ async fn with_no_bundle_it_is_not_ready_and_a_call_is_forwarded() {
     assert_echoed(&answer);
 }
 
-#[test]
-fn an_unknown_argument_is_a_usage_error_and_serves_nothing() {
-    let output = with_settings(free_port()).arg("serve").output().unwrap();
-
-    assert_eq!(output.status.code(), Some(2));
-    assert!(String::from_utf8_lossy(&output.stderr).contains(
-        r#"unknown arguments ["serve"]; usage: rail-apigee gateway | rail-apigee probe [--ready]"#
-    ));
-}
-
 // The role has no default, and a role this binary doesn't carry is refused like any argument.
 #[test]
 fn with_no_role_or_another_binarys_it_serves_nothing() {
     for (arguments, expected) in [
         (
             &[][..],
-            "no role given; usage: rail-apigee gateway | rail-apigee probe",
+            "no role given; usage: rail-apigee gateway | rail-apigee probe [--ready]",
         ),
-        (&["proxy"][..], r#"unknown arguments ["proxy"]; usage:"#),
+        (
+            &["proxy"][..],
+            r#"unknown arguments ["proxy"]; usage: rail-apigee gateway | rail-apigee probe [--ready]"#,
+        ),
     ] {
         let output = with_settings(free_port()).args(arguments).output().unwrap();
 

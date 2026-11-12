@@ -2,9 +2,12 @@
 //! the server already serving.
 
 use std::fmt;
+use std::path::Path;
+
+use rail_policy::sanitize;
 
 /// What a server serves as; each binary carries the roles it lists.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Role {
     /// On the agent's side: attaches its ticket to outgoing calls.
     Proxy,
@@ -38,16 +41,22 @@ pub enum Command {
     Probe { ready: bool },
 }
 
-/// The command `arguments` give, the program's name not among them, or the line to print for a
-/// usage error. `roles` are those this binary carries.
+/// The command a command line gives, its program's name first, or the line to print for a usage
+/// error. `roles` are those this binary carries.
 // The role has no default, so a deployment always says which one it runs.
-pub fn parse_command(roles: &[Role], arguments: &[String]) -> Result<Command, String> {
+pub fn parse_command(roles: &[Role], command_line: &[String]) -> Result<Command, String> {
+    let (program, arguments) = command_line
+        .split_first()
+        .map_or(("", &[][..]), |(program, arguments)| {
+            (program.as_str(), arguments)
+        });
     let arguments: Vec<&str> = arguments.iter().map(String::as_str).collect();
-    let unknown = || format!("unknown arguments {arguments:?}; {}", format_usage(roles));
+    let usage = || format_usage(program, roles);
+    let unknown = || format!("unknown arguments {arguments:?}; {}", usage());
     match arguments.as_slice() {
         ["probe"] => Ok(Command::Probe { ready: false }),
         ["probe", "--ready"] => Ok(Command::Probe { ready: true }),
-        [] => Err(format!("no role given; {}", format_usage(roles))),
+        [] => Err(format!("no role given; {}", usage())),
         [name] => roles
             .iter()
             .find(|role| role.as_str() == *name)
@@ -57,9 +66,11 @@ pub fn parse_command(roles: &[Role], arguments: &[String]) -> Result<Command, St
     }
 }
 
-// `usage: rail proxy | rail probe [--ready]`, one alternative per role.
-fn format_usage(roles: &[Role]) -> String {
-    let program = crate::program_name();
+// `usage: rail proxy | rail probe [--ready]`, one alternative per role; the program by the name
+// it was run under, `rail` in its image.
+fn format_usage(program: &str, roles: &[Role]) -> String {
+    let name = Path::new(program).file_name().unwrap_or_default();
+    let program = sanitize(&name.to_string_lossy()).to_string();
     let mut alternatives: Vec<String> = roles
         .iter()
         .map(|role| format!("{program} {role}"))

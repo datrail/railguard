@@ -77,7 +77,10 @@ fn at_warn_the_binary_logs_starting_and_its_warnings_and_no_other_info_line() {
         .filter(|line| line.contains(" INFO "))
         .collect();
     assert_eq!(info.len(), 1, "{logs}");
-    assert!(info[0].contains(" starting "), "{logs}");
+    assert!(
+        info[0].contains(r#"starting version="dev" revision="unknown" role="proxy""#),
+        "{logs}"
+    );
 }
 
 fn check_request(host: &str, headers: &[(&str, &str)]) -> CheckRequest {

@@ -78,11 +78,9 @@ impl Statuses {
                 .await;
         }
         // Before anything can stop it, and before the first check, for a watch opened first.
-        let mut state = statuses.state.lock().await;
         statuses
-            .set_readiness(&mut state, &statuses.read_roles())
+            .set_readiness(&mut *statuses.state.lock().await, &statuses.read_roles())
             .await;
-        drop(state);
         let service = Readiness {
             inner: HealthService::from_health_reporter(reporter),
             statuses: statuses.clone(),
@@ -101,8 +99,8 @@ impl Statuses {
         }
     }
 
-    /// Each role's state now, in the order given.
-    pub fn read_roles(&self) -> Vec<(Role, RoleState)> {
+    // Each role's state now, in the order given.
+    fn read_roles(&self) -> Vec<(Role, RoleState)> {
         self.roles
             .iter()
             .map(|(role, check)| (*role, check()))
@@ -121,11 +119,6 @@ impl Statuses {
             self.reporter.set_service_status(READY, status).await;
         }
     }
-}
-
-/// The metadata header a readiness answer gives a role's state in, e.g. `rail-ready-proxy`.
-pub fn breakdown_header(role: Role) -> String {
-    format!("{BREAKDOWN_PREFIX}{role}")
 }
 
 pub(crate) const BREAKDOWN_PREFIX: &str = "rail-ready-";
@@ -159,13 +152,12 @@ impl Health for Readiness {
         let mut response = self.inner.check(request).await?;
         for (role, state) in roles {
             let state = if stopping { STOPPING } else { state.state };
-            let key = MetadataKey::from_bytes(breakdown_header(role).as_bytes())
+            let key = MetadataKey::from_bytes(format!("{BREAKDOWN_PREFIX}{role}").as_bytes())
                 .expect("a role's name is a header name");
             response
                 .metadata_mut()
                 .insert(key, MetadataValue::from_static(state));
         }
-        drop(held);
         Ok(response)
     }
 

@@ -2,12 +2,13 @@ use rail_grpc_host::{Command, Role, parse_command};
 
 const BOTH: [Role; 2] = [Role::Proxy, Role::Gateway];
 
+// As the image runs it: the program by a path, named `rail`.
 fn parse(roles: &[Role], arguments: &[&str]) -> Result<Command, String> {
-    let arguments: Vec<String> = arguments
-        .iter()
-        .map(|&argument| argument.to_owned())
+    let command_line: Vec<String> = std::iter::once("/usr/local/bin/rail")
+        .chain(arguments.iter().copied())
+        .map(str::to_owned)
         .collect();
-    parse_command(roles, &arguments)
+    parse_command(roles, &command_line)
 }
 
 #[test]
@@ -33,17 +34,10 @@ fn the_probe_names_no_role() {
 
 #[test]
 fn no_role_is_a_usage_error_naming_the_roles_carried() {
-    let error = parse(&BOTH, &[]).unwrap_err();
-
-    assert!(error.starts_with("no role given; usage: "), "{error}");
-    // The program's name is the test binary's here.
-    let alternatives: Vec<&str> = error["no role given; usage: ".len()..]
-        .split(" | ")
-        .collect();
-    assert_eq!(alternatives.len(), 3, "{error}");
-    assert!(alternatives[0].ends_with(" proxy"), "{error}");
-    assert!(alternatives[1].ends_with(" gateway"), "{error}");
-    assert!(alternatives[2].ends_with(" probe [--ready]"), "{error}");
+    assert_eq!(
+        parse(&BOTH, &[]),
+        Err("no role given; usage: rail proxy | rail gateway | rail probe [--ready]".to_owned())
+    );
 }
 
 #[test]
@@ -56,12 +50,11 @@ fn anything_else_is_a_usage_error() {
         &["Proxy"],
         &["proxy", "proxy"],
     ] {
-        let error = parse(&[Role::Proxy], arguments).unwrap_err();
-
-        assert!(
-            error.starts_with(&format!("unknown arguments {arguments:?}; usage: ")),
-            "{error}"
+        assert_eq!(
+            parse(&[Role::Proxy], arguments),
+            Err(format!(
+                "unknown arguments {arguments:?}; usage: rail proxy | rail probe [--ready]"
+            )),
         );
-        assert!(!error.contains("gateway |"), "{error}");
     }
 }

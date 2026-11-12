@@ -1,9 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use rail_grpc_host::{
-    Address, READY, Readiness, Role, RoleCheck, RoleState, Statuses, ask_health, breakdown_header,
-};
+use rail_grpc_host::{Address, READY, Readiness, Role, RoleCheck, RoleState, Statuses, ask_health};
 use tokio::net::TcpListener;
 use tokio_stream::StreamExt;
 use tokio_stream::wrappers::TcpListenerStream;
@@ -62,20 +60,10 @@ async fn liveness_answers_for_the_server_and_each_service_named() {
 #[tokio::test]
 async fn readiness_follows_the_role_on_each_check() {
     let (switch, role) = switch(false);
-    let (statuses, readiness) = Statuses::start(&[], vec![(Role::Proxy, role)]).await;
+    let (_statuses, readiness) = Statuses::start(&[], vec![(Role::Proxy, role)]).await;
 
     assert_eq!(check(&readiness, READY).await, ServingStatus::NotServing);
     assert_eq!(check(&readiness, "").await, ServingStatus::Serving);
-    assert_eq!(
-        statuses.read_roles(),
-        [(
-            Role::Proxy,
-            RoleState {
-                ready: false,
-                state: "down"
-            }
-        )]
-    );
 
     switch.store(true, Ordering::SeqCst);
     assert_eq!(check(&readiness, READY).await, ServingStatus::Serving);
@@ -89,32 +77,13 @@ async fn readiness_follows_the_role_on_each_check() {
 async fn ready_only_while_every_role_is() {
     let (proxy, proxy_check) = switch(true);
     let (gateway, gateway_check) = switch(false);
-    let (statuses, readiness) = Statuses::start(
+    let (_statuses, readiness) = Statuses::start(
         &[],
         vec![(Role::Proxy, proxy_check), (Role::Gateway, gateway_check)],
     )
     .await;
 
     assert_eq!(check(&readiness, READY).await, ServingStatus::NotServing);
-    assert_eq!(
-        statuses.read_roles(),
-        [
-            (
-                Role::Proxy,
-                RoleState {
-                    ready: true,
-                    state: "up"
-                }
-            ),
-            (
-                Role::Gateway,
-                RoleState {
-                    ready: false,
-                    state: "down"
-                }
-            ),
-        ]
-    );
     proxy.store(false, Ordering::SeqCst);
     assert_eq!(check(&readiness, READY).await, ServingStatus::NotServing);
     gateway.store(true, Ordering::SeqCst);
@@ -182,7 +151,7 @@ async fn the_status_and_the_breakdown_come_from_one_read() {
         }
     });
     let (_statuses, readiness) = Statuses::start(&[], vec![(Role::Proxy, role)]).await;
-    let header = breakdown_header(Role::Proxy);
+    let header = "rail-ready-proxy";
 
     for _ in 0..4 {
         let answer = readiness
@@ -193,7 +162,7 @@ async fn the_status_and_the_breakdown_come_from_one_read() {
             .unwrap();
         let state = answer
             .metadata()
-            .get(&header)
+            .get(header)
             .unwrap()
             .to_str()
             .unwrap()
@@ -246,15 +215,24 @@ async fn readiness_gives_each_roles_state_in_its_metadata() {
     statuses.stop().await;
     let stopped = ask(READY).await.unwrap();
 
-    let header = |response: &tonic::Response<HealthCheckResponse>, role| {
-        let value = response.metadata().get(breakdown_header(role).as_str());
+    let header = |response: &tonic::Response<HealthCheckResponse>, name: &str| {
+        let value = response.metadata().get(name);
         value.map(|value| value.to_str().unwrap().to_owned())
     };
-    assert_eq!(header(&ready, Role::Proxy).as_deref(), Some("up"));
-    assert_eq!(header(&ready, Role::Gateway).as_deref(), Some("down"));
-    assert_eq!(header(&live, Role::Proxy), None);
-    assert_eq!(header(&stopped, Role::Proxy).as_deref(), Some("stopping"));
-    assert_eq!(header(&stopped, Role::Gateway).as_deref(), Some("stopping"));
+    assert_eq!(header(&ready, "rail-ready-proxy").as_deref(), Some("up"));
+    assert_eq!(
+        header(&ready, "rail-ready-gateway").as_deref(),
+        Some("down")
+    );
+    assert_eq!(header(&live, "rail-ready-proxy"), None);
+    assert_eq!(
+        header(&stopped, "rail-ready-proxy").as_deref(),
+        Some("stopping")
+    );
+    assert_eq!(
+        header(&stopped, "rail-ready-gateway").as_deref(),
+        Some("stopping")
+    );
 }
 
 async fn serve(service: HealthServer<impl Health>) -> Address {
