@@ -91,6 +91,7 @@ fn a_number_or_a_bool_is_bare_and_anything_else_text() {
             signed = -3_i64,
             unsigned = 7_u64,
             wide = u128::MAX,
+            least = i128::MIN,
             ratio = 0.5,
             nan = f64::NAN,
             flag = true,
@@ -102,6 +103,11 @@ fn a_number_or_a_bool_is_bare_and_anything_else_text() {
     // Past what a JSON reader's f64 holds, so read here as written.
     assert!(
         write_line(false, log).contains(&format!(r#","wide":{},"#, u128::MAX)),
+        "{}",
+        write_line(false, log)
+    );
+    assert!(
+        write_line(false, log).contains(&format!(r#","least":{},"#, i128::MIN)),
         "{}",
         write_line(false, log)
     );
@@ -124,7 +130,9 @@ fn text_reads_back_with_what_hides_escaped_as_in_the_text_log() {
         ("\u{1b}[31mred", r"\u{1b}[31mred"),
         ("\u{9b}31m", r"\u{9b}31m"),
         (r#"say "hi""#, r#"say "hi""#),
-        (r"C:\dir\", r"C:\dir\"),
+        (r"C:\dir\", r"C:\\dir\\"),
+        // Typed to look like an escape, it reads back as typed.
+        (r"\u{a}", r"\\u{a}"),
         ("\u{202e}cba", r"\u{202e}cba"),
         ("a\u{2028}b", r"a\u{2028}b"),
         ("café", "café"),
@@ -160,6 +168,11 @@ fn a_field_named_as_a_key_of_the_line_is_prefixed() {
             severity = 3,
             target = 4,
             r#type = 5,
+            time = 6,
+            timestampSeconds = 7,
+            timestampNanos = 8,
+            httpRequest = 9,
+            "logging.googleapis.com/trace" = 10,
             "m"
         );
     });
@@ -172,6 +185,11 @@ fn a_field_named_as_a_key_of_the_line_is_prefixed() {
         ("field.severity", 3),
         ("field.target", 4),
         ("type", 5),
+        ("field.time", 6),
+        ("field.timestampSeconds", 7),
+        ("field.timestampNanos", 8),
+        ("field.httpRequest", 9),
+        ("field.logging.googleapis.com/trace", 10),
     ] {
         assert_eq!(line[name], json!(value), "{line}");
     }
@@ -312,6 +330,7 @@ fn init_falls_back_to_the_platforms_format() {
 fn init_takes_the_format_set_over_the_platforms() {
     let output = run_child_on("json_logs::init_child", Some("json"), &[("K_SERVICE", "c")]);
 
+    assert!(output.status.success(), "{output:?}");
     let stderr = String::from_utf8(output.stderr).unwrap();
     let lines = read_json_lines(&stderr);
     assert_eq!(lines[0]["level"], "INFO", "{stderr}");

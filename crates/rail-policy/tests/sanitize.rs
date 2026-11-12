@@ -103,10 +103,10 @@ fn test_escapes_unquoted_without_a_cut() {
 }
 
 #[test]
-fn test_escapes_only_what_hides_leaving_quotes_and_backslashes() {
+fn test_escapes_what_hides_and_backslashes_leaving_quotes() {
     assert_eq!(
         sanitize_for_json("say \"hi\"\n\\ \u{1b}\u{9b}\u{202e}", None).to_string(),
-        "say \"hi\"\\u{a}\\ \\u{1b}\\u{9b}\\u{202e}"
+        "say \"hi\"\\u{a}\\\\ \\u{1b}\\u{9b}\\u{202e}"
     );
     let long = "a".repeat(300);
     assert_eq!(sanitize_for_json(&long, None).to_string(), long);

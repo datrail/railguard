@@ -87,9 +87,11 @@ How each log line is written, on stderr.
   3339, UTC), the level, `target`, `message`, then each field, a number or a bool bare. `json` names the level `level`
   (`ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE`); `gcp` names it `severity`, as Cloud Logging reads it (`WARN` as
   `WARNING`, `TRACE` as `DEBUG`).
-- In either JSON format, text is escaped as in `text` and a field is cut at 1024 characters, but not the message. A
-  field named `timestamp`, `level`, `severity` or `target` is written `field.<name>`. Each refusal is an `ERROR` line of
-  its own, `invalid configuration` with the reason in `refusal`.
+- In either JSON format, hidden characters and `\` are escaped as in `text`, `"` is left to JSON, and a field is cut at
+  1024 characters, but not the message. A field named `timestamp`, `level`, `severity`, `target`, or one Cloud Logging
+  reads (`time`, `timestampSeconds`, `timestampNanos`, `httpRequest`, or under `logging.googleapis.com/`), is written
+  `field.<name>`. Each refusal is an `ERROR` line of its own, `invalid configuration` with the reason in `refusal`, and
+  a usage error is one too, `invalid arguments` with the reason in `reason`.
 
 ## rail-apigee
 

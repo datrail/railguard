@@ -43,7 +43,7 @@ pub async fn run() -> ExitCode {
     let command = match rail_grpc_host::parse_command(&[Role::Gateway], &command_line) {
         Ok(command) => command,
         Err(usage) => {
-            eprintln!("{usage}");
+            rail_runtime::logging::log_usage(&usage);
             // A usage error shares the exit status of a refused configuration.
             return ExitCode::from(rail_runtime::EXIT_CODE);
         }

@@ -23,8 +23,9 @@ pub fn sanitize_unquoted(text: &str) -> impl fmt::Display + '_ {
     Unquoted(text)
 }
 
-/// `text` escaped as [`sanitize`] escapes it, `"` and `\` left as they are, for a channel that
-/// encodes them itself, such as a JSON string; cut at `max_chars`, if given, ending in `…`.
+/// `text` escaped as [`sanitize`] escapes it, `\` by a backslash too, and `"` left for a channel
+/// that encodes it itself, a JSON string; cut at `max_chars`, if given, ending in `…`. Each escape
+/// reads back to one character.
 pub fn sanitize_for_json(text: &str, max_chars: Option<usize>) -> impl fmt::Display + '_ {
     ForJson(text, max_chars)
 }
@@ -33,7 +34,7 @@ struct Sanitized<'a>(&'a str);
 
 impl fmt::Display for Sanitized<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write_escaped(f, self.0, false, Some(MAX_CHARS))
+        write_escaped(f, self.0, &[], Some(MAX_CHARS))
     }
 }
 
@@ -42,7 +43,7 @@ struct Quoted<'a>(&'a str, usize);
 impl fmt::Display for Quoted<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("\"")?;
-        write_escaped(f, self.0, true, Some(self.1))?;
+        write_escaped(f, self.0, QUOTED, Some(self.1))?;
         f.write_str("\"")
     }
 }
@@ -51,7 +52,7 @@ struct ForJson<'a>(&'a str, Option<usize>);
 
 impl fmt::Display for ForJson<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write_escaped(f, self.0, false, self.1)
+        write_escaped(f, self.0, &['\\'], self.1)
     }
 }
 
@@ -59,14 +60,17 @@ struct Unquoted<'a>(&'a str);
 
 impl fmt::Display for Unquoted<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write_escaped(f, self.0, true, None)
+        write_escaped(f, self.0, QUOTED, None)
     }
 }
+
+const QUOTED: &[char] = &['"', '\\'];
 
 fn write_escaped(
     f: &mut fmt::Formatter<'_>,
     text: &str,
-    quotes: bool,
+    // Escaped by a backslash too, so each escape reads back to one character.
+    backslashed: &[char],
     cut: Option<usize>,
 ) -> fmt::Result {
     let mut start = 0;
@@ -76,7 +80,7 @@ fn write_escaped(
             return f.write_str("…");
         }
         let hidden = is_hidden(c);
-        if hidden || (quotes && matches!(c, '"' | '\\')) {
+        if hidden || backslashed.contains(&c) {
             f.write_str(&text[start..index])?;
             if hidden {
                 write!(f, "\\u{{{:x}}}", u32::from(c))?;
