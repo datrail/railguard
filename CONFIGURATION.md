@@ -74,6 +74,22 @@ The level of the hosts' own log lines, on stderr.
   `rail-envoy` logs each request's decision: the host, and for a protected one the header set (`x-rail`, or
   `x-rail-status` with its reason), the route and where it connects; and the headers removed. Never the ticket.
 
+### `RAIL_LOG_FORMAT`
+
+How each log line is written, on stderr.
+
+- **Default:** `text`.
+- **Accepted:** `text`, `json` or `gcp`, in any case.
+- **Read by:** both hosts, before anything is logged, so the `starting` line is already in it; an invalid value is
+  refused, its refusal written as text.
+- `text` is the message then `name="value"` fields. `json` and `gcp` write one JSON object per line: `timestamp` (RFC
+  3339, UTC), the level, `target`, `message`, then each field, a number or a bool bare. `json` names the level `level`
+  (`ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE`); `gcp` names it `severity`, as Cloud Logging reads it (`WARN` as
+  `WARNING`, `TRACE` as `DEBUG`).
+- In either JSON format, text is escaped as in `text` and a field is cut at 1024 characters, but not the message. A
+  field named `timestamp`, `level`, `severity` or `target` is written `field.<name>`. Each refusal is an `ERROR` line of
+  its own, `invalid configuration` with the reason in `refusal`.
+
 ## rail-apigee
 
 ### `RAIL_CALLOUT_PORT`

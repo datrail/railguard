@@ -46,7 +46,8 @@ and anything else at the path refused; the socket is made `0660`, since Envoy ru
 logs a `setting` line for each setting it uses, with its value and whether it came from the environment or the default,
 a secret only as `set` or `unset`. A value that weakens something is logged as a warning saying what
 (`RAIL_DISABLED=true`, an `http://` Rail Center), and so is a `RAIL_…` variable nothing reads, as a likely typo. It
-starts fetching the ticket, then logs `serving Envoy`.
+starts fetching the ticket, then logs `serving Envoy`. Every line, `starting` included, is in the format
+`RAIL_LOG_FORMAT` names: text by default, or JSON.
 
 ## When Rail Center is down
 

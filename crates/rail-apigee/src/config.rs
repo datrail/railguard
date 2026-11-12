@@ -1,7 +1,8 @@
 use rail_policy::sanitize;
+use rail_runtime::logging::LogFormat;
 use rail_runtime::{
     BundleSettings, RailCenterSettings, Refused, Settings, read_bundle_settings, read_disabled,
-    read_log_level, read_rail_center,
+    read_log_format, read_log_level, read_rail_center,
 };
 
 // The callout's settings are named for any host serving a callout, not the gateway's alone;
@@ -21,6 +22,8 @@ const MB: usize = 1024 * 1024;
 /// What this process runs with.
 #[derive(Debug)]
 pub struct Config {
+    /// How each log line is written, as `logging::init` has already read it.
+    pub log_format: LogFormat,
     /// The level of this workspace's own log lines.
     pub log_level: tracing::Level,
     pub port: u16,
@@ -34,6 +37,7 @@ impl Config {
     /// The configuration, every setting judged, or `Err` if anything is refused; `settings` keeps
     /// the refusals.
     pub fn read(settings: &mut Settings) -> Result<Self, Refused> {
+        let log_format = read_log_format(settings);
         let log_level = read_log_level(settings);
         let retired = [
             settings
@@ -64,8 +68,14 @@ impl Config {
         let bundle = read_bundle_settings(settings, enabled);
         disabled?;
         retired.into_iter().try_for_each(|retired| retired)?;
-        let (log_level, port, max_message_mb, rail_center, bundle) =
-            (log_level?, port?, max_message_mb?, rail_center?, bundle?);
+        let (log_format, log_level, port, max_message_mb, rail_center, bundle) = (
+            log_format?,
+            log_level?,
+            port?,
+            max_message_mb?,
+            rail_center?,
+            bundle?,
+        );
         // Enabled, both are required, so both are Some.
         let rail_center = enabled.then(|| {
             rail_center
@@ -73,6 +83,7 @@ impl Config {
                 .expect("both are required when Rail Center is used")
         });
         Ok(Self {
+            log_format,
             log_level,
             port,
             max_message_bytes: max_message_mb * MB,

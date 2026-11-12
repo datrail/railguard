@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::Path;
 use std::time::{Duration, Instant};
 
 use envoy_types::ext_authz::v3::pb::CheckRequest;
@@ -154,4 +155,45 @@ async fn at_debug_each_request_is_logged_with_what_it_gets() {
     let other = decided("other.example");
     assert!(!other.contains("upstream="), "{other}");
     assert!(!logs.contains("forged"), "{logs}");
+}
+
+// `RAIL_LOG_FORMAT` is read before `starting`, and a refusal is a line of its own.
+#[test]
+fn under_gcp_every_line_is_json_from_starting_to_each_refusal() {
+    let mut command = rail_envoy(Path::new("relative.sock"));
+    command
+        .env("RAIL_LOG_FORMAT", "gcp")
+        .env("RAIL_LOG_LEVEL", "loud");
+
+    let output = command.output().unwrap();
+
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    let logs = String::from_utf8(output.stderr).unwrap();
+    let lines: Vec<_> = logs.lines().collect();
+    assert_eq!(lines.len(), 3, "{logs}");
+    assert!(
+        lines
+            .iter()
+            .all(|line| line.starts_with(r#"{"timestamp":""#)),
+        "{logs}"
+    );
+    assert!(
+        lines[0]
+            .contains(r#""severity":"INFO","target":"rail_runtime::logging","message":"starting""#),
+        "{logs}"
+    );
+    for (line, refusal) in [
+        (
+            lines[1],
+            "RAIL_LOG_LEVEL must be error, warn, info, debug or trace, got: loud",
+        ),
+        (lines[2], "RAIL_EXT_SOCKET must be an absolute path"),
+    ] {
+        assert!(
+            line.contains(&format!(
+                r#""severity":"ERROR","target":"rail_runtime::logging","message":"invalid configuration","refusal":"{refusal}"}}"#
+            )),
+            "{logs}"
+        );
+    }
 }
