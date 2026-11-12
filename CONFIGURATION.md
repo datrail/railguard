@@ -82,7 +82,7 @@ The TCP port the callout and its health checks are served on.
 
 - **Default:** `8080`.
 - **Accepted:** `1` to `65535`.
-- **Read by:** `rail-apigee`; `rail probe` reads it alone, to ask this port.
+- **Read by:** `rail-apigee`; it's the only setting `rail probe` judges, to ask this port.
 
 ### `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`
 
@@ -124,7 +124,7 @@ The unix socket ext_authz, ext_proc and the health checks are served on.
 
 - **Default:** `/run/rail/ext.sock`.
 - **Accepted:** an absolute path.
-- **Read by:** `rail-envoy`; `rail probe` reads it alone, to ask this socket.
+- **Read by:** `rail-envoy`; it's the only setting `rail probe` judges, to ask this socket.
 
 ### `RAIL_PROXY_PROTECTED_HOSTS`
 
