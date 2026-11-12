@@ -91,6 +91,22 @@ impl<'a> Settings<'a> {
         self.push(name, value, Level::Warn(weakens));
     }
 
+    /// `name`, unset, as taken from the platform it runs on.
+    pub fn describe_detected(&mut self, name: &'static str, value: impl fmt::Display) {
+        self.mark_read(name);
+        let entry = self.build_entry(name, value.to_string(), Level::Info);
+        self.entries.push(Entry {
+            source: Source::Detected,
+            ..entry
+        });
+    }
+
+    /// The environment read, for what isn't a setting, such as the platform's own variables;
+    /// reading it records nothing.
+    pub fn variables(&self) -> &'a Variables {
+        self.variables
+    }
+
     /// A secret, only ever as set or unset.
     pub fn describe_secret(&mut self, name: &'static str, secret: Option<&Secret>) {
         self.describe(name, if secret.is_some() { "set" } else { "unset" });
@@ -331,9 +347,10 @@ impl<'s, 'a> Setting<'s, 'a> {
 pub struct ConfigErrors(pub Vec<String>);
 
 impl ConfigErrors {
-    /// Writes the refusals to stderr and exits with [`EXIT_CODE`].
+    /// Writes the refusals to stderr, as one ERROR line each in a JSON log format, and exits with
+    /// [`EXIT_CODE`].
     pub fn exit(&self) -> ! {
-        eprintln!("{self}");
+        crate::logging::log_refusals(self);
         std::process::exit(EXIT_CODE.into())
     }
 }
@@ -375,11 +392,13 @@ pub enum Level {
     Warn(&'static str),
 }
 
-/// Where an entry's value comes from: its variable, or a default when that's unset.
+/// Where an entry's value comes from: its variable, a default when that's unset, or what the
+/// platform it runs on says.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Source {
     Env,
     Default,
+    Detected,
 }
 
 impl Source {
@@ -387,6 +406,7 @@ impl Source {
         match self {
             Self::Env => "env",
             Self::Default => "default",
+            Self::Detected => "detected",
         }
     }
 }

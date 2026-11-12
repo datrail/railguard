@@ -27,6 +27,8 @@ x-ext: &ext
 
 # Rail Center at the stub, which answers by sandbox name (rail-center/mappings).
 x-attached: &attached
+  # Text, for a person reading the stack's output; the driver reads no log.
+  RAIL_LOG_FORMAT: text
   RAIL_CENTER_URL: http://rail-center:8080
   RAIL_CENTER_ALLOW_HTTP: "true"
   RAIL_HOST_ID: host-e2e

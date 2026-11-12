@@ -2,7 +2,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use rail_runtime::logging::QuotedFields;
+use rail_runtime::logging::{JsonLines, QuotedFields};
 use tracing::subscriber::DefaultGuard;
 
 #[derive(Clone, Default)]
@@ -16,6 +16,17 @@ impl Logs {
             .fmt_fields(QuotedFields)
             .with_writer(move || writer.clone())
             .with_ansi(false)
+            .finish();
+        tracing::subscriber::set_default(subscriber)
+    }
+
+    /// Captures this thread's log as JSON lines, every level, the level as `severity` if `severity`.
+    pub fn capture_json(&self, severity: bool) -> DefaultGuard {
+        let writer = self.clone();
+        let subscriber = tracing_subscriber::fmt()
+            .event_format(JsonLines { severity })
+            .with_max_level(tracing::Level::TRACE)
+            .with_writer(move || writer.clone())
             .finish();
         tracing::subscriber::set_default(subscriber)
     }

@@ -1,7 +1,7 @@
 use rail_policy::sanitize;
 use rail_runtime::{
     BundleSettings, RailCenterSettings, Refused, Settings, read_bundle_settings, read_disabled,
-    read_log_level, read_rail_center,
+    read_log_format, read_log_level, read_rail_center,
 };
 
 // The callout's settings are named for any host serving a callout, not the gateway's alone;
@@ -34,6 +34,7 @@ impl Config {
     /// The configuration, every setting judged, or `Err` if anything is refused; `settings` keeps
     /// the refusals.
     pub fn read(settings: &mut Settings) -> Result<Self, Refused> {
+        let log_format = read_log_format(settings);
         let log_level = read_log_level(settings);
         let retired = [
             settings
@@ -58,6 +59,7 @@ impl Config {
         let bundle = read_bundle_settings(settings, enabled);
         disabled?;
         retired.into_iter().try_for_each(|retired| retired)?;
+        log_format?;
         let (log_level, port, max_message_mb, rail_center, bundle) =
             (log_level?, port?, max_message_mb?, rail_center?, bundle?);
         // Enabled, both are required, so both are Some.

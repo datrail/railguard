@@ -1,4 +1,4 @@
-use rail_policy::{escape_unquoted, sanitize, sanitize_quoted};
+use rail_policy::{sanitize, sanitize_for_json, sanitize_quoted, sanitize_unquoted};
 
 #[test]
 fn test_escapes_controls_formats_and_separators() {
@@ -95,9 +95,29 @@ fn test_quoting_cuts_past_255_characters_inside_the_quotes() {
 #[test]
 fn test_escapes_unquoted_without_a_cut() {
     assert_eq!(
-        escape_unquoted("say \"hi\"\n\\ \u{1b}").to_string(),
+        sanitize_unquoted("say \"hi\"\n\\ \u{1b}").to_string(),
         r#"say \"hi\"\u{a}\\ \u{1b}"#
     );
     let long = "a".repeat(300);
-    assert_eq!(escape_unquoted(&long).to_string(), long);
+    assert_eq!(sanitize_unquoted(&long).to_string(), long);
+}
+
+#[test]
+fn test_escapes_what_hides_and_backslashes_leaving_quotes() {
+    assert_eq!(
+        sanitize_for_json("say \"hi\"\n\\ \u{1b}\u{9b}\u{202e}", None).to_string(),
+        "say \"hi\"\\u{a}\\\\ \\u{1b}\\u{9b}\\u{202e}"
+    );
+    let long = "a".repeat(300);
+    assert_eq!(sanitize_for_json(&long, None).to_string(), long);
+}
+
+#[test]
+fn test_escaping_what_hides_cuts_past_max_chars() {
+    assert_eq!(sanitize_for_json("abcd", Some(4)).to_string(), "abcd");
+    assert_eq!(sanitize_for_json("abcde", Some(4)).to_string(), "abcd…");
+    assert_eq!(
+        sanitize_for_json("abc\nde", Some(4)).to_string(),
+        "abc\\u{a}…"
+    );
 }

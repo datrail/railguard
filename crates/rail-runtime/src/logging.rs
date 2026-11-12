@@ -1,30 +1,37 @@
 //! The log, on stderr: the one place text is made safe to read in it.
 //!
 //! [`QuotedFields`] writes each field of an event or span. The message stays unquoted, escaped as
-//! [`escape_unquoted`] escapes it, so it can't start a line or reach the terminal. Any other text
+//! [`sanitize_unquoted`] escapes it, so it can't start a line or reach the terminal. Any other text
 //! is written `name="…"`, through [`sanitize_quoted`] cut at 1024 characters, and a number or a
 //! bool bare. So code logs text as a `%` or `&str` field, and never sanitizes it for the log.
 //!
 //! A `?` value is quoted as its `Debug` text, so a `String` logged with `?` shows Rust's own
 //! escaping inside the quotes: text is logged with `%`.
+//!
+//! Under `RAIL_LOG_FORMAT=json` or `gcp`, [`JsonLines`] writes each event as one JSON object
+//! instead, its text escaped as [`sanitize_for_json`] escapes it, and cut alike.
 
 use std::error::Error;
 use std::fmt::{self, Write};
 use std::panic::PanicHookInfo;
 use std::sync::OnceLock;
 
-use rail_policy::{escape_unquoted, sanitize, sanitize_quoted};
+use rail_policy::{sanitize, sanitize_for_json, sanitize_quoted, sanitize_unquoted};
 use tracing::field::{Field, Visit};
+use tracing::{Event, Subscriber};
+use tracing_log::NormalizeEvent;
 use tracing_subscriber::Registry;
 use tracing_subscriber::field::RecordFields;
 use tracing_subscriber::filter::{LevelFilter, Targets};
-use tracing_subscriber::fmt::FormatFields;
 use tracing_subscriber::fmt::format::Writer;
+use tracing_subscriber::fmt::time::{FormatTime, SystemTime};
+use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields};
 use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::registry::LookupSpan;
 use tracing_subscriber::reload;
 use tracing_subscriber::util::SubscriberInitExt;
 
-use crate::config::{Level, Refused, Settings, Startup};
+use crate::config::{ConfigErrors, Level, Refused, Settings, Startup, Variables};
 
 // Long enough to keep the root cause at the end of an error chain.
 const MAX_FIELD_CHARS: usize = 1024;
@@ -57,21 +64,77 @@ const OWN_TARGETS: [&str; 5] = [
     "rail_runtime",
 ];
 
-static FILTER: OnceLock<reload::Handle<Targets, Registry>> = OnceLock::new();
+const LOG_FORMAT: &str = "RAIL_LOG_FORMAT";
+// A JSON line's own keys, and those Cloud Logging lifts out of a line: a field of the same name,
+// under `logging.googleapis.com/`, or already `field.…`, is written `field.<name>`.
+const RESERVED_KEYS: [&str; 9] = [
+    "message",
+    "timestamp",
+    "level",
+    "severity",
+    "target",
+    "time",
+    "timestampSeconds",
+    "timestampNanos",
+    "httpRequest",
+];
+const RESERVED_PREFIXES: [&str; 2] = ["logging.googleapis.com/", "field."];
 
-/// Logs to stderr for the rest of the process, each field written by [`QuotedFields`], panics
+static FILTER: OnceLock<reload::Handle<Targets, Registry>> = OnceLock::new();
+static FORMAT: OnceLock<LogFormat> = OnceLock::new();
+
+// Cloud Run sets one of these in every service's and job's container.
+const CLOUD_RUN: [&str; 2] = ["K_SERVICE", "CLOUD_RUN_JOB"];
+
+/// How each line is written: `RAIL_LOG_FORMAT`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LogFormat {
+    /// The message, then `name=value` fields, by [`QuotedFields`].
+    Text,
+    /// One JSON object per line, by [`JsonLines`], its level as `level`.
+    Json,
+    /// As `Json`, its level as Cloud Logging's `severity`.
+    Gcp,
+}
+
+impl LogFormat {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            LogFormat::Text => "text",
+            LogFormat::Json => "json",
+            LogFormat::Gcp => "gcp",
+        }
+    }
+}
+
+/// Logs to stderr for the rest of the process, in the format `RAIL_LOG_FORMAT` names, panics
 /// included; at INFO until [`set_level`].
 pub fn init() {
+    // Read here, before the settings, so the first line is already in it; the platform's if it's
+    // refused, so the refusal is too.
+    let variables = Variables::from_process();
+    let format = read_log_format(&mut Settings::new(&variables))
+        .unwrap_or_else(|_| detect_log_format(&variables));
     let (filter, handle) = reload::Layer::new(own_lines_at(tracing::Level::INFO));
+    let text = (format == LogFormat::Text).then(|| {
+        tracing_subscriber::fmt::layer()
+            .fmt_fields(QuotedFields)
+            .with_writer(std::io::stderr)
+    });
+    let json = (format != LogFormat::Text).then(|| {
+        tracing_subscriber::fmt::layer()
+            .event_format(JsonLines {
+                severity: format == LogFormat::Gcp,
+            })
+            .with_writer(std::io::stderr)
+    });
     tracing_subscriber::registry()
         .with(filter)
-        .with(
-            tracing_subscriber::fmt::layer()
-                .fmt_fields(QuotedFields)
-                .with_writer(std::io::stderr),
-        )
+        .with(text)
+        .with(json)
         .init();
     let _ = FILTER.set(handle);
+    let _ = FORMAT.set(format);
     // The default hook writes a panic's message raw, outside the formatter.
     std::panic::set_hook(Box::new(log_panic));
 }
@@ -120,6 +183,65 @@ fn parse_log_level(text: &str) -> Result<tracing::Level, String> {
                 sanitize(text)
             )
         })
+}
+
+/// `RAIL_LOG_FORMAT`: `gcp` by default on Cloud Run, else `json`. [`init`] has already read it;
+/// this judges it and logs it.
+pub fn read_log_format(settings: &mut Settings) -> Result<LogFormat, Refused> {
+    let set = settings.get(LOG_FORMAT).parsed(parse_log_format)?;
+    let format = set.unwrap_or_else(|| detect_log_format(settings.variables()));
+    // Only Cloud Run is detected; json with none set is the plain default.
+    if set.is_none() && format == LogFormat::Gcp {
+        settings.describe_detected(LOG_FORMAT, format.as_str());
+    } else {
+        settings.describe(LOG_FORMAT, format.as_str());
+    }
+    Ok(format)
+}
+
+// The format with none set: Cloud Logging's on Cloud Run.
+fn detect_log_format(variables: &Variables) -> LogFormat {
+    if CLOUD_RUN.iter().any(|name| variables.is_set(name)) {
+        LogFormat::Gcp
+    } else {
+        LogFormat::Json
+    }
+}
+
+fn parse_log_format(text: &str) -> Result<LogFormat, String> {
+    [LogFormat::Text, LogFormat::Json, LogFormat::Gcp]
+        .into_iter()
+        .find(|format| format.as_str().eq_ignore_ascii_case(text))
+        .ok_or_else(|| format!("must be text, json or gcp, got: {}", sanitize(text)))
+}
+
+// Whether `init` chose a JSON format, so an error before the settings is a line in it.
+fn logs_json() -> bool {
+    FORMAT
+        .get()
+        .is_some_and(|format| *format != LogFormat::Text)
+}
+
+// Text keeps its block; a JSON reader wants each refusal as an error line of its own. A refusal
+// is already sanitized, so a `\` it holds reads doubled once decoded.
+pub(crate) fn log_refusals(errors: &ConfigErrors) {
+    if !logs_json() {
+        eprintln!("{errors}");
+        return;
+    }
+    for refusal in &errors.0 {
+        tracing::error!(refusal = %refusal, "invalid configuration");
+    }
+}
+
+/// A usage error, before the settings: as it is in text, else an error line in the format [`init`]
+/// chose, so a JSON reader sees it as an error.
+pub fn log_usage(usage: &str) {
+    if logs_json() {
+        tracing::error!(reason = %usage, "invalid arguments");
+    } else {
+        eprintln!("{usage}");
+    }
 }
 
 // A formatted message may quote what came from the wire, so only a literal one is logged.
@@ -181,29 +303,31 @@ struct Visitor<'writer> {
 impl Visitor<'_> {
     fn write_text(&mut self, field: &Field, text: &str) {
         if field.name() == "message" {
-            self.write_field(None, escape_unquoted(text));
+            self.write_field(None, sanitize_unquoted(text));
         } else {
             self.write_field(Some(field), sanitize_quoted(text, MAX_FIELD_CHARS));
         }
     }
 
     fn write_field(&mut self, field: Option<&Field>, value: impl fmt::Display) {
-        // tracing-log's fields repeat the target and name the library's source.
-        let bridged = field.is_some_and(|field| field.name().starts_with("log."));
-        if self.result.is_err() || bridged {
+        let name = match field.map(name_field) {
+            Some(None) => return,
+            Some(Some(name)) => Some(name),
+            None => None,
+        };
+        if self.result.is_err() {
             return;
         }
-        self.result = self.try_write_field(field, value);
+        self.result = self.try_write_field(name, value);
     }
 
-    fn try_write_field(&mut self, field: Option<&Field>, value: impl fmt::Display) -> fmt::Result {
+    fn try_write_field(&mut self, name: Option<&str>, value: impl fmt::Display) -> fmt::Result {
         if !self.first {
             self.writer.write_char(' ')?;
         }
         self.first = false;
-        if let Some(field) = field {
-            let name = field.name();
-            write!(self.writer, "{}=", name.strip_prefix("r#").unwrap_or(name))?;
+        if let Some(name) = name {
+            write!(self.writer, "{name}=")?;
         }
         write!(self.writer, "{value}")
     }
@@ -220,13 +344,7 @@ impl Visit for Visitor<'_> {
     }
 
     fn record_error(&mut self, field: &Field, value: &(dyn Error + 'static)) {
-        let mut text = value.to_string();
-        let mut source = value.source();
-        while let Some(cause) = source {
-            write!(text, ": {cause}").expect("a String takes any text");
-            source = cause.source();
-        }
-        self.write_text(field, &text);
+        self.write_text(field, &error_chain(value));
     }
 
     fn record_i64(&mut self, field: &Field, value: i64) {
@@ -252,4 +370,163 @@ impl Visit for Visitor<'_> {
     fn record_bool(&mut self, field: &Field, value: bool) {
         self.write_field(Some(field), value);
     }
+}
+
+/// The event formatter [`init`] installs for a JSON format: one object per line, `timestamp`
+/// (`time` with `severity`; RFC 3339, UTC), the level, `target` and `message`, then each field, a
+/// number or a bool bare.
+/// No span is written: this workspace opens none, and the libraries' are filtered out below WARN.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct JsonLines {
+    /// The level as `severity`, in Cloud Logging's names (`WARNING`; TRACE as `DEBUG`), not
+    /// `level`.
+    pub severity: bool,
+}
+
+impl<S, N> FormatEvent<S, N> for JsonLines
+where
+    S: Subscriber + for<'lookup> LookupSpan<'lookup>,
+    N: for<'writer> FormatFields<'writer> + 'static,
+{
+    fn format_event(
+        &self,
+        _context: &FmtContext<'_, S, N>,
+        mut writer: Writer<'_>,
+        event: &Event<'_>,
+    ) -> fmt::Result {
+        // tracing-log's events name the library's target only once normalized.
+        let normalized = event.normalized_metadata();
+        let metadata = normalized.as_ref().unwrap_or_else(|| event.metadata());
+        let mut timestamp = String::new();
+        SystemTime.format_time(&mut Writer::new(&mut timestamp))?;
+        let mut fields = JsonFields::default();
+        event.record(&mut fields);
+        let (time_key, level_key, level) = self.name_keys(*metadata.level());
+        let message = fields.message.unwrap_or_default();
+        write!(
+            writer,
+            "{{{}:{}",
+            json_string(time_key),
+            json_string(&timestamp)
+        )?;
+        write!(writer, ",{}:{}", json_string(level_key), json_string(level))?;
+        write!(writer, r#","target":{}"#, json_string(metadata.target()))?;
+        write!(writer, r#","message":{}"#, json_string(&message))?;
+        for (name, value) in &fields.members {
+            write!(writer, ",{}:{value}", json_string(name))?;
+        }
+        writeln!(writer, "}}")
+    }
+}
+
+impl JsonLines {
+    // The time's key, the level's key, and the level: Cloud Logging reads an RFC 3339 string only
+    // as `time`.
+    fn name_keys(self, level: tracing::Level) -> (&'static str, &'static str, &'static str) {
+        if !self.severity {
+            return ("timestamp", "level", level.as_str());
+        }
+        let severity = match level {
+            tracing::Level::ERROR => "ERROR",
+            tracing::Level::WARN => "WARNING",
+            tracing::Level::INFO => "INFO",
+            tracing::Level::DEBUG | tracing::Level::TRACE => "DEBUG",
+        };
+        ("time", "severity", severity)
+    }
+}
+
+fn json_string(text: &str) -> String {
+    serde_json::Value::from(text).to_string()
+}
+
+// A field's name as written, `r#` dropped; `None` for tracing-log's fields, which repeat the
+// target and name the library's source.
+fn name_field(field: &Field) -> Option<&'static str> {
+    let name = field.name();
+    (!name.starts_with("log.")).then(|| name.strip_prefix("r#").unwrap_or(name))
+}
+
+// Each value already encoded as JSON, in the order recorded.
+#[derive(Default)]
+struct JsonFields {
+    message: Option<String>,
+    members: Vec<(String, String)>,
+}
+
+impl JsonFields {
+    fn push_text(&mut self, field: &Field, text: &str) {
+        if field.name() == "message" {
+            self.message = Some(sanitize_for_json(text, None).to_string());
+        } else {
+            let text = sanitize_for_json(text, Some(MAX_FIELD_CHARS)).to_string();
+            self.push(field, json_string(&text));
+        }
+    }
+
+    fn push(&mut self, field: &Field, encoded: String) {
+        let Some(name) = name_field(field) else {
+            return;
+        };
+        let reserved = RESERVED_KEYS.contains(&name)
+            || RESERVED_PREFIXES
+                .iter()
+                .any(|prefix| name.starts_with(prefix));
+        let name = if reserved {
+            format!("field.{name}")
+        } else {
+            name.to_owned()
+        };
+        self.members.push((name, encoded));
+    }
+}
+
+impl Visit for JsonFields {
+    fn record_str(&mut self, field: &Field, value: &str) {
+        self.push_text(field, value);
+    }
+
+    fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
+        self.push_text(field, &format!("{value:?}"));
+    }
+
+    fn record_error(&mut self, field: &Field, value: &(dyn Error + 'static)) {
+        self.push_text(field, &error_chain(value));
+    }
+
+    fn record_i64(&mut self, field: &Field, value: i64) {
+        self.push(field, value.to_string());
+    }
+
+    fn record_u64(&mut self, field: &Field, value: u64) {
+        self.push(field, value.to_string());
+    }
+
+    fn record_i128(&mut self, field: &Field, value: i128) {
+        self.push(field, value.to_string());
+    }
+
+    fn record_u128(&mut self, field: &Field, value: u128) {
+        self.push(field, value.to_string());
+    }
+
+    // Not finite, it's `null`, as JSON has no such number.
+    fn record_f64(&mut self, field: &Field, value: f64) {
+        self.push(field, serde_json::Value::from(value).to_string());
+    }
+
+    fn record_bool(&mut self, field: &Field, value: bool) {
+        self.push(field, value.to_string());
+    }
+}
+
+// The error, then each cause in turn, so the root cause ends the line.
+fn error_chain(error: &(dyn Error + 'static)) -> String {
+    let mut text = error.to_string();
+    let mut source = error.source();
+    while let Some(cause) = source {
+        write!(text, ": {cause}").expect("a String takes any text");
+        source = cause.source();
+    }
+    text
 }

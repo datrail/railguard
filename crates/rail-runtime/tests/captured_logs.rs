@@ -5,6 +5,7 @@ mod bundles;
 mod common;
 mod denials_logs;
 mod holder;
+mod json_logs;
 mod key_set_logs;
 mod keys;
 mod logging;

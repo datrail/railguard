@@ -218,6 +218,12 @@ fn the_settings_are_logged_each_at_its_level_then_each_unread_name() {
                 level: Level::Warn("nothing is fetched"),
                 source: Source::Env,
             },
+            Entry {
+                name: "RAIL_LOG_FORMAT",
+                value: "gcp".to_owned(),
+                level: Level::Info,
+                source: Source::Detected,
+            },
         ],
         unread: vec!["RAIL_TYPO".to_owned()],
     };
@@ -237,6 +243,7 @@ fn the_settings_are_logged_each_at_its_level_then_each_unread_name() {
         [
             r#"INFO rail_runtime::logging: setting name="RAIL_PORT" value="8080" source="default""#,
             r#"WARN rail_runtime::logging: setting name="RAIL_DISABLED" value="true" source="env" weakens="nothing is fetched""#,
+            r#"INFO rail_runtime::logging: setting name="RAIL_LOG_FORMAT" value="gcp" source="detected""#,
             r#"WARN rail_runtime::logging: set but not read name="RAIL_TYPO""#,
         ]
     );
@@ -277,6 +284,7 @@ fn init_child() {
 fn init_logs_panics_through_the_formatter_and_libraries_from_warn() {
     let output = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["--exact", "logging::init_child", "--ignored", "--nocapture"])
+        .env("RAIL_LOG_FORMAT", "text")
         .output()
         .unwrap();
 
@@ -297,6 +305,11 @@ fn init_logs_panics_through_the_formatter_and_libraries_from_warn() {
     assert!(!stderr.contains("from the wire"), "{stderr}");
     assert!(
         stderr.contains("WARN reqwest::connect: a library's warning\n"),
+        "{stderr}"
+    );
+    // Only the text layer, never a JSON line beside it.
+    assert!(
+        !stderr.lines().any(|line| line.starts_with('{')),
         "{stderr}"
     );
     assert!(!stderr.contains("a library's note"), "{stderr}");

@@ -39,6 +39,8 @@ tokio = { version = "1", features = ["net", "rt", "sync", "time"] }
 tracing = "0.1"
 # `tracing-log`: reqwest and rustls log through `log`, so `init` bridges it.
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "tracing-log"] }
+# To read a `log` record's own target, as tracing-subscriber's formatter does.
+tracing-log = { version = "0.2", default-features = false }
 uuid = { version = "1", default-features = false, features = ["serde"] }
 webpki-roots = "1"
 

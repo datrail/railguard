@@ -24,7 +24,8 @@ try a rule on a sample call.
   evaluated.
 - **`check_condition`** reports every problem with one condition, and whether every reader refuses it or only Rail
   Center.
-- **`sanitize`**, **`sanitize_quoted`** and **`escape_unquoted`** make text from a call safe to log.
+- **`sanitize`**, **`sanitize_quoted`**, **`sanitize_unquoted`** and **`sanitize_for_json`** make text from a call safe
+  to log.
 
 ## What it doesn't do
 
