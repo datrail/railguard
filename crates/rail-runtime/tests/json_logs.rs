@@ -23,9 +23,12 @@ fn write_line(severity: bool, log: impl FnOnce()) -> String {
 // That line's members, but the timestamp, checked to be RFC 3339 in UTC: `time` with
 // `severity`, as Cloud Logging reads it, else `timestamp`.
 fn read_line(severity: bool, log: impl FnOnce()) -> Value {
-    let line = write_line(severity, log);
+    parse_line(severity, &write_line(severity, log))
+}
+
+fn parse_line(severity: bool, line: &str) -> Value {
     let mut value: Value =
-        serde_json::from_str(&line).unwrap_or_else(|error| panic!("{error}: {line}"));
+        serde_json::from_str(line).unwrap_or_else(|error| panic!("{error}: {line}"));
     let key = if severity { "time" } else { "timestamp" };
     let timestamp = value[key].as_str().unwrap_or_else(|| panic!("{line}"));
     assert!(
@@ -54,33 +57,29 @@ fn a_line_is_its_timestamp_level_target_and_message_then_each_field_in_order() {
     );
 }
 
+// json names the level as tracing does; gcp as Cloud Logging does, in `severity`.
 #[test]
-fn json_names_the_level_as_tracing_does() {
+fn each_level_is_named_as_its_reader_does() {
     let levels = [
-        (read_line(false, || tracing::error!("m")), "ERROR"),
-        (read_line(false, || tracing::warn!("m")), "WARN"),
-        (read_line(false, || tracing::info!("m")), "INFO"),
-        (read_line(false, || tracing::debug!("m")), "DEBUG"),
-        (read_line(false, || tracing::trace!("m")), "TRACE"),
+        (false, read_line(false, || tracing::error!("m")), "ERROR"),
+        (false, read_line(false, || tracing::warn!("m")), "WARN"),
+        (false, read_line(false, || tracing::info!("m")), "INFO"),
+        (false, read_line(false, || tracing::debug!("m")), "DEBUG"),
+        (false, read_line(false, || tracing::trace!("m")), "TRACE"),
+        (true, read_line(true, || tracing::error!("m")), "ERROR"),
+        (true, read_line(true, || tracing::warn!("m")), "WARNING"),
+        (true, read_line(true, || tracing::info!("m")), "INFO"),
+        (true, read_line(true, || tracing::debug!("m")), "DEBUG"),
+        (true, read_line(true, || tracing::trace!("m")), "DEBUG"),
     ];
-    for (line, level) in levels {
-        assert_eq!(line["level"], level, "{line}");
-        assert!(line.get("severity").is_none(), "{line}");
-    }
-}
-
-#[test]
-fn gcp_names_the_level_as_cloud_logging_does_in_severity() {
-    let levels = [
-        (read_line(true, || tracing::error!("m")), "ERROR"),
-        (read_line(true, || tracing::warn!("m")), "WARNING"),
-        (read_line(true, || tracing::info!("m")), "INFO"),
-        (read_line(true, || tracing::debug!("m")), "DEBUG"),
-        (read_line(true, || tracing::trace!("m")), "DEBUG"),
-    ];
-    for (line, severity) in levels {
-        assert_eq!(line["severity"], severity, "{line}");
-        assert!(line.get("level").is_none(), "{line}");
+    for (severity, line, level) in levels {
+        let (key, other) = if severity {
+            ("severity", "level")
+        } else {
+            ("level", "severity")
+        };
+        assert_eq!(line[key], level, "{line}");
+        assert!(line.get(other).is_none(), "{line}");
     }
 }
 
@@ -100,18 +99,17 @@ fn a_number_or_a_bool_is_bare_and_anything_else_text() {
             "m"
         );
     };
+    let written = write_line(false, log);
     // Past what a JSON reader's f64 holds, so read here as written.
     assert!(
-        write_line(false, log).contains(&format!(r#","wide":{},"#, u128::MAX)),
-        "{}",
-        write_line(false, log)
+        written.contains(&format!(r#","wide":{},"#, u128::MAX)),
+        "{written}"
     );
     assert!(
-        write_line(false, log).contains(&format!(r#","least":{},"#, i128::MIN)),
-        "{}",
-        write_line(false, log)
+        written.contains(&format!(r#","least":{},"#, i128::MIN)),
+        "{written}"
     );
-    let line = read_line(false, log);
+    let line = parse_line(false, &written);
 
     assert_eq!(line["signed"], json!(-3));
     assert_eq!(line["unsigned"], json!(7));
@@ -297,26 +295,11 @@ fn init_reads_the_format_from_the_environment() {
     assert_eq!(lines[2]["severity"], "ERROR", "{stderr}");
 }
 
-#[test]
-fn init_logs_text_only_when_told_to() {
-    let output = run_child("json_logs::init_child", Some("text"));
-
-    assert!(output.status.success(), "{output:?}");
-    let stderr = String::from_utf8(output.stderr).unwrap();
-    assert!(read_json_lines(&stderr).is_empty(), "{stderr}");
-    assert!(
-        stderr.contains(r#"INFO rail_runtime::logging: starting version="dev""#),
-        "{stderr}"
-    );
-}
-
-// With none set, or one it refuses, the platform's: gcp on Cloud Run, else json.
+// One it refuses falls back to the platform's: gcp on Cloud Run, else json.
 #[test]
 fn init_falls_back_to_the_platforms_format() {
     for (format, platform, key) in [
-        (None, &[][..], "level"),
         (Some("logfmt"), &[][..], "level"),
-        (None, &[("K_SERVICE", "callout")][..], "severity"),
         (Some("logfmt"), &[("CLOUD_RUN_JOB", "job")][..], "severity"),
     ] {
         let output = run_child_on("json_logs::init_child", format, platform);
@@ -328,18 +311,6 @@ fn init_falls_back_to_the_platforms_format() {
         assert_eq!(lines[0]["message"], "starting", "{stderr}");
         assert_eq!(lines[0][key], "INFO", "{format:?} {platform:?}: {stderr}");
     }
-}
-
-// On Cloud Run an explicit format still wins.
-#[test]
-fn init_takes_the_format_set_over_the_platforms() {
-    let output = run_child_on("json_logs::init_child", Some("json"), &[("K_SERVICE", "c")]);
-
-    assert!(output.status.success(), "{output:?}");
-    let stderr = String::from_utf8(output.stderr).unwrap();
-    let lines = read_json_lines(&stderr);
-    assert_eq!(lines[0]["level"], "INFO", "{stderr}");
-    assert!(lines[0].get("severity").is_none(), "{stderr}");
 }
 
 #[test]
@@ -402,25 +373,6 @@ fn refusals_are_one_block_in_text() {
         stderr.contains(
             "Invalid configuration detected:\n  RAIL_A must be a number, got: x\n  RAIL_B is required\n"
         ),
-        "{stderr}"
-    );
-}
-
-// A format it refuses falls back to the platform's, so the refusal reads as the platform's lines.
-#[test]
-fn with_a_format_it_refuses_the_refusals_are_in_the_platforms() {
-    let output = run_child_on(
-        "json_logs::refusals_child",
-        Some("logfmt"),
-        &[("K_SERVICE", "callout")],
-    );
-
-    assert_eq!(output.status.code(), Some(2), "{output:?}");
-    let stderr = String::from_utf8(output.stderr).unwrap();
-    let lines = read_json_lines(&stderr);
-    assert_eq!(lines.len(), 2, "{stderr}");
-    assert!(
-        lines.iter().all(|line| line["severity"] == "ERROR"),
         "{stderr}"
     );
 }

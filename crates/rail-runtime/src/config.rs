@@ -94,11 +94,10 @@ impl<'a> Settings<'a> {
     /// `name`, unset, as taken from the platform it runs on.
     pub fn describe_detected(&mut self, name: &'static str, value: impl fmt::Display) {
         self.mark_read(name);
+        let entry = self.build_entry(name, value.to_string(), Level::Info);
         self.entries.push(Entry {
-            name,
-            value: value.to_string(),
-            level: Level::Info,
             source: Source::Detected,
+            ..entry
         });
     }
 
@@ -351,9 +350,7 @@ impl ConfigErrors {
     /// Writes the refusals to stderr, as one ERROR line each in a JSON log format, and exits with
     /// [`EXIT_CODE`].
     pub fn exit(&self) -> ! {
-        if !crate::logging::log_refusals(&self.0) {
-            eprintln!("{self}");
-        }
+        crate::logging::log_refusals(self);
         std::process::exit(EXIT_CODE.into())
     }
 }

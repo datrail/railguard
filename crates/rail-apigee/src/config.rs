@@ -34,7 +34,6 @@ impl Config {
     /// The configuration, every setting judged, or `Err` if anything is refused; `settings` keeps
     /// the refusals.
     pub fn read(settings: &mut Settings) -> Result<Self, Refused> {
-        // Only judged and described here: `logging::init` has already used it.
         let log_format = read_log_format(settings);
         let log_level = read_log_level(settings);
         let retired = [
@@ -60,14 +59,9 @@ impl Config {
         let bundle = read_bundle_settings(settings, enabled);
         disabled?;
         retired.into_iter().try_for_each(|retired| retired)?;
-        let (_, log_level, port, max_message_mb, rail_center, bundle) = (
-            log_format?,
-            log_level?,
-            port?,
-            max_message_mb?,
-            rail_center?,
-            bundle?,
-        );
+        log_format?;
+        let (log_level, port, max_message_mb, rail_center, bundle) =
+            (log_level?, port?, max_message_mb?, rail_center?, bundle?);
         // Enabled, both are required, so both are Some.
         let rail_center = enabled.then(|| {
             rail_center

@@ -24,7 +24,6 @@ impl Config {
     /// The configuration, every setting judged, or `Err` if anything is refused; `settings` keeps
     /// the refusals.
     pub fn read(settings: &mut Settings) -> Result<Self, Refused> {
-        // Only judged and described here: `logging::init` has already used it.
         let log_format = read_log_format(settings);
         let log_level = read_log_level(settings);
         let socket = read_socket(settings);
@@ -35,14 +34,9 @@ impl Config {
         let ticket = read_ticket_settings(settings, enabled);
         let protected_hosts = read_protected_hosts(settings, enabled);
         disabled?;
-        let (_, log_level, socket, rail_center, ticket, protected_hosts) = (
-            log_format?,
-            log_level?,
-            socket?,
-            rail_center?,
-            ticket?,
-            protected_hosts?,
-        );
+        log_format?;
+        let (log_level, socket, rail_center, ticket, protected_hosts) =
+            (log_level?, socket?, rail_center?, ticket?, protected_hosts?);
         // Enabled, both are required, so both are Some.
         let ticket = enabled.then(|| {
             rail_center
