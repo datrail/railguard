@@ -10,8 +10,7 @@ use tonic_health::pb::health_server::Health;
 use tonic_health::pb::{HealthCheckRequest, HealthCheckResponse};
 use tonic_health::server::{HealthReporter, HealthService};
 
-/// The service a readiness check names.
-pub const READY: &str = "rail.Ready";
+pub use rail_grpc_host::READY;
 
 /// Sets what the health service answers; clones share it.
 #[derive(Clone)]

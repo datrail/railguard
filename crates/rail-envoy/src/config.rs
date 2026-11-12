@@ -29,18 +29,7 @@ impl Config {
     pub fn read(settings: &mut Settings) -> Result<Self, Refused> {
         let log_format = read_log_format(settings);
         let log_level = read_log_level(settings);
-        let socket = settings
-            .get(EXT_SOCKET)
-            .parsed(|text| {
-                let path = PathBuf::from(text);
-                path.is_absolute()
-                    .then_some(path)
-                    .ok_or_else(|| "must be an absolute path".to_owned())
-            })
-            .map(|socket| socket.unwrap_or_else(|| PathBuf::from(DEFAULT_SOCKET)));
-        if let Ok(socket) = &socket {
-            settings.describe(EXT_SOCKET, socket.display());
-        }
+        let socket = read_socket(settings);
         // Whatever is set is judged either way; only an enabled Rail Center requires its settings.
         let disabled = read_disabled(settings);
         let enabled = disabled == Ok(false);
@@ -70,4 +59,21 @@ impl Config {
             protected_hosts,
         })
     }
+}
+
+/// `RAIL_EXT_SOCKET`, where the server listens: all `rail probe` reads.
+pub fn read_socket(settings: &mut Settings) -> Result<PathBuf, Refused> {
+    let socket = settings
+        .get(EXT_SOCKET)
+        .parsed(|text| {
+            let path = PathBuf::from(text);
+            path.is_absolute()
+                .then_some(path)
+                .ok_or_else(|| "must be an absolute path".to_owned())
+        })
+        .map(|socket| socket.unwrap_or_else(|| PathBuf::from(DEFAULT_SOCKET)));
+    if let Ok(socket) = &socket {
+        settings.describe(EXT_SOCKET, socket.display());
+    }
+    socket
 }

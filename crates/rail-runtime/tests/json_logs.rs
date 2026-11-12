@@ -217,7 +217,7 @@ fn an_event_with_no_message_has_an_empty_one() {
 #[ignore = "run by init_reads_the_format_from_the_environment"]
 fn init_child() {
     rail_runtime::logging::init();
-    rail_runtime::logging::log_build();
+    rail_runtime::logging::log_build("proxy");
     log::warn!(target: "reqwest::connect", "a library's warning");
     let _ = std::panic::catch_unwind(|| panic!("a literal message"));
 }

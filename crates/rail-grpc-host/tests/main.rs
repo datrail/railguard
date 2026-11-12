@@ -1,3 +1,5 @@
+mod command;
+
 use std::os::unix::net::UnixListener as StdUnixListener;
 use std::path::PathBuf;
 use std::process::ExitCode;

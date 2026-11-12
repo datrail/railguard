@@ -1,5 +1,8 @@
-//! The parts of a gRPC host process both binaries share: waiting for SIGTERM, draining the server
-//! until a deadline, and the probe, a health check on the server's own address.
+//! The parts of a gRPC host process both binaries share: the command line, waiting for SIGTERM,
+//! draining the server until a deadline, and the probe, a health check on the server's own
+//! address.
+
+mod command;
 
 use std::error::Error;
 use std::fmt;
@@ -16,6 +19,11 @@ use tonic::transport::Endpoint;
 use tonic_health::pb::HealthCheckRequest;
 use tonic_health::pb::health_check_response::ServingStatus as WireStatus;
 use tonic_health::pb::health_client::HealthClient;
+
+pub use crate::command::{Command, Role, parse_command};
+
+/// The service a readiness check names, whatever the role.
+pub const READY: &str = "rail.Ready";
 
 // Envoy keeps its connections open, and an ext_proc stream lasts as long as its request.
 const SHUTDOWN_DEADLINE: Duration = Duration::from_secs(5);
@@ -77,6 +85,11 @@ pub fn program_name() -> String {
     let program = std::env::args_os().next().unwrap_or_default();
     let name = Path::new(&program).file_name().unwrap_or_default();
     sanitize(&name.to_string_lossy()).to_string()
+}
+
+/// The service `rail probe` asks for: readiness with `--ready`, else the server as a whole.
+pub fn probe_service(ready: bool) -> &'static str {
+    if ready { READY } else { "" }
 }
 
 /// Asks the server at `address` for `service`'s health, `""` being the server as a whole; prints

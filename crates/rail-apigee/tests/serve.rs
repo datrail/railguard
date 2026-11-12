@@ -13,7 +13,7 @@ use tonic_health::pb::health_client::HealthClient;
 
 use rail_test_support::{Server, stdout, wait_until};
 
-use crate::common::{RailCenter, client, free_port, probe, rail_apigee, serve};
+use crate::common::{RailCenter, client, free_port, probe, rail_apigee, serve, with_settings};
 
 // At `enforce`, denying every call without a ticket.
 const DENYING: &str = r#"{
@@ -252,12 +252,49 @@ async fn with_no_bundle_it_is_not_ready_and_a_call_is_forwarded() {
 
 #[test]
 fn an_unknown_argument_is_a_usage_error_and_serves_nothing() {
-    let output = rail_apigee(free_port()).arg("serve").output().unwrap();
+    let output = with_settings(free_port()).arg("serve").output().unwrap();
 
     assert_eq!(output.status.code(), Some(2));
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains("usage: rail-apigee [probe [--ready]]")
-    );
+    assert!(String::from_utf8_lossy(&output.stderr).contains(
+        r#"unknown arguments ["serve"]; usage: rail-apigee gateway | rail-apigee probe [--ready]"#
+    ));
+}
+
+// The role has no default, and a role this binary doesn't carry is refused like any argument.
+#[test]
+fn with_no_role_or_another_binarys_it_serves_nothing() {
+    for (arguments, expected) in [
+        (
+            &[][..],
+            "no role given; usage: rail-apigee gateway | rail-apigee probe",
+        ),
+        (&["proxy"][..], r#"unknown arguments ["proxy"]; usage:"#),
+    ] {
+        let output = with_settings(free_port()).args(arguments).output().unwrap();
+
+        assert_eq!(output.status.code(), Some(2), "{arguments:?}");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains(expected), "{stderr}");
+        assert!(!stderr.contains("starting"), "{stderr}");
+    }
+}
+
+// It reads only the port, so a setting only the server reads, refused there, can't fail it.
+#[tokio::test(flavor = "multi_thread")]
+async fn the_probe_reads_only_the_port() {
+    let port = free_port();
+    let _server = tokio::task::block_in_place(|| serve(rail_apigee(port), port));
+    let mut command = with_settings(port);
+    command
+        .args(["probe", "--ready"])
+        .env("RAIL_DISABLED", "false")
+        .env("RAIL_GATEWAY_PORT", "1")
+        .env("RAIL_TYPO", "x");
+
+    let output = tokio::task::block_in_place(|| command.output().unwrap());
+
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert_eq!(String::from_utf8_lossy(&output.stderr), "");
 }
 
 #[test]

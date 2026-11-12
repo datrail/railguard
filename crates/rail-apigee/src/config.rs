@@ -47,13 +47,7 @@ impl Config {
                 .get(RETIRED_MAX_MESSAGE_MB)
                 .retired(&format!("{MAX_MESSAGE_MB} sets the limit")),
         ];
-        let port = settings
-            .get(PORT)
-            .parsed(parse_port)
-            .map(|port| port.unwrap_or(DEFAULT_PORT));
-        if let Ok(port) = &port {
-            settings.describe(PORT, port);
-        }
+        let port = read_port(settings);
         let max_message_mb = settings
             .get(MAX_MESSAGE_MB)
             .parsed(parse_max_message_mb)
@@ -90,6 +84,18 @@ impl Config {
             rail_center,
         })
     }
+}
+
+/// `RAIL_CALLOUT_PORT`, where the server listens: all `rail probe` reads.
+pub fn read_port(settings: &mut Settings) -> Result<u16, Refused> {
+    let port = settings
+        .get(PORT)
+        .parsed(parse_port)
+        .map(|port| port.unwrap_or(DEFAULT_PORT));
+    if let Ok(port) = &port {
+        settings.describe(PORT, port);
+    }
+    port
 }
 
 fn parse_port(text: &str) -> Result<u16, String> {

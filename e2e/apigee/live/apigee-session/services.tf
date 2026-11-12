@@ -64,6 +64,7 @@ resource "google_cloud_run_v2_service" "callout" {
 
     containers {
       image = data.google_artifact_registry_docker_image.image["callout"].self_link
+      args  = ["gateway"]
 
       # gRPC needs HTTP/2 end to end.
       ports {

@@ -15,6 +15,7 @@ x-ext: &ext
   build:
     context: ../..
     dockerfile: crates/rail-envoy/Dockerfile
+  command: ["proxy"]
   healthcheck:
     test: ["CMD", "rail", "probe"]
     interval: 1s

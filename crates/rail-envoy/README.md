@@ -40,13 +40,14 @@ has an `_`.
 
 ## At startup
 
-It logs `starting`, with its version and commit, then reads every setting, and prints every refusal at once and exits 2,
-so they're all fixed in one round; a socket it can't listen on exits 2 too. A socket left by an earlier run is replaced,
-and anything else at the path refused; the socket is made `0660`, since Envoy runs in its group as another user. Then it
-logs a `setting` line for each setting it uses, with its value and whether it came from the environment or the default,
-a secret only as `set` or `unset`. A value that weakens something is logged as a warning saying what
-(`RAIL_DISABLED=true`, an `http://` Rail Center), and so is a `RAIL_…` variable nothing reads, as a likely typo. It
-starts fetching the ticket, then logs `serving Envoy`. Every line, `starting` included, is in the format
+It runs as `rail-envoy proxy` (`rail proxy` in its image), its one role. The role has no default: none, or another, is a
+usage error, exit 2. It logs `starting`, with its version, commit and role, then reads every setting, and prints every
+refusal at once and exits 2, so they're all fixed in one round; a socket it can't listen on exits 2 too. A socket left
+by an earlier run is replaced, and anything else at the path refused; the socket is made `0660`, since Envoy runs in its
+group as another user. Then it logs a `setting` line for each setting it uses, with its value and whether it came from
+the environment or the default, a secret only as `set` or `unset`. A value that weakens something is logged as a warning
+saying what (`RAIL_DISABLED=true`, an `http://` Rail Center), and so is a `RAIL_…` variable nothing reads, as a likely
+typo. It starts fetching the ticket, then logs `serving Envoy`. Every line, `starting` included, is in the format
 `RAIL_LOG_FORMAT` names: text by default, or JSON.
 
 ## When Rail Center is down
@@ -90,7 +91,8 @@ Every setting it reads, its own and those both hosts share, is in
 
 It serves `grpc.health.v1` on the same socket: SERVING while it serves, NOT_SERVING once it's stopping.
 `rail-envoy probe` (`rail probe` in its image) asks it, for an exec probe, and exits 0 only on SERVING; it waits at most
-5 s, so give the probe a longer timeout.
+5 s, so give the probe a longer timeout. It names no role, since the server answers for its own, and reads only
+`RAIL_EXT_SOCKET`.
 
 ## Shutdown
 
@@ -113,8 +115,8 @@ checks, and its dependencies' licences in `/THIRD-PARTY-NOTICES`. Its first log 
 and the commit.
 
 `docker build -f crates/rail-envoy/Dockerfile .` builds it, from the repository root: distroless, as uid 10001, serving
-on `/run/rail/ext.sock`, in a volume to share with Envoy. The binary is `/usr/local/bin/rail`: for a health check, run
-`rail probe`.
+on `/run/rail/ext.sock`, in a volume to share with Envoy. The binary is `/usr/local/bin/rail`, the entrypoint, with no
+default role: run the image with `proxy`, and for a health check, run `rail probe`.
 
 ## From source
 
