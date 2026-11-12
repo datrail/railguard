@@ -163,8 +163,8 @@ The largest request body judged, in MiB, as sent (an encoded body isn't decoded)
 The unix socket ext_authz, ext_proc and the health checks are served on, for an Envoy sharing it.
 
 - **Required** unless `RAIL_CALLOUT_PORT` is set, and refused with it: exactly one says where it listens. No default, so
-  a deployment can't serve on a socket where it meant a port. In the image, `/run/rail/ext.sock`, in the `/run/rail`
-  volume.
+  a deployment can't serve on a socket where it meant a port; the image sets none either. To share it with Envoy in the
+  image's `/run/rail` volume, set `/run/rail/ext.sock`.
 - **Accepted:** an absolute path.
 - **Read by:** `rail-envoy`, either role; with `RAIL_CALLOUT_PORT`, the only settings `rail probe` judges, to ask the
   server.
