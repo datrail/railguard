@@ -168,8 +168,8 @@ more to stop, so 6 s in all.
 - **The proxy and ext_proc's full-duplex body mode:** the proxy doesn't send that body back yet, so Envoy answers 500
   and nothing reaches the upstream. Every other body mode, and ext_authz with a body, passes the body whole. The gateway
   supports full duplex.
-- **The gateway's memory:** it holds each call's body until it's judged: up to `RAIL_MAX_BODY_MB` per call in flight, or
-  about twice that for a body sent without a `content-length`. Size its memory for the calls it serves at once.
+- **The gateway's memory:** it holds each call's body until it's judged, which can take up to about twice
+  `RAIL_MAX_BODY_MB` per call in flight. Size its memory for the calls it serves at once.
 - **An encoded body isn't decoded:** a `Content-Encoding: gzip` call reads as naming no endpoint, so under
   `binding_fallback: pass` it escapes every rule on `request.endpoint_key`. Apigee decompresses before its callout;
   Envoy and GCP's load balancer don't.

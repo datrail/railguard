@@ -37,8 +37,6 @@ const PARTIAL_BODY: &str = "x-envoy-auth-partial-body";
 #[derive(Clone)]
 pub struct GatewayCallouts {
     pub gateway: Option<Arc<Gateway>>,
-    /// The largest body judged: past it, a streamed body is refused as it arrives.
-    pub max_body_bytes: usize,
 }
 
 /// ext_authz: judges the request with the body Envoy sends (`with_request_body`).
@@ -139,24 +137,40 @@ impl ExternalProcessor for GatewayCallouts {
     ) -> Result<tonic::Response<ProcessStream>, Status> {
         let mut inbound = request.into_inner();
         let (replies, outbound) = mpsc::channel(16);
-        let mut exchange = Exchange {
-            callouts: self.clone(),
-            mode: None,
-            first: true,
-            pending: None,
-            done: false,
-        };
+        let gateway = self.gateway.clone();
         // Several answers can follow one message, so they go through a channel.
         tokio::spawn(async move {
-            while let Some(Ok(message)) = inbound.next().await {
-                let sent = match exchange.on(message).await {
-                    Ok(answers) => send(&replies, answers).await,
+            let Some(Ok(first)) = inbound.next().await else {
+                return;
+            };
+            if first.observability_mode {
+                tracing::error!(
+                    "ext_proc in observability mode: its answers are ignored, so nothing could be enforced"
+                );
+                let refused = Status::failed_precondition(
+                    "rail-envoy's gateway enforces, so it can't run in observability mode",
+                );
+                let _ = replies.send(Err(refused)).await;
+                return;
+            }
+            let mut exchange = Exchange {
+                gateway,
+                mode: first
+                    .protocol_config
+                    .as_ref()
+                    .and_then(|config| BodySendMode::try_from(config.request_body_mode).ok()),
+                stage: Stage::Headers,
+            };
+            let mut messages = tokio_stream::once(Ok(first)).chain(inbound);
+            while let Some(Ok(message)) = messages.next().await {
+                let answers = match exchange.on(message).await {
+                    Ok(answers) => answers,
                     Err(status) => {
                         let _ = replies.send(Err(status)).await;
-                        Err(())
+                        return;
                     }
                 };
-                if sent.is_err() {
+                if send(&replies, answers).await.is_none() {
                     return;
                 }
             }
@@ -166,6 +180,8 @@ impl ExternalProcessor for GatewayCallouts {
         ))))
     }
 }
+
+type Replies = mpsc::Sender<Result<ProcessingResponse, Status>>;
 
 // What one message is answered with: answers ready now, or a full-duplex request forwarded,
 // whose body goes back a chunk at a time, so it's never copied whole.
@@ -178,15 +194,13 @@ enum Answers {
     },
 }
 
-async fn send(
-    replies: &mpsc::Sender<Result<ProcessingResponse, Status>>,
-    answers: Answers,
-) -> Result<(), ()> {
+// None once nobody reads the answers.
+async fn send(replies: &Replies, answers: Answers) -> Option<()> {
     let send_one = |response| replies.send(Ok(reply(response)));
     match answers {
         Answers::Now(responses) => {
             for response in responses {
-                send_one(response).await.map_err(|_| ())?;
+                send_one(response).await.ok()?;
             }
         }
         Answers::BodyBack {
@@ -194,7 +208,7 @@ async fn send(
             body,
             trailers,
         } => {
-            send_one(headers_response(removed)).await.map_err(|_| ())?;
+            send_one(headers_response(removed)).await.ok()?;
             // With trailers, they end the stream; without, the last chunk does, even an empty one.
             let mut chunks: Vec<&[u8]> = body.chunks(CHUNK_BYTES).collect();
             if chunks.is_empty() && !trailers {
@@ -207,29 +221,37 @@ async fn send(
                     end_of_stream: !trailers && index == last,
                     ..Default::default()
                 };
-                send_one(streamed(chunk)).await.map_err(|_| ())?;
+                send_one(streamed(chunk)).await.ok()?;
             }
             if trailers {
                 send_one(Response::RequestTrailers(TrailersResponse::default()))
                     .await
-                    .map_err(|_| ())?;
+                    .ok()?;
             }
         }
     }
-    Ok(())
+    Some(())
 }
 
-// One request's stream: what's gathered of it, and how Envoy sends its body.
+// One request's stream: how Envoy sends its body, and where the request is.
 struct Exchange {
-    callouts: GatewayCallouts,
+    gateway: Option<Arc<Gateway>>,
     mode: Option<BodySendMode>,
-    first: bool,
-    pending: Option<Pending>,
+    stage: Stage,
+}
+
+enum Stage {
+    Headers,
+    // Its headers held, its body growing, until it ends.
+    Gathering(Pending),
+    // Disabled: every phase goes on as it came.
+    Passing,
     // Answered whole, by a refusal or the last of its phases: anything after is only acknowledged.
-    done: bool,
+    Done,
 }
 
 struct Pending {
+    gateway: Arc<Gateway>,
     path: String,
     method: String,
     headers: Vec<(String, String)>,
@@ -239,19 +261,6 @@ struct Pending {
 
 impl Exchange {
     async fn on(&mut self, message: ProcessingRequest) -> Result<Answers, Status> {
-        if std::mem::take(&mut self.first) {
-            if message.observability_mode {
-                tracing::error!(
-                    "ext_proc in observability mode: its answers are ignored, so nothing could be enforced"
-                );
-                return Err(Status::failed_precondition(
-                    "rail-envoy's gateway enforces, so it can't run in observability mode",
-                ));
-            }
-            self.mode = message
-                .protocol_config
-                .and_then(|config| BodySendMode::try_from(config.request_body_mode).ok());
-        }
         let request = message
             .request
             .ok_or_else(|| Status::invalid_argument("the message names no phase"))?;
@@ -281,37 +290,31 @@ impl Exchange {
             .map(|header| (header.key.clone(), read_value(header)));
         let request = read_request(sent);
         let removed = withheld(&request.lines);
-        // Reserved once, when its size is known and within the cap.
-        let capacity = request
-            .lines
-            .iter()
-            .find(|(name, _)| name.eq_ignore_ascii_case("content-length"))
-            .and_then(|(_, value)| value.parse::<usize>().ok())
-            .filter(|&length| length <= self.callouts.max_body_bytes)
-            .unwrap_or(0);
+        let Some(gateway) = self.gateway.clone() else {
+            // Disabled: nothing to judge, so nothing to gather.
+            self.stage = Stage::Passing;
+            return Answers::Now(vec![headers_response(removed)]);
+        };
         let pending = Pending {
+            gateway,
             path: request.path,
             method: request.method,
             headers: request.lines,
             removed,
-            body: Vec::with_capacity(capacity),
+            body: Vec::new(),
         };
         if headers.end_of_stream {
-            self.done = true;
-            return self.judge(pending, Ending::Headers).await;
-        }
-        if self.callouts.gateway.is_none() {
-            // Disabled: nothing to judge, so nothing to gather.
-            return Answers::Now(vec![headers_response(pending.removed)]);
+            self.stage = Stage::Done;
+            return judge(pending, Ending::Headers, self.mode).await;
         }
         match self.mode {
             Some(BodySendMode::Buffered) => {
                 let answer = headers_response(pending.removed.clone());
-                self.pending = Some(pending);
+                self.stage = Stage::Gathering(pending);
                 Answers::Now(vec![answer])
             }
             Some(BodySendMode::FullDuplexStreamed) => {
-                self.pending = Some(pending);
+                self.stage = Stage::Gathering(pending);
                 Answers::Now(Vec::new())
             }
             mode => {
@@ -326,81 +329,83 @@ impl Exchange {
     }
 
     async fn on_body(&mut self, body: HttpBody) -> Answers {
-        if self.done {
-            return Answers::Now(Vec::new());
-        }
-        let Some(pending) = self.pending.as_mut() else {
-            if self.callouts.gateway.is_some() {
-                tracing::error!("refused unjudged: ext_proc sent a body before its headers");
-                return self.refuse(Answer::CannotApply);
+        match std::mem::replace(&mut self.stage, Stage::Done) {
+            Stage::Done => Answers::Now(Vec::new()),
+            Stage::Passing => {
+                self.stage = Stage::Passing;
+                Answers::Now(vec![pass_body(body, self.mode)])
             }
-            // Disabled: passed on as it came.
-            return Answers::Now(vec![pass_body(body, self.mode)]);
-        };
-        pending.body.extend_from_slice(&body.body);
-        if pending.body.len() > self.callouts.max_body_bytes {
-            tracing::warn!(
-                bytes = pending.body.len(),
-                limit = self.callouts.max_body_bytes,
-                "refused unjudged: the body is past RAIL_MAX_BODY_MB"
-            );
-            return self.refuse(Answer::TooLarge);
+            Stage::Headers => {
+                tracing::error!("refused unjudged: ext_proc sent a body before its headers");
+                self.refuse(Answer::CannotApply)
+            }
+            Stage::Gathering(mut pending) => {
+                pending.body.extend_from_slice(&body.body);
+                let limit = pending.gateway.max_body_bytes();
+                if pending.body.len() > limit {
+                    tracing::warn!(
+                        bytes = pending.body.len(),
+                        limit,
+                        "refused unjudged: the body is past RAIL_MAX_BODY_MB"
+                    );
+                    return self.refuse(Answer::TooLarge);
+                }
+                // Buffered, the one message is the whole body, trailers or not.
+                if !body.end_of_stream && self.mode != Some(BodySendMode::Buffered) {
+                    self.stage = Stage::Gathering(pending);
+                    return Answers::Now(Vec::new());
+                }
+                judge(pending, Ending::Body, self.mode).await
+            }
         }
-        // Buffered, the one message is the whole body, trailers or not.
-        if !body.end_of_stream && self.mode != Some(BodySendMode::Buffered) {
-            return Answers::Now(Vec::new());
-        }
-        let pending = self.pending.take().expect("held above");
-        self.done = true;
-        self.judge(pending, Ending::Body).await
     }
 
     // The trailers end a request still gathered: full duplex's body, or no body at all.
     async fn on_trailers(&mut self) -> Answers {
-        match self.pending.take() {
-            Some(pending) if !self.done => {
-                self.done = true;
-                self.judge(pending, Ending::Trailers).await
-            }
+        match std::mem::replace(&mut self.stage, Stage::Done) {
+            Stage::Gathering(pending) => judge(pending, Ending::Trailers, self.mode).await,
             _ => Answers::Now(vec![Response::RequestTrailers(TrailersResponse::default())]),
         }
     }
 
     fn refuse(&mut self, answer: Answer) -> Answers {
-        self.done = true;
-        self.pending = None;
+        self.stage = Stage::Done;
         Answers::Now(vec![immediate(answer)])
     }
+}
 
-    // The answers to every phase held, in order, or a refusal.
-    async fn judge(&self, pending: Pending, ending: Ending) -> Answers {
-        let removed = pending.removed;
-        let Some(gateway) = &self.callouts.gateway else {
-            return Answers::Now(vec![headers_response(removed)]);
-        };
-        let call = Call {
-            path: pending.path,
-            method: pending.method,
-            body: pending.body,
-            headers: pending.headers,
-        };
-        let (answer, call) = gateway.handle(call).await;
-        if answer != Answer::Forward {
-            return Answers::Now(vec![immediate(answer)]);
-        }
-        let full_duplex = self.mode == Some(BodySendMode::FullDuplexStreamed);
-        match ending {
-            Ending::Headers => Answers::Now(vec![headers_response(removed)]),
-            Ending::Body | Ending::Trailers if full_duplex => Answers::BodyBack {
-                removed,
-                body: call.body,
-                trailers: ending == Ending::Trailers,
-            },
-            // Buffered, its headers were answered when they came.
-            Ending::Body => Answers::Now(vec![Response::RequestBody(BodyResponse::default())]),
-            Ending::Trailers => {
-                Answers::Now(vec![Response::RequestTrailers(TrailersResponse::default())])
-            }
+// The answers to every phase held, in order, or a refusal.
+async fn judge(pending: Pending, ending: Ending, mode: Option<BodySendMode>) -> Answers {
+    let Pending {
+        gateway,
+        path,
+        method,
+        headers,
+        removed,
+        body,
+    } = pending;
+    let call = Call {
+        path,
+        method,
+        body,
+        headers,
+    };
+    let (answer, call) = gateway.handle(call).await;
+    if answer != Answer::Forward {
+        return Answers::Now(vec![immediate(answer)]);
+    }
+    let full_duplex = mode == Some(BodySendMode::FullDuplexStreamed);
+    match ending {
+        Ending::Headers => Answers::Now(vec![headers_response(removed)]),
+        Ending::Body | Ending::Trailers if full_duplex => Answers::BodyBack {
+            removed,
+            body: call.body,
+            trailers: ending == Ending::Trailers,
+        },
+        // Buffered, its headers were answered when they came.
+        Ending::Body => Answers::Now(vec![Response::RequestBody(BodyResponse::default())]),
+        Ending::Trailers => {
+            Answers::Now(vec![Response::RequestTrailers(TrailersResponse::default())])
         }
     }
 }

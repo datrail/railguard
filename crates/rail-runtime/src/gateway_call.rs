@@ -83,6 +83,11 @@ impl Gateway {
         }
     }
 
+    /// The largest body it judges; a host gathering a body can refuse it sooner.
+    pub fn max_body_bytes(&self) -> usize {
+        self.settings.max_body_bytes
+    }
+
     /// Whether it's ready, and its state in readiness's words: `held` once a bundle is, else
     /// `none`.
     pub fn readiness(&self) -> (bool, &'static str) {

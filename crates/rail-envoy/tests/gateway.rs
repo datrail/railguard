@@ -368,27 +368,20 @@ async fn buffered_answers_the_headers_at_once_and_judges_the_one_body_message() 
     assert_eq!(bodiless.len(), 2, "{bodiless:?}");
     assert_eq!(removed(&bodiless[0]), WITHHELD);
     assert_eq!(refused(&bodiless[1]).0, 403);
-}
 
-#[tokio::test(flavor = "multi_thread")]
-async fn a_body_past_grpcs_own_4_mib_default_is_judged_whole_in_one_message() {
-    let socket = TempSocket::new("gw-message");
-    let (_server, _rail_center) = judging(&socket.path, DENYING_FORBIDDEN, &[]).await;
-    let body = tool_call("allowed", 5 * 1024 * 1024);
-
-    let buffered = process(
+    // Past gRPC's own 4 MiB default, whole in one message.
+    let large = tool_call("allowed", 5 * 1024 * 1024);
+    let replies = process(
         &socket.path,
-        Some(BodySendMode::Buffered),
-        vec![post(false), chunk(&body, true)],
+        buffered,
+        vec![post(false), chunk(&large, true)],
     )
     .await
     .unwrap();
     assert!(
-        matches!(buffered[1], Response::RequestBody(_)),
-        "{buffered:?}"
+        matches!(replies[1], Response::RequestBody(_)),
+        "{replies:?}"
     );
-    let size = i64::try_from(body.len()).unwrap();
-    assert!(check(&socket.path, &[], &body, size).await.is_ok());
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -428,6 +421,20 @@ async fn a_request_without_a_body_is_judged_from_its_headers_and_other_modes_ref
         assert_eq!(replies.len(), 1, "{mode:?}: {replies:?}");
         assert_eq!(refused(&replies[0]), cannot_apply, "{mode:?}");
     }
+
+    // Observability mode: Envoy would ignore every answer, so the stream is refused.
+    let observing = ProcessingRequest {
+        request: Some(post(true)),
+        observability_mode: true,
+        ..Default::default()
+    };
+    let mut replies = ExternalProcessorClient::new(channel(&socket.path).await)
+        .process(tokio_stream::iter([observing]))
+        .await
+        .unwrap()
+        .into_inner();
+    let error = replies.message().await.unwrap_err();
+    assert_eq!(error.code(), tonic::Code::FailedPrecondition, "{error:?}");
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -512,26 +519,6 @@ async fn it_is_ready_once_it_holds_a_bundle() {
     rail_center.release_bundle();
     tokio::task::block_in_place(|| rail_test_support::wait_until(|| ready().status.success()));
     assert_eq!(stdout(&ready()), "serving (gateway: held)\n");
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn a_stream_in_observability_mode_is_refused() {
-    let socket = TempSocket::new("gw-observe");
-    let (_server, _rail_center) = judging(&socket.path, DENYING_FORBIDDEN, &[]).await;
-    let request = ProcessingRequest {
-        request: Some(post(true)),
-        observability_mode: true,
-        ..Default::default()
-    };
-
-    let mut replies = ExternalProcessorClient::new(channel(&socket.path).await)
-        .process(tokio_stream::iter([request]))
-        .await
-        .unwrap()
-        .into_inner();
-
-    let error = replies.message().await.unwrap_err();
-    assert_eq!(error.code(), tonic::Code::FailedPrecondition, "{error:?}");
 }
 
 // What ext_authz answers: the headers removed, or the refusal's status and body.
@@ -639,6 +626,13 @@ async fn ext_authz_judges_the_body_sent_and_never_a_body_cut_short() {
         cannot_apply
     );
     assert_eq!(check(&socket.path, &[], &[], -1).await, cannot_apply);
+    // Past gRPC's own 4 MiB default, whole in one message.
+    let large = tool_call("allowed", 5 * 1024 * 1024);
+    assert!(
+        check(&socket.path, &[], &large, length(&large))
+            .await
+            .is_ok()
+    );
     // Only Envoy's header saying so makes a body partial.
     for flag in [("x-flag", "true"), ("x-envoy-auth-partial-body", "false")] {
         assert!(
@@ -677,6 +671,22 @@ async fn disabled_it_forwards_everything_removing_the_withheld_headers() {
     let (back, _, ended) = streamed_back(&replies[1..]);
     assert!(back == forbidden);
     assert!(ended);
+    let buffered = process(
+        &socket.path,
+        Some(BodySendMode::Buffered),
+        vec![post(false), chunk(&forbidden, true)],
+    )
+    .await
+    .unwrap();
+    assert_eq!(removed(&buffered[0]), WITHHELD);
+    let Response::RequestBody(body) = &buffered[1] else {
+        panic!("not a body response: {buffered:?}");
+    };
+    assert!(
+        body.response
+            .as_ref()
+            .is_none_or(|common| common.body_mutation.is_none())
+    );
 
     let length = i64::try_from(forbidden.len()).unwrap();
     assert!(check(&socket.path, &[], &forbidden, length).await.is_ok());

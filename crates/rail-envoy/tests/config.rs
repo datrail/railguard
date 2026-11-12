@@ -420,8 +420,7 @@ fn the_gateway_reads_its_own_settings_and_refuses_a_cap_past_the_message_limit()
     .unwrap();
     assert_eq!(enabled.rail_center.unwrap().1.gateway_slug, "gw-1");
 
-    // Below the limit is fine; at it, refused, naming both.
-    assert!(gateway(&[("RAIL_DISABLED", "true"), ("RAIL_MAX_BODY_MB", "15")]).is_ok());
+    // At the limit, refused, naming both; the default above is below it.
     let errors = gateway(&[("RAIL_DISABLED", "true"), ("RAIL_MAX_BODY_MB", "16")]).unwrap_err();
     assert_eq!(errors.len(), 1, "{errors:?}");
     assert!(

@@ -159,7 +159,6 @@ async fn serve_gateway(config: GatewayConfig, startup: &Startup) -> ExitCode {
     };
     let callouts = GatewayCallouts {
         gateway: gateway.clone(),
-        max_body_bytes: config.max_body_bytes,
     };
     let (statuses, readiness) = Statuses::start(
         &[
