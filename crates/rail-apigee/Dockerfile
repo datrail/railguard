@@ -26,4 +26,5 @@ COPY --from=build /out/rail-apigee /usr/local/bin/rail
 USER 10001:10001
 # RAIL_CALLOUT_PORT's default, and Cloud Run's.
 EXPOSE 8080
-CMD ["/usr/local/bin/rail"]
+# No default role: a deployment names the one it runs, e.g. `gateway`.
+ENTRYPOINT ["/usr/local/bin/rail"]

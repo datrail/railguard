@@ -20,8 +20,16 @@ pub fn free_port() -> u16 {
         .port()
 }
 
-// Only what's set here, so the caller's own RAIL_* variables can't change a run.
+/// The binary serving as the gateway on `port`, with Rail Center disabled.
 pub fn rail_apigee(port: u16) -> Command {
+    let mut command = with_settings(port);
+    command.arg("gateway");
+    command
+}
+
+/// The binary with no arguments; only what's set here, so the caller's own RAIL_* variables
+/// can't change a run.
+pub fn with_settings(port: u16) -> Command {
     let mut command = isolate(env!("CARGO_BIN_EXE_rail-apigee"));
     command
         .env("RAIL_DISABLED", "true")
@@ -30,7 +38,7 @@ pub fn rail_apigee(port: u16) -> Command {
 }
 
 pub fn probe(port: u16, arguments: &[&str]) -> Output {
-    rail_apigee(port)
+    with_settings(port)
         .arg("probe")
         .args(arguments)
         .output()

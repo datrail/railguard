@@ -5,6 +5,8 @@ that once for both, so they can't differ. See the [main README](../../README.md)
 
 ## Entry points
 
+- **`parse_command`** reads the command line, `<role>` or `probe [--ready]`, against the `Role`s a binary carries; a
+  role has no default;
 - **`terminated`** waits for SIGTERM or Ctrl-C;
 - **`drain_until_deadline`** lets the server finish what it's serving, for at most 5 s, then cuts the connections still
   open;

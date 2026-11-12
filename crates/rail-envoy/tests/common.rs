@@ -34,8 +34,16 @@ impl Drop for TempSocket {
     }
 }
 
-// Only what's set here, so the caller's own RAIL_* variables can't change a run.
+/// The binary serving as the proxy on `socket`, with Rail Center disabled.
 pub fn rail_envoy(socket: &Path) -> Command {
+    let mut command = with_settings(socket);
+    command.arg("proxy");
+    command
+}
+
+/// The binary with no arguments; only what's set here, so the caller's own RAIL_* variables
+/// can't change a run.
+pub fn with_settings(socket: &Path) -> Command {
     let mut command = isolate(env!("CARGO_BIN_EXE_rail-envoy"));
     command
         .env("RAIL_DISABLED", "true")
@@ -54,5 +62,5 @@ pub fn serve(command: Command, socket: &Path) -> Server {
 }
 
 pub fn probe(socket: &Path) -> Output {
-    rail_envoy(socket).arg("probe").output().unwrap()
+    with_settings(socket).arg("probe").output().unwrap()
 }

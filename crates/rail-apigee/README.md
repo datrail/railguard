@@ -41,12 +41,13 @@ every name holding `_` (some upstreams read it as `-`), and the flow variable `r
 
 ## At startup
 
-It logs `starting`, with its version and commit, then reads every setting, and prints every refusal at once and exits 2,
-so they're all fixed in one round; a port it can't listen on exits 2 too. Then it logs a `setting` line for each one it
-uses, with its value and whether it came from the environment or the default, a secret only as `set` or `unset`. A value
-that weakens something is logged as a warning saying what (`RAIL_DISABLED=true`, an `http://` Rail Center), and so is a
-`RAIL_…` variable nothing reads, as a likely typo. It starts fetching the bundle and the signing keys, then logs
-`serving the ExternalCallout service`.
+It runs as `rail-apigee gateway` (`rail gateway` in its image), its one role. The role has no default: none, or another,
+is a usage error, exit 2. It logs `starting`, with its version, commit and role, then reads every setting, and prints
+every refusal at once and exits 2, so they're all fixed in one round; a port it can't listen on exits 2 too. Then it
+logs a `setting` line for each one it uses, with its value and whether it came from the environment or the default, a
+secret only as `set` or `unset`. A value that weakens something is logged as a warning saying what
+(`RAIL_DISABLED=true`, an `http://` Rail Center), and so is a `RAIL_…` variable nothing reads, as a likely typo. It
+starts fetching the bundle and the signing keys, then logs `serving the ExternalCallout service`.
 
 ## When Rail Center is down
 
@@ -86,7 +87,7 @@ Every setting it reads, its own and those both hosts share, is in
 It serves `grpc.health.v1` on the same port: `""` is liveness, SERVING while it serves; `rail.Ready` is readiness,
 SERVING once a bundle is held or with Rail Center disabled. Both are NOT_SERVING once it's stopping.
 `rail-apigee probe [--ready]` (`rail probe [--ready]` in its image) asks it, for an exec probe, and exits 0 only on
-SERVING.
+SERVING. It names no role, since the server answers for its own, and reads only `RAIL_CALLOUT_PORT`.
 
 ## Shutdown
 
@@ -117,8 +118,8 @@ checks, and its dependencies' licences in `/THIRD-PARTY-NOTICES`. Its first log 
 and the commit.
 
 `docker build -f crates/rail-apigee/Dockerfile .` builds it, from the repository root: distroless, as uid 10001, serving
-on 8080. The binary is `/usr/local/bin/rail`: for a health check, run `rail probe`, or `rail probe --ready` for
-readiness.
+on 8080. The binary is `/usr/local/bin/rail`, the entrypoint, with no default role: run the image with `gateway` (Cloud
+Run's `args`), and for a health check, run `rail probe`, or `rail probe --ready` for readiness.
 
 ## From source
 
