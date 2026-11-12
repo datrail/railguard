@@ -21,8 +21,9 @@ flowchart LR
   center[Rail Center] -->|ticket| ext
 ```
 
-ext_authz and ext_proc over a unix socket, `RAIL_EXT_SOCKET`, or TCP, `RAIL_CALLOUT_PORT`: exactly one must be set. For
-a request to a protected host, matched on its `:authority`, it sets:
+ext_authz and ext_proc over a unix socket, `RAIL_EXT_SOCKET`, or TCP, `RAIL_CALLOUT_PORT`: exactly one must be set.
+Whatever reaches it can ask for the ticket, so the proxy belongs on the socket; a port must be reachable only by Envoy.
+For a request to a protected host, matched on its `:authority`, it sets:
 
 - `x-rail` with this proxy's ticket from Rail Center, or `x-rail-status` with why there is none (neither under
   `RAIL_DISABLED=true`);

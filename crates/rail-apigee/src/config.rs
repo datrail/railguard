@@ -18,7 +18,7 @@ const RETIRED_MAX_MESSAGE_MB: &str = "RAIL_GATEWAY_GRPC_MAX_MESSAGE_MB";
 // Below any body cap: a larger request's answer, echoing it, is past what Apigee takes.
 const APIGEE_LIMIT: HostLimit = HostLimit {
     bytes: MAX_ANSWERED_BYTES,
-    why: "Apigee's answer limit",
+    why: "Apigee's answer limit, on the whole request",
 };
 
 /// What this process runs with.
@@ -86,5 +86,5 @@ impl Config {
 
 /// `RAIL_CALLOUT_PORT`, where the server listens: all `rail probe` reads.
 pub fn read_port(settings: &mut Settings) -> Result<u16, Refused> {
-    read_callout_port(settings, Some(DEFAULT_PORT)).map(|port| port.unwrap_or(DEFAULT_PORT))
+    read_callout_port(settings, Some(DEFAULT_PORT)).map(|port| port.expect("a default is given"))
 }

@@ -96,8 +96,6 @@ How each log line is written, on stderr.
   `invalid configuration` with the reason in `refusal`, and a usage error is one too, `invalid arguments` with the
   reason in `reason`.
 
-## rail-apigee
-
 ### `RAIL_CALLOUT_PORT`
 
 The TCP port the callout and its health checks are served on, on every interface; `rail probe` asks `127.0.0.1`.
@@ -105,6 +103,9 @@ The TCP port the callout and its health checks are served on, on every interface
 - **Default:** `8080` in `rail-apigee`; none in `rail-envoy`, which needs exactly one of it and `RAIL_EXT_SOCKET`.
 - **Accepted:** `1` to `65535`.
 - **Read by:** both hosts; it's what `rail probe` judges to ask the server (with `RAIL_EXT_SOCKET` in `rail-envoy`).
+- Whatever reaches it reaches the callout: in `rail-envoy`'s proxy role, that's the ticket, so only Envoy may reach it.
+
+## rail-apigee
 
 ### `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`
 
@@ -147,8 +148,8 @@ The largest request body judged, in MiB, as sent (an encoded body isn't decoded)
 - **Read by:** `rail-apigee`.
 - **Past it, a call is refused unjudged,** 413 `{"error": "request body too large"}`, with a warning logged, and isn't
   reported; with `RAIL_DISABLED=true`, nothing is judged, and this isn't applied. Apigee's own limits come first: past 4
-  MiB less 1 KiB rail-apigee refuses a request (above), and past 10 MB Apigee answers 413 itself, so a value above 4 is
-  logged with the limit in force.
+  MiB less 1 KiB rail-apigee refuses a request (above), and past 10 MB Apigee answers 413 itself, so a value of 4 or
+  more is logged with the limit in force.
 
 ## rail-envoy
 

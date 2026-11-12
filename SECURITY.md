@@ -77,9 +77,11 @@ alone. Elsewhere, keep it reachable from Apigee only.
   name, over TLS unless the entry says `http://`; the reference configs check the certificate against that name. An
   entry without a port sends it to whatever port the agent names on that host. A ticket reaching a host the config
   didn't name is a report.
-- **The socket.** Whatever can connect to it can ask what rail-envoy would attach to a request, ticket included. It's
-  made `0660`, for rail-envoy's own user and group, and there's no TCP port, since anything on localhost in a pod is
-  reachable by the agent. Envoy reaches it by sharing the group: don't put the agent in it.
+- **The socket, or the port.** Whatever can connect to it can ask what rail-envoy would attach to a request, ticket
+  included. The socket is made `0660`, for rail-envoy's own user and group; Envoy reaches it by sharing the group: don't
+  put the agent in it. A port (`RAIL_CALLOUT_PORT`) is bound on every interface, so anything that reaches it can read
+  the ticket, the agent included if it shares the pod or network: the proxy should listen on the socket, and a port must
+  be reachable only by Envoy.
 
 ## Both hosts
 

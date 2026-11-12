@@ -32,7 +32,8 @@ fn unset_the_port_and_limit_take_their_defaults_and_rail_center_needs_its_settin
             ("RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB", "16".to_owned()),
             (
                 "RAIL_MAX_BODY_MB",
-                "15 (4193280 bytes in force: Apigee's answer limit)".to_owned()
+                "15 (4193280 bytes in force: Apigee's answer limit, on the whole request)"
+                    .to_owned()
             ),
         ]
     );

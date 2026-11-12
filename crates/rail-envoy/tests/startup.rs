@@ -32,6 +32,11 @@ fn on_a_port_it_serves_and_the_probe_finds_it_there() {
 
     assert_eq!(stdout(&probe()), "serving (proxy: disabled)\n");
     server.terminate();
+    let logs = server.read_logs();
+    assert!(
+        logs.contains(&format!("listener=\"port {port}\"")),
+        "{logs}"
+    );
     assert_eq!(server.wait_for_exit(Duration::from_secs(2)), Some(Some(0)));
 }
 
@@ -89,6 +94,9 @@ fn a_socket_left_by_an_earlier_run_is_replaced() {
     assert!(probe(&socket.path).status.success());
     server.terminate();
     assert_eq!(server.wait_for_exit(Duration::from_secs(2)), Some(Some(0)));
+    let logs = server.read_logs();
+    let listener = format!("listener=\"{}\"", socket.path.display());
+    assert!(logs.contains(&listener), "{logs}");
 }
 
 // The role has no default, and a role this binary doesn't carry is refused like any argument.

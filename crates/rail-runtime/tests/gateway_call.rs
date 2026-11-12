@@ -121,8 +121,13 @@ async fn a_body_past_the_cap_is_refused_unjudged_whatever_the_method_and_one_at_
         assert_eq!(answer, Answer::TooLarge, "{method}");
         assert_eq!(back.body, sent.body);
     }
-    assert!(started.sink.reports().is_empty());
     assert_eq!(started.gateway.handle(at_cap).await.0, Answer::Deny);
+    // Reports are sent on a task of their own: only the judged call's arrives.
+    started.sink.until_sent(1).await;
+    for _ in 0..10 {
+        tokio::task::yield_now().await;
+    }
+    assert_eq!(started.sink.reports().len(), 1);
 }
 
 #[tokio::test(start_paused = true)]
