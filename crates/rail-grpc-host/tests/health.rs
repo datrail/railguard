@@ -1,0 +1,318 @@
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use rail_grpc_host::{Address, READY, Readiness, Role, RoleCheck, RoleState, Statuses, ask_health};
+use tokio::net::TcpListener;
+use tokio_stream::StreamExt;
+use tokio_stream::wrappers::TcpListenerStream;
+use tonic::metadata::{MetadataKey, MetadataValue};
+use tonic_health::pb::health_check_response::ServingStatus;
+use tonic_health::pb::health_server::{Health, HealthServer};
+use tonic_health::pb::{HealthCheckRequest, HealthCheckResponse};
+
+async fn check(readiness: &Readiness, service: &str) -> ServingStatus {
+    let request = tonic::Request::new(HealthCheckRequest {
+        service: service.to_owned(),
+    });
+    readiness
+        .check(request)
+        .await
+        .unwrap()
+        .into_inner()
+        .status()
+}
+
+// A role whose readiness the test sets, as "up" or "down".
+fn switch(ready: bool) -> (Arc<AtomicBool>, RoleCheck) {
+    let switch = Arc::new(AtomicBool::new(ready));
+    let read = Arc::clone(&switch);
+    let check: RoleCheck = Arc::new(move || {
+        let ready = read.load(Ordering::SeqCst);
+        RoleState {
+            ready,
+            state: if ready { "up" } else { "down" },
+        }
+    });
+    (switch, check)
+}
+
+#[tokio::test]
+async fn liveness_answers_for_the_server_and_each_service_named() {
+    let (_statuses, readiness) = Statuses::start(
+        &["a.Service"],
+        vec![(Role::Proxy, Arc::new(|| RoleState::DISABLED))],
+    )
+    .await;
+
+    assert_eq!(check(&readiness, "").await, ServingStatus::Serving);
+    assert_eq!(check(&readiness, "a.Service").await, ServingStatus::Serving);
+    assert!(
+        readiness
+            .check(tonic::Request::new(HealthCheckRequest {
+                service: "b.Service".to_owned(),
+            }))
+            .await
+            .is_err()
+    );
+}
+
+// Read on each check, so it follows the role both ways; liveness never does.
+#[tokio::test]
+async fn readiness_follows_the_role_on_each_check() {
+    let (switch, role) = switch(false);
+    let (_statuses, readiness) = Statuses::start(&[], vec![(Role::Proxy, role)]).await;
+
+    assert_eq!(check(&readiness, READY).await, ServingStatus::NotServing);
+    assert_eq!(check(&readiness, "").await, ServingStatus::Serving);
+
+    switch.store(true, Ordering::SeqCst);
+    assert_eq!(check(&readiness, READY).await, ServingStatus::Serving);
+
+    switch.store(false, Ordering::SeqCst);
+    assert_eq!(check(&readiness, READY).await, ServingStatus::NotServing);
+    assert_eq!(check(&readiness, "").await, ServingStatus::Serving);
+}
+
+#[tokio::test]
+async fn ready_only_while_every_role_is() {
+    let (proxy, proxy_check) = switch(true);
+    let (gateway, gateway_check) = switch(false);
+    let (_statuses, readiness) = Statuses::start(
+        &[],
+        vec![(Role::Proxy, proxy_check), (Role::Gateway, gateway_check)],
+    )
+    .await;
+
+    assert_eq!(check(&readiness, READY).await, ServingStatus::NotServing);
+    proxy.store(false, Ordering::SeqCst);
+    assert_eq!(check(&readiness, READY).await, ServingStatus::NotServing);
+    gateway.store(true, Ordering::SeqCst);
+    assert_eq!(check(&readiness, READY).await, ServingStatus::NotServing);
+    proxy.store(true, Ordering::SeqCst);
+    assert_eq!(check(&readiness, READY).await, ServingStatus::Serving);
+}
+
+// Set at the start, as the roles are, so a watch opened before any check gets it first.
+#[tokio::test]
+async fn a_watch_gets_readiness_before_any_check() {
+    for ready in [false, true] {
+        let (_switch, role) = switch(ready);
+        let (_statuses, readiness) = Statuses::start(&[], vec![(Role::Gateway, role)]).await;
+
+        let request = tonic::Request::new(HealthCheckRequest {
+            service: READY.to_owned(),
+        });
+        let mut stream = readiness.watch(request).await.unwrap().into_inner();
+        let first = stream.next().await.unwrap().unwrap();
+
+        let expected = if ready {
+            ServingStatus::Serving
+        } else {
+            ServingStatus::NotServing
+        };
+        assert_eq!(first.status(), expected, "{ready}");
+    }
+}
+
+// A check that changes nothing tells a watcher nothing; one that changes readiness does.
+#[tokio::test]
+async fn a_watch_hears_only_a_change() {
+    let (switch, role) = switch(false);
+    let (_statuses, readiness) = Statuses::start(&[], vec![(Role::Gateway, role)]).await;
+    let request = tonic::Request::new(HealthCheckRequest {
+        service: READY.to_owned(),
+    });
+    let mut stream = readiness.watch(request).await.unwrap().into_inner();
+    assert_eq!(
+        stream.next().await.unwrap().unwrap().status(),
+        ServingStatus::NotServing
+    );
+
+    check(&readiness, READY).await;
+    switch.store(true, Ordering::SeqCst);
+    check(&readiness, READY).await;
+
+    assert_eq!(
+        stream.next().await.unwrap().unwrap().status(),
+        ServingStatus::Serving
+    );
+}
+
+// A role whose state changes on every read: the status and the breakdown must still agree.
+#[tokio::test]
+async fn the_status_and_the_breakdown_come_from_one_read() {
+    let flip = Arc::new(AtomicBool::new(false));
+    let read = Arc::clone(&flip);
+    let role: RoleCheck = Arc::new(move || {
+        let ready = !read.fetch_xor(true, Ordering::SeqCst);
+        RoleState {
+            ready,
+            state: if ready { "up" } else { "down" },
+        }
+    });
+    let (_statuses, readiness) = Statuses::start(&[], vec![(Role::Proxy, role)]).await;
+    let header = "rail-ready-proxy";
+
+    for _ in 0..4 {
+        let answer = readiness
+            .check(tonic::Request::new(HealthCheckRequest {
+                service: READY.to_owned(),
+            }))
+            .await
+            .unwrap();
+        let state = answer
+            .metadata()
+            .get(header)
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_owned();
+        let expected = if state == "up" {
+            ServingStatus::Serving
+        } else {
+            ServingStatus::NotServing
+        };
+        assert_eq!(answer.into_inner().status(), expected, "{state}");
+    }
+}
+
+// A check made while draining, on a connection still open, mustn't bring readiness back.
+#[tokio::test]
+async fn once_stopped_every_service_stays_not_serving() {
+    let (_switch, role) = switch(true);
+    let (statuses, readiness) = Statuses::start(&["a.Service"], vec![(Role::Gateway, role)]).await;
+    assert_eq!(check(&readiness, READY).await, ServingStatus::Serving);
+
+    statuses.stop().await;
+
+    for service in ["", "a.Service", READY] {
+        assert_eq!(
+            check(&readiness, service).await,
+            ServingStatus::NotServing,
+            "{service}"
+        );
+    }
+}
+
+// Readiness and its breakdown, from one check; liveness gives none.
+#[tokio::test]
+async fn readiness_gives_each_roles_state_in_its_metadata() {
+    let (_proxy, proxy_check) = switch(true);
+    let (_gateway, gateway_check) = switch(false);
+    let (statuses, readiness) = Statuses::start(
+        &[],
+        vec![(Role::Proxy, proxy_check), (Role::Gateway, gateway_check)],
+    )
+    .await;
+    let ask = |service: &str| {
+        readiness.check(tonic::Request::new(HealthCheckRequest {
+            service: service.to_owned(),
+        }))
+    };
+
+    let ready = ask(READY).await.unwrap();
+    let live = ask("").await.unwrap();
+    statuses.stop().await;
+    let stopped = ask(READY).await.unwrap();
+
+    let header = |response: &tonic::Response<HealthCheckResponse>, name: &str| {
+        let value = response.metadata().get(name);
+        value.map(|value| value.to_str().unwrap().to_owned())
+    };
+    assert_eq!(header(&ready, "rail-ready-proxy").as_deref(), Some("up"));
+    assert_eq!(
+        header(&ready, "rail-ready-gateway").as_deref(),
+        Some("down")
+    );
+    assert_eq!(header(&live, "rail-ready-proxy"), None);
+    assert_eq!(
+        header(&stopped, "rail-ready-proxy").as_deref(),
+        Some("stopping")
+    );
+    assert_eq!(
+        header(&stopped, "rail-ready-gateway").as_deref(),
+        Some("stopping")
+    );
+}
+
+async fn serve(service: HealthServer<impl Health>) -> Address {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = Address::Tcp(listener.local_addr().unwrap());
+    tokio::spawn(
+        tonic::transport::Server::builder()
+            .add_service(service)
+            .serve_with_incoming(TcpListenerStream::new(listener)),
+    );
+    address
+}
+
+#[tokio::test]
+async fn the_probe_prints_the_breakdown_after_the_status_by_role() {
+    let (switch, proxy_check) = switch(true);
+    let gateway_check: RoleCheck = Arc::new(|| RoleState {
+        ready: true,
+        state: "held",
+    });
+    let (_statuses, readiness) = Statuses::start(
+        &[],
+        vec![(Role::Proxy, proxy_check), (Role::Gateway, gateway_check)],
+    )
+    .await;
+    let address = serve(HealthServer::new(readiness)).await;
+
+    assert_eq!(
+        ask_health(&address, READY).await,
+        Ok("serving (gateway: held, proxy: up)".to_owned())
+    );
+    switch.store(false, Ordering::SeqCst);
+    assert_eq!(
+        ask_health(&address, READY).await,
+        Err("not serving: NOT_SERVING (gateway: held, proxy: down)".to_owned())
+    );
+    assert_eq!(ask_health(&address, "").await, Ok("serving".to_owned()));
+}
+
+// What a server sends is shown made safe, as any wire value is.
+struct Hostile;
+
+#[tonic::async_trait]
+impl Health for Hostile {
+    async fn check(
+        &self,
+        _request: tonic::Request<HealthCheckRequest>,
+    ) -> Result<tonic::Response<HealthCheckResponse>, tonic::Status> {
+        let mut response = tonic::Response::new(HealthCheckResponse {
+            status: ServingStatus::Serving as i32,
+        });
+        let value = MetadataValue::try_from("\u{202e}held".as_bytes()).unwrap();
+        response.metadata_mut().insert("rail-ready-proxy", value);
+        let long =
+            MetadataKey::from_bytes(format!("rail-ready-{}", "a".repeat(300)).as_bytes()).unwrap();
+        response
+            .metadata_mut()
+            .insert(long, MetadataValue::from_static("held"));
+        Ok(response)
+    }
+
+    type WatchStream = <Readiness as Health>::WatchStream;
+
+    async fn watch(
+        &self,
+        _request: tonic::Request<HealthCheckRequest>,
+    ) -> Result<tonic::Response<Self::WatchStream>, tonic::Status> {
+        Err(tonic::Status::unimplemented("watch"))
+    }
+}
+
+#[tokio::test]
+async fn the_probe_sanitizes_the_breakdown() {
+    let address = serve(HealthServer::new(Hostile)).await;
+
+    assert_eq!(
+        ask_health(&address, READY).await,
+        Ok(format!(
+            "serving ({}…: held, proxy: \\u{{202e}}held)",
+            "a".repeat(255)
+        ))
+    );
+}

@@ -1,9 +1,9 @@
 //! The Apigee host, in the gateway role: Apigee's ExternalCallout service over TCP, each request
 //! judged against the policy bundle held.
 //!
-//! `rail-apigee` (`rail` in its image) serves, with `grpc.health.v1` on the same port;
-//! `rail-apigee probe [--ready]` asks it for liveness or readiness, and exits 0 if it answers
-//! SERVING.
+//! `rail-apigee gateway` (`rail gateway` in its image) serves, with `grpc.health.v1` on the same
+//! port; `rail-apigee probe [--ready]` asks it for liveness or readiness, and exits 0 if it
+//! answers SERVING.
 //!
 //! The binary as a library: `run`, and the configuration and services it serves, which its tests
 //! drive.
@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use apigee_callout_proto::apigee::external_callout_service_server::ExternalCalloutServiceServer;
-use rail_grpc_host::Address;
+use rail_grpc_host::{Address, Command, Role, Statuses};
 use rail_runtime::{
     BundleHolder, BundleSettings, Clock, DenialReporter, Gateway, GatewaySettings, Jitter,
     KeySetHolder, RailCenterBundles, RailCenterClient, RailCenterDenials, RailCenterKeys,
@@ -32,41 +32,48 @@ use tonic_health::pb::health_server::HealthServer;
 
 use crate::callout::SEND_HEADROOM_BYTES;
 pub use crate::callout::{Callout, MAX_ANSWERED_BYTES, build_answer, read_path};
-pub use crate::config::Config;
-pub use crate::health::{READY, Readiness, Statuses};
+pub use crate::config::{Config, read_port};
+pub use crate::health::check_gateway;
 
-/// The binary: serves, or with `probe [--ready]`, asks the server on the port configured.
+/// The binary: serves as the role named, or with `probe [--ready]`, asks the server on the port
+/// configured.
 pub async fn run() -> ExitCode {
     rail_runtime::logging::init();
-    // Before the settings, so a refused configuration names the build; not for a probe, run often.
-    if std::env::args().nth(1).is_none() {
-        rail_runtime::logging::log_build();
-    }
-    // The probe reads the same configuration, so it asks the port where it's served.
+    let command_line: Vec<String> = std::env::args().collect();
+    let command = match rail_grpc_host::parse_command(&[Role::Gateway], &command_line) {
+        Ok(command) => command,
+        Err(usage) => {
+            eprintln!("{usage}");
+            // A usage error shares the exit status of a refused configuration.
+            return ExitCode::from(rail_runtime::EXIT_CODE);
+        }
+    };
     let variables = Variables::from_process();
     let mut settings = Settings::new(&variables);
-    let config = Config::read(&mut settings);
-    let (config, startup) = settings
-        .finish("RAIL_", config)
-        .unwrap_or_else(|errors| errors.exit());
-    rail_runtime::logging::set_level(config.log_level);
-    let arguments: Vec<String> = std::env::args().skip(1).collect();
-    let arguments: Vec<&str> = arguments.iter().map(String::as_str).collect();
-    let local = Address::Tcp(SocketAddr::from((Ipv4Addr::LOCALHOST, config.port)));
-    match arguments.as_slice() {
-        [] => serve(config, &startup).await,
-        ["probe"] => rail_grpc_host::probe(&local, "").await,
-        ["probe", "--ready"] => rail_grpc_host::probe(&local, READY).await,
-        _ => {
-            let program = rail_grpc_host::program_name();
-            eprintln!("unknown arguments {arguments:?}; usage: {program} [probe [--ready]]");
-            // A usage error shares the exit status of a refused configuration.
-            ExitCode::from(rail_runtime::EXIT_CODE)
+    match command {
+        Command::Serve(role) => {
+            // Before the settings, so a refused configuration names the build.
+            rail_runtime::logging::log_build(role.as_str());
+            let config = Config::read(&mut settings);
+            let (config, startup) = settings
+                .finish("RAIL_", config)
+                .unwrap_or_else(|errors| errors.exit());
+            rail_runtime::logging::set_level(config.log_level);
+            serve(role, config, &startup).await
+        }
+        // Only the port: the rest is the server's to judge, and the probe names no role.
+        Command::Probe { ready } => {
+            let port = read_port(&mut settings);
+            let (port, _) = settings
+                .finish("RAIL_", port)
+                .unwrap_or_else(|errors| errors.exit());
+            let local = Address::Tcp(SocketAddr::from((Ipv4Addr::LOCALHOST, port)));
+            rail_grpc_host::probe(&local, rail_grpc_host::probe_service(ready)).await
         }
     }
 }
 
-async fn serve(config: Config, startup: &Startup) -> ExitCode {
+async fn serve(role: Role, config: Config, startup: &Startup) -> ExitCode {
     rail_runtime::logging::log_settings(startup);
     // SIGTERM is how a container is stopped; as PID 1 nothing handles it unless we do.
     let terminate = match signal(SignalKind::terminate()) {
@@ -100,7 +107,7 @@ async fn serve(config: Config, startup: &Startup) -> ExitCode {
         None => (None, None, None),
     };
     let callout = Callout { gateway };
-    let (statuses, readiness) = Statuses::start(bundles).await;
+    let (statuses, readiness) = Statuses::start(&[], vec![(role, check_gateway(bundles))]).await;
     tracing::info!(port = config.port, "serving the ExternalCallout service");
     let (draining, drain_started) = oneshot::channel();
     let stopping = async {

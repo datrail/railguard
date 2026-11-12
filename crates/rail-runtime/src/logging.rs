@@ -132,9 +132,10 @@ fn log_panic(info: &PanicHookInfo<'_>) {
     }
 }
 
-/// The release this binary was built as, and its commit: the first line a host logs.
-pub fn log_build() {
-    tracing::info!(version = VERSION, revision = REVISION, "starting");
+/// The release this binary was built as, its commit, and the role it serves as: the first line a
+/// host logs.
+pub fn log_build(role: &str) {
+    tracing::info!(version = VERSION, revision = REVISION, role, "starting");
 }
 
 // Each setting as used, then each RAIL_ variable nothing read, likely a typo; never its value.

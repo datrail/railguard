@@ -1,12 +1,12 @@
+mod command;
+mod health;
+
 use std::os::unix::net::UnixListener as StdUnixListener;
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
-use rail_grpc_host::{Address, ask_health, probe};
-use tokio::net::TcpListener;
-use tokio_stream::wrappers::TcpListenerStream;
-use tonic_health::ServingStatus;
+use rail_grpc_host::{Address, READY, ask_health, probe, probe_service};
 
 // A socket path in a directory of its own, removed after.
 struct TempSocket {
@@ -29,29 +29,6 @@ impl Drop for TempSocket {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.dir);
     }
-}
-
-// Over TCP, as rail-apigee serves, each service asked by its name.
-#[tokio::test]
-async fn the_probe_asks_a_tcp_server_for_the_service_named() {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let address = Address::Tcp(listener.local_addr().unwrap());
-    let (health, health_service) = tonic_health::server::health_reporter();
-    health.set_service_status("", ServingStatus::Serving).await;
-    health
-        .set_service_status("test.Ready", ServingStatus::NotServing)
-        .await;
-    tokio::spawn(
-        tonic::transport::Server::builder()
-            .add_service(health_service)
-            .serve_with_incoming(TcpListenerStream::new(listener)),
-    );
-
-    assert_eq!(ask_health(&address, "").await, Ok("serving".to_owned()));
-    assert_eq!(
-        ask_health(&address, "test.Ready").await,
-        Err("not serving: NOT_SERVING".to_owned())
-    );
 }
 
 // The innermost cause, which over TCP tonic wraps twice.
@@ -92,4 +69,10 @@ async fn the_probe_fails_on_a_socket_nothing_answers() {
         Err(format!("no answer on {} within 5s", socket.path.display()))
     );
     assert!(started.elapsed() < Duration::from_secs(8));
+}
+
+#[test]
+fn the_probe_asks_readiness_only_with_ready() {
+    assert_eq!(probe_service(true), READY);
+    assert_eq!(probe_service(false), "");
 }

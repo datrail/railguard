@@ -16,6 +16,7 @@ x-callout: &callout
   build:
     context: ../..
     dockerfile: crates/rail-apigee/Dockerfile
+  command: ["gateway"]
   healthcheck:
     test: ["CMD", "rail", "probe"]
     interval: 1s

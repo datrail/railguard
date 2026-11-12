@@ -1,14 +1,15 @@
 //! The Envoy host, in the proxy role: ext_authz and ext_proc on a unix socket Envoy shares. For
 //! now it allows every request, with this proxy's ticket in `x-rail` to a protected host.
 //!
-//! `rail-envoy` (`rail` in its image) serves, with `grpc.health.v1` on the same socket;
-//! `rail-envoy probe` asks it, and exits 0 if the server answers SERVING, for a container health
-//! check in an image with no shell.
+//! `rail-envoy proxy` (`rail proxy` in its image) serves, with `grpc.health.v1` on the same
+//! socket; `rail-envoy probe [--ready]` asks it for liveness or readiness, and exits 0 if it
+//! answers SERVING, for a container health check in an image with no shell.
 //!
 //! The binary as a library: `run`, and the configuration and callouts it serves, which its tests
 //! drive.
 
 mod config;
+mod health;
 mod services;
 mod xrail;
 
@@ -21,7 +22,7 @@ use std::time::SystemTime;
 
 use envoy_types::ext_authz::v3::pb::AuthorizationServer;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
-use rail_grpc_host::Address;
+use rail_grpc_host::{Address, Command, Role, Statuses};
 use rail_runtime::{
     Jitter, RailCenterClient, RailCenterSettings, RailCenterThread, RailCenterTickets, Settings,
     Startup, TicketHolder, TicketSettings, Variables,
@@ -31,40 +32,51 @@ use tokio::signal::unix::{SignalKind, signal};
 use tokio::sync::oneshot;
 use tokio_stream::wrappers::UnixListenerStream;
 use tonic::server::NamedService;
-use tonic_health::ServingStatus;
-use tonic_health::server::HealthReporter;
+use tonic_health::pb::health_server::HealthServer;
 
-pub use crate::config::Config;
+pub use crate::config::{Config, read_socket};
+pub use crate::health::check_proxy;
 pub use crate::services::Callouts;
 
-/// The binary: serves, or with `probe`, asks the server on the socket configured.
+/// The binary: serves as the role named, or with `probe [--ready]`, asks the server on the
+/// socket configured.
 pub async fn run() -> ExitCode {
     rail_runtime::logging::init();
-    // Before the settings, so a refused configuration names the build; not for a probe, run often.
-    if std::env::args().nth(1).is_none() {
-        rail_runtime::logging::log_build();
-    }
-    // The probe reads the same configuration, so it checks the socket where it's served.
+    let command_line: Vec<String> = std::env::args().collect();
+    let command = match rail_grpc_host::parse_command(&[Role::Proxy], &command_line) {
+        Ok(command) => command,
+        Err(usage) => {
+            eprintln!("{usage}");
+            // A usage error shares the exit status of a refused configuration.
+            return ExitCode::from(rail_runtime::EXIT_CODE);
+        }
+    };
     let variables = Variables::from_process();
     let mut settings = Settings::new(&variables);
-    let config = Config::read(&mut settings);
-    let (config, startup) = settings
-        .finish("RAIL_", config)
-        .unwrap_or_else(|errors| errors.exit());
-    rail_runtime::logging::set_level(config.log_level);
-    match std::env::args().nth(1).as_deref() {
-        None => serve(config, &startup).await,
-        Some("probe") => rail_grpc_host::probe(&Address::Unix(config.socket.clone()), "").await,
-        Some(argument) => {
-            let program = rail_grpc_host::program_name();
-            eprintln!("unknown argument {argument:?}; usage: {program} [probe]");
-            // A usage error shares the exit status of a refused configuration.
-            ExitCode::from(rail_runtime::EXIT_CODE)
+    match command {
+        Command::Serve(role) => {
+            // Before the settings, so a refused configuration names the build.
+            rail_runtime::logging::log_build(role.as_str());
+            let config = Config::read(&mut settings);
+            let (config, startup) = settings
+                .finish("RAIL_", config)
+                .unwrap_or_else(|errors| errors.exit());
+            rail_runtime::logging::set_level(config.log_level);
+            serve(role, config, &startup).await
+        }
+        // Only the socket: the rest is the server's to judge, and the probe names no role.
+        Command::Probe { ready } => {
+            let socket = read_socket(&mut settings);
+            let (socket, _) = settings
+                .finish("RAIL_", socket)
+                .unwrap_or_else(|errors| errors.exit());
+            rail_grpc_host::probe(&Address::Unix(socket), rail_grpc_host::probe_service(ready))
+                .await
         }
     }
 }
 
-async fn serve(config: Config, startup: &Startup) -> ExitCode {
+async fn serve(role: Role, config: Config, startup: &Startup) -> ExitCode {
     rail_runtime::logging::log_settings(startup);
     // SIGTERM is how a container is stopped; as PID 1 nothing handles it unless we do.
     let terminate = match signal(SignalKind::terminate()) {
@@ -93,18 +105,24 @@ async fn serve(config: Config, startup: &Startup) -> ExitCode {
         tickets,
         protected_hosts: Arc::new(config.protected_hosts),
     };
-    // Only answered once serving; the ticket never changes it, so nothing restarts us for it.
-    let (health, health_service) = tonic_health::server::health_reporter();
-    report_status(&health, ServingStatus::Serving).await;
+    // Liveness never reads the ticket, so nothing restarts us for it; readiness does.
+    let (statuses, readiness) = Statuses::start(
+        &[
+            AuthorizationServer::<Callouts>::NAME,
+            ExternalProcessorServer::<Callouts>::NAME,
+        ],
+        vec![(role, check_proxy(callouts.tickets.clone()))],
+    )
+    .await;
     tracing::info!("serving Envoy");
     let (draining, drain_started) = oneshot::channel();
     let stopping = async {
         rail_grpc_host::terminated(terminate).await;
-        report_status(&health, ServingStatus::NotServing).await;
+        statuses.stop().await;
         let _ = draining.send(());
     };
     let server = tonic::transport::Server::builder()
-        .add_service(health_service)
+        .add_service(HealthServer::new(readiness))
         .add_service(AuthorizationServer::new(callouts.clone()))
         .add_service(ExternalProcessorServer::new(callouts))
         .serve_with_incoming_shutdown(UnixListenerStream::new(listener), stopping);
@@ -167,15 +185,4 @@ fn bind(socket: &Path) -> Result<UnixListener, String> {
         )
     })?;
     Ok(listener)
-}
-
-// The server as a whole, and each callout by its service name.
-async fn report_status(health: &HealthReporter, status: ServingStatus) {
-    health.set_service_status("", status).await;
-    health
-        .set_service_status(AuthorizationServer::<Callouts>::NAME, status)
-        .await;
-    health
-        .set_service_status(ExternalProcessorServer::<Callouts>::NAME, status)
-        .await;
 }

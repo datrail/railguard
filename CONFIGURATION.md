@@ -17,8 +17,8 @@ Runs the host without Rail Center: nothing is fetched from it and nothing report
 - **Default:** `false`.
 - **Accepted:** a boolean.
 - **Read by:** both hosts.
-- `rail-apigee` then allows every call it can answer, and is ready at once. `rail-envoy` still routes the protected
-  hosts, but sets neither `x-rail` nor `x-rail-status`.
+- Both hosts are then ready at once. `rail-apigee` allows every call it can answer. `rail-envoy` still routes the
+  protected hosts, but sets neither `x-rail` nor `x-rail-status`.
 - The other settings are still judged if they're set, so a mistake in one shows before Rail Center is turned on. It's
   logged as a warning when `true`.
 
@@ -82,7 +82,7 @@ The TCP port the callout and its health checks are served on.
 
 - **Default:** `8080`.
 - **Accepted:** `1` to `65535`.
-- **Read by:** `rail-apigee`; `rail probe` asks this port too.
+- **Read by:** `rail-apigee`; it's the only setting `rail probe` judges, to ask this port.
 
 ### `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`
 
@@ -124,7 +124,7 @@ The unix socket ext_authz, ext_proc and the health checks are served on.
 
 - **Default:** `/run/rail/ext.sock`.
 - **Accepted:** an absolute path.
-- **Read by:** `rail-envoy`; `rail probe` asks this socket too.
+- **Read by:** `rail-envoy`; it's the only setting `rail probe` judges, to ask this socket.
 
 ### `RAIL_PROXY_PROTECTED_HOSTS`
 

@@ -28,4 +28,5 @@ COPY --from=build /out/rail-envoy /usr/local/bin/rail
 COPY --from=build --chown=10001:10001 /out/run /run
 USER 10001:10001
 VOLUME /run/rail
-CMD ["/usr/local/bin/rail"]
+# No default role: a deployment names the one it runs, e.g. `proxy`.
+ENTRYPOINT ["/usr/local/bin/rail"]

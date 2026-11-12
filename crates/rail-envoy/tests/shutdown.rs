@@ -6,7 +6,9 @@ use envoy_types::pb::envoy::service::ext_proc::v3::{HttpHeaders, ProcessingReque
 use tokio_stream::StreamExt;
 use tonic::transport::Endpoint;
 
-use crate::common::{TempSocket, rail_envoy, serve, start_serving};
+use rail_test_support::stdout;
+
+use crate::common::{TempSocket, probe, probe_ready, rail_envoy, serve, start_serving};
 
 #[test]
 fn with_nothing_open_it_stops_at_once() {
@@ -26,7 +28,7 @@ fn with_nothing_open_it_stops_at_once() {
 }
 
 #[test]
-fn with_rail_center_unreachable_it_serves_and_stops_at_once() {
+fn with_rail_center_unreachable_it_serves_unready_and_stops_at_once() {
     let socket = TempSocket::new("rail-center");
     let mut command = rail_envoy(&socket.path);
     command.envs([
@@ -38,6 +40,15 @@ fn with_rail_center_unreachable_it_serves_and_stops_at_once() {
         ("RAIL_PROXY_PROTECTED_HOSTS", "mcp.example.com"),
     ]);
     let mut server = serve(command, &socket.path);
+
+    // Live with no ticket, but not ready; the states are tested in readiness.rs.
+    let ready = probe_ready(&socket.path);
+    assert_eq!(ready.status.code(), Some(1));
+    assert_eq!(
+        stdout(&ready),
+        "not serving: NOT_SERVING (proxy: issuer-unreachable)\n"
+    );
+    assert_eq!(stdout(&probe(&socket.path)), "serving\n");
     let started = Instant::now();
 
     server.terminate();

@@ -42,7 +42,7 @@ Each host's README has its own flow: [rail-apigee](crates/rail-apigee/README.md#
 | [`crates/rail-policy`](crates/rail-policy/README.md)                   | The rules language: reads policy bundles and tickets, and judges a call.                                         |
 | [`crates/rail-policy-py`](crates/rail-policy-py/README.md)             | The language as a Python package, `datrail-policy`, for Rail Center and RailDash.                                |
 | [`crates/rail-runtime`](crates/rail-runtime/README.md)                 | What a running host does around the language: its settings, Rail Center, and the gateway's judging of each call. |
-| [`crates/rail-grpc-host`](crates/rail-grpc-host/README.md)             | The process parts both gRPC hosts share: health checks and shutdown.                                             |
+| [`crates/rail-grpc-host`](crates/rail-grpc-host/README.md)             | The process parts both gRPC hosts share: the command line, health checks and shutdown.                           |
 | [`crates/rail-apigee`](crates/rail-apigee/README.md)                   | The gateway, as an Apigee callout.                                                                               |
 | [`crates/apigee-callout-proto`](crates/apigee-callout-proto/README.md) | Apigee's callout interface, as Rust code.                                                                        |
 | [`crates/rail-envoy`](crates/rail-envoy/README.md)                     | The proxy, as an Envoy extension.                                                                                |

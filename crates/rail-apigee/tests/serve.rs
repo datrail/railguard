@@ -5,7 +5,8 @@ use std::time::{Duration, Instant};
 
 use apigee_callout_proto::apigee::{MessageContext, Request, Strings, flow_variable};
 use prost::Message;
-use rail_apigee::{MAX_ANSWERED_BYTES, READY};
+use rail_apigee::MAX_ANSWERED_BYTES;
+use rail_grpc_host::READY;
 use tonic::transport::Endpoint;
 use tonic_health::pb::HealthCheckRequest;
 use tonic_health::pb::health_check_response::ServingStatus;
@@ -13,7 +14,7 @@ use tonic_health::pb::health_client::HealthClient;
 
 use rail_test_support::{Server, stdout, wait_until};
 
-use crate::common::{RailCenter, client, free_port, probe, rail_apigee, serve};
+use crate::common::{RailCenter, client, free_port, probe, rail_apigee, serve, with_settings};
 
 // At `enforce`, denying every call without a ticket.
 const DENYING: &str = r#"{
@@ -117,7 +118,7 @@ async fn with_rail_center_disabled_it_is_ready_and_allows_every_call() {
     let port = free_port();
     let server = tokio::task::block_in_place(|| serve(rail_apigee(port), port));
     let ready = tokio::task::block_in_place(|| probe(port, &["--ready"]));
-    assert_eq!(stdout(&ready), "serving\n");
+    assert_eq!(stdout(&ready), "serving (gateway: disabled)\n");
 
     let answer = client(port)
         .await
@@ -131,6 +132,11 @@ async fn with_rail_center_disabled_it_is_ready_and_allows_every_call() {
     server.terminate();
     let (code, logs) = tokio::task::block_in_place(|| read_exit(server));
     assert_eq!(code, Some(0), "{logs}");
+    let first = logs.lines().next().unwrap_or_default();
+    assert!(
+        first.contains(r#"starting version="dev" revision="unknown" role="gateway""#),
+        "{logs}"
+    );
 }
 
 // The answer echoes the content, so it may be a little past the limit a request is held to.
@@ -237,7 +243,7 @@ async fn with_no_bundle_it_is_not_ready_and_a_call_is_forwarded() {
     let _server = tokio::task::block_in_place(|| serve(command, port));
     let ready = tokio::task::block_in_place(|| probe(port, &["--ready"]));
     assert_eq!(ready.status.code(), Some(1));
-    assert_eq!(stdout(&ready), "not serving: NOT_SERVING\n");
+    assert_eq!(stdout(&ready), "not serving: NOT_SERVING (gateway: none)\n");
 
     let answer = client(port)
         .await
@@ -250,14 +256,44 @@ async fn with_no_bundle_it_is_not_ready_and_a_call_is_forwarded() {
     assert_echoed(&answer);
 }
 
+// The role has no default, and a role this binary doesn't carry is refused like any argument.
 #[test]
-fn an_unknown_argument_is_a_usage_error_and_serves_nothing() {
-    let output = rail_apigee(free_port()).arg("serve").output().unwrap();
+fn with_no_role_or_another_binarys_it_serves_nothing() {
+    for (arguments, expected) in [
+        (
+            &[][..],
+            "no role given; usage: rail-apigee gateway | rail-apigee probe [--ready]",
+        ),
+        (
+            &["proxy"][..],
+            r#"unknown arguments ["proxy"]; usage: rail-apigee gateway | rail-apigee probe [--ready]"#,
+        ),
+    ] {
+        let output = with_settings(free_port()).args(arguments).output().unwrap();
 
-    assert_eq!(output.status.code(), Some(2));
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains("usage: rail-apigee [probe [--ready]]")
-    );
+        assert_eq!(output.status.code(), Some(2), "{arguments:?}");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains(expected), "{stderr}");
+        assert!(!stderr.contains("starting"), "{stderr}");
+    }
+}
+
+// It reads only the port, so a setting only the server reads, refused there, can't fail it.
+#[tokio::test(flavor = "multi_thread")]
+async fn the_probe_reads_only_the_port() {
+    let port = free_port();
+    let _server = tokio::task::block_in_place(|| serve(rail_apigee(port), port));
+    let mut command = with_settings(port);
+    command
+        .args(["probe", "--ready"])
+        .env("RAIL_DISABLED", "false")
+        .env("RAIL_GATEWAY_PORT", "1")
+        .env("RAIL_TYPO", "x");
+
+    let output = tokio::task::block_in_place(|| command.output().unwrap());
+
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert_eq!(String::from_utf8_lossy(&output.stderr), "");
 }
 
 #[test]
@@ -319,12 +355,16 @@ async fn readiness_checks_alone_see_the_bundle_arrive() {
         let _server = serve(with_rail_center(port, &rail_center.url()), port);
         assert_eq!(
             stdout(&probe(port, &["--ready"])),
-            "not serving: NOT_SERVING\n"
+            "not serving: NOT_SERVING (gateway: none)\n"
         );
 
         rail_center.release_bundle();
 
         wait_until(|| probe(port, &["--ready"]).status.success());
+        assert_eq!(
+            stdout(&probe(port, &["--ready"])),
+            "serving (gateway: held)\n"
+        );
     });
 }
 

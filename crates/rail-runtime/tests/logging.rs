@@ -247,7 +247,7 @@ fn the_build_is_logged_with_its_version_and_revision() {
     let logs = Logs::default();
     {
         let _logging = logs.capture();
-        log_build();
+        log_build("proxy");
     }
 
     let text = logs.text();
@@ -255,7 +255,7 @@ fn the_build_is_logged_with_its_version_and_revision() {
     // Tests build without RAIL_VERSION and RAIL_REVISION.
     assert_eq!(
         line.trim_end(),
-        r#"INFO rail_runtime::logging: starting version="dev" revision="unknown""#
+        r#"INFO rail_runtime::logging: starting version="dev" revision="unknown" role="proxy""#
     );
 }
 
