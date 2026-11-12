@@ -133,6 +133,20 @@ async fn with_rail_center_disabled_it_is_ready_and_allows_every_call() {
     assert_eq!(code, Some(0), "{logs}");
 }
 
+#[test]
+fn starting_names_the_role() {
+    let port = free_port();
+    let server = serve(rail_apigee(port), port);
+    server.terminate();
+    let (_, logs) = read_exit(server);
+
+    let first = logs.lines().next().unwrap_or_default();
+    assert!(
+        first.contains(r#"starting version="dev" revision="unknown" role="gateway""#),
+        "{logs}"
+    );
+}
+
 // The answer echoes the content, so it may be a little past the limit a request is held to.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_request_at_the_limit_is_answered_and_one_past_it_refused() {

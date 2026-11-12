@@ -7,7 +7,7 @@ use rail_grpc_host::{
 use tokio::net::TcpListener;
 use tokio_stream::StreamExt;
 use tokio_stream::wrappers::TcpListenerStream;
-use tonic::metadata::MetadataValue;
+use tonic::metadata::{MetadataKey, MetadataValue};
 use tonic_health::pb::health_check_response::ServingStatus;
 use tonic_health::pb::health_server::{Health, HealthServer};
 use tonic_health::pb::{HealthCheckRequest, HealthCheckResponse};
@@ -123,19 +123,88 @@ async fn ready_only_while_every_role_is() {
     assert_eq!(check(&readiness, READY).await, ServingStatus::Serving);
 }
 
-// Set at the start, so a watch opened before any check gets it first.
+// Set at the start, as the roles are, so a watch opened before any check gets it first.
 #[tokio::test]
 async fn a_watch_gets_readiness_before_any_check() {
-    let (_switch, role) = switch(true);
-    let (_statuses, readiness) = Statuses::start(&[], vec![(Role::Gateway, role)]).await;
+    for ready in [false, true] {
+        let (_switch, role) = switch(ready);
+        let (_statuses, readiness) = Statuses::start(&[], vec![(Role::Gateway, role)]).await;
 
+        let request = tonic::Request::new(HealthCheckRequest {
+            service: READY.to_owned(),
+        });
+        let mut stream = readiness.watch(request).await.unwrap().into_inner();
+        let first = stream.next().await.unwrap().unwrap();
+
+        let expected = if ready {
+            ServingStatus::Serving
+        } else {
+            ServingStatus::NotServing
+        };
+        assert_eq!(first.status(), expected, "{ready}");
+    }
+}
+
+// A check that changes nothing tells a watcher nothing; one that changes readiness does.
+#[tokio::test]
+async fn a_watch_hears_only_a_change() {
+    let (switch, role) = switch(false);
+    let (_statuses, readiness) = Statuses::start(&[], vec![(Role::Gateway, role)]).await;
     let request = tonic::Request::new(HealthCheckRequest {
         service: READY.to_owned(),
     });
     let mut stream = readiness.watch(request).await.unwrap().into_inner();
-    let first = stream.next().await.unwrap().unwrap();
+    assert_eq!(
+        stream.next().await.unwrap().unwrap().status(),
+        ServingStatus::NotServing
+    );
 
-    assert_eq!(first.status(), ServingStatus::Serving);
+    check(&readiness, READY).await;
+    switch.store(true, Ordering::SeqCst);
+    check(&readiness, READY).await;
+
+    assert_eq!(
+        stream.next().await.unwrap().unwrap().status(),
+        ServingStatus::Serving
+    );
+}
+
+// A role whose state changes on every read: the status and the breakdown must still agree.
+#[tokio::test]
+async fn the_status_and_the_breakdown_come_from_one_read() {
+    let flip = Arc::new(AtomicBool::new(false));
+    let read = Arc::clone(&flip);
+    let role: RoleCheck = Arc::new(move || {
+        let ready = !read.fetch_xor(true, Ordering::SeqCst);
+        RoleState {
+            ready,
+            state: if ready { "up" } else { "down" },
+        }
+    });
+    let (_statuses, readiness) = Statuses::start(&[], vec![(Role::Proxy, role)]).await;
+    let header = breakdown_header(Role::Proxy);
+
+    for _ in 0..4 {
+        let answer = readiness
+            .check(tonic::Request::new(HealthCheckRequest {
+                service: READY.to_owned(),
+            }))
+            .await
+            .unwrap();
+        let state = answer
+            .metadata()
+            .get(&header)
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_owned();
+        let expected = if state == "up" {
+            ServingStatus::Serving
+        } else {
+            ServingStatus::NotServing
+        };
+        assert_eq!(answer.into_inner().status(), expected, "{state}");
+    }
 }
 
 // A check made while draining, on a connection still open, mustn't bring readiness back.
@@ -239,6 +308,11 @@ impl Health for Hostile {
         });
         let value = MetadataValue::try_from("\u{202e}held".as_bytes()).unwrap();
         response.metadata_mut().insert("rail-ready-proxy", value);
+        let long =
+            MetadataKey::from_bytes(format!("rail-ready-{}", "a".repeat(300)).as_bytes()).unwrap();
+        response
+            .metadata_mut()
+            .insert(long, MetadataValue::from_static("held"));
         Ok(response)
     }
 
@@ -258,6 +332,9 @@ async fn the_probe_sanitizes_the_breakdown() {
 
     assert_eq!(
         ask_health(&address, READY).await,
-        Ok("serving (proxy: \\u{202e}held)".to_owned())
+        Ok(format!(
+            "serving ({}…: held, proxy: \\u{{202e}}held)",
+            "a".repeat(255)
+        ))
     );
 }

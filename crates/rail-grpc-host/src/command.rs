@@ -43,19 +43,17 @@ pub enum Command {
 // The role has no default, so a deployment always says which one it runs.
 pub fn parse_command(roles: &[Role], arguments: &[String]) -> Result<Command, String> {
     let arguments: Vec<&str> = arguments.iter().map(String::as_str).collect();
-    let role = match arguments.as_slice() {
-        [name] => roles.iter().find(|role| role.as_str() == *name),
-        _ => None,
-    };
-    match (arguments.as_slice(), role) {
-        (_, Some(&role)) => Ok(Command::Serve(role)),
-        (["probe"], None) => Ok(Command::Probe { ready: false }),
-        (["probe", "--ready"], None) => Ok(Command::Probe { ready: true }),
-        ([], None) => Err(format!("no role given; {}", format_usage(roles))),
-        (_, None) => Err(format!(
-            "unknown arguments {arguments:?}; {}",
-            format_usage(roles)
-        )),
+    let unknown = || format!("unknown arguments {arguments:?}; {}", format_usage(roles));
+    match arguments.as_slice() {
+        ["probe"] => Ok(Command::Probe { ready: false }),
+        ["probe", "--ready"] => Ok(Command::Probe { ready: true }),
+        [] => Err(format!("no role given; {}", format_usage(roles))),
+        [name] => roles
+            .iter()
+            .find(|role| role.as_str() == *name)
+            .map(|&role| Command::Serve(role))
+            .ok_or_else(unknown),
+        _ => Err(unknown()),
     }
 }
 

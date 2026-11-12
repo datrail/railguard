@@ -1,6 +1,7 @@
 //! `grpc.health.v1`: `""`, and each service a host names, is liveness; `rail.Ready` is readiness,
 //! SERVING while every role the process runs is ready, read from each role on each check of it,
-//! with each role's state in the answer's metadata, `rail-ready-<role>: <state>`.
+//! with each role's state in the answer's metadata, `rail-ready-<role>: <state>`. Only a check
+//! reads the roles, so a watch of `rail.Ready` sees a change once a check has.
 
 use std::sync::Arc;
 
@@ -43,8 +44,15 @@ pub struct Statuses {
     // `""` and the host's own services, SERVING while it serves.
     live: Arc<[&'static str]>,
     roles: Arc<[(Role, RoleCheck)]>,
-    // Whether shutdown started; held across each change, so none can follow it.
-    stopping: Arc<Mutex<bool>>,
+    // Held across each change, so none can follow the stop.
+    state: Arc<Mutex<State>>,
+}
+
+#[derive(Default)]
+struct State {
+    stopping: bool,
+    // What readiness was last set to, so a watcher hears only a change.
+    ready: Option<ServingStatus>,
 }
 
 impl Statuses {
@@ -61,7 +69,7 @@ impl Statuses {
             reporter: reporter.clone(),
             live: live.into(),
             roles: roles.into(),
-            stopping: Arc::default(),
+            state: Arc::default(),
         };
         for &service in statuses.live.iter() {
             statuses
@@ -70,7 +78,11 @@ impl Statuses {
                 .await;
         }
         // Before anything can stop it, and before the first check, for a watch opened first.
-        statuses.set_readiness(&statuses.read_roles()).await;
+        let mut state = statuses.state.lock().await;
+        statuses
+            .set_readiness(&mut state, &statuses.read_roles())
+            .await;
+        drop(state);
         let service = Readiness {
             inner: HealthService::from_health_reporter(reporter),
             statuses: statuses.clone(),
@@ -80,8 +92,8 @@ impl Statuses {
 
     /// Every service NOT_SERVING, for good.
     pub async fn stop(&self) {
-        let mut stopping = self.stopping.lock().await;
-        *stopping = true;
+        let mut state = self.state.lock().await;
+        state.stopping = true;
         for &service in self.live.iter().chain([&READY]) {
             self.reporter
                 .set_service_status(service, ServingStatus::NotServing)
@@ -97,14 +109,17 @@ impl Statuses {
             .collect()
     }
 
-    // `set_service_status` also tells anyone watching.
-    async fn set_readiness(&self, roles: &[(Role, RoleState)]) {
-        let status = if roles.iter().all(|(_, state)| state.ready) {
+    // `set_service_status` also tells anyone watching, so only a change is set.
+    async fn set_readiness(&self, state: &mut State, roles: &[(Role, RoleState)]) {
+        let status = if roles.iter().all(|(_, role)| role.ready) {
             ServingStatus::Serving
         } else {
             ServingStatus::NotServing
         };
-        self.reporter.set_service_status(READY, status).await;
+        if state.ready != Some(status) {
+            state.ready = Some(status);
+            self.reporter.set_service_status(READY, status).await;
+        }
     }
 }
 
@@ -135,20 +150,22 @@ impl Health for Readiness {
             return self.inner.check(request).await;
         }
         // Held until the answer is built, so its status and its breakdown come from one read.
-        let stopping = self.statuses.stopping.lock().await;
+        let mut held = self.statuses.state.lock().await;
         let roles = self.statuses.read_roles();
-        if !*stopping {
-            self.statuses.set_readiness(&roles).await;
+        let stopping = held.stopping;
+        if !stopping {
+            self.statuses.set_readiness(&mut held, &roles).await;
         }
         let mut response = self.inner.check(request).await?;
         for (role, state) in roles {
-            let state = if *stopping { STOPPING } else { state.state };
+            let state = if stopping { STOPPING } else { state.state };
             let key = MetadataKey::from_bytes(breakdown_header(role).as_bytes())
                 .expect("a role's name is a header name");
             response
                 .metadata_mut()
                 .insert(key, MetadataValue::from_static(state));
         }
+        drop(held);
         Ok(response)
     }
 

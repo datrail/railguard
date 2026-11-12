@@ -1,7 +1,7 @@
 use rail_grpc_host::{Address, ask_health};
 use rail_test_support::stdout;
 
-use crate::common::{TempSocket, probe, rail_envoy, serve, start_serving, with_settings};
+use crate::common::{TempSocket, probe, probe_ready, rail_envoy, serve, start_serving};
 
 // The probe itself is tested in rail-grpc-host; this is the binary answering it.
 #[test]
@@ -33,13 +33,6 @@ fn liveness_answers_for_ext_authz_and_ext_proc() {
         let answer = runtime.block_on(ask_health(&address, service));
         assert_eq!(answer, Ok("serving".to_owned()), "{service}");
     }
-}
-
-fn probe_ready(socket: &std::path::Path) -> std::process::Output {
-    with_settings(socket)
-        .args(["probe", "--ready"])
-        .output()
-        .unwrap()
 }
 
 #[test]

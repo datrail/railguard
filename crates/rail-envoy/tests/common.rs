@@ -64,3 +64,10 @@ pub fn serve(command: Command, socket: &Path) -> Server {
 pub fn probe(socket: &Path) -> Output {
     with_settings(socket).arg("probe").output().unwrap()
 }
+
+pub fn probe_ready(socket: &Path) -> Output {
+    with_settings(socket)
+        .args(["probe", "--ready"])
+        .output()
+        .unwrap()
+}

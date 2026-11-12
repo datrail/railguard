@@ -9,7 +9,8 @@ that once for both, so they can't differ. See the [main README](../../README.md)
   role has no default;
 - **`Statuses`** and **`Readiness`**, the health service: `""` and the services a host names are liveness; `rail.Ready`
   is readiness, SERVING while every role's `RoleCheck` says it's ready, read on each check, with each role's state in
-  the answer's metadata (`rail-ready-<role>`). Once stopping, all are NOT_SERVING for good;
+  the answer's metadata (`rail-ready-<role>`). A watch of `rail.Ready` hears a change only once a check has read it.
+  Once stopping, all are NOT_SERVING for good;
 - **`terminated`** waits for SIGTERM or Ctrl-C;
 - **`drain_until_deadline`** lets the server finish what it's serving, for at most 5 s, then cuts the connections still
   open;
