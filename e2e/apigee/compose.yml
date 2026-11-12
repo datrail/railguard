@@ -49,6 +49,8 @@ services:
   callout:
     <<: *callout
     environment:
+      # Text, for a person reading the stack's output; the driver reads no log.
+      RAIL_LOG_FORMAT: text
       RAIL_CENTER_URL: http://rail-center:8080
       RAIL_CENTER_ALLOW_HTTP: "true"
       RAIL_AUTH_MODE: bearer
@@ -70,6 +72,7 @@ services:
   callout-unreachable:
     <<: *callout
     environment:
+      RAIL_LOG_FORMAT: text
       RAIL_CENTER_URL: http://rail-center.invalid
       RAIL_CENTER_ALLOW_HTTP: "true"
       RAIL_GATEWAY_SLUG: edge

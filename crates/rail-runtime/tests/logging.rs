@@ -277,6 +277,7 @@ fn init_child() {
 fn init_logs_panics_through_the_formatter_and_libraries_from_warn() {
     let output = std::process::Command::new(std::env::current_exe().unwrap())
         .args(["--exact", "logging::init_child", "--ignored", "--nocapture"])
+        .env("RAIL_LOG_FORMAT", "text")
         .output()
         .unwrap();
 

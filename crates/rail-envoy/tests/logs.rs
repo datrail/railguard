@@ -197,3 +197,40 @@ fn under_gcp_every_line_is_json_from_starting_to_each_refusal() {
         );
     }
 }
+
+// Unset, it's JSON, or Cloud Logging's on Cloud Run, logged as detected.
+#[test]
+fn unset_the_format_is_json_or_on_cloud_run_gcp() {
+    for (platform, key, source) in [
+        (None, "level", "default"),
+        (Some("K_SERVICE"), "severity", "detected"),
+    ] {
+        let socket = TempSocket::new("detected");
+        let mut command = rail_envoy(&socket.path);
+        command.env_remove("RAIL_LOG_FORMAT");
+        if let Some(platform) = platform {
+            command.env(platform, "proxy");
+        }
+        let mut server = serve(command, &socket.path);
+        server.terminate();
+        server.wait_for_exit(Duration::from_secs(2));
+
+        let logs = server.read_logs();
+        let lines: Vec<_> = logs.lines().collect();
+        assert!(
+            lines[0].contains(&format!(
+                r#""{key}":"INFO","target":"rail_runtime::logging","message":"starting""#
+            )),
+            "{logs}"
+        );
+        let format = lines
+            .iter()
+            .find(|line| line.contains(r#""name":"RAIL_LOG_FORMAT""#))
+            .unwrap_or_else(|| panic!("{logs}"));
+        let expected = if platform.is_some() { "gcp" } else { "json" };
+        assert!(
+            format.contains(&format!(r#""value":"{expected}","source":"{source}""#)),
+            "{logs}"
+        );
+    }
+}

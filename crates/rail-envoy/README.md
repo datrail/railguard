@@ -49,7 +49,7 @@ group as another user. Then it logs a `setting` line for each setting it uses, w
 the environment or the default, a secret only as `set` or `unset`. A value that weakens something is logged as a warning
 saying what (`RAIL_DISABLED=true`, an `http://` Rail Center), and so is a `RAIL_…` variable nothing reads, as a likely
 typo. It starts fetching the ticket, then logs `serving Envoy`. Every line, `starting` included, is in the format
-`RAIL_LOG_FORMAT` names: text by default, or JSON.
+`RAIL_LOG_FORMAT` names: JSON by default, Cloud Logging's on Cloud Run, or text.
 
 ## When Rail Center is down
 

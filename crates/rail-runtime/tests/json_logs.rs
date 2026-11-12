@@ -223,9 +223,18 @@ fn init_child() {
 }
 
 fn run_child(test: &str, format: Option<&str>) -> Output {
+    run_child_on(test, format, &[])
+}
+
+// With only the platform variables in `platform`, so the caller's own can't change a run.
+fn run_child_on(test: &str, format: Option<&str>, platform: &[(&str, &str)]) -> Output {
     let mut command = Command::new(std::env::current_exe().unwrap());
     command.args(["--exact", test, "--ignored", "--nocapture"]);
     command.env_remove("RAIL_LOG_FORMAT");
+    for name in ["K_SERVICE", "CLOUD_RUN_JOB"] {
+        command.env_remove(name);
+    }
+    command.envs(platform.iter().copied());
     if let Some(format) = format {
         command.env("RAIL_LOG_FORMAT", format);
     }
@@ -266,18 +275,47 @@ fn init_reads_the_format_from_the_environment() {
 }
 
 #[test]
-fn init_logs_text_with_no_format_or_one_it_refuses() {
-    for format in [None, Some("text"), Some("logfmt")] {
-        let output = run_child("json_logs::init_child", format);
+fn init_logs_text_only_when_told_to() {
+    let output = run_child("json_logs::init_child", Some("text"));
+
+    assert!(output.status.success(), "{output:?}");
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(read_json_lines(&stderr).is_empty(), "{stderr}");
+    assert!(
+        stderr.contains(r#"INFO rail_runtime::logging: starting version="dev""#),
+        "{stderr}"
+    );
+}
+
+// With none set, or one it refuses, the platform's: gcp on Cloud Run, else json.
+#[test]
+fn init_falls_back_to_the_platforms_format() {
+    for (format, platform, key) in [
+        (None, &[][..], "level"),
+        (Some("logfmt"), &[][..], "level"),
+        (None, &[("K_SERVICE", "callout")][..], "severity"),
+        (Some("logfmt"), &[("CLOUD_RUN_JOB", "job")][..], "severity"),
+    ] {
+        let output = run_child_on("json_logs::init_child", format, platform);
 
         assert!(output.status.success(), "{output:?}");
         let stderr = String::from_utf8(output.stderr).unwrap();
-        assert!(read_json_lines(&stderr).is_empty(), "{format:?}: {stderr}");
-        assert!(
-            stderr.contains(r#"INFO rail_runtime::logging: starting version="dev""#),
-            "{format:?}: {stderr}"
-        );
+        let lines = read_json_lines(&stderr);
+        assert_eq!(lines.len(), 3, "{format:?} {platform:?}: {stderr}");
+        assert_eq!(lines[0]["message"], "starting", "{stderr}");
+        assert_eq!(lines[0][key], "INFO", "{format:?} {platform:?}: {stderr}");
     }
+}
+
+// On Cloud Run an explicit format still wins.
+#[test]
+fn init_takes_the_format_set_over_the_platforms() {
+    let output = run_child_on("json_logs::init_child", Some("json"), &[("K_SERVICE", "c")]);
+
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    let lines = read_json_lines(&stderr);
+    assert_eq!(lines[0]["level"], "INFO", "{stderr}");
+    assert!(lines[0].get("severity").is_none(), "{stderr}");
 }
 
 #[test]
@@ -332,7 +370,7 @@ fn refusals_are_an_error_line_each_in_json() {
 
 #[test]
 fn refusals_are_one_block_in_text() {
-    let output = run_child("json_logs::refusals_child", None);
+    let output = run_child("json_logs::refusals_child", Some("text"));
 
     assert_eq!(output.status.code(), Some(2), "{output:?}");
     let stderr = String::from_utf8(output.stderr).unwrap();
@@ -340,6 +378,25 @@ fn refusals_are_one_block_in_text() {
         stderr.contains(
             "Invalid configuration detected:\n  RAIL_A must be a number, got: x\n  RAIL_B is required\n"
         ),
+        "{stderr}"
+    );
+}
+
+// A format it refuses falls back to the platform's, so the refusal reads as the platform's lines.
+#[test]
+fn with_a_format_it_refuses_the_refusals_are_in_the_platforms() {
+    let output = run_child_on(
+        "json_logs::refusals_child",
+        Some("logfmt"),
+        &[("K_SERVICE", "callout")],
+    );
+
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    let lines = read_json_lines(&stderr);
+    assert_eq!(lines.len(), 2, "{stderr}");
+    assert!(
+        lines.iter().all(|line| line["severity"] == "ERROR"),
         "{stderr}"
     );
 }
