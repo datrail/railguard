@@ -176,8 +176,8 @@ more to stop, so 6 s in all.
   Envoy and GCP's load balancer don't.
 - **GCP's load balancer, failing open:** its docs say a full-duplex extension fails open on errors before the first body
   chunk. With a gateway it can't reach, it fails closed, answering 500
-  ([the live harness](../../e2e/envoy-gateway/live/README.md)); a gateway failing its stream after accepting it is
-  untested.
+  ([the live harness](../../e2e/envoy-gateway/live/README.md)), and a body held back past the extension's timeout is
+  waited for and judged; a gateway failing its stream after accepting it is untested.
 - **An `http://` protected host** gets the ticket in the clear.
 
 ## The image
