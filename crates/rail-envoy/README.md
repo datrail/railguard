@@ -120,7 +120,8 @@ waits, deadline, posture, fallbacks, denial reports and answers. A call allowed 
 - **ext_authz** must send the body: `with_request_body`, with `allow_partial_message: false`. A body cut short is
   refused 413, and a `POST` with none, unless its size is known to be 0, 503: never judged as if whole.
 - **Fail closed:** `failure_mode_allow: false`, on either filter, so a call the gateway didn't answer never reaches the
-  server.
+  server. A stream that fails before its call is answered, such as with a buffered body past
+  `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`, ends in an error, never as if answered.
 - **Time:** Envoy's `message_timeout` (ext_proc) or `timeout` (ext_authz), both 200 ms by default, must be at least 6 s:
   a call can wait 2 s for a bundle and 2 s for a key, within the gateway's 5 s.
 - **Every request header reported:** no `forward_rules` or `allowed_headers`, or a rule reading a header can't see it.

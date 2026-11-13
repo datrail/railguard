@@ -67,6 +67,6 @@ left.
 
 ## Not covered here
 
-- **Judging:** rail-envoy allows every request.
+- **Judging:** the proxy role judges nothing; [`envoy-gateway`](../envoy-gateway/README.md) covers the gateway.
 - **Signed tickets:** no case sends one.
 - **The drain and SIGTERM:** `rail-envoy`'s own tests (`tests/shutdown.rs`).
