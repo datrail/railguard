@@ -106,7 +106,10 @@ def _run_envoy_cases():
     code, answer = send_raw_post(
         _JUDGING["full duplex"], call, list(AGENT.items()), pause=_HELD_BACK_SECONDS
     )
-    if code == 403 or (code is not None and code >= 500):
+    if not _LIVE:
+        # Envoy waits for the body in full duplex, so the gateway judges it.
+        expect("the call is refused 403", 403, code)
+    elif code == 403 or (code is not None and code >= 500):
         report_ok(f"the call is refused ({code})")
     else:
         report_fail(f"the call is refused with a 403 or a 5xx: got {code} {answer[:300]}")

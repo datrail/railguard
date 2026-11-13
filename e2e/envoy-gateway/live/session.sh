@@ -52,11 +52,11 @@ read_google_time() {
   read -r _ day month year time _ < <(curl -sI https://www.googleapis.com/ | tr -d '\r' |
     sed -n 's/^[Dd]ate: //p')
   # Without it, the log query would fail quietly and the run would seem to log nothing.
-  if [[ -z "$time" || ${#month} -ne 3 || "$months" != *"$month"* ]]; then
+  before=${months%%"$month"*}
+  if [[ -z "$time" || ${#month} -ne 3 || "$before" == "$months" ]] || ((${#before} % 3)); then
     echo "No Date header from www.googleapis.com" >&2
     return 1
   fi
-  before=${months%%"$month"*}
   printf '%s-%02d-%sT%sZ' "$year" $((${#before} / 3 + 1)) "$day" "$time"
 }
 

@@ -87,6 +87,8 @@ What the gateway's design left to check on GCP (first session, 2026-11-12):
 - **The load balancer fails closed with a gateway it can't reach:** a call through `no-gateway` is answered 500, and
   nothing reaches `upstream`, in spite of Google's docs on errors before the first body chunk. Only an unreachable
   backend is tried; a gateway failing its stream after accepting it isn't.
+- **It waits for a body held back past `timeout_ms`** (second session, 2026-11-13): sent 8 s after its headers, the call
+  is judged by the gateway, 403, and nothing reaches `upstream`.
 - **It sends `protocol_config`:** the `streamed` refusal's log line names `STREAMED`, and full duplex is read from it,
   so no setting naming the mode is needed.
 - **The extension takes a 6 s timeout,** as the API says (10 to 10000 ms), not the provider's docs (1000).

@@ -86,13 +86,18 @@ async fn a_call_with_no_verdict_by_its_deadline_is_forwarded_at_observe() {
 
     assert_eq!(waiting, Answer::Forward);
     assert_eq!(judged, Answer::Forward);
+    // In the order the calls were answered: the waiting one first.
     let logs = logs.text();
+    let mut lines = logs
+        .lines()
+        .filter(|line| line.contains("the call went unjudged"));
     for why in [
-        "its deadline passed waiting for a free slot; the call went unjudged",
-        "its deadline passed while it was judged; the call went unjudged",
+        "its deadline passed waiting for a free slot",
+        "its deadline passed while it was judged",
     ] {
-        let lines = lines_with(&logs, why);
-        assert_eq!(lines.len(), 1, "{why}: {logs}");
-        assert!(lines[0].contains(r#"answer="Forward""#), "{}", lines[0]);
+        let line = lines.next().unwrap_or_default();
+        assert!(line.contains(why), "{why}: {logs}");
+        assert!(line.contains(r#"answer="Forward""#), "{line}");
     }
+    assert_eq!(lines.next(), None, "{logs}");
 }
