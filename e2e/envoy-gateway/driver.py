@@ -1,6 +1,7 @@
 """Checks rail-envoy's gateway behind Envoy, through each way Envoy calls it: ext_proc full duplex
 (as GCP's load balancer does), ext_proc buffered and ext_authz with the body; then what only Envoy
-shows: the body sent back whole, the cap, a body mode refused, and a gateway nothing can reach.
+shows: the body sent back whole, the cap, a body mode refused, a body held back past the
+extension's timeout, and a gateway nothing can reach.
 With E2E_TARGET=live (live/session.sh test), through GCP's load balancer, in full duplex only, a
 traffic extension chain picked by header; what the load balancer does without a gateway is seen,
 not asserted.
@@ -49,6 +50,10 @@ else:
     _NO_GATEWAY = (f"{_ENVOY}:10004/mcp", [])
 
 
+# Past the extension's 6 s timeout for each message (Envoy's message_timeout, timeout_ms live).
+_HELD_BACK_SECONDS = 8
+
+
 # A `tools/call` padded to about `size` bytes.
 def _build_padded_call(size):
     payload = {
@@ -92,6 +97,19 @@ def _run_envoy_cases():
     code, answer = send_raw_post(url, call, [*good, *route])
     expect("the call is answered 503", 503, code)
     expect("with the refusal's body", CALLOUT_FAILED, answer)
+    expect("nothing reached the upstream", 0, count_upstream_requests())
+
+    # An error before the first body chunk, which Google's docs say full duplex fails open on.
+    start_block("full duplex: a body held back past the extension's timeout isn't forwarded")
+    reset_journals()
+    # Judged, it would be refused 403, since it has no ticket.
+    code, answer = send_raw_post(
+        _JUDGING["full duplex"], call, list(AGENT.items()), pause=_HELD_BACK_SECONDS
+    )
+    if code == 403 or (code is not None and code >= 500):
+        report_ok(f"the call is refused ({code})")
+    else:
+        report_fail(f"the call is refused with a 403 or a 5xx: got {code} {answer[:300]}")
     expect("nothing reached the upstream", 0, count_upstream_requests())
 
     url, route = _NO_GATEWAY
