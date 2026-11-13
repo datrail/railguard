@@ -1,7 +1,7 @@
 use rail_runtime::{
     BundleSettings, HostLimit, RailCenterSettings, Refused, Settings, read_bundle_settings,
-    read_callout_port, read_disabled, read_log_format, read_log_level, read_max_body_bytes,
-    read_max_message_bytes, read_rail_center,
+    read_callout_port, read_log_format, read_log_level, read_max_body_bytes,
+    read_max_message_bytes, read_rail_center_with,
 };
 
 use crate::callout::MAX_ANSWERED_BYTES;
@@ -52,28 +52,16 @@ impl Config {
         let port = read_port(settings);
         let max_message_bytes = read_max_message_bytes(settings);
         let max_body_bytes = read_max_body_bytes(settings, Some(APIGEE_LIMIT));
-        // Whatever is set is judged either way; only an enabled Rail Center requires its settings.
-        let disabled = read_disabled(settings);
-        let enabled = disabled == Ok(false);
-        let rail_center = read_rail_center(settings, enabled);
-        let bundle = read_bundle_settings(settings, enabled);
-        disabled?;
+        let (_, rail_center) = read_rail_center_with(settings, read_bundle_settings);
         retired.into_iter().try_for_each(|retired| retired)?;
         log_format?;
-        let (log_level, port, max_message_bytes, max_body_bytes, rail_center, bundle) = (
+        let (log_level, port, max_message_bytes, max_body_bytes, rail_center) = (
             log_level?,
             port?,
             max_message_bytes?,
             max_body_bytes?,
             rail_center?,
-            bundle?,
         );
-        // Enabled, both are required, so both are Some.
-        let rail_center = enabled.then(|| {
-            rail_center
-                .zip(bundle)
-                .expect("both are required when Rail Center is used")
-        });
         Ok(Self {
             log_level,
             port,
@@ -85,6 +73,6 @@ impl Config {
 }
 
 /// `RAIL_CALLOUT_PORT`, where the server listens: all `rail probe` reads.
-pub fn read_port(settings: &mut Settings) -> Result<u16, Refused> {
+pub(crate) fn read_port(settings: &mut Settings) -> Result<u16, Refused> {
     read_callout_port(settings, Some(DEFAULT_PORT)).map(|port| port.expect("a default is given"))
 }

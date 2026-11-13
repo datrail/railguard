@@ -1,15 +1,10 @@
 //! The real binary, on a port of its own, and a Rail Center it can fetch from.
 
-use std::net::{Ipv4Addr, SocketAddr};
 use std::process::{Command, Output};
-use std::sync::{Arc, Mutex};
 
 use apigee_callout_proto::apigee::external_callout_service_client::ExternalCalloutServiceClient;
-pub use rail_test_support::free_port;
+pub use rail_test_support::{RailCenter, free_port};
 use rail_test_support::{Server, isolate};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpListener;
-use tokio::sync::watch;
 use tonic::transport::{Channel, Endpoint};
 
 /// The binary serving as the gateway on `port`, with Rail Center disabled.
@@ -54,89 +49,4 @@ pub async fn client(port: u16) -> ExternalCalloutServiceClient<Channel> {
     ExternalCalloutServiceClient::new(channel)
         .max_decoding_message_size(4 << 20)
         .max_encoding_message_size(4 << 20)
-}
-
-/// Rail Center, answering the bundle route with `bundle`, the key set with no keys, and taking
-/// every denial report; `seen` holds each request line.
-pub struct RailCenter {
-    address: SocketAddr,
-    pub seen: Arc<Mutex<Vec<String>>>,
-    bundle_held: watch::Sender<bool>,
-}
-
-impl RailCenter {
-    pub async fn start(bundle: &'static str) -> Self {
-        Self::start_with(bundle, false).await
-    }
-
-    /// One that doesn't answer the bundle route until `release_bundle`.
-    pub async fn start_holding_bundle(bundle: &'static str) -> Self {
-        Self::start_with(bundle, true).await
-    }
-
-    pub fn url(&self) -> String {
-        format!("http://{}", self.address)
-    }
-
-    pub fn release_bundle(&self) {
-        self.bundle_held.send_replace(false);
-    }
-
-    async fn start_with(bundle: &'static str, held: bool) -> Self {
-        let (bundle_held, released) = watch::channel(held);
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
-        let address = listener.local_addr().unwrap();
-        let seen = Arc::new(Mutex::new(Vec::new()));
-        let log = Arc::clone(&seen);
-        tokio::spawn(async move {
-            loop {
-                let (mut stream, _) = listener.accept().await.unwrap();
-                let log = Arc::clone(&log);
-                let mut released = released.clone();
-                tokio::spawn(async move {
-                    let mut head = Vec::new();
-                    while !head.ends_with(b"\r\n\r\n") {
-                        let mut byte = [0];
-                        if stream.read(&mut byte).await.unwrap_or(0) == 0 {
-                            return;
-                        }
-                        head.push(byte[0]);
-                    }
-                    let head = String::from_utf8_lossy(&head).into_owned();
-                    let length = head
-                        .lines()
-                        .find_map(|line| {
-                            let (name, value) = line.split_once(':')?;
-                            name.eq_ignore_ascii_case("content-length")
-                                .then(|| value.trim().parse::<usize>().unwrap())
-                        })
-                        .unwrap_or(0);
-                    let mut body = vec![0; length];
-                    stream.read_exact(&mut body).await.unwrap();
-                    let line = head.lines().next().unwrap().to_owned();
-                    let (status, reply) = if line.starts_with("GET /v1/policy-bundle") {
-                        let _ = released.wait_for(|held| !held).await;
-                        ("200 OK", bundle)
-                    } else if line.starts_with("GET /v1/jwks.json") {
-                        ("200 OK", r#"{"keys": []}"#)
-                    } else {
-                        // A denial report, which Rail Center accepts.
-                        ("202 Accepted", "{}")
-                    };
-                    let response = format!(
-                        "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{reply}",
-                        reply.len()
-                    );
-                    let _ = stream.write_all(response.as_bytes()).await;
-                    // Seen once answered, so a test waiting on it sees the caller's answer too.
-                    log.lock().unwrap().push(line);
-                });
-            }
-        });
-        Self {
-            address,
-            seen,
-            bundle_held,
-        }
-    }
 }

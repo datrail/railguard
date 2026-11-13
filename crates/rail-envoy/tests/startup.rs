@@ -94,11 +94,11 @@ fn with_no_role_or_another_binarys_it_serves_nothing() {
     for (arguments, expected) in [
         (
             &[][..],
-            "no role given; usage: rail-envoy proxy | rail-envoy probe [--ready]",
+            "no role given; usage: rail-envoy proxy | rail-envoy gateway | rail-envoy probe [--ready]",
         ),
         (
-            &["gateway"][..],
-            r#"unknown arguments ["gateway"]; usage: rail-envoy proxy | rail-envoy probe [--ready]"#,
+            &["standalone"][..],
+            r#"unknown arguments ["standalone"]; usage: rail-envoy proxy | rail-envoy gateway | rail-envoy probe [--ready]"#,
         ),
     ] {
         let socket = TempSocket::new("no-role");

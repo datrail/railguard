@@ -14,15 +14,18 @@ use std::process::ExitCode;
 use std::time::Duration;
 
 use rail_policy::sanitize;
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::signal::unix::Signal;
 use tokio::sync::oneshot;
+use tokio_stream::Stream;
 use tonic::transport::Endpoint;
+use tonic::transport::server::{Connected, Router};
 use tonic_health::pb::HealthCheckRequest;
 use tonic_health::pb::health_check_response::ServingStatus as WireStatus;
 use tonic_health::pb::health_client::HealthClient;
 
 pub use crate::command::{Command, Role, parse_command};
-pub use crate::health::{READY, Readiness, RoleCheck, RoleState, Statuses};
+pub use crate::health::{READY, Readiness, RoleCheck, RoleState, Statuses, check_held};
 
 // Envoy keeps its connections open, and an ext_proc stream lasts as long as its request.
 const SHUTDOWN_DEADLINE: Duration = Duration::from_secs(5);
@@ -30,8 +33,45 @@ const SHUTDOWN_DEADLINE: Duration = Duration::from_secs(5);
 // Longer than any answer from a live server, and within the e2e health check's timeout.
 const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 
+/// Serves `router` on `incoming` until SIGTERM or Ctrl-C, then reports NOT_SERVING and drains
+/// for at most 5 s; then runs `stop_after`, such as stopping the Rail Center thread, off the async
+/// workers. Exits 0 once stopped, 1 if the server failed.
+pub async fn serve_until_stopped<I, IO, IE>(
+    router: Router,
+    incoming: I,
+    statuses: Statuses,
+    terminate: Signal,
+    stop_after: Option<impl FnOnce() + Send + 'static>,
+) -> ExitCode
+where
+    I: Stream<Item = Result<IO, IE>>,
+    IO: AsyncRead + AsyncWrite + Connected + Unpin + Send + 'static,
+    IO::ConnectInfo: Clone + Send + Sync + 'static,
+    IE: Into<Box<dyn Error + Send + Sync>>,
+{
+    let (draining, drain_started) = oneshot::channel();
+    let stopping = async {
+        terminated(terminate).await;
+        statuses.stop().await;
+        let _ = draining.send(());
+    };
+    let server = router.serve_with_incoming_shutdown(incoming, stopping);
+    let served = drain_until_deadline(server, drain_started).await;
+    // It may block on a join, so it's kept off the async workers.
+    if let Some(stop) = stop_after {
+        let _ = tokio::task::spawn_blocking(stop).await;
+    }
+    match served {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            tracing::error!(error = %error, "the gRPC server failed");
+            ExitCode::FAILURE
+        }
+    }
+}
+
 // At the deadline the server is dropped; tonic's connection tasks end with the runtime, on exit.
-pub async fn drain_until_deadline(
+async fn drain_until_deadline(
     server: impl Future<Output = Result<(), tonic::transport::Error>>,
     mut drain_started: oneshot::Receiver<()>,
 ) -> Result<(), tonic::transport::Error> {
@@ -55,7 +95,7 @@ pub async fn drain_until_deadline(
     served
 }
 
-pub async fn terminated(mut terminate: Signal) {
+async fn terminated(mut terminate: Signal) {
     tokio::select! {
         _ = terminate.recv() => {}
         _ = tokio::signal::ctrl_c() => {}
@@ -78,15 +118,10 @@ impl fmt::Display for Address {
     }
 }
 
-/// The service `rail probe` asks for: readiness with `--ready`, else the server as a whole.
-pub fn probe_service(ready: bool) -> &'static str {
-    if ready { READY } else { "" }
-}
-
-/// Asks the server at `address` for `service`'s health, `""` being the server as a whole; prints
-/// the answer, and exits 0 only on SERVING.
-pub async fn probe(address: &Address, service: &str) -> ExitCode {
-    let answer = ask_health(address, service).await;
+/// Asks the server at `address` for its readiness, or with `ready` false, its liveness; prints the
+/// answer, and exits 0 only on SERVING.
+pub async fn probe(address: &Address, ready: bool) -> ExitCode {
+    let answer = ask_health(address, if ready { READY } else { "" }).await;
     let (Ok(line) | Err(line)) = &answer;
     println!("{line}");
     if answer.is_ok() {

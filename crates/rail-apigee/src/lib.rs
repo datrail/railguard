@@ -10,24 +10,22 @@
 
 mod callout;
 mod config;
-mod health;
 
 use std::net::{Ipv4Addr, SocketAddr};
 use std::process::ExitCode;
 
 use apigee_callout_proto::apigee::external_callout_service_server::ExternalCalloutServiceServer;
-use rail_grpc_host::{Address, Command, Role, Statuses};
-use rail_runtime::{GatewaySettings, Settings, Startup, Variables, start_gateway};
+use rail_grpc_host::{Address, Command, Role, Statuses, check_held};
+use rail_runtime::{Gateway, GatewaySettings, Settings, Startup, Variables, start_gateway};
 use tokio::net::TcpListener;
 use tokio::signal::unix::{SignalKind, signal};
-use tokio::sync::oneshot;
 use tokio_stream::wrappers::TcpListenerStream;
 use tonic_health::pb::health_server::HealthServer;
 
-use crate::callout::SEND_HEADROOM_BYTES;
-pub use crate::callout::{Callout, MAX_ANSWERED_BYTES, build_answer};
-pub use crate::config::{Config, read_port};
-pub use crate::health::check_gateway;
+use crate::callout::{Callout, SEND_HEADROOM_BYTES};
+pub use crate::callout::{MAX_ANSWERED_BYTES, build_answer};
+pub use crate::config::Config;
+use crate::config::read_port;
 
 /// The binary: serves as the role named, or with `probe [--ready]`, asks the server on the port
 /// configured.
@@ -43,26 +41,20 @@ pub async fn run() -> ExitCode {
         }
     };
     let variables = Variables::from_process();
-    let mut settings = Settings::new(&variables);
+    let settings = Settings::new(&variables);
     match command {
         Command::Serve(role) => {
             // Before the settings, so a refused configuration names the build.
             rail_runtime::logging::log_build(role.as_str());
-            let config = Config::read(&mut settings);
-            let (config, startup) = settings
-                .finish("RAIL_", config)
-                .unwrap_or_else(|errors| errors.exit());
+            let (config, startup) = settings.finish_or_exit("RAIL_", Config::read);
             rail_runtime::logging::set_level(config.log_level);
             serve(role, config, &startup).await
         }
         // Only the port: the rest is the server's to judge, and the probe names no role.
         Command::Probe { ready } => {
-            let port = read_port(&mut settings);
-            let (port, _) = settings
-                .finish("RAIL_", port)
-                .unwrap_or_else(|errors| errors.exit());
+            let (port, _) = settings.finish_or_exit("RAIL_", read_port);
             let local = Address::Tcp(SocketAddr::from((Ipv4Addr::LOCALHOST, port)));
-            rail_grpc_host::probe(&local, rail_grpc_host::probe_service(ready)).await
+            rail_grpc_host::probe(&local, ready).await
         }
     }
 }
@@ -104,31 +96,16 @@ async fn serve(role: Role, config: Config, startup: &Startup) -> ExitCode {
     let callout = Callout {
         gateway: gateway.clone(),
     };
-    let (statuses, readiness) = Statuses::start(&[], vec![(role, check_gateway(gateway))]).await;
+    let check = check_held(gateway, Gateway::readiness);
+    let (statuses, readiness) = Statuses::start(&[], vec![(role, check)]).await;
     tracing::info!(port = config.port, "serving the ExternalCallout service");
-    let (draining, drain_started) = oneshot::channel();
-    let stopping = async {
-        rail_grpc_host::terminated(terminate).await;
-        statuses.stop().await;
-        let _ = draining.send(());
-    };
     let callout = ExternalCalloutServiceServer::new(callout)
         .max_decoding_message_size(config.max_message_bytes)
         .max_encoding_message_size(config.max_message_bytes + SEND_HEADROOM_BYTES);
-    let server = tonic::transport::Server::builder()
+    let router = tonic::transport::Server::builder()
         .add_service(HealthServer::new(readiness))
-        .add_service(callout)
-        .serve_with_incoming_shutdown(TcpListenerStream::new(listener), stopping);
-    let served = rail_grpc_host::drain_until_deadline(server, drain_started).await;
-    // Its stop blocks on a join, so it's kept off the async workers.
-    if let Some(thread) = rail_center {
-        let _ = tokio::task::spawn_blocking(move || thread.stop()).await;
-    }
-    match served {
-        Ok(()) => ExitCode::SUCCESS,
-        Err(error) => {
-            tracing::error!(error = %error, "the gRPC server failed");
-            ExitCode::FAILURE
-        }
-    }
+        .add_service(callout);
+    let stop = rail_center.map(|thread| move || thread.stop());
+    let incoming = TcpListenerStream::new(listener);
+    rail_grpc_host::serve_until_stopped(router, incoming, statuses, terminate, stop).await
 }

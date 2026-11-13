@@ -112,6 +112,18 @@ impl<'a> Settings<'a> {
         self.describe(name, if secret.is_some() { "set" } else { "unset" });
     }
 
+    /// What `read` reads and what to log of the settings, as `finish` gives them; on any
+    /// refusal, they're logged and the process exits as a refused configuration does.
+    pub fn finish_or_exit<T>(
+        mut self,
+        prefix: &str,
+        read: impl FnOnce(&mut Self) -> Result<T, Refused>,
+    ) -> (T, Startup) {
+        let value = read(&mut self);
+        self.finish(prefix, value)
+            .unwrap_or_else(|errors| errors.exit())
+    }
+
     /// `value` and what to log of the settings, or every refusal.
     ///
     /// Described entries are in the order their names were first read. A name read, set, but not

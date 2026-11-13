@@ -37,11 +37,15 @@ pub use holder::Jitter;
 pub use key_set::{KeySet, KeySetHolder, KeySource, RailCenterKeys};
 pub use logging::{read_log_format, read_log_level};
 pub use protected_hosts::{ProtectedHost, ProtectedHosts, read_protected_hosts};
-pub use rail_center::{CenterUrl, RailCenterSettings, read_disabled, read_rail_center};
+pub use rail_center::{
+    CenterUrl, RailCenterSettings, read_disabled, read_rail_center, read_rail_center_with,
+};
 pub use rail_center_thread::RailCenterThread;
 pub use ticket::{
     OpaqueTicket, RailCenterTickets, TicketAnswer, TicketQuery, TicketSettings, TicketSource,
     read_ticket_settings,
 };
 pub use ticket_holder::{TicketHolder, WallClock};
-pub use xrail::{Route, Unavailable, XRAIL, XRailHeader, XRailHeaders, is_withheld_header};
+pub use xrail::{
+    Route, Unavailable, XRAIL, XRailHeader, XRailHeaders, is_withheld_header, withheld_headers,
+};

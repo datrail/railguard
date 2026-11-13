@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use rail_envoy::{Config, Listener};
+use rail_envoy::{GatewayConfig, Listener, ProxyConfig};
 use rail_runtime::{Level, Source, Startup};
 
 const TOKEN: &str = "rc_svc_abcdefghijklmnopqrstuvwxyzABCDEFGHIJK-_0123";
@@ -43,15 +43,15 @@ fn listening<'a>(pairs: &[(&'a str, &'a str)]) -> Vec<(&'a str, &'a str)> {
     pairs
 }
 
-fn read_startup(pairs: &[(&str, &str)]) -> Result<(Config, Startup), Vec<String>> {
-    rail_test_support::read(&listening(pairs), Config::read)
+fn read_startup(pairs: &[(&str, &str)]) -> Result<(ProxyConfig, Startup), Vec<String>> {
+    rail_test_support::read(&listening(pairs), ProxyConfig::read)
 }
 
 fn describe(pairs: &[(&str, &str)]) -> Vec<(&'static str, String, Level)> {
-    rail_test_support::describe(&listening(pairs), Config::read)
+    rail_test_support::describe(&listening(pairs), ProxyConfig::read)
 }
 
-fn read(pairs: &[(&str, &str)]) -> Result<Config, Vec<String>> {
+fn read(pairs: &[(&str, &str)]) -> Result<ProxyConfig, Vec<String>> {
     read_startup(pairs).map(|(config, _)| config)
 }
 
@@ -367,7 +367,8 @@ fn it_listens_on_exactly_one_of_the_socket_and_the_port() {
             "RAIL_EXT_SOCKET and RAIL_CALLOUT_PORT are both set: set only one, the socket or the port to listen on"
         ]
     );
-    let neither = rail_test_support::read(&[("RAIL_DISABLED", "true")], Config::read).unwrap_err();
+    let neither =
+        rail_test_support::read(&[("RAIL_DISABLED", "true")], ProxyConfig::read).unwrap_err();
     assert_eq!(
         neither,
         [
@@ -398,4 +399,32 @@ fn every_refusal_is_listed_at_once() {
     .unwrap_err();
 
     assert_eq!(errors.len(), 6, "{errors:#?}");
+}
+
+#[test]
+fn the_gateway_reads_its_own_settings_and_refuses_a_cap_past_the_message_limit() {
+    let gateway = |pairs: &[(&str, &str)]| {
+        rail_test_support::read(&listening(pairs), GatewayConfig::read).map(|(config, _)| config)
+    };
+    let config = gateway(&[("RAIL_DISABLED", "true")]).unwrap();
+    assert_eq!(
+        (config.max_message_bytes, config.max_body_bytes),
+        (16 * 1024 * 1024, 15 * 1024 * 1024)
+    );
+    assert!(config.rail_center.is_none());
+
+    let enabled = gateway(&[
+        ("RAIL_CENTER_URL", "https://rail-center.example"),
+        ("RAIL_GATEWAY_SLUG", "gw-1"),
+    ])
+    .unwrap();
+    assert_eq!(enabled.rail_center.unwrap().1.gateway_slug, "gw-1");
+
+    // At the limit, refused, naming both; the default above is below it.
+    let errors = gateway(&[("RAIL_DISABLED", "true"), ("RAIL_MAX_BODY_MB", "16")]).unwrap_err();
+    assert_eq!(errors.len(), 1, "{errors:?}");
+    assert!(
+        errors[0].starts_with("RAIL_MAX_BODY_MB must be below RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB"),
+        "{errors:?}"
+    );
 }

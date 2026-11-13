@@ -1002,7 +1002,6 @@ dependencies = [
  "apigee-callout-proto",
  "prost",
  "rail-grpc-host",
- "rail-policy",
  "rail-runtime",
  "rail-test-support",
  "tokio",
@@ -1094,6 +1093,7 @@ name = "rail-test-support"
 version = "0.0.0"
 dependencies = [
  "rail-runtime",
+ "tokio",
 ]
 
 [[package]]

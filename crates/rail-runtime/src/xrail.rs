@@ -7,11 +7,11 @@ use crate::ticket::OpaqueTicket;
 /// The ticket, for the gateway to check.
 pub const XRAIL: &str = "x-rail";
 /// Why there is no ticket, when there is none.
-pub const XRAIL_STATUS: &str = "x-rail-status";
+pub(crate) const XRAIL_STATUS: &str = "x-rail-status";
 /// The route a protected request takes, `tls` or `plain`; Envoy removes it before the upstream.
-pub const XRAIL_UPSTREAM: &str = "x-rail-upstream";
+pub(crate) const XRAIL_UPSTREAM: &str = "x-rail-upstream";
 /// Where a protected request connects.
-pub const AUTHORITY: &str = ":authority";
+pub(crate) const AUTHORITY: &str = ":authority";
 
 // The agent's port that means none: the default for the plain HTTP it speaks.
 const AGENT_DEFAULT_PORT: u16 = 80;
@@ -115,18 +115,12 @@ impl XRailHeaders {
                 || (route.is_some() && name == XRAIL_UPSTREAM)
         };
         // The gateway's and Envoy's are always removed, others only if the host reports them.
-        let mut remove: Vec<String> = [XRAIL, XRAIL_STATUS, XRAIL_UPSTREAM]
-            .into_iter()
-            .map(str::to_owned)
-            .chain(
-                sent.into_iter()
-                    .map(str::to_ascii_lowercase)
-                    .filter(|name| is_withheld_header(name)),
-            )
-            .filter(|name| !is_set(name))
-            .collect();
-        remove.sort();
-        remove.dedup();
+        let mut remove = withheld_headers(
+            [XRAIL, XRAIL_STATUS, XRAIL_UPSTREAM]
+                .into_iter()
+                .chain(sent),
+        );
+        remove.retain(|name| !is_set(name));
         Self { set, route, remove }
     }
 
@@ -163,6 +157,18 @@ fn route_to(entry: &ProtectedHost, agent_port: Option<u16>) -> Route {
             None => host,
         },
     }
+}
+
+/// The names of `sent` an agent's request must not pass on, lowercased, each once.
+pub fn withheld_headers<'a>(sent: impl IntoIterator<Item = &'a str>) -> Vec<String> {
+    let mut names: Vec<String> = sent
+        .into_iter()
+        .map(str::to_ascii_lowercase)
+        .filter(|name| is_withheld_header(name))
+        .collect();
+    names.sort();
+    names.dedup();
+    names
 }
 
 /// Whether an agent's header is kept from the upstream: an x-rail header, or any name with `_`.

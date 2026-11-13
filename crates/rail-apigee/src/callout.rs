@@ -29,8 +29,8 @@ pub const MAX_ANSWERED_BYTES: usize = MAX_APIGEE_ANSWER_BYTES - SEND_HEADROOM_BY
 /// The ExternalCallout service; with no gateway, Rail Center is disabled and every call it can
 /// answer allowed.
 #[derive(Clone)]
-pub struct Callout {
-    pub gateway: Option<Arc<Gateway>>,
+pub(crate) struct Callout {
+    pub(crate) gateway: Option<Arc<Gateway>>,
 }
 
 #[tonic::async_trait]

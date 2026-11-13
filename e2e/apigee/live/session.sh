@@ -36,9 +36,9 @@ build_images() {
   docker build --platform linux/amd64 -t "$registry/callout:session" \
     -f "$repo/crates/rail-apigee/Dockerfile" "$repo"
   docker build --platform linux/amd64 -t "$registry/rail-center:session" \
-    -f "$live/stub.Dockerfile" --build-arg "WIREMOCK=$wiremock" "$e2e/rail-center-mappings"
+    -f "$live/stub.Dockerfile" --build-arg "WIREMOCK=$wiremock" "$e2e/../gateway/rail-center-mappings"
   docker build --platform linux/amd64 -t "$registry/upstream:session" \
-    -f "$live/stub.Dockerfile" --build-arg "WIREMOCK=$wiremock" "$e2e/upstream-mappings"
+    -f "$live/stub.Dockerfile" --build-arg "WIREMOCK=$wiremock" "$e2e/../gateway/upstream-mappings"
   for image in callout rail-center upstream; do
     docker push --quiet "$registry/$image:session"
   done
@@ -121,7 +121,8 @@ case "$action" in
     export E2E_STUB_ADMIN_PASSWORD
     docker compose -f "$e2e/compose.yml" build driver
     docker run --rm \
-      -v "$e2e/driver.py:/e2e/driver.py:ro" -v "$cert:/e2e/lb-cert.pem:ro" \
+      -v "$e2e/driver.py:/e2e/driver.py:ro" \
+      -v "$e2e/../gateway/gateway_cases.py:/e2e/gateway_cases.py:ro" -v "$cert:/e2e/lb-cert.pem:ro" \
       -e E2E_TARGET=live -e E2E_CA_FILE=/e2e/lb-cert.pem \
       -e E2E_MCP_URL="$(terraform output -raw mcp_url)" \
       -e E2E_NO_CALLOUT_URL="$(terraform output -raw no_callout_url)" \

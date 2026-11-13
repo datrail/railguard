@@ -1,5 +1,6 @@
 mod common;
 mod config;
+mod gateway;
 mod health;
 mod logs;
 mod readiness;

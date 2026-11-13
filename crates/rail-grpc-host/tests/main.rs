@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
-use rail_grpc_host::{Address, READY, ask_health, probe, probe_service};
+use rail_grpc_host::{Address, ask_health, probe};
 
 // A socket path in a directory of its own, removed after.
 struct TempSocket {
@@ -52,7 +52,7 @@ async fn the_probe_fails_with_nothing_listening() {
             "can't check health on {port}: can't connect: Connection refused (os error 111)"
         ))
     );
-    assert_eq!(probe(&port, "").await, ExitCode::FAILURE);
+    assert_eq!(probe(&port, false).await, ExitCode::FAILURE);
 }
 
 // The kernel completes the connection from the backlog, so only the request can tell.
@@ -69,10 +69,4 @@ async fn the_probe_fails_on_a_socket_nothing_answers() {
         Err(format!("no answer on {} within 5s", socket.path.display()))
     );
     assert!(started.elapsed() < Duration::from_secs(8));
-}
-
-#[test]
-fn the_probe_asks_readiness_only_with_ready() {
-    assert_eq!(probe_service(true), READY);
-    assert_eq!(probe_service(false), "");
 }
