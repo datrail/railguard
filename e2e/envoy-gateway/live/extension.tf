@@ -1,7 +1,4 @@
-# The LbTrafficExtension calling the gateway. The google provider can't set
-# its body mode and lists no REQUEST_TRAILERS, and its docs cap the timeout at
-# 1 s where the API takes 10; so gcloud imports it from the API's own fields,
-# and deletes it on destroy.
+# The provider can't set the body mode, REQUEST_TRAILERS or a 6 s timeout, so gcloud imports the extension.
 
 locals {
   # The first chain whose condition matches runs; the driver picks one by header.
@@ -75,10 +72,11 @@ resource "terraform_data" "traffic_extension" {
   provisioner "local-exec" {
     when        = destroy
     interpreter = ["bash", "-c"]
-    # Already gone is done.
+    # Only NOT_FOUND is gone: on any other failure, Terraform must keep it in state.
     command = <<-EOT
-      gcloud service-extensions lb-traffic-extensions delete "$NAME" --quiet ||
-        ! gcloud service-extensions lb-traffic-extensions describe "$NAME" >/dev/null 2>&1
+      out=$(gcloud service-extensions lb-traffic-extensions delete "$NAME" --quiet 2>&1) && exit 0
+      printf '%s\n' "$out" >&2
+      grep -q NOT_FOUND <<<"$out"
     EOT
     environment = {
       NAME = self.input.name

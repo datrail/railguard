@@ -72,12 +72,11 @@ certificate and the stubs' password, all as `E2E_*` variables; its exit code is 
 - the gateway's cases every host passes alike ([`../../gateway/`](../../gateway/README.md)), through the `judged` chain;
 - a 3 MiB call reaches `upstream` byte for byte, sent back by the gateway a chunk at a time;
 - a 5 MiB call is refused 413 by the gateway (`RAIL_MAX_BODY_MB=4`), and nothing reaches `upstream`;
-- a call through `streamed` is answered 503, and nothing reaches `upstream`.
+- a call through `streamed` is answered 503, and nothing reaches `upstream`;
+- a call through `no-gateway` is answered with a 5xx, and nothing reaches `upstream`.
 
-Then it prints, as `seen` lines that pass or fail nothing, what the load balancer does with a call through `no-gateway`:
-its answer, and whether it reached `upstream`. After the driver, `session.sh` prints the gateway's lines at WARNING or
-above from the run: the `streamed` refusal names the mode the load balancer said it sends, or `unknown` if it sent no
-`protocol_config`.
+After the driver, `session.sh` prints the gateway's lines at WARNING or above from the run: the `streamed` refusal names
+the mode the load balancer said it sends, or `unknown` if it sent no `protocol_config`.
 
 ## What sessions showed
 
@@ -122,7 +121,9 @@ What the gateway's design left to check on GCP (first session, 2026-11-12):
   `gcloud auth application-default login`, for Terraform.
 - **The session's state is local:** `terraform.tfstate` and `terraform.tfvars` are what `down` destroys from, so they're
   kept until it has run.
-- **An extension left behind holds the forwarding rule,** so `down` can't delete it; `down` lists any left.
+- **An extension left behind holds the forwarding rule,** so nothing behind it can be deleted. `down` deletes the
+  session's extensions with `gcloud` before `terraform destroy`, since Terraform skips a failed import's destroy step,
+  and lists any left after.
 
 ## Not covered here
 

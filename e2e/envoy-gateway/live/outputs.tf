@@ -27,10 +27,6 @@ output "gateway_service" {
   value = google_cloud_run_v2_service.gateway.name
 }
 
-output "gateway_url" {
-  value = google_cloud_run_v2_service.gateway.uri
-}
-
 output "registry" {
   value = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.images.repository_id}"
 }

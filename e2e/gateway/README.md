@@ -10,3 +10,5 @@ through each Envoy listener. See [the stacks](../README.md).
 - `rail-center-mappings/`: the bundle (to the service token only), the signing keys, and the denials route.
 - `upstream-mappings/`: the MCP server.
 - `stub.Dockerfile`: either stub with its mappings baked in, for the live harnesses on Cloud Run.
+- `live.sh`: what both live harnesses' `session.sh` share: the image builds, the wait for the upstream, the stubs' admin
+  check.

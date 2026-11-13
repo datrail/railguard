@@ -171,14 +171,11 @@ impl ExternalProcessor for GatewayCallouts {
                 stage: Stage::Headers,
             };
             let mut messages = tokio_stream::once(Ok(first)).chain(inbound);
-            let mut failed = None;
-            while let Some(message) = messages.next().await {
-                let message = match message {
-                    Ok(message) => message,
-                    Err(status) => {
-                        failed = Some(status);
-                        break;
-                    }
+            let failed = loop {
+                let message = match messages.next().await {
+                    Some(Ok(message)) => message,
+                    Some(Err(status)) => break Some(status),
+                    None => break None,
                 };
                 let answers = match exchange.on(message).await {
                     Ok(answers) => answers,
@@ -190,7 +187,7 @@ impl ExternalProcessor for GatewayCallouts {
                 if send(&replies, answers).await.is_none() {
                     return;
                 }
-            }
+            };
             if matches!(exchange.stage, Stage::Headers | Stage::Gathering(_)) {
                 let status = failed.unwrap_or_else(|| {
                     Status::aborted("the stream ended before its request was answered")

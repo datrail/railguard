@@ -10,82 +10,29 @@
 #   test  runs ../driver.py against the session, then prints the gateway's
 #         warnings and errors from the run; the driver's exit code is the
 #         result.
-#   down  terraform destroy, then lists the traffic extensions left, which
-#         must be none.
+#   down  deletes the traffic extensions, terraform destroy, then lists the
+#         extensions left, which must be none.
 set -euo pipefail
 live=$(cd "$(dirname "$0")" && pwd)
 stack=$(cd "$live/.." && pwd)
 e2e=$(cd "$stack/.." && pwd)
-repo=$(cd "$e2e/.." && pwd)
 cd "$live"
 if [[ ! -f terraform.tfvars ]]; then
   echo "Copy terraform.tfvars.example to terraform.tfvars first." >&2
   exit 1
 fi
 
-elapsed() { local s=$(($(date +%s) - $1)); echo "$((s / 60))m $((s % 60))s"; }
+# shellcheck source=../../gateway/live.sh
+source "$e2e/gateway/live.sh"
 project=$(sed -n 's/^project_id *= *"\(.*\)"/\1/p' terraform.tfvars)
 prefix=$(sed -n 's/^prefix *= *"\(.*\)"/\1/p' terraform.tfvars)
 # The images the local stack pins.
 pinned() { sed -n "s#^ *image: \($1:.*\)\$#\1#p" "$stack/compose.yml"; }
 
-build_images() {
-  local registry wiremock
-  registry=$(terraform output -raw registry)
-  wiremock=$(pinned wiremock/wiremock)
-  gcloud auth configure-docker "${registry%%/*}" --quiet >/dev/null
-  # Cloud Run runs linux/amd64, whatever the machine building.
-  docker build --platform linux/amd64 -t "$registry/gateway:session" \
-    -f "$repo/crates/rail-envoy/Dockerfile" "$repo"
-  docker build --platform linux/amd64 -t "$registry/rail-center:session" \
-    -f "$e2e/gateway/stub.Dockerfile" --build-arg "WIREMOCK=$wiremock" "$e2e/gateway/rail-center-mappings"
-  docker build --platform linux/amd64 -t "$registry/upstream:session" \
-    -f "$e2e/gateway/stub.Dockerfile" --build-arg "WIREMOCK=$wiremock" "$e2e/gateway/upstream-mappings"
-  for image in gateway rail-center upstream; do
-    docker push --quiet "$registry/$image:session"
-  done
-}
-
-# The load balancer and the extension each take minutes to apply. The upstream
-# stub answers a GET with 405 "stream not offered", once the gateway has let
-# it through; anything else is something still starting. The load balancer
-# may still answer some errors after its first good answer, so it must give
-# six in a row.
-await_upstream() {
-  local cert url body streak=0 deadline=$((SECONDS + 600))
-  cert=$(mktemp)
-  terraform output -raw lb_cert > "$cert"
-  url=$(terraform output -raw mcp_url)
-  while ((SECONDS < deadline)); do
-    body=$(curl -s --max-time 10 --cacert "$cert" "$url" || true)
-    if [[ "$body" == *"stream not offered"* ]]; then
-      streak=$((streak + 1))
-      if ((streak == 6)); then
-        rm -f "$cert"
-        return 0
-      fi
-    else
-      streak=0
-    fi
-    sleep 5
-  done
-  rm -f "$cert"
-  echo "The load balancer still doesn't reach the upstream stub after 10 minutes." >&2
-  echo "Last answer:" >&2
-  echo "$body" >&2
-  return 1
-}
-
-# The stubs are open, so their journals and mappings must not be.
-check_stub_admin() {
-  local url code
-  for url in "$(terraform output -raw rail_center_url)" "$(terraform output -raw upstream_url)"; do
-    code=$(curl -s -o /dev/null -w '%{http_code}' "$url/__admin/requests")
-    if [[ "$code" != 401 ]]; then
-      echo "$url/__admin answers $code without the password; it must be 401." >&2
-      return 1
-    fi
-  done
+# The session's traffic extensions, by name.
+list_extensions() {
+  gcloud service-extensions lb-traffic-extensions list --location=global \
+    --project="$project" --filter="name~/${prefix}-" --format='value(name)'
 }
 
 # What the gateway logged at WARNING or above since $1: a refused body mode
@@ -117,11 +64,12 @@ case "$action" in
     # The registry first: the services are deployed from images pushed to it.
     terraform apply -auto-approve -input=false \
       -target=google_artifact_registry_repository.images
-    build_images
+    build_images gateway rail-envoy "$(pinned wiremock/wiremock)"
     terraform apply -auto-approve -input=false
     echo
     echo "== Waiting for the load balancer to reach the upstream stub"
-    await_upstream
+    # The load balancer and the extension each take minutes to apply.
+    await_upstream "The load balancer"
     check_stub_admin
     echo "Session up in $(elapsed "$start")."
     echo "END THE SESSION WITH ./session.sh down: it is billed while it exists."
@@ -159,13 +107,17 @@ case "$action" in
     exit "$result"
     ;;
   down)
+    # Deleted first, since Terraform skips a tainted extension's destroy step; a failed list finds none.
+    for name in $(list_extensions || true); do
+      gcloud service-extensions lb-traffic-extensions delete "$name" --location=global \
+        --project="$project" --quiet
+    done
     # The check below is for a failed destroy too.
     failed=0
     terraform destroy -auto-approve -input=false || failed=$?
     echo
     echo "Session down in $(elapsed "$start")."
-    left=$(gcloud service-extensions lb-traffic-extensions list --location=global \
-      --project="$project" --filter="name~/${prefix}-" --format='value(name)')
+    left=$(list_extensions)
     echo "Traffic extensions left: ${left:-none}"
     if [[ -n "$left" ]]; then
       echo "WARNING: an extension left holds the forwarding rule; delete it, then down again." >&2

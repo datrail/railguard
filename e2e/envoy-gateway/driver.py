@@ -19,14 +19,12 @@ from gateway_cases import (
     TOO_LARGE,
     UPLOAD_TIMEOUT_SECONDS,
     check_every_request_matched,
-    clear_journals,
     count_upstream_requests,
     exit_with_result,
     expect,
     read_last_received_body,
     report_fail,
     report_ok,
-    report_seen,
     reset_journals,
     run_gateway_cases,
     send_raw_post,
@@ -99,18 +97,8 @@ def _run_envoy_cases():
     expect("nothing reached the upstream", 0, count_upstream_requests())
 
     url, route = _NO_GATEWAY
-    if _LIVE:
-        # Google's docs say full duplex fails open on errors before the first body chunk.
-        start_block("no gateway: what the load balancer does")
-        reset_journals()
-        code, answer = send_raw_post(url, call, [*good, *route])
-        report_seen("the call's answer", f"{code} {answer[:300]}")
-        report_seen("requests that reached the upstream", count_upstream_requests())
-        # A call let through finds no session, so it can't fail the unmatched sweep.
-        clear_journals()
-        return
-
-    start_block("no gateway: Envoy fails closed")
+    # Google's docs say full duplex fails open on errors before the first body chunk; seen failing closed.
+    start_block(f"no gateway: {'the load balancer' if _LIVE else 'Envoy'} fails closed")
     reset_journals()
     code, answer = send_raw_post(url, call, [*good, *route])
     if code is not None and code >= 500:

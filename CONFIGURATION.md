@@ -122,7 +122,8 @@ message, which holds a whole buffered body.
 - **In `rail-apigee`, past 4 MiB less 1 KiB, a request is refused unjudged** (413, with a warning logged), whatever this
   allows: Apigee takes a callout's answer of at most 4 MiB, and the answer echoes the body. An answer may be up to 1 KiB
   larger than the request.
-- **In `rail-envoy`, a message past it** fails its stream, so Envoy fails closed (`failure_mode_allow: false`).
+- **In `rail-envoy`, a message past it** fails its stream while the call is unanswered, so Envoy fails closed
+  (`failure_mode_allow: false`).
 
 ### `RAIL_GATEWAY_SLUG`
 
