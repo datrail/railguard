@@ -28,7 +28,7 @@ const MAX_DEADLINE: Duration = Duration::from_secs(86_400);
 #[derive(Clone, Copy, Debug)]
 pub struct GatewaySettings {
     /// From the call's arrival to its answer, the waits included. Any caller can spend both waits,
-    /// 4 s, so a deadline not well past that forwards its calls unjudged.
+    /// 4 s, so a deadline not well past that answers its calls unjudged.
     pub deadline: Duration,
     /// How many calls are judged at once, each on a thread of its own.
     pub max_concurrent_judgements: NonZeroUsize,

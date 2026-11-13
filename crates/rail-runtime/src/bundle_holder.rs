@@ -41,7 +41,7 @@ pub struct Posture {
     pub binding_fallback: Fallback,
     pub ticket_fallback: Fallback,
     /// For a call no verdict was reached for, acted on at `enforce`. Rail Center doesn't publish
-    /// it yet, so it's `pass`.
+    /// it yet, so it's `block`, as for a refusal.
     pub judge_fallback: Fallback,
 }
 
@@ -321,7 +321,7 @@ fn read_answer(held: Option<&Arc<HeldBundle>>, answer: Result<Response, FetchErr
         mode: bundle.enforcement.mode,
         binding_fallback: bundle.binding_fallback,
         ticket_fallback: bundle.ticket_fallback,
-        judge_fallback: Fallback::Pass,
+        judge_fallback: Fallback::Block,
     };
     Outcome::Replaced {
         bundle: Arc::new(HeldBundle {
