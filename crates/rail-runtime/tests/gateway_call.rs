@@ -1,10 +1,11 @@
 use std::num::NonZeroUsize;
+use std::pin::pin;
 use std::sync::Arc;
 use std::time::Duration;
 
 use rail_policy::Fallback;
 use rail_runtime::{Answer, Call, Gateway, GatewaySettings, UnitSettings};
-use serde_json::json;
+use serde_json::{Value, json};
 use tokio::time::Instant;
 use tokio::time::timeout;
 
@@ -174,6 +175,47 @@ async fn a_key_not_held_is_waited_for_only_where_the_bundle_can_accept_a_signed_
 const SCANS: u64 = 2_000;
 const SCANNED: usize = 16 << 20;
 
+// At `mode`, each policy scanning all of `x-a` for a `b` it lacks, so a call carrying it is judged
+// slowly, then one denying every call without a ticket.
+fn scanning(mode: &str) -> Value {
+    let mut policies = Vec::from_iter((1..=SCANS).map(|priority| {
+        json!({
+            "id": format!("5c8f1e42-0000-4000-9000-{priority:012x}"),
+            "name": "S",
+            "priority": priority,
+            "condition": {"path": "request.headers.x-a", "op": "matches", "value": "*b*"},
+            "action": "block",
+            "enabled": true,
+        })
+    }));
+    let mut denying = bundles::denying_unticketed(json!({}));
+    denying["policies"][0]["priority"] = json!(SCANS + 1);
+    policies.push(denying["policies"][0].take());
+    bundles::denying_unticketed(json!({"policies": policies, "enforcement": {"mode": mode}}))
+}
+
+// One judging slot, and no step limit, so only the deadline ends a slow judgement.
+fn scanning_settings(deadline: Duration) -> GatewaySettings {
+    GatewaySettings {
+        deadline,
+        max_concurrent_judgements: NonZeroUsize::MIN,
+        // Not what a call unjudged with a bundle held gets.
+        no_bundle_fallback: Fallback::Pass,
+        unit: UnitSettings {
+            step_limit: u64::MAX,
+        },
+        ..GatewaySettings::default()
+    }
+}
+
+// A call `scanning`'s policies are slow to judge.
+fn scanned_call() -> Call<String> {
+    Call {
+        headers: vec![("x-a".into(), "a".repeat(SCANNED))],
+        ..call("POST", None)
+    }
+}
+
 // On real time: a worker holds back paused time, so a deadline can't pass while it runs.
 #[tokio::test]
 async fn a_call_answered_unjudged_or_dropped_has_its_judgement_stopped() {
@@ -183,41 +225,14 @@ async fn a_call_answered_unjudged_or_dropped_has_its_judgement_stopped() {
         (Duration::from_secs(5), true),
     ] {
         let clock = TestClock::new();
-        // Each scans all of `x-a` for a `b` it lacks, so a call carrying it is judged slowly.
-        let mut policies = Vec::from_iter((1..=SCANS).map(|priority| {
-            json!({
-                "id": format!("5c8f1e42-0000-4000-9000-{priority:012x}"),
-                "name": "S",
-                "priority": priority,
-                "condition": {"path": "request.headers.x-a", "op": "matches", "value": "*b*"},
-                "action": "block",
-                "enabled": true,
-            })
-        }));
-        let mut denying = bundles::denying_unticketed(json!({}));
-        denying["policies"][0]["priority"] = json!(SCANS + 1);
-        policies.push(denying["policies"][0].take());
-        let bundle = bundles::denying_unticketed(json!({"policies": policies}));
-        let settings = GatewaySettings {
-            deadline,
-            max_concurrent_judgements: NonZeroUsize::MIN,
-            // Not what a call unjudged with a bundle held gets.
-            no_bundle_fallback: Fallback::Pass,
-            unit: UnitSettings {
-                step_limit: u64::MAX,
-            },
-            ..GatewaySettings::default()
-        };
+        let bundle = scanning("enforce");
         let started = start(
             &clock,
             Script::new(&clock, move |_| bundles::ok(&bundle)),
-            settings,
+            scanning_settings(deadline),
         );
         until(&clock, 0).await;
-        let huge = Call {
-            headers: vec![("x-a".into(), "a".repeat(SCANNED))],
-            ..call("POST", None)
-        };
+        let huge = scanned_call();
 
         let handled = started.gateway.handle(huge.clone());
         if dropped {
@@ -237,6 +252,34 @@ async fn a_call_answered_unjudged_or_dropped_has_its_judgement_stopped() {
             tokio::task::yield_now().await;
         }
         assert_eq!(started.sink.reports().len(), 1, "{deadline:?}");
+    }
+}
+
+// On real time, as above.
+#[tokio::test]
+async fn a_call_with_no_verdict_by_its_deadline_is_refused_at_enforce_and_forwarded_at_observe() {
+    for (mode, answered) in [
+        ("enforce", Answer::CannotApply),
+        ("observe", Answer::Forward),
+    ] {
+        let clock = TestClock::new();
+        let bundle = scanning(mode);
+        let started = start(
+            &clock,
+            Script::new(&clock, move |_| bundles::ok(&bundle)),
+            scanning_settings(Duration::from_millis(100)),
+        );
+        until(&clock, 0).await;
+
+        // Left unpolled once it holds the slot, so its deadline can't stop its judgement.
+        let mut judged = pin!(started.gateway.handle(scanned_call()));
+        let unfinished = timeout(Duration::from_millis(20), judged.as_mut()).await;
+        assert!(unfinished.is_err(), "{mode}");
+        let (waiting, _) = started.gateway.handle(call("POST", None)).await;
+        let (judged, _) = judged.await;
+
+        assert_eq!(waiting, answered, "{mode}");
+        assert_eq!(judged, answered, "{mode}");
     }
 }
 
