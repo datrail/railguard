@@ -47,9 +47,10 @@ Anything that gets a call past rail-apigee that its rules refuse:
 - **the denial reports:** anything that suppresses or forges them, since they're the audit trail. Past 64 reports in
   flight, 16 of them naming no policy, a report is dropped and logged; the call stays denied.
 
-A refusal names no policy: 403 for a denial, 503 for a call the rules can't be applied to. A body past
-`RAIL_MAX_BODY_MB` is refused unjudged, 413; on Apigee, so is a request past 4 MiB less 1 KiB. If the callout is down or
-answers no decision, the reference Apigee proxy refuses the call, 503.
+A refusal names no policy: 403 for a denial, 503 for a call the rules can't be applied to, or at `enforce` one not
+judged within 5 s or whose judgement panicked, logged as an error. A body past `RAIL_MAX_BODY_MB` is refused unjudged,
+413; on Apigee, so is a request past 4 MiB less 1 KiB. If the callout is down or answers no decision, the reference
+Apigee proxy refuses the call, 503.
 
 **The callout's port.** It receives every header and the body, bearer token included, and logs no header value.
 rail-apigee authenticates no caller, so only Apigee may reach it: a caller could otherwise ask for verdicts, and send
@@ -61,7 +62,6 @@ alone. Elsewhere, keep it reachable from Apigee only.
 - every call while `RAIL_DISABLED=true`, at enforcement `none`, or at `observe`, which only logs what it would deny;
 - a request other than a `POST`, and a session message (`initialize`, `tools/list`, a notification);
 - a call that arrives before the first bundle is held, after waiting 2 s for it, logged as an error;
-- a call not judged within 5 s, or whose judgement panicked, logged as an error;
 - an unsigned ticket, read as it is even where tickets are signed: anything that reaches the gateway can present one, so
   it's only as good as the path from the proxy.
 

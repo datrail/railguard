@@ -202,7 +202,7 @@ async fn a_call_answered_unjudged_or_dropped_has_its_judgement_stopped() {
             deadline,
             max_concurrent_judgements: NonZeroUsize::MIN,
             // Not what a call unjudged with a bundle held gets.
-            no_bundle_fallback: Fallback::Block,
+            no_bundle_fallback: Fallback::Pass,
             unit: UnitSettings {
                 step_limit: u64::MAX,
             },
@@ -224,7 +224,7 @@ async fn a_call_answered_unjudged_or_dropped_has_its_judgement_stopped() {
             assert!(timeout(Duration::from_millis(10), handled).await.is_err());
         } else {
             let (answer, back) = handled.await;
-            assert_eq!(answer, Answer::Forward);
+            assert_eq!(answer, Answer::CannotApply);
             assert!(back.headers == huge.headers);
         }
 
