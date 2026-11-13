@@ -63,9 +63,7 @@ def _check_health(target, service=""):
     with grpc.insecure_channel(target) as channel:
         stub = health_pb2_grpc.HealthStub(channel)
         try:
-            answer = stub.Check(
-                health_pb2.HealthCheckRequest(service=service), timeout=5
-            )
+            answer = stub.Check(health_pb2.HealthCheckRequest(service=service), timeout=5)
         except grpc.RpcError as error:
             return error.code().name
     return health_pb2.HealthCheckResponse.ServingStatus.Name(answer.status)
@@ -74,14 +72,10 @@ def _check_health(target, service=""):
 def _process(target, verb, content="", uri="/mcp", ticket=None):
     """The flow variables rail-apigee set."""
     headers = {} if ticket is None else {"x-rail": Strings(strings=[ticket])}
-    context = MessageContext(
-        request=Request(verb=verb, uri=uri, content=content, headers=headers)
-    )
+    context = MessageContext(request=Request(verb=verb, uri=uri, content=content, headers=headers))
     with grpc.insecure_channel(target) as channel:
         answer = ExternalCalloutServiceStub(channel).ProcessMessage(context, timeout=5)
-    return {
-        name: value.string for name, value in answer.additional_flow_variables.items()
-    }
+    return {name: value.string for name, value in answer.additional_flow_variables.items()}
 
 
 # rail-apigee on its own: its health, its port, and a call judged.
@@ -136,9 +130,7 @@ def _run_apigee_cases():
     start_block("mcp: a ticket Apigee splits on its comma is undecodable")
     reset_journals()
     split = {**good, "x-rail": GOOD_TICKET + ",x"}
-    expect(
-        "the call is refused 403", 403, get_call_status(_MCP, "track_package", split)
-    )
+    expect("the call is refused 403", 403, get_call_status(_MCP, "track_package", split))
     expect(
         "the denial reads the ticket as undecodable",
         "undecodable",
@@ -150,9 +142,7 @@ def _run_apigee_cases():
     start_block("mcp: a claimed status with a comma is dropped")
     reset_journals()
     claimed = {"x-rail-status": "not-found, expired", **AGENT}
-    expect(
-        "the call is refused 403", 403, get_call_status(_MCP, "track_package", claimed)
-    )
+    expect("the call is refused 403", 403, get_call_status(_MCP, "track_package", claimed))
     metadata = wait_for_last_denial().get("metadata", {})
     expect("the denial reads no ticket", "absent", metadata.get("x-rail-status"))
     expect(
@@ -163,17 +153,13 @@ def _run_apigee_cases():
 
     # Seen live: Apigee takes a callout answer of at most 4 MiB, and the answer echoes the body,
     # so rail-apigee refuses a larger call; Apigee answers one past 10 MB itself.
-    start_block(
-        "mcp: a 3.5 MiB call is forwarded, a 5 MiB one refused, an 11 MiB one too big"
-    )
+    start_block("mcp: a 3.5 MiB call is forwarded, a 5 MiB one refused, an 11 MiB one too big")
     reset_journals()
     code, body = call_tool(_MCP, "track_package", {"pad": "x" * 7 * 512 * 1024}, good)
     if code == 200 and '"text":"delivered"' in body:
         report_ok("the 3.5 MiB call returns the upstream's answer")
     else:
-        report_fail(
-            f"the 3.5 MiB call returns the upstream's answer: got {code} {body[:300]}"
-        )
+        report_fail(f"the 3.5 MiB call returns the upstream's answer: got {code} {body[:300]}")
     reset_journals()
     code, body = call_tool(_MCP, "track_package", {"pad": "x" * 5 * 1024 * 1024}, good)
     expect("the 5 MiB call is answered 413", 413, code)

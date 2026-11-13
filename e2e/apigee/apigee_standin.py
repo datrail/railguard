@@ -20,7 +20,6 @@ import xml.etree.ElementTree as ET
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import grpc
-
 from external_callout_pb2 import MessageContext, Request, Strings
 from external_callout_pb2_grpc import ExternalCalloutServiceStub
 

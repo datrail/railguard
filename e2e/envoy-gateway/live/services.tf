@@ -1,0 +1,131 @@
+# The gateway and the two stubs on Cloud Run, from the images session.sh
+# pushed as :session, deployed by digest so a new push is a change.
+
+locals {
+  images = toset(["gateway", "rail-center", "upstream"])
+  # Cloud Run's default.
+  gateway_port = 8080
+}
+
+data "google_artifact_registry_docker_image" "image" {
+  for_each = local.images
+
+  location      = var.region
+  repository_id = google_artifact_registry_repository.images.repository_id
+  image_name    = "${each.key}:session"
+}
+
+resource "random_password" "stub_admin" {
+  length  = 32
+  special = false
+}
+
+# Both stubs are open to anyone: the gateway sends its Rail Center credential,
+# and the agent its own, in Authorization, where Cloud Run's IAM check would
+# want an ID token. Their admin APIs (journal, mappings) need the password.
+resource "google_cloud_run_v2_service" "stub" {
+  for_each = toset(["rail-center", "upstream"])
+
+  name                 = "${var.prefix}-${each.key}"
+  location             = var.region
+  deletion_protection  = false
+  invoker_iam_disabled = true
+
+  template {
+    service_account = google_service_account.sa["stub"].email
+
+    # One instance: WireMock's journal is per instance.
+    scaling {
+      min_instance_count = 1
+      max_instance_count = 1
+    }
+
+    containers {
+      image = data.google_artifact_registry_docker_image.image[each.key].self_link
+      args  = ["--admin-api-basic-auth", "e2e:${random_password.stub_admin.result}"]
+    }
+  }
+
+  depends_on = [google_project_service.apis]
+}
+
+# A Service Extension calls with no credential, so the IAM check is off and
+# only the load balancer may reach it.
+resource "google_cloud_run_v2_service" "gateway" {
+  name                 = "${var.prefix}-gateway"
+  location             = var.region
+  deletion_protection  = false
+  invoker_iam_disabled = true
+  ingress              = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
+
+  template {
+    service_account = google_service_account.sa["gateway"].email
+
+    # Warm, so a cold start can't exceed the extension's timeout and fail a case.
+    scaling {
+      min_instance_count = 1
+    }
+
+    containers {
+      image = data.google_artifact_registry_docker_image.image["gateway"].self_link
+      args  = ["gateway"]
+
+      # gRPC needs HTTP/2 end to end.
+      ports {
+        name           = "h2c"
+        container_port = local.gateway_port
+      }
+
+      env {
+        name  = "RAIL_CALLOUT_PORT"
+        value = tostring(local.gateway_port)
+      }
+      env {
+        name  = "RAIL_CENTER_URL"
+        value = google_cloud_run_v2_service.stub["rail-center"].uri
+      }
+      env {
+        name  = "RAIL_GATEWAY_SLUG"
+        value = "edge"
+      }
+      env {
+        name  = "RAIL_AUTH_MODE"
+        value = "bearer"
+      }
+      # A service token's shape; the stub serves the bundle to it alone.
+      env {
+        name  = "RAIL_AUTH_TOKEN"
+        value = "rc_svc_e2eAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      }
+      # Below the 5 MiB call the driver sends, so it's refused, and above its 3 MiB one.
+      env {
+        name  = "RAIL_MAX_BODY_MB"
+        value = "4"
+      }
+      # Its most detailed logs, since a session is run to find things out.
+      env {
+        name  = "RAIL_LOG_LEVEL"
+        value = "debug"
+      }
+
+      # Ready once it holds a bundle; Cloud Run can't exec `rail probe`.
+      startup_probe {
+        grpc {
+          port    = local.gateway_port
+          service = "rail.Ready"
+        }
+        period_seconds    = 2
+        failure_threshold = 30
+      }
+      # Restarted if its gRPC server stops answering.
+      liveness_probe {
+        grpc {
+          port = local.gateway_port
+        }
+        period_seconds = 10
+      }
+    }
+  }
+
+  depends_on = [google_project_service.apis]
+}

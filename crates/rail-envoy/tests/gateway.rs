@@ -492,6 +492,41 @@ async fn a_streamed_body_past_the_cap_is_refused_as_soon_as_it_is() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_stream_failing_or_ending_before_its_request_is_answered_ends_in_an_error() {
+    let socket = TempSocket::new("gw-fail");
+    let (_server, _rail_center) = judging(
+        &socket.path,
+        DENYING_FORBIDDEN,
+        &[
+            ("RAIL_MAX_BODY_MB", "1"),
+            ("RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB", "2"),
+        ],
+    )
+    .await;
+
+    // A buffered body past the message cap: ending OK, Envoy would forward it unjudged.
+    let past_message = tool_call("forbidden", 3 * 1024 * 1024);
+    let error = process(
+        &socket.path,
+        Some(BodySendMode::Buffered),
+        vec![post(false), chunk(&past_message, true)],
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(error.code(), tonic::Code::OutOfRange, "{error:?}");
+
+    // Ended with the request still held, before its body ends.
+    let error = process(
+        &socket.path,
+        Some(BodySendMode::FullDuplexStreamed),
+        vec![post(false), chunk(&tool_call("forbidden", 0), false)],
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(error.code(), tonic::Code::Aborted, "{error:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn it_is_ready_once_it_holds_a_bundle() {
     let socket = TempSocket::new("gw-ready");
     let rail_center = RailCenter::start_holding_bundle(DENYING_FORBIDDEN).await;

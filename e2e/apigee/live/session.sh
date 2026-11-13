@@ -14,7 +14,6 @@
 set -euo pipefail
 live=$(cd "$(dirname "$0")" && pwd)
 e2e=$(cd "$live/.." && pwd)
-repo=$(cd "$e2e/../.." && pwd)
 cd "$live/apigee-session"
 if [[ ! -f terraform.tfvars ]]; then
   echo "Copy apigee-session/terraform.tfvars.example to terraform.tfvars first." >&2
@@ -23,68 +22,10 @@ fi
 
 api="https://apigee.googleapis.com/v1"
 get() { curl -fsS -H "Authorization: Bearer $(gcloud auth print-access-token)" "${api}/$1"; }
-elapsed() { local s=$(($(date +%s) - $1)); echo "$((s / 60))m $((s % 60))s"; }
+# shellcheck source=../../gateway/live.sh
+source "$e2e/../gateway/live.sh"
 # The org is named after the project.
 org="organizations/$(sed -n 's/^project_id *= *"\(.*\)"/\1/p' terraform.tfvars)"
-
-build_images() {
-  local registry wiremock
-  registry=$(terraform output -raw registry)
-  wiremock=$(sed -n 's/^ *image: \(wiremock\/wiremock:.*\)$/\1/p' "$e2e/compose.yml")
-  gcloud auth configure-docker "${registry%%/*}" --quiet >/dev/null
-  # Cloud Run runs linux/amd64, whatever the machine building.
-  docker build --platform linux/amd64 -t "$registry/callout:session" \
-    -f "$repo/crates/rail-apigee/Dockerfile" "$repo"
-  docker build --platform linux/amd64 -t "$registry/rail-center:session" \
-    -f "$live/stub.Dockerfile" --build-arg "WIREMOCK=$wiremock" "$e2e/../gateway/rail-center-mappings"
-  docker build --platform linux/amd64 -t "$registry/upstream:session" \
-    -f "$live/stub.Dockerfile" --build-arg "WIREMOCK=$wiremock" "$e2e/../gateway/upstream-mappings"
-  for image in callout rail-center upstream; do
-    docker push --quiet "$registry/$image:session"
-  done
-}
-
-# The load balancer, the environment's attachment and new IAM grants each take
-# minutes to apply. The upstream stub answers a GET with 405 "stream not
-# offered"; anything else is something still starting. The load balancer
-# still answers some 502s after its first good answer, so it must give six in
-# a row.
-await_proxy() {
-  local cert url body streak=0 deadline=$((SECONDS + 600))
-  cert=$(mktemp)
-  terraform output -raw lb_cert > "$cert"
-  url=$(terraform output -raw mcp_url)
-  while ((SECONDS < deadline)); do
-    body=$(curl -s --max-time 10 --cacert "$cert" "$url" || true)
-    if [[ "$body" == *"stream not offered"* ]]; then
-      streak=$((streak + 1))
-      if ((streak == 6)); then
-        rm -f "$cert"
-        return 0
-      fi
-    else
-      streak=0
-    fi
-    sleep 5
-  done
-  rm -f "$cert"
-  echo "The mcp proxy still doesn't reach the upstream stub after 10 minutes." >&2
-  echo "Last answer:" >&2
-  echo "$body" >&2
-  return 1
-}
-
-# The stubs are open, so their journals and mappings must not be.
-check_stub_admin() {
-  local url code
-  for url in "$(terraform output -raw rail_center_url)" "$(terraform output -raw upstream_url)"; do
-    code=$(curl -s -o /dev/null -w '%{http_code}' "$url/__admin/requests")
-    if [[ "$code" != 401 ]]; then
-      echo "$url/__admin answers $code without the password; it must be 401." >&2
-      return 1
-    fi
-  done
-}
 
 action=${1:-}
 start=$(date +%s)
@@ -95,7 +36,8 @@ case "$action" in
     # The registry first: the services are deployed from images pushed to it.
     terraform apply -auto-approve -input=false \
       -target=google_artifact_registry_repository.images
-    build_images
+    wiremock=$(sed -n 's/^ *image: \(wiremock\/wiremock:.*\)$/\1/p' "$e2e/compose.yml")
+    build_images callout rail-apigee "$wiremock"
     terraform apply -auto-approve -input=false
     echo
     echo "== Deployments"
@@ -105,7 +47,8 @@ case "$action" in
     done
     echo
     echo "== Waiting for the mcp proxy to reach the upstream stub"
-    await_proxy
+    # The load balancer, the environment's attachment and new IAM grants each take minutes to apply.
+    await_upstream "The mcp proxy"
     check_stub_admin
     echo "Session up in $(elapsed "$start")."
     echo "END THE SESSION WITH ./session.sh down: the environment is billed while it exists."

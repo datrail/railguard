@@ -143,8 +143,14 @@ impl ExternalProcessor for GatewayCallouts {
         let gateway = self.gateway.clone();
         // Several answers can follow one message, so they go through a channel.
         tokio::spawn(async move {
-            let Some(Ok(first)) = inbound.next().await else {
-                return;
+            // Ending the stream OK would tell Envoy to forward the request unjudged.
+            let first = match inbound.next().await {
+                Some(Ok(first)) => first,
+                Some(Err(status)) => {
+                    refuse_stream(&replies, status).await;
+                    return;
+                }
+                None => return,
             };
             if first.observability_mode {
                 tracing::error!(
@@ -165,7 +171,12 @@ impl ExternalProcessor for GatewayCallouts {
                 stage: Stage::Headers,
             };
             let mut messages = tokio_stream::once(Ok(first)).chain(inbound);
-            while let Some(Ok(message)) = messages.next().await {
+            let failed = loop {
+                let message = match messages.next().await {
+                    Some(Ok(message)) => message,
+                    Some(Err(status)) => break Some(status),
+                    None => break None,
+                };
                 let answers = match exchange.on(message).await {
                     Ok(answers) => answers,
                     Err(status) => {
@@ -176,6 +187,12 @@ impl ExternalProcessor for GatewayCallouts {
                 if send(&replies, answers).await.is_none() {
                     return;
                 }
+            };
+            if matches!(exchange.stage, Stage::Headers | Stage::Gathering(_)) {
+                let status = failed.unwrap_or_else(|| {
+                    Status::aborted("the stream ended before its request was answered")
+                });
+                refuse_stream(&replies, status).await;
             }
         });
         Ok(tonic::Response::new(Box::pin(ReceiverStream::new(
@@ -185,6 +202,12 @@ impl ExternalProcessor for GatewayCallouts {
 }
 
 type Replies = mpsc::Sender<Result<ProcessingResponse, Status>>;
+
+// Ends the stream with an error, which Envoy fails closed on (`failure_mode_allow: false`).
+async fn refuse_stream(replies: &Replies, status: Status) {
+    tracing::warn!(error = %status, "refused unjudged: ext_proc's stream failed");
+    let _ = replies.send(Err(status)).await;
+}
 
 // What one message is answered with: answers ready now, or a full-duplex request forwarded,
 // whose body goes back a chunk at a time, so it's never copied whole.
@@ -249,7 +272,7 @@ enum Stage {
     Gathering(Pending),
     // Disabled: every phase goes on as it came.
     Passing,
-    // Answered whole, by a refusal or the last of its phases: anything after is only acknowledged.
+    // Answered whole, by a refusal or its last phase: later headers or body are ignored.
     Done,
 }
 
@@ -276,6 +299,9 @@ impl Exchange {
     }
 
     async fn on_headers(&mut self, headers: HttpHeaders) -> Answers {
+        if !matches!(self.stage, Stage::Headers) {
+            return Answers::Now(Vec::new());
+        }
         let sent = headers
             .headers
             .iter()

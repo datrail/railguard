@@ -12,8 +12,13 @@ test-py:
 fmt:
 	cargo fmt
 
+# The wheel's ruff, on the e2e's Python too.
+E2E_RUFF = cd crates/rail-policy-py && uv run --locked --only-dev ruff
+
 fmt-py:
 	$(MAKE) -C crates/rail-policy-py fmt
+	$(E2E_RUFF) check --fix ../../e2e
+	$(E2E_RUFF) format ../../e2e
 
 # Pinned, so every run formats the same; needs npx.
 PRETTIER = npx --yes prettier@3.6.2
@@ -28,6 +33,8 @@ lint:
 
 lint-py:
 	$(MAKE) -C crates/rail-policy-py lint
+	$(E2E_RUFF) format --check ../../e2e
+	$(E2E_RUFF) check ../../e2e
 
 lint-md:
 	$(PRETTIER) --check "**/*.md"

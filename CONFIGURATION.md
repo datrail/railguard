@@ -17,8 +17,9 @@ Runs the host without Rail Center: nothing is fetched from it and nothing report
 - **Default:** `false`.
 - **Accepted:** a boolean.
 - **Read by:** both hosts.
-- Both hosts are then ready at once. `rail-apigee` allows every call it can answer. `rail-envoy` still routes the
-  protected hosts, but sets neither `x-rail` nor `x-rail-status`.
+- Both hosts are then ready at once. `rail-apigee` allows every call it can answer. `rail-envoy`'s proxy still routes
+  the protected hosts, but sets neither `x-rail` nor `x-rail-status`; its gateway forwards every call, with `x-rail`,
+  `x-rail-*` and `_` headers removed.
 - The other settings are still judged if they're set, so a mistake in one shows before Rail Center is turned on. It's
   logged as a warning when `true`.
 
@@ -118,9 +119,11 @@ message, which holds a whole buffered body.
 - **Accepted:** `1` to `100`, a whole number of MiB; the maximum is high enough that no limit a deployment already sets
   is refused.
 - **Read by:** both hosts' gateways.
-- **Past 4 MiB less 1 KiB, a request is refused unjudged** (413, with a warning logged), whatever this allows: Apigee
-  takes a callout's answer of at most 4 MiB, and the answer echoes the body. An answer may be up to 1 KiB larger than
-  the request.
+- **In `rail-apigee`, past 4 MiB less 1 KiB, a request is refused unjudged** (413, with a warning logged), whatever this
+  allows: Apigee takes a callout's answer of at most 4 MiB, and the answer echoes the body. An answer may be up to 1 KiB
+  larger than the request.
+- **In `rail-envoy`, a message past it** fails its stream while the call is unanswered, so Envoy fails closed
+  (`failure_mode_allow: false`).
 
 ### `RAIL_GATEWAY_SLUG`
 
