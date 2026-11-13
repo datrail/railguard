@@ -69,9 +69,7 @@ def _run_envoy_cases():
         if code == 200 and '"text":"delivered"' in answer:
             report_ok("the call returns the upstream's answer")
         else:
-            report_fail(
-                f"the call returns the upstream's answer: got {code} {answer[:300]}"
-            )
+            report_fail(f"the call returns the upstream's answer: got {code} {answer[:300]}")
         expect(
             "the upstream received the body as sent",
             True,

@@ -65,9 +65,7 @@ if os.environ.get("E2E_CA_FILE"):
 # The live stubs lock /__admin with basic auth.
 _ADMIN_HEADERS = {}
 if os.environ.get("E2E_STUB_ADMIN_PASSWORD"):
-    _credential = base64.b64encode(
-        f"e2e:{os.environ['E2E_STUB_ADMIN_PASSWORD']}".encode()
-    )
+    _credential = base64.b64encode(f"e2e:{os.environ['E2E_STUB_ADMIN_PASSWORD']}".encode())
     _ADMIN_HEADERS["Authorization"] = f"Basic {_credential.decode()}"
 
 _fails = 0
@@ -182,9 +180,7 @@ def _read_denials():
     except (OSError, ValueError, KeyError):
         return []
     return [
-        json.loads(r["request"]["body"])
-        for r in requests
-        if r["request"]["url"] == "/v1/denials"
+        json.loads(r["request"]["body"]) for r in requests if r["request"]["url"] == "/v1/denials"
     ]
 
 
@@ -212,8 +208,7 @@ def _read_received_headers():
     except (OSError, ValueError, KeyError):
         return None
     return [
-        {name.lower(): value for name, value in r["request"]["headers"].items()}
-        for r in requests
+        {name.lower(): value for name, value in r["request"]["headers"].items()} for r in requests
     ]
 
 
@@ -256,15 +251,11 @@ def send_raw_post(url, body, headers, timeout=_TIMEOUT_SECONDS):
     pairs, so a header can repeat; (None, "") if nothing answered."""
     parts = urllib.parse.urlsplit(url)
     if parts.scheme == "https":
-        connection = http.client.HTTPSConnection(
-            parts.netloc, timeout=timeout, context=_TLS
-        )
+        connection = http.client.HTTPSConnection(parts.netloc, timeout=timeout, context=_TLS)
     else:
         connection = http.client.HTTPConnection(parts.netloc, timeout=timeout)
     try:
-        connection.putrequest(
-            "POST", parts.path + (f"?{parts.query}" if parts.query else "")
-        )
+        connection.putrequest("POST", parts.path + (f"?{parts.query}" if parts.query else ""))
         for name, value in [*_MCP_HEADERS.items(), *headers]:
             connection.putheader(name, value)
         connection.putheader("Content-Length", str(len(body)))
@@ -391,9 +382,7 @@ def run_gateway_cases(mcp):
     start_block("mcp: a claimed status is recorded")
     reset_journals()
     claimed = {"x-rail-status": "not-found", **AGENT}
-    expect(
-        "the call is refused 403", 403, get_call_status(mcp, "track_package", claimed)
-    )
+    expect("the call is refused 403", 403, get_call_status(mcp, "track_package", claimed))
     metadata = wait_for_last_denial().get("metadata", {})
     expect("the denial reads no ticket", "absent", metadata.get("x-rail-status"))
     expect("and records the claim", "not-found", metadata.get("claimed-x-rail-status"))
@@ -416,9 +405,7 @@ def run_gateway_cases(mcp):
     # the body isn't JSON, and is refused.
     start_block("mcp: a body that isn't UTF-8 never reaches the upstream")
     reset_journals()
-    code, body = send_raw_post(
-        mcp, b"\xff\xfe{}", [("x-rail", GOOD_TICKET), *AGENT.items()]
-    )
+    code, body = send_raw_post(mcp, b"\xff\xfe{}", [("x-rail", GOOD_TICKET), *AGENT.items()])
     if code in (403, 503):
         report_ok(f"the call is refused ({code}: {body})")
     else:
