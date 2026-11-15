@@ -38,6 +38,8 @@ flowchart LR
 - **The cap through Envoy:** a 5 MiB call is refused 413 by the gateway in every mode, and nothing reaches `upstream`.
 - **The modes it refuses:** Envoy's default, `STREAMED`, is answered 503.
 - **Failing closed:** with `failure_mode_allow: false`, a gateway nothing can reach lets nothing through.
+- **A body held back:** a call without a ticket whose body comes 8 s after its headers, past the 6 s `message_timeout`,
+  is refused, never forwarded; Envoy waits for it in full duplex, so the gateway judges it, 403.
 
 ## Easy to get wrong
 

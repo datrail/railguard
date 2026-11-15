@@ -14,6 +14,7 @@ mod keys;
 mod log_settings;
 mod protected_hosts;
 mod rail_center;
+mod scanning;
 mod scripted;
 mod sink;
 mod ticket;

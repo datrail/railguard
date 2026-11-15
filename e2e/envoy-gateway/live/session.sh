@@ -29,10 +29,10 @@ prefix=$(sed -n 's/^prefix *= *"\(.*\)"/\1/p' terraform.tfvars)
 # The images the local stack pins.
 pinned() { sed -n "s#^ *image: \($1:.*\)\$#\1#p" "$stack/compose.yml"; }
 
-# The session's traffic extensions, by name.
+# The session's traffic extension, by name; anchored, so prefix `rg` misses `rg-2`'s.
 list_extensions() {
   gcloud service-extensions lb-traffic-extensions list --location=global \
-    --project="$project" --filter="name~/${prefix}-" --format='value(name)'
+    --project="$project" --filter="name~/${prefix}-ext\$" --format='value(name)'
 }
 
 # What the gateway logged at WARNING or above since $1: a refused body mode
@@ -51,7 +51,12 @@ read_google_time() {
   local _ day month year time months=JanFebMarAprMayJunJulAugSepOctNovDec before
   read -r _ day month year time _ < <(curl -sI https://www.googleapis.com/ | tr -d '\r' |
     sed -n 's/^[Dd]ate: //p')
+  # Without it, the log query would fail quietly and the run would seem to log nothing.
   before=${months%%"$month"*}
+  if [[ -z "$time" || ${#month} -ne 3 || "$before" == "$months" ]] || ((${#before} % 3)); then
+    echo "No Date header from www.googleapis.com" >&2
+    return 1
+  fi
   printf '%s-%02d-%sT%sZ' "$year" $((${#before} / 3 + 1)) "$day" "$time"
 }
 

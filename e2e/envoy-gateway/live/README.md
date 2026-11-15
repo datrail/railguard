@@ -73,7 +73,9 @@ certificate and the stubs' password, all as `E2E_*` variables; its exit code is 
 - a 3 MiB call reaches `upstream` byte for byte, sent back by the gateway a chunk at a time;
 - a 5 MiB call is refused 413 by the gateway (`RAIL_MAX_BODY_MB=4`), and nothing reaches `upstream`;
 - a call through `streamed` is answered 503, and nothing reaches `upstream`;
-- a call through `no-gateway` is answered with a 5xx, and nothing reaches `upstream`.
+- a call through `no-gateway` is answered with a 5xx, and nothing reaches `upstream`;
+- a call without a ticket whose body comes 8 s after its headers, past `timeout_ms`, is refused, 403 or a 5xx, and
+  nothing reaches `upstream`: an error before the first body chunk, which Google's docs say fails open.
 
 After the driver, `session.sh` prints the gateway's lines at WARNING or above from the run: the `streamed` refusal names
 the mode the load balancer said it sends, or `unknown` if it sent no `protocol_config`.
@@ -85,6 +87,8 @@ What the gateway's design left to check on GCP (first session, 2026-11-12):
 - **The load balancer fails closed with a gateway it can't reach:** a call through `no-gateway` is answered 500, and
   nothing reaches `upstream`, in spite of Google's docs on errors before the first body chunk. Only an unreachable
   backend is tried; a gateway failing its stream after accepting it isn't.
+- **It waits for a body held back past `timeout_ms`** (second session, 2026-11-13): sent 8 s after its headers, the call
+  is judged by the gateway, 403, and nothing reaches `upstream`.
 - **It sends `protocol_config`:** the `streamed` refusal's log line names `STREAMED`, and full duplex is read from it,
   so no setting naming the mode is needed.
 - **The extension takes a 6 s timeout,** as the API says (10 to 10000 ms), not the provider's docs (1000).

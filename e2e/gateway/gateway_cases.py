@@ -246,9 +246,10 @@ def read_last_received_body():
         return None
 
 
-def send_raw_post(url, body, headers, timeout=_TIMEOUT_SECONDS):
+def send_raw_post(url, body, headers, timeout=_TIMEOUT_SECONDS, pause=0):
     """The status and body of a POST of `body` (bytes) with `headers`, a list of (name, value)
-    pairs, so a header can repeat; (None, "") if nothing answered."""
+    pairs, so a header can repeat, the body sent `pause` seconds after them; (None, "") if
+    nothing answered."""
     parts = urllib.parse.urlsplit(url)
     if parts.scheme == "https":
         connection = http.client.HTTPSConnection(parts.netloc, timeout=timeout, context=_TLS)
@@ -259,7 +260,9 @@ def send_raw_post(url, body, headers, timeout=_TIMEOUT_SECONDS):
         for name, value in [*_MCP_HEADERS.items(), *headers]:
             connection.putheader(name, value)
         connection.putheader("Content-Length", str(len(body)))
-        connection.endheaders(body)
+        connection.endheaders()
+        time.sleep(pause)
+        connection.send(body)
         response = connection.getresponse()
         return response.status, response.read().decode(errors="replace")
     except (OSError, http.client.HTTPException):
