@@ -17,17 +17,21 @@ flowchart TD
   whole{"The whole body gathered?"}
   both([Both hosts, below])
   e1["A gRPC error:<br>Envoy's failure_mode_allow decides"]:::grpcError
+  e2["Forwarded unjudged by Envoy,<br>which ignores the answer;<br>logged as an error"]:::forwarded
   f1[Forwarded unjudged]:::forwarded
+  f2[Forwarded unjudged]:::forwarded
   r1[503]:::cannotApply
   r2[413]:::tooLarge
 
   arrive --> grpc
-  grpc -->|"yes: a message past RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB,<br>ext_proc in observability mode,<br>or a stream ending before its answer"| e1
+  grpc -->|"yes: a message past RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB,<br>or a stream ending before its answer"| e1
+  grpc -->|"yes: ext_proc in observability mode"| e2
   grpc -->|no| disabled
   disabled -->|true| f1
   disabled -->|false| whole
   whole -->|"no: ext_proc's body mode isn't full duplex or buffered,<br>ext_proc sent the body before its headers,<br>or ext_authz sent a POST without its body"| r1
-  whole -->|"no: ext_authz sent part of the body,<br>or a body streamed past RAIL_MAX_BODY_MB"| r2
+  whole -->|"no: ext_authz sent part of the body,<br>or ext_proc's body gathered past RAIL_MAX_BODY_MB"| r2
+  whole -->|"no: buffered, with trailers and no body,<br>and request_trailer_mode isn't SEND"| f2
   whole -->|yes| both
 
   classDef forwarded fill:#d4edda,stroke:#2e7d32,color:#1b5e20
@@ -72,9 +76,10 @@ flowchart TD
   start([From either host])
   cap{"Body past RAIL_MAX_BODY_MB?"}
   post{POST?}
-  subgraph deadline["Within 5 s from the bundle wait on, a wait for a free judging slot and the judging below included"]
+  subgraph deadline["Within 5 s from the bundle wait on, the judging below included"]
     bundle{"A bundle held,<br>waiting up to 2 s?"}
     key["Read x-rail; for a signed ticket, wait up to 2 s for its key,<br>if the bundle names an issuer and an audience<br>and enforcement isn't none"]
+    slot["Wait for a free judging slot"]
     session{"A session message?<br>initialize, ping, tools/list, prompts/list,<br>resources/list, resources/templates/list, notifications/…"}
     mode{enforcement}
     judged([Judged, below])
@@ -94,7 +99,8 @@ flowchart TD
   post -->|yes| bundle
   bundle -->|no| f2
   bundle -->|yes| key
-  key --> session
+  key --> slot
+  slot --> session
   session -->|yes| f3
   session -->|no| mode
   mode -->|none| f4
@@ -132,18 +138,20 @@ flowchart TD
   f3[Forwarded]:::forwarded
 
   start --> ticket
-  ticket -->|"no, and ticket_fallback is block"| deny
+  ticket -->|"no, ticket_fallback is block, at enforce"| deny
+  ticket -->|"no, ticket_fallback is block, at observe:<br>logged as it would be denied"| endpoint
   ticket -->|"yes, or ticket_fallback is pass"| endpoint
   endpoint -->|"another method, naming no tool"| chain
   endpoint -->|"a tool whose key is bound, gated"| bound
   endpoint -->|"a tool whose key is bound, open"| allow
   endpoint -->|"a tool with no binding,<br>or nothing readable"| bf
-  bf -->|block| deny
+  bf -->|"block, at enforce"| deny
+  bf -->|"block, at observe:<br>logged as it would be denied"| chain
   bf -->|pass| chain
   chain --> walk
   bound --> walk
   walk -->|"a block policy holds"| deny
-  walk -->|"a condition can't be read,<br>or 100,000 steps spent"| refused
+  walk -->|"a condition can't be read,<br>or 100,000 steps spent;<br>no alert logged"| refused
   walk -->|"no block policy holds"| allow
   deny -->|enforce| r1
   deny -->|observe| f1
@@ -158,6 +166,6 @@ flowchart TD
   classDef cannotApply fill:#ffe0b2,stroke:#ef6c00,color:#7a3e00
 ```
 
-A call forwarded goes on without the agent's `x-rail`, `x-rail-*` and `_` headers. A refusal names no policy: 403
-`{"error": "denied by policy"}`, 503 `{"error": "policy ruleset cannot be applied"}`, 413
+A call the gateway forwards goes on without the agent's `x-rail`, `x-rail-*` and `_` headers. A refusal the gateway
+answers names no policy: 403 `{"error": "denied by policy"}`, 503 `{"error": "policy ruleset cannot be applied"}`, 413
 `{"error": "request body too large"}`.
