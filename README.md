@@ -50,6 +50,7 @@ Each host's README has its own flow: [rail-apigee](crates/rail-apigee/README.md#
 | [`crates/rail-test-support`](crates/rail-test-support/README.md)       | What the tests share.                                                                                            |
 | [`e2e`](e2e/README.md)                                                 | End-to-end tests: each host's image in front of the software it plugs into.                                      |
 | [`CONFIGURATION.md`](CONFIGURATION.md)                                 | Every setting both hosts read.                                                                                   |
+| [`GATEWAY.md`](GATEWAY.md)                                             | What the gateway does with each request, as decision trees.                                                      |
 | `vectors`                                                              | The conformance cases that define how the language and the gateway behave.                                       |
 
 ## Development

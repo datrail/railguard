@@ -116,7 +116,7 @@ waits, deadline, posture, fallbacks, denial reports and answers. A call allowed 
     `request_trailer_mode: SEND` too, or a request with trailers and no body goes on unjudged;
   - **any other body mode** (`STREAMED`, Envoy's and the load balancer's default, `BUFFERED_PARTIAL`, `NONE`), or a
     stream that doesn't say its mode, is refused with 503 and an error line naming it, since the whole body can't be
-    seen first. So is a stream in `observability_mode`, whose answers Envoy ignores.
+    seen first. A stream in `observability_mode`, whose answers Envoy ignores, ends in a gRPC error instead.
 - **ext_authz** must send the body: `with_request_body`, with `allow_partial_message: false`. A body cut short is
   refused 413, and a `POST` with none, unless its size is known to be 0, 503: never judged as if whole.
 - **Fail closed:** `failure_mode_allow: false`, on either filter, so a call the gateway didn't answer never reaches the
