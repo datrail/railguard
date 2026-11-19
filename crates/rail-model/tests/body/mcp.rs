@@ -46,6 +46,14 @@ fn test_reads_the_method_and_tool_a_body_names() {
         ),
         ("not json", McpReading::Unreadable),
         (" ", McpReading::Unreadable),
+        (
+            r#"{"method": "ping", "METHOD": "ping"}"#,
+            McpReading::Unreadable,
+        ),
+        (
+            r#"{"method": "resources/read", "params": {"name": "a", "name": "a"}}"#,
+            McpReading::Unreadable,
+        ),
     ] {
         assert_eq!(McpReading::read(body.as_bytes()), reading, "{body}");
         assert_eq!(keep(body.as_bytes()).mcp(), &reading, "{body}");
@@ -190,11 +198,15 @@ fn test_reads_what_the_body_names_as_json_readers_would() {
         (deep(256).into_bytes(), &resolved),
         (deep(257).into_bytes(), &UNRECOGNISED),
         (quoted.into_bytes(), &resolved),
-        (
-            r#"{"method": 1e400, "method": "tools/call", "params": {"name": "c"}, "params": {"name": 1e400, "name": "a"}}"#
-                .into(),
-            &resolved,
-        ),
+        // Repeated, letter case ignored: readers differ on which they keep.
+        (r#"{"method": "tools/list", "method": "tools/call", "params": {"name": "a"}}"#.into(), &UNRECOGNISED),
+        (r#"{"Method": "tools/list", "method": "tools/call", "params": {"name": "a"}}"#.into(), &UNRECOGNISED),
+        (br#"{"method": "tools/list", "\u006dethod": "tools/call", "params": {"name": "a"}}"#.to_vec(), &UNRECOGNISED),
+        (r#"{"method": "tools/call", "params": {"name": "c"}, "params": {"name": "a"}}"#.into(), &UNRECOGNISED),
+        (r#"{"method": "tools/call", "params": {"name": "c", "NAME": "a"}}"#.into(), &UNRECOGNISED),
+        (r#"{"method": "tools/call", "params": {"name": "a", "arguments": {}, "Arguments": {}}}"#.into(), &UNRECOGNISED),
+        // Only in another case: not the key read.
+        (r#"{"Method": "tools/call", "params": {"name": "a"}}"#.into(), &UNRECOGNISED),
         (r#"{"method": "tools/call", "params": "a\/b"}"#.into(), &UNRECOGNISED),
         // Keys written with escapes, read as what they spell.
         (br#"{"\u006dethod": "tools/call", "params": {"\u006eame": "a"}}"#.to_vec(), &resolved),

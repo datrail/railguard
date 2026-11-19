@@ -9,7 +9,8 @@ use crate::endpoint::{Resolution, resolve_endpoint};
 /// What a body names as an MCP message.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum McpReading {
-    /// Not JSON, or a JSON-RPC batch: what it names can't be told.
+    /// Not JSON, a JSON-RPC batch, or with `method`, `params`, `params.name` or `params.arguments`
+    /// repeated, letter case ignored: what it names can't be told.
     Unreadable,
     /// An empty body, or a JSON value: `method` and `tool` are absent where it doesn't name them.
     Read {
@@ -42,10 +43,19 @@ impl McpReading {
         if root.kind() == Kind::Array {
             return Self::Unreadable;
         }
-        let method = last(root, "method").and_then(|method| method.text().map(Cow::into_owned));
+        let params = root.get("params");
+        let repeated = root.repeats("method")
+            || root.repeats("params")
+            || params.is_some_and(|params| params.repeats("name") || params.repeats("arguments"));
+        if repeated {
+            return Self::Unreadable;
+        }
+        let method = root
+            .get("method")
+            .and_then(|method| method.text().map(Cow::into_owned));
         let tool = match method.as_deref() {
-            Some("tools/call") => last(root, "params")
-                .and_then(|params| last(params, "name"))
+            Some("tools/call") => params
+                .and_then(|params| params.get("name"))
                 .and_then(|name| name.text().map(Cow::into_owned)),
             _ => None,
         };
@@ -73,13 +83,4 @@ impl McpReading {
 /// endpoint this reader can key.
 pub fn read_endpoint(path: &str, mcp: &McpReading) -> Resolution {
     resolve_endpoint(path, mcp.method().unwrap_or(""), mcp.tool())
-}
-
-// A key repeated keeps its last value.
-fn last<'a>(object: Node<'a>, key: &str) -> Option<Node<'a>> {
-    let (_, value) = object
-        .members()
-        .filter(|(name, _)| name.text().as_deref() == Some(key))
-        .last()?;
-    Some(value)
 }

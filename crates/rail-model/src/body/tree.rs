@@ -363,10 +363,23 @@ impl<'a> Node<'a> {
         })
     }
 
-    /// The value under `key`: `None` if absent, `null`, or if another key equal to it but for letter
-    /// case is there too. A key is compared as it reads; one that doesn't read matches nothing.
+    /// The value under `key`: `None` if absent, `null`, or repeated. A key is compared as it reads;
+    /// one that doesn't read matches nothing.
     pub fn get(&self, key: &str) -> Option<Node<'a>> {
-        let mut found = None;
+        match self.look_up(key) {
+            Member::Found(value) if value.kind() != Kind::Null => Some(value),
+            _ => None,
+        }
+    }
+
+    /// Whether `key` is there more than once, letter case ignored: what it holds can't be told,
+    /// since readers differ on which they keep.
+    pub fn repeats(&self, key: &str) -> bool {
+        matches!(self.look_up(key), Member::Repeated)
+    }
+
+    fn look_up(&self, key: &str) -> Member<'a> {
+        let mut found = Member::Absent;
         let mut alike = 0;
         for (name, value) in self.members() {
             let Some(name) = name.text() else {
@@ -377,13 +390,13 @@ impl<'a> Node<'a> {
             }
             alike += 1;
             if alike > 1 {
-                return None;
+                return Member::Repeated;
             }
             if name == key {
-                found = Some(value);
+                found = Member::Found(value);
             }
         }
-        found.filter(|value| value.kind() != Kind::Null)
+        found
     }
 
     /// The value at `steps` from this one: a key as `get` reads it, an index into an array; `None`
@@ -420,6 +433,12 @@ impl<'a> Node<'a> {
             end: 0,
         }
     }
+}
+
+enum Member<'a> {
+    Absent,
+    Found(Node<'a>),
+    Repeated,
 }
 
 struct Children<'a> {
