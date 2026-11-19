@@ -8,7 +8,7 @@ fn read(body: &Value) -> Resolution {
     read_endpoint(MOUNT, body.to_string().as_bytes())
 }
 
-fn call(method: &str, tool_name: Option<&str>) -> Value {
+fn build_call(method: &str, tool_name: Option<&str>) -> Value {
     match tool_name {
         Some(name) => {
             json!({"jsonrpc": "2.0", "id": 1, "method": method, "params": {"name": name}})
@@ -22,9 +22,9 @@ fn get_resolved(text: &str) -> Resolution {
 }
 
 const UNRECOGNISED: Resolution = Resolution::Judged(Endpoint::Unrecognised);
+const KEYLESS: Resolution = Resolution::Judged(Endpoint::Keyless);
 
-// The gateway reads the control ones as unrecognised; here a tool name is text, made safe where
-// it's logged.
+// A tool name is text, made safe where it's logged.
 #[test]
 fn test_uses_every_part_of_the_key_verbatim() {
     for tool_name in [
@@ -36,7 +36,7 @@ fn test_uses_every_part_of_the_key_verbatim() {
         "track\u{2028}package",
     ] {
         assert_eq!(
-            read(&call("tools/call", Some(tool_name))),
+            read(&build_call("tools/call", Some(tool_name))),
             get_resolved(&format!("/mcp#tools/call#{tool_name}")),
             "{tool_name:?}"
         );
@@ -56,16 +56,25 @@ fn test_forwards_a_session_or_discovery_message_unjudged() {
         "resources/templates/list",
     ];
     for method in methods {
-        assert_eq!(read(&call(method, None)), Resolution::Discovery, "{method}");
+        assert_eq!(
+            read(&build_call(method, None)),
+            Resolution::Discovery,
+            "{method}"
+        );
     }
 }
 
 #[test]
 fn test_reads_every_other_method_as_keyless() {
-    for method in ["resources/read", "prompts/get", "completion/complete"] {
+    for method in [
+        "resources/read",
+        "prompts/get",
+        "completion/complete",
+        "notificationsx",
+    ] {
         assert_eq!(
-            read(&call(method, Some("track_package"))),
-            Resolution::Judged(Endpoint::Keyless),
+            read(&build_call(method, Some("track_package"))),
+            KEYLESS,
             "{method}"
         );
     }
@@ -74,14 +83,14 @@ fn test_reads_every_other_method_as_keyless() {
 #[test]
 fn test_reads_a_missing_method_as_unrecognised() {
     assert_eq!(read(&json!({"params": {"name": "a"}})), UNRECOGNISED);
-    assert_eq!(read(&call("", None)), UNRECOGNISED);
+    assert_eq!(read(&build_call("", None)), UNRECOGNISED);
 }
 
 #[test]
 fn test_reads_a_tools_call_naming_no_tool_as_unrecognised() {
     for tool_name in [None, Some("")] {
         assert_eq!(
-            read(&call("tools/call", tool_name)),
+            read(&build_call("tools/call", tool_name)),
             UNRECOGNISED,
             "{tool_name:?}"
         );
@@ -93,12 +102,12 @@ fn test_reads_a_key_past_rail_centers_cap_in_characters_as_unrecognised() {
     for c in ["t", "é"] {
         let fits = c.repeat(255 - "/mcp#tools/call#".len());
         assert_eq!(
-            read(&call("tools/call", Some(&fits))),
+            read(&build_call("tools/call", Some(&fits))),
             get_resolved(&format!("/mcp#tools/call#{fits}")),
             "{c}"
         );
         assert_eq!(
-            read(&call("tools/call", Some(&format!("{fits}{c}")))),
+            read(&build_call("tools/call", Some(&format!("{fits}{c}")))),
             UNRECOGNISED,
             "{c}"
         );
@@ -107,7 +116,7 @@ fn test_reads_a_key_past_rail_centers_cap_in_characters_as_unrecognised() {
 
 #[test]
 fn test_reads_a_key_on_an_empty_path_as_unrecognised() {
-    let body = call("tools/call", Some("track_package")).to_string();
+    let body = build_call("tools/call", Some("track_package")).to_string();
     assert_eq!(read_endpoint("", body.as_bytes()), UNRECOGNISED);
 }
 
@@ -124,7 +133,6 @@ fn test_reads_what_the_body_names_as_json_readers_would() {
         "[".repeat(300)
     );
     let resolved = get_resolved("/mcp#tools/call#a");
-    let keyless = Resolution::Judged(Endpoint::Keyless);
     for (body, named) in [
         (deep(256).into_bytes(), &resolved),
         (deep(257).into_bytes(), &UNRECOGNISED),
@@ -135,6 +143,10 @@ fn test_reads_what_the_body_names_as_json_readers_would() {
             &resolved,
         ),
         (r#"{"method": "tools/call", "params": "a\/b"}"#.into(), &UNRECOGNISED),
+        // Keys written with escapes, read as what they spell.
+        (br#"{"\u006dethod": "tools/call", "params": {"\u006eame": "a"}}"#.to_vec(), &resolved),
+        // Keys written with escapes, read as what they spell.
+        (br#"{"method": "tools/call", "params": {"name": "a"}}"#.to_vec(), &resolved),
         // Keys a string can't hold, read past.
         (r#"{"\ud800": 0, "method": "tools/call", "params": {"\udfff": 1, "name": "a"}}"#.into(), &resolved),
         (r#"{"method": "tools/call", "params": {"name": "a"}} {}"#.into(), &UNRECOGNISED),
@@ -147,8 +159,8 @@ fn test_reads_what_the_body_names_as_json_readers_would() {
         // Not UTF-8.
         (b"{\"method\": \"tools/call\", \"params\": {\"name\": \"a\xff\"}}".into(), &UNRECOGNISED),
         // A method naming no tool keeps its key-less reading whatever `params` holds.
-        (r#"{"method": "resources/read", "params": [1]}"#.into(), &keyless),
-        (r#"{"method": "resources/read", "params": 1e400}"#.into(), &keyless),
+        (r#"{"method": "resources/read", "params": [1]}"#.into(), &KEYLESS),
+        (r#"{"method": "resources/read", "params": 1e400}"#.into(), &KEYLESS),
     ] {
         assert_eq!(
             &read_endpoint(MOUNT, &body),

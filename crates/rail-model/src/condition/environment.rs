@@ -7,7 +7,6 @@ use crate::endpoint::Endpoint;
 /// What a condition reads about one call.
 #[derive(Clone, Copy, Debug)]
 pub struct Environment<'a> {
-    // A usable ticket's claims. `None` without one: every `ticket` path then reads as absent.
     pub(crate) ticket: Option<&'a Map<String, Value>>,
     pub(crate) endpoint: &'a Endpoint,
     pub(crate) headers: &'a Headers,
