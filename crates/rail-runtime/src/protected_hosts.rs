@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use rail_model::endpoint::split_authority;
+use rail_model::authority::split_authority;
 use rail_model::sanitize::sanitize;
 
 use crate::config::{Refused, Settings};

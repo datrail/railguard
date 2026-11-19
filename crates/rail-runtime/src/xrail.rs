@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::config::Secret;
-use rail_model::endpoint::split_authority;
+use rail_model::authority::split_authority;
 
 use crate::protected_hosts::{ProtectedHost, ProtectedHosts};
 use crate::ticket::OpaqueTicket;
