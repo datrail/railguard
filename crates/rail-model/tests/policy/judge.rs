@@ -59,7 +59,7 @@ fn judge_case(case: &Case) -> Outcome {
     let bundle = parse_bundle(&case.bundle.to_string()).unwrap();
     let endpoint = read_endpoint(&case.endpoint);
     let headers = Headers::from_lines(case.headers.iter().map(|(n, v)| (n, v)));
-    let environment = Environment::new(case.ticket.as_ref(), &endpoint, &headers);
+    let environment = Environment::for_judging(case.ticket.as_ref(), &endpoint, &headers);
     judge(
         &compile_bundle(&bundle),
         &environment,
@@ -108,7 +108,7 @@ fn test_shares_one_budget_across_the_walk() {
     });
     let judge_with = |limit: u64| {
         let headers = Headers::from_lines([("x-a", "a")]);
-        let environment = Environment::new(None, &Endpoint::Keyless, &headers);
+        let environment = Environment::for_judging(None, &Endpoint::Keyless, &headers);
         let judge_bundle = compile_bundle(&parse_bundle(&bundle.to_string()).unwrap());
         judge(
             &judge_bundle,
@@ -185,7 +185,7 @@ fn trace_bundle(policies: Value, bindings: Value, limit: u64) -> (Outcome, Recor
         .clone();
     let headers = Headers::from_lines([("x-a", "b, c")]);
     let endpoint = Endpoint::Resolved("/mcp#tools/call#t".parse().unwrap());
-    let environment = Environment::new(Some(&claims), &endpoint, &headers);
+    let environment = Environment::for_judging(Some(&claims), &endpoint, &headers);
     let mut recorder = Recorder::default();
     let outcome = judge_traced(
         &compile_bundle(&parse_bundle(&bundle.to_string()).unwrap()),

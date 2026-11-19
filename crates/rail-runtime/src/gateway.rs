@@ -133,7 +133,7 @@ pub(crate) fn judge_call<B: AsRef<[u8]>>(unit: Unit<B>, report: &dyn Fn(&Denial)
     };
     let ticket = ticket.verify(&config, now_epoch_seconds);
     let headers = Headers::from_lines(call.headers.iter().map(|(name, value)| (name, value)));
-    let environment = Environment::new(
+    let environment = Environment::for_judging(
         match &ticket {
             TicketState::Valid(ticket) => Some(&ticket.claims),
             _ => None,

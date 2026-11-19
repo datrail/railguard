@@ -13,8 +13,9 @@ pub struct Environment<'a> {
 }
 
 impl<'a> Environment<'a> {
-    /// A call's ticket claims (`None` without a usable ticket), its endpoint and its headers.
-    pub fn new(
+    /// For judging a call against the policy bundle: its ticket claims (`None` without a usable
+    /// ticket), its endpoint and its headers.
+    pub fn for_judging(
         ticket: Option<&'a Map<String, Value>>,
         endpoint: &'a Endpoint,
         headers: &'a Headers,
