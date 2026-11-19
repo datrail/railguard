@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use percent_encoding::percent_decode_str;
-use rail_model::body::read_endpoint;
+use rail_model::body::mcp::{McpReading, read_endpoint};
 use rail_model::condition::{Budget, DEFAULT_STEP_LIMIT, Environment, Headers};
 use rail_model::endpoint::{Endpoint, Resolution};
 use rail_model::policy::{
@@ -113,7 +113,7 @@ pub(crate) fn judge_call<B: AsRef<[u8]>>(unit: Unit<B>, report: &dyn Fn(&Denial)
         settings,
         stop,
     } = unit;
-    let endpoint = match read_endpoint(&call.path, call.body.as_ref()) {
+    let endpoint = match read_endpoint(&call.path, &McpReading::read(call.body.as_ref())) {
         Resolution::Discovery => {
             tracing::debug!("forwarded a session message, unjudged");
             return Answer::Forward;
