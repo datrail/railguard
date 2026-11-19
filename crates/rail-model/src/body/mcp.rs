@@ -2,8 +2,8 @@
 
 use std::borrow::Cow;
 
-use super::Unparsed;
-use super::tree::{Kind, Node, Tree};
+use super::tree::{Kind, Node};
+use super::{Unparsed, json};
 use crate::endpoint::{Resolution, resolve_endpoint};
 
 /// What a body names as an MCP message.
@@ -23,7 +23,7 @@ pub enum McpReading {
 impl McpReading {
     /// Reads `body` as `RequestBody::mcp` does, with no budget, for a host that holds the bytes itself.
     pub fn read(body: &[u8]) -> Self {
-        let tree = Tree::parse(body, &mut |_| true);
+        let tree = json::parse(body, &mut |_| true);
         let root = tree
             .as_ref()
             .map(|tree| tree.root(body))

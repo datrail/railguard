@@ -1,6 +1,7 @@
 //! A request body: kept as it arrives, within a cap and a budget it shares with every other, then
-//! read once, by whichever caller asks first, as a tree and as an MCP message.
+//! read once, by whichever caller asks first, as a tree of values and as an MCP message.
 
+mod json;
 pub mod mcp;
 pub mod tree;
 
@@ -14,9 +15,9 @@ use tree::{Node, Tree};
 /// Why a body isn't read as a tree.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Unparsed {
-    /// Not one JSON value, nested past 256 levels, or past 4 GiB. A string's contents aren't
-    /// checked until it's read.
-    NotJson,
+    /// Not one value in the format read, nested past 256 levels, or past 4 GiB. A string's
+    /// contents aren't checked until it's read.
+    Malformed,
     /// Its tree would pass the byte budget.
     PastBudget,
 }
@@ -171,22 +172,27 @@ impl RequestBody {
         &self.bytes
     }
 
-    /// The body's top value, past one UTF-8 BOM. `Content-Encoding` isn't decoded.
-    pub fn root(&self) -> Result<Node<'_>, Unparsed> {
+    /// The body read as JSON: its top value, past one UTF-8 BOM.
+    pub fn json(&self) -> Result<Node<'_>, Unparsed> {
         let tree = self.tree.get_or_init(|| {
             let mut charge = Charge::new(&self.charge.budget);
-            let tree = Tree::parse(&self.bytes, &mut |bytes| charge.grow(bytes))?;
+            let tree = json::parse(self.content(), &mut |bytes| charge.grow(bytes))?;
             Ok((tree, charge))
         });
         tree.as_ref()
-            .map(|(tree, _)| tree.root(&self.bytes))
+            .map(|(tree, _)| tree.root(self.content()))
             .map_err(|&why| why)
     }
 
     /// What the body names as an MCP message.
     pub fn mcp(&self) -> &McpReading {
         self.mcp
-            .get_or_init(|| McpReading::of(self.bytes.is_empty(), self.root()))
+            .get_or_init(|| McpReading::of(self.bytes.is_empty(), self.json()))
+    }
+
+    // What the readings parse: the bytes as sent, until `Content-Encoding` is decoded.
+    fn content(&self) -> &[u8] {
+        &self.bytes
     }
 }
 

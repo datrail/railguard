@@ -1,3 +1,4 @@
+mod json;
 mod mcp;
 mod tree;
 
@@ -62,12 +63,12 @@ fn test_shares_one_budget_between_bodies_until_each_is_dropped() {
 fn test_charges_a_bodys_tree_to_the_budget_too() {
     let body = b"[0, 0, 0]";
     let unparsed = keep_within(&ByteBudget::new(body.len()), body).unwrap();
-    assert_eq!(unparsed.root().err(), Some(Unparsed::PastBudget));
+    assert_eq!(unparsed.json().err(), Some(Unparsed::PastBudget));
     assert_eq!(unparsed.mcp(), &McpReading::Unreadable);
 
     let roomy = ByteBudget::new(1 << 20);
     let parsed = keep_within(&roomy, body).unwrap();
-    assert!(parsed.root().is_ok());
+    assert!(parsed.json().is_ok());
     let left = vec![b'0'; (1 << 20) - body.len()];
     assert_eq!(keep_within(&roomy, &left).unwrap_err(), Unkept::PastBudget);
     drop(parsed);
