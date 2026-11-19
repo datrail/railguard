@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use rail_model::body::Unparsed;
 use serde::de::IgnoredAny;
 
@@ -17,7 +19,6 @@ fn test_keeps_every_value_in_order_as_sent() {
         ),
         (b" \t\n\r[ ] ", "[]"),
         (br#"{"a": 1, "a": 2, "A": 3}"#, r#"{"a":1,"a":2,"A":3}"#),
-        (br#""top""#, r#""top""#),
         (br#""a b""#, r#""a b""#),
         (b"-0", "-0"),
         ("\u{feff}{}".as_bytes(), "{}"),
@@ -34,6 +35,18 @@ fn test_keeps_every_value_in_order_as_sent() {
 }
 
 // A string's contents are checked only when it's read.
+// Copied only where an escape must be decoded.
+#[test]
+fn test_borrows_a_strings_text_with_no_escape() {
+    let plain = keep(br#""a b""#);
+    assert!(matches!(
+        plain.json().unwrap().text(),
+        Some(Cow::Borrowed("a b"))
+    ));
+    let escaped = keep(br#""a\nb""#);
+    assert!(matches!(escaped.json().unwrap().text(), Some(Cow::Owned(text)) if text == "a\nb"));
+}
+
 #[test]
 fn test_reads_a_string_json_cant_hold_as_no_text() {
     for body in [

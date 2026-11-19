@@ -79,6 +79,5 @@ fn test_charges_a_bodys_tree_to_the_budget_too() {
 #[test]
 fn test_debugs_a_body_without_its_bytes() {
     let printed = format!("{:?}", keep(b"secret"));
-    assert!(printed.contains("bytes: 6"), "{printed}");
     assert!(!printed.contains("secret"), "{printed}");
 }

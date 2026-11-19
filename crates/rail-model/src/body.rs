@@ -117,18 +117,18 @@ impl BodyBuffer {
         if self.unkept.is_some() {
             return;
         }
-        let length = self.bytes.len() + chunk.len();
-        if length > self.cap_bytes {
+        let length_bytes = self.bytes.len() + chunk.len();
+        if length_bytes > self.cap_bytes {
             return self.drop_bytes(Unkept::PastCap);
         }
-        let capacity = self.bytes.capacity();
-        if length > capacity {
+        let capacity_bytes = self.bytes.capacity();
+        if length_bytes > capacity_bytes {
             // Doubling, as a `Vec` does, but within the cap, and charged before it's taken.
-            let wanted = length.max(capacity * 2).min(self.cap_bytes);
-            if !self.charge.grow(wanted - capacity) {
+            let wanted_bytes = length_bytes.max(capacity_bytes * 2).min(self.cap_bytes);
+            if !self.charge.grow(wanted_bytes - capacity_bytes) {
                 return self.drop_bytes(Unkept::PastBudget);
             }
-            self.bytes.reserve_exact(wanted - self.bytes.len());
+            self.bytes.reserve_exact(wanted_bytes - self.bytes.len());
         }
         self.bytes.extend_from_slice(chunk);
     }
@@ -187,7 +187,7 @@ impl RequestBody {
     /// What the body names as an MCP message.
     pub fn mcp(&self) -> &McpReading {
         self.mcp
-            .get_or_init(|| McpReading::of(self.bytes.is_empty(), self.json()))
+            .get_or_init(|| McpReading::of(self.content(), self.json()))
     }
 
     // What the readings parse: the bytes as sent, until `Content-Encoding` is decoded.

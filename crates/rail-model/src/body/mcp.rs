@@ -1,4 +1,4 @@
-//! What an MCP request body names: its method and tool, read once for every caller.
+//! What an MCP request body names: its method and tool.
 
 use std::borrow::Cow;
 
@@ -28,11 +28,12 @@ impl McpReading {
             .as_ref()
             .map(|tree| tree.root(body))
             .map_err(|&why| why);
-        Self::of(body.is_empty(), root)
+        Self::of(body, root)
     }
 
-    pub(crate) fn of(empty: bool, root: Result<Node<'_>, Unparsed>) -> Self {
-        if empty {
+    // `content`'s reading, `root` its JSON.
+    pub(crate) fn of(content: &[u8], root: Result<Node<'_>, Unparsed>) -> Self {
+        if content.is_empty() {
             return Self::Read {
                 method: None,
                 tool: None,

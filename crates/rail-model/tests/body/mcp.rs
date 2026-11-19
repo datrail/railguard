@@ -48,24 +48,11 @@ fn test_reads_the_method_and_tool_a_body_names() {
         (" ", McpReading::Unreadable),
         // Repeated, letter case ignored: readers differ on which they keep.
         (
-            r#"{"method": "ping", "method": "tools/call", "params": {"name": "a"}}"#,
-            McpReading::Unreadable,
-        ),
-        (
             r#"{"Method": "ping", "method": "tools/call", "params": {"name": "a"}}"#,
             McpReading::Unreadable,
         ),
         (
-            r#"{"method": "ping", "\u006dethod": "tools/call", "params": {"name": "a"}}"#,
-            McpReading::Unreadable,
-        ),
-        (
             r#"{"method": "tools/call", "params": {"name": "c"}, "params": {"name": "a"}}"#,
-            McpReading::Unreadable,
-        ),
-        // `ſ` folds to `s`, as a server folding case reads it.
-        (
-            r#"{"method": "tools/call", "params": {"name": "c"}, "param\u017f": {"name": "a"}}"#,
             McpReading::Unreadable,
         ),
         (

@@ -2,17 +2,15 @@
 //!
 //! Read in one pass of its own: serde_json can't tell where an escaped string or a number sits in
 //! the input, so it can't build a tree of positions. It checks the structure, numbers, `true`,
-//! `false`, `null` and the nesting; a string's contents are left to serde_json when it's read.
+//! `false` and `null`; a string's contents are checked only when it's read, serde_json decoding one
+//! with an escape.
 
 use std::borrow::Cow;
 
 use super::Unparsed;
-use super::tree::{Builder, Encoding, Kind, Tree};
+use super::tree::{Builder, Kind, Tree};
 
 const BOM: &[u8] = "\u{feff}".as_bytes();
-
-// Any value but a string with an escape.
-const PLAIN: Encoding = Encoding::Json { escaped: false };
 
 /// Reads `content`, past one UTF-8 BOM, as one JSON value. `grow` is asked before the tree takes
 /// more bytes, and can refuse them.
@@ -24,14 +22,15 @@ pub(crate) fn parse(content: &[u8], grow: &mut dyn FnMut(usize) -> bool) -> Resu
         } else {
             0
         },
-        tree: Builder::new(content, grow)?,
+        tree: Builder::new(content, decode_string, grow)?,
     };
     parser.run()?;
     parser.tree.finish()
 }
 
-/// A JSON string's text, `raw` with its quotes; `None` for one JSON can't hold.
-pub(crate) fn decode_string(raw: &[u8], escaped: bool) -> Option<Cow<'_, str>> {
+// A JSON string's text, `raw` with its quotes; `None` for a lone surrogate, a control character, a
+// bad escape or bytes not UTF-8.
+fn decode_string(raw: &[u8], escaped: bool) -> Option<Cow<'_, str>> {
     if escaped {
         return serde_json::from_slice::<String>(raw).ok().map(Cow::Owned);
     }
@@ -125,7 +124,7 @@ impl Parser<'_, '_> {
     }
 
     fn open_container(&mut self, kind: Kind) -> Result<(), Unparsed> {
-        self.tree.open(kind, PLAIN, self.at)?;
+        self.tree.open(kind, self.at)?;
         self.at += 1;
         Ok(())
     }
@@ -149,9 +148,7 @@ impl Parser<'_, '_> {
             self.at += offset;
             if self.content[self.at] == b'"' {
                 self.at += 1;
-                return self
-                    .tree
-                    .scalar(Kind::String, Encoding::Json { escaped }, start, self.at);
+                return self.tree.push(Kind::String, escaped, start, self.at);
             }
             escaped = true;
             self.at += 2;
@@ -164,7 +161,7 @@ impl Parser<'_, '_> {
         }
         let start = self.at;
         self.at += word.len();
-        self.tree.scalar(kind, PLAIN, start, self.at)
+        self.tree.push(kind, false, start, self.at)
     }
 
     // `-? (0 | [1-9][0-9]*) (. [0-9]+)? ([eE] [+-]? [0-9]+)?`
@@ -187,7 +184,7 @@ impl Parser<'_, '_> {
                 return Err(Unparsed::Malformed);
             }
         }
-        self.tree.scalar(Kind::Number, PLAIN, start, self.at)
+        self.tree.push(Kind::Number, false, start, self.at)
     }
 
     fn skip_if(&mut self, accept: impl Fn(u8) -> bool) -> bool {

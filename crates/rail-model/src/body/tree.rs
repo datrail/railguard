@@ -1,6 +1,6 @@
 //! A body's content as a tree of values: positions into its bytes, each string decoded only when
-//! read. Each format's parser builds it (`json` today), so a value is found one way whatever the
-//! format.
+//! read, by its format's decoder. Each format's parser builds it, so a value is found one way
+//! whatever the format.
 //!
 //! The tree is one flat list of fixed-size entries, every key and value in document order, each
 //! container's entry noting where its subtree ends. Not nested nodes: those take an allocation per
@@ -10,7 +10,7 @@
 
 use std::borrow::Cow;
 
-use super::{Unparsed, json};
+use super::Unparsed;
 
 // Past this, content isn't read.
 const MAX_NESTING: usize = 256;
@@ -20,24 +20,23 @@ const MAX_NESTING: usize = 256;
 #[derive(Debug)]
 pub(crate) struct Tree {
     entries: Vec<Entry>,
+    decode: Decode,
 }
+
+/// A string's text from its raw text, `escaped` if that holds anything to decode; `None` for one
+/// its format can't hold.
+pub(crate) type Decode = fn(&[u8], bool) -> Option<Cow<'_, str>>;
 
 #[derive(Clone, Copy, Debug)]
 struct Entry {
     kind: Kind,
-    encoding: Encoding,
-    // The value's text, as positions in the content: a JSON string with its quotes.
+    // A string whose raw text holds an escape, so its text must be decoded.
+    escaped: bool,
+    // The value's raw text, as positions in the content: a string's delimiters included.
     start: u32,
     end: u32,
     // The first entry past this one's subtree.
     after: u32,
-}
-
-/// How a value's text is written, so a string is decoded the format's way when read.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Encoding {
-    /// `escaped` for a string holding a backslash.
-    Json { escaped: bool },
 }
 
 impl Tree {
@@ -55,16 +54,18 @@ impl Tree {
 /// closed.
 pub(crate) struct Builder<'g> {
     entries: Vec<Entry>,
+    decode: Decode,
     // The containers open, innermost last.
     open: Vec<usize>,
     grow: &'g mut dyn FnMut(usize) -> bool,
 }
 
 impl<'g> Builder<'g> {
-    /// For `content` of up to 4 GiB, positions being `u32`. `grow` is asked before the tree takes
-    /// more bytes, and can refuse them.
+    /// For `content` of up to 4 GiB, positions being `u32`, its strings read with `decode`. `grow`
+    /// is asked before the tree takes more bytes, and can refuse them.
     pub(crate) fn new(
         content: &[u8],
+        decode: Decode,
         grow: &'g mut dyn FnMut(usize) -> bool,
     ) -> Result<Self, Unparsed> {
         if u32::try_from(content.len()).is_err() {
@@ -72,6 +73,7 @@ impl<'g> Builder<'g> {
         }
         Ok(Self {
             entries: Vec::new(),
+            decode,
             open: Vec::new(),
             grow,
         })
@@ -83,28 +85,13 @@ impl<'g> Builder<'g> {
         Some(self.entries[index].kind)
     }
 
-    pub(crate) fn scalar(
-        &mut self,
-        kind: Kind,
-        encoding: Encoding,
-        start: usize,
-        end: usize,
-    ) -> Result<(), Unparsed> {
-        self.push(kind, encoding, start, end)
-    }
-
     /// Opens a container starting at `start`; refused past 256 levels.
-    pub(crate) fn open(
-        &mut self,
-        kind: Kind,
-        encoding: Encoding,
-        start: usize,
-    ) -> Result<(), Unparsed> {
+    pub(crate) fn open(&mut self, kind: Kind, start: usize) -> Result<(), Unparsed> {
         if self.open.len() == MAX_NESTING {
             return Err(Unparsed::Malformed);
         }
         self.open.push(self.entries.len());
-        self.push(kind, encoding, start, start)
+        self.push(kind, false, start, start)
     }
 
     /// Closes the innermost container, its text ending at `end`.
@@ -123,13 +110,15 @@ impl<'g> Builder<'g> {
         }
         Ok(Tree {
             entries: self.entries,
+            decode: self.decode,
         })
     }
 
-    fn push(
+    /// Pushes a scalar, its raw text from `start` to `end`.
+    pub(crate) fn push(
         &mut self,
         kind: Kind,
-        encoding: Encoding,
+        escaped: bool,
         start: usize,
         end: usize,
     ) -> Result<(), Unparsed> {
@@ -143,7 +132,7 @@ impl<'g> Builder<'g> {
         let after = position(self.entries.len() + 1);
         self.entries.push(Entry {
             kind,
-            encoding,
+            escaped,
             start: position(start),
             end: position(end),
             after,
@@ -192,23 +181,20 @@ impl<'a> Node<'a> {
         self.entry().kind
     }
 
-    /// The value as written: in JSON, a string with its quotes and escapes, a number as written.
+    /// The value as written: a string with its delimiters and escapes, a number as written.
     pub fn raw(&self) -> &'a [u8] {
         let entry = self.entry();
         &self.content[entry.start as usize..entry.end as usize]
     }
 
-    /// A string's text, decoded as its format writes it; `None` for any other value, or for a
-    /// string that doesn't decode (in JSON: a lone surrogate, a control character, a bad escape,
-    /// bytes not UTF-8).
+    /// A string's text, decoded as its format writes it, borrowed where nothing needs decoding;
+    /// `None` for any other value, or for a string that doesn't decode.
     pub fn text(&self) -> Option<Cow<'a, str>> {
-        let Entry { kind, encoding, .. } = self.entry();
+        let Entry { kind, escaped, .. } = self.entry();
         if kind != Kind::String {
             return None;
         }
-        match encoding {
-            Encoding::Json { escaped } => json::decode_string(self.raw(), escaped),
-        }
+        (self.tree.decode)(self.raw(), escaped)
     }
 
     /// An array's items, in order; none for any other value.
