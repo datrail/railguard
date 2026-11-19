@@ -7,9 +7,9 @@ const EMPTY_PORT: &str = "has an empty or zero port";
 const BAD_PORT: &str = "has a port that isn't a number up to 65535";
 const NOT_A_HOST: &str = "is not a host name or an IP address";
 
-/// A host and optional port, from an entry or a request's `:authority`: the host lowercased,
-/// without one trailing dot or an IPv6 address's brackets. Both go through this, so a host can't
-/// be read one way in the setting and another in a request.
+/// A host and optional port, from an `:authority` or text written as one: the host lowercased,
+/// without one trailing dot or an IPv6 address's brackets. Every host compared goes through this,
+/// so one host can't be read two ways.
 pub fn split_authority(authority: &str) -> Result<(String, Option<u16>), &'static str> {
     let (host, port, ipv6) = match authority.strip_prefix('[') {
         Some(bracketed) => {
