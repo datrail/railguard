@@ -13,7 +13,7 @@ const MAX_NESTING: usize = 256;
 
 const BOM: &[u8] = "\u{feff}".as_bytes();
 
-/// Every value in a body, in document order, each container followed by its subtree.
+/// Every key and value in a body, in document order, each container followed by its subtree.
 #[derive(Debug)]
 pub(crate) struct Tree {
     entries: Vec<Entry>,
@@ -21,23 +21,14 @@ pub(crate) struct Tree {
 
 #[derive(Clone, Copy, Debug)]
 struct Entry {
-    kind: EntryKind,
+    kind: Kind,
+    // A string holding a backslash, which must be decoded to read.
+    escaped: bool,
     // The value's text, as positions in the body: a string with its quotes.
     start: u32,
     end: u32,
     // The first entry past this one's subtree.
     after: u32,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum EntryKind {
-    Object,
-    Array,
-    String { escaped: bool },
-    Number,
-    True,
-    False,
-    Null,
 }
 
 impl Tree {
@@ -136,17 +127,17 @@ impl Parser<'_, '_> {
     fn value(&mut self, byte: u8) -> Result<Want, Unparsed> {
         match byte {
             b'{' => {
-                self.open_container(EntryKind::Object)?;
+                self.open_container(Kind::Object)?;
                 return Ok(Want::KeyOrClose);
             }
             b'[' => {
-                self.open_container(EntryKind::Array)?;
+                self.open_container(Kind::Array)?;
                 return Ok(Want::ValueOrClose);
             }
             b'"' => self.string()?,
-            b't' => self.literal(b"true", EntryKind::True)?,
-            b'f' => self.literal(b"false", EntryKind::False)?,
-            b'n' => self.literal(b"null", EntryKind::Null)?,
+            b't' => self.literal(b"true", Kind::Bool(true))?,
+            b'f' => self.literal(b"false", Kind::Bool(false))?,
+            b'n' => self.literal(b"null", Kind::Null)?,
             b'-' | b'0'..=b'9' => self.number()?,
             _ => return Err(Unparsed::NotJson),
         }
@@ -156,15 +147,15 @@ impl Parser<'_, '_> {
     fn in_object(&self) -> bool {
         self.open
             .last()
-            .is_some_and(|&index| self.entries[index].kind == EntryKind::Object)
+            .is_some_and(|&index| self.entries[index].kind == Kind::Object)
     }
 
-    fn open_container(&mut self, kind: EntryKind) -> Result<(), Unparsed> {
+    fn open_container(&mut self, kind: Kind) -> Result<(), Unparsed> {
         if self.open.len() == MAX_NESTING {
             return Err(Unparsed::NotJson);
         }
         self.open.push(self.entries.len());
-        self.push(kind, self.at, 0)?;
+        self.push(kind, false, self.at, 0)?;
         self.at += 1;
         Ok(())
     }
@@ -192,20 +183,20 @@ impl Parser<'_, '_> {
             self.at += offset;
             if self.body[self.at] == b'"' {
                 self.at += 1;
-                return self.push(EntryKind::String { escaped }, start, self.at);
+                return self.push(Kind::String, escaped, start, self.at);
             }
             escaped = true;
             self.at += 2;
         }
     }
 
-    fn literal(&mut self, word: &[u8], kind: EntryKind) -> Result<(), Unparsed> {
+    fn literal(&mut self, word: &[u8], kind: Kind) -> Result<(), Unparsed> {
         if !self.body[self.at..].starts_with(word) {
             return Err(Unparsed::NotJson);
         }
         let start = self.at;
         self.at += word.len();
-        self.push(kind, start, self.at)
+        self.push(kind, false, start, self.at)
     }
 
     // `-? (0 | [1-9][0-9]*) (. [0-9]+)? ([eE] [+-]? [0-9]+)?`
@@ -228,7 +219,7 @@ impl Parser<'_, '_> {
                 return Err(Unparsed::NotJson);
             }
         }
-        self.push(EntryKind::Number, start, self.at)
+        self.push(Kind::Number, false, start, self.at)
     }
 
     fn skip_if(&mut self, accept: impl Fn(u8) -> bool) -> bool {
@@ -249,7 +240,13 @@ impl Parser<'_, '_> {
         while self.skip_if(|byte| matches!(byte, b' ' | b'\t' | b'\n' | b'\r')) {}
     }
 
-    fn push(&mut self, kind: EntryKind, start: usize, end: usize) -> Result<(), Unparsed> {
+    fn push(
+        &mut self,
+        kind: Kind,
+        escaped: bool,
+        start: usize,
+        end: usize,
+    ) -> Result<(), Unparsed> {
         if self.entries.len() == self.entries.capacity() {
             let more = self.entries.capacity().max(64);
             if !(self.grow)(more * size_of::<Entry>()) {
@@ -260,6 +257,7 @@ impl Parser<'_, '_> {
         let after = position(self.entries.len() + 1);
         self.entries.push(Entry {
             kind,
+            escaped,
             start: position(start),
             end: position(end),
             after,
@@ -305,15 +303,7 @@ impl<'a> Node<'a> {
     }
 
     pub fn kind(&self) -> Kind {
-        match self.entry().kind {
-            EntryKind::Object => Kind::Object,
-            EntryKind::Array => Kind::Array,
-            EntryKind::String { .. } => Kind::String,
-            EntryKind::Number => Kind::Number,
-            EntryKind::True => Kind::Bool(true),
-            EntryKind::False => Kind::Bool(false),
-            EntryKind::Null => Kind::Null,
-        }
+        self.entry().kind
     }
 
     /// The value as sent: a string with its quotes and escapes, a number as written.
@@ -325,9 +315,10 @@ impl<'a> Node<'a> {
     /// A string's text; `None` for any other value, or for a string JSON can't hold (a lone
     /// surrogate, a control character, a bad escape, bytes not UTF-8).
     pub fn text(&self) -> Option<Cow<'a, str>> {
-        let EntryKind::String { escaped } = self.entry().kind else {
+        let Entry { kind, escaped, .. } = self.entry();
+        if kind != Kind::String {
             return None;
-        };
+        }
         let raw = self.raw();
         if escaped {
             return serde_json::from_slice::<String>(raw).ok().map(Cow::Owned);
@@ -341,20 +332,14 @@ impl<'a> Node<'a> {
 
     /// An array's items, in order; none for any other value.
     pub fn items(&self) -> impl Iterator<Item = Node<'a>> + use<'a> {
-        let children = match self.entry().kind {
-            EntryKind::Array => self.children(),
-            _ => self.no_children(),
-        };
+        let children = self.children(Kind::Array);
         let node = *self;
         children.map(move |index| node.at(index))
     }
 
     /// An object's members, keys as sent, in order, a repeated key kept; none for any other value.
     pub fn members(&self) -> impl Iterator<Item = (Node<'a>, Node<'a>)> + use<'a> {
-        let mut children = match self.entry().kind {
-            EntryKind::Object => self.children(),
-            _ => self.no_children(),
-        };
+        let mut children = self.children(Kind::Object);
         let node = *self;
         std::iter::from_fn(move || {
             let key = children.next()?;
@@ -363,24 +348,24 @@ impl<'a> Node<'a> {
         })
     }
 
-    /// The value under `key`: `None` if absent, `null`, or repeated. A key is compared as it reads;
-    /// one that doesn't read matches nothing.
-    pub fn get(&self, key: &str) -> Option<Node<'a>> {
+    // The value under `key`: `None` if absent, or repeated, letter case ignored. A key is compared
+    // as it reads; one that doesn't read matches nothing.
+    pub(crate) fn get(&self, key: &str) -> Option<Node<'a>> {
         match self.look_up(key) {
-            Member::Found(value) if value.kind() != Kind::Null => Some(value),
+            Member::Found(value) => Some(value),
             _ => None,
         }
     }
 
-    /// Whether `key` is there more than once, letter case ignored: what it holds can't be told,
-    /// since readers differ on which they keep.
-    pub fn repeats(&self, key: &str) -> bool {
+    // Whether `key` is there more than once, letter case ignored: what it holds can't be told,
+    // since readers differ on which they keep.
+    pub(crate) fn repeats(&self, key: &str) -> bool {
         matches!(self.look_up(key), Member::Repeated)
     }
 
     fn look_up(&self, key: &str) -> Member<'a> {
         let mut found = Member::Absent;
-        let mut alike = 0;
+        let mut seen = false;
         for (name, value) in self.members() {
             let Some(name) = name.text() else {
                 continue;
@@ -388,10 +373,10 @@ impl<'a> Node<'a> {
             if !same_but_case(&name, key) {
                 continue;
             }
-            alike += 1;
-            if alike > 1 {
+            if seen {
                 return Member::Repeated;
             }
+            seen = true;
             if name == key {
                 found = Member::Found(value);
             }
@@ -399,8 +384,9 @@ impl<'a> Node<'a> {
         found
     }
 
-    /// The value at `steps` from this one: a key as `get` reads it, an index into an array; `None`
-    /// where a step finds nothing, or the value found is `null`.
+    /// The value at `steps` from this one: a key, absent if repeated with letter case ignored, or an
+    /// index into an array; `None` where a step finds nothing, or the value found is `null`. A key
+    /// is compared as it reads; one that doesn't read matches nothing.
     pub fn walk(&self, steps: &[Step<'_>]) -> Option<Node<'a>> {
         let mut node = *self;
         for step in steps {
@@ -416,21 +402,17 @@ impl<'a> Node<'a> {
         Node { index, ..*self }
     }
 
-    // The indexes of a container's direct children.
-    fn children(&self) -> Children<'a> {
+    // The indexes of a container's direct children; none unless it's of `kind`.
+    fn children(&self, kind: Kind) -> Children<'a> {
         let entry = self.entry();
         Children {
             entries: &self.tree.entries,
             next: self.index + 1,
-            end: entry.after as usize,
-        }
-    }
-
-    fn no_children(&self) -> Children<'a> {
-        Children {
-            entries: &self.tree.entries,
-            next: 0,
-            end: 0,
+            end: if entry.kind == kind {
+                entry.after as usize
+            } else {
+                0
+            },
         }
     }
 }
@@ -460,8 +442,13 @@ impl Iterator for Children<'_> {
     }
 }
 
+// Upper then lower case, so a letter lower-cased already but folding to another (`ſ`, `ı`) folds too.
 fn same_but_case(left: &str, right: &str) -> bool {
-    left.chars()
+    left == right || fold_case(left).eq(fold_case(right))
+}
+
+fn fold_case(text: &str) -> impl Iterator<Item = char> + '_ {
+    text.chars()
+        .flat_map(char::to_uppercase)
         .flat_map(char::to_lowercase)
-        .eq(right.chars().flat_map(char::to_lowercase))
 }

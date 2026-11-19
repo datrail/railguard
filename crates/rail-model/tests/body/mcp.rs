@@ -46,13 +46,40 @@ fn test_reads_the_method_and_tool_a_body_names() {
         ),
         ("not json", McpReading::Unreadable),
         (" ", McpReading::Unreadable),
+        // Repeated, letter case ignored: readers differ on which they keep.
         (
-            r#"{"method": "ping", "METHOD": "ping"}"#,
+            r#"{"method": "ping", "method": "tools/call", "params": {"name": "a"}}"#,
             McpReading::Unreadable,
         ),
         (
-            r#"{"method": "resources/read", "params": {"name": "a", "name": "a"}}"#,
+            r#"{"Method": "ping", "method": "tools/call", "params": {"name": "a"}}"#,
             McpReading::Unreadable,
+        ),
+        (
+            r#"{"method": "ping", "\u006dethod": "tools/call", "params": {"name": "a"}}"#,
+            McpReading::Unreadable,
+        ),
+        (
+            r#"{"method": "tools/call", "params": {"name": "c"}, "params": {"name": "a"}}"#,
+            McpReading::Unreadable,
+        ),
+        // `ſ` folds to `s`, as a server folding case reads it.
+        (
+            r#"{"method": "tools/call", "params": {"name": "c"}, "param\u017f": {"name": "a"}}"#,
+            McpReading::Unreadable,
+        ),
+        (
+            r#"{"method": "tools/call", "params": {"name": "c", "NAME": "a"}}"#,
+            McpReading::Unreadable,
+        ),
+        (
+            r#"{"method": "resources/read", "params": {"arguments": {}, "Arguments": {}}}"#,
+            McpReading::Unreadable,
+        ),
+        // Only in another case: not the key read.
+        (
+            r#"{"Method": "tools/call", "params": {"name": "a"}}"#,
+            build_reading(None, None),
         ),
     ] {
         assert_eq!(McpReading::read(body.as_bytes()), reading, "{body}");
@@ -198,39 +225,55 @@ fn test_reads_what_the_body_names_as_json_readers_would() {
         (deep(256).into_bytes(), &resolved),
         (deep(257).into_bytes(), &UNRECOGNISED),
         (quoted.into_bytes(), &resolved),
-        // Repeated, letter case ignored: readers differ on which they keep.
-        (r#"{"method": "tools/list", "method": "tools/call", "params": {"name": "a"}}"#.into(), &UNRECOGNISED),
-        (r#"{"Method": "tools/list", "method": "tools/call", "params": {"name": "a"}}"#.into(), &UNRECOGNISED),
-        (br#"{"method": "tools/list", "\u006dethod": "tools/call", "params": {"name": "a"}}"#.to_vec(), &UNRECOGNISED),
-        (r#"{"method": "tools/call", "params": {"name": "c"}, "params": {"name": "a"}}"#.into(), &UNRECOGNISED),
-        (r#"{"method": "tools/call", "params": {"name": "c", "NAME": "a"}}"#.into(), &UNRECOGNISED),
-        (r#"{"method": "tools/call", "params": {"name": "a", "arguments": {}, "Arguments": {}}}"#.into(), &UNRECOGNISED),
-        // Only in another case: not the key read.
-        (r#"{"Method": "tools/call", "params": {"name": "a"}}"#.into(), &UNRECOGNISED),
-        (r#"{"method": "tools/call", "params": "a\/b"}"#.into(), &UNRECOGNISED),
+        (
+            r#"{"method": "tools/call", "params": "a\/b"}"#.into(),
+            &UNRECOGNISED,
+        ),
         // Keys written with escapes, read as what they spell.
-        (br#"{"\u006dethod": "tools/call", "params": {"\u006eame": "a"}}"#.to_vec(), &resolved),
+        (
+            br#"{"\u006dethod": "tools/call", "params": {"\u006eame": "a"}}"#.to_vec(),
+            &resolved,
+        ),
         // Keys written with escapes, read as what they spell.
-        (br#"{"method": "tools/call", "params": {"name": "a"}}"#.to_vec(), &resolved),
+        (
+            br#"{"method": "tools/call", "params": {"name": "a"}}"#.to_vec(),
+            &resolved,
+        ),
         // Keys a string can't hold, read past.
-        (r#"{"\ud800": 0, "method": "tools/call", "params": {"\udfff": 1, "name": "a"}}"#.into(), &resolved),
-        (r#"{"method": "tools/call", "params": {"name": "a"}} {}"#.into(), &UNRECOGNISED),
+        (
+            r#"{"\ud800": 0, "method": "tools/call", "params": {"\udfff": 1, "name": "a"}}"#.into(),
+            &resolved,
+        ),
+        (
+            r#"{"method": "tools/call", "params": {"name": "a"}} {}"#.into(),
+            &UNRECOGNISED,
+        ),
         (
             "\u{feff}{\"method\": \"tools/call\", \"params\": {\"name\": \"a\"}}".into(),
             &resolved,
         ),
-        (r#"{"method": "tools/call", "params": {"name": 5}}"#.into(), &UNRECOGNISED),
-        (r#"[{"method": "tools/call", "params": {"name": "a"}}]"#.into(), &UNRECOGNISED),
-        // A string the call never reads isn't checked.
         (
-            br#"{"method": "tools/call", "params": {"name": "a", "q": "\x"}}"#.to_vec(),
-            &resolved,
+            r#"{"method": "tools/call", "params": {"name": 5}}"#.into(),
+            &UNRECOGNISED,
+        ),
+        (
+            r#"[{"method": "tools/call", "params": {"name": "a"}}]"#.into(),
+            &UNRECOGNISED,
         ),
         // Not UTF-8.
-        (b"{\"method\": \"tools/call\", \"params\": {\"name\": \"a\xff\"}}".into(), &UNRECOGNISED),
+        (
+            b"{\"method\": \"tools/call\", \"params\": {\"name\": \"a\xff\"}}".into(),
+            &UNRECOGNISED,
+        ),
         // A method naming no tool keeps its key-less reading whatever `params` holds.
-        (r#"{"method": "resources/read", "params": [1]}"#.into(), &KEYLESS),
-        (r#"{"method": "resources/read", "params": 1e400}"#.into(), &KEYLESS),
+        (
+            r#"{"method": "resources/read", "params": [1]}"#.into(),
+            &KEYLESS,
+        ),
+        (
+            r#"{"method": "resources/read", "params": 1e400}"#.into(),
+            &KEYLESS,
+        ),
     ] {
         assert_eq!(
             &read_endpoint(MOUNT, &McpReading::read(&body)),

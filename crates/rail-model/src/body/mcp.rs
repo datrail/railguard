@@ -1,4 +1,4 @@
-//! What an MCP request body names: its method and tool, read once for both the endpoint and capture.
+//! What an MCP request body names: its method and tool, read once for every caller.
 
 use std::borrow::Cow;
 
@@ -9,8 +9,9 @@ use crate::endpoint::{Resolution, resolve_endpoint};
 /// What a body names as an MCP message.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum McpReading {
-    /// Not JSON, a JSON-RPC batch, or with `method`, `params`, `params.name` or `params.arguments`
-    /// repeated, letter case ignored: what it names can't be told.
+    /// Not read as a tree (not JSON, or past the budget), a JSON-RPC batch, or with `method`,
+    /// `params`, `params.name` or `params.arguments` repeated, letter case ignored: what it names
+    /// can't be told.
     Unreadable,
     /// An empty body, or a JSON value: `method` and `tool` are absent where it doesn't name them.
     Read {
@@ -20,13 +21,13 @@ pub enum McpReading {
 }
 
 impl McpReading {
-    /// Reads `body` as `RequestBody::mcp` does, for a host that holds the bytes itself.
+    /// Reads `body` as `RequestBody::mcp` does, with no budget, for a host that holds the bytes itself.
     pub fn read(body: &[u8]) -> Self {
         let tree = Tree::parse(body, &mut |_| true);
-        let root = match &tree {
-            Ok(tree) => Ok(tree.root(body)),
-            Err(why) => Err(*why),
-        };
+        let root = tree
+            .as_ref()
+            .map(|tree| tree.root(body))
+            .map_err(|&why| why);
         Self::of(body.is_empty(), root)
     }
 

@@ -178,10 +178,9 @@ impl RequestBody {
             let tree = Tree::parse(&self.bytes, &mut |bytes| charge.grow(bytes))?;
             Ok((tree, charge))
         });
-        match tree {
-            Ok((tree, _)) => Ok(tree.root(&self.bytes)),
-            Err(why) => Err(*why),
-        }
+        tree.as_ref()
+            .map(|(tree, _)| tree.root(&self.bytes))
+            .map_err(|&why| why)
     }
 
     /// What the body names as an MCP message.
