@@ -7,10 +7,25 @@ use crate::endpoint::Endpoint;
 /// What a condition reads about one call.
 #[derive(Clone, Copy, Debug)]
 pub struct Environment<'a> {
-    /// A usable ticket's claims. `None` without one: every `ticket` path then reads as absent.
-    pub ticket: Option<&'a Map<String, Value>>,
-    pub endpoint: &'a Endpoint,
-    pub headers: &'a Headers,
+    // A usable ticket's claims. `None` without one: every `ticket` path then reads as absent.
+    pub(crate) ticket: Option<&'a Map<String, Value>>,
+    pub(crate) endpoint: &'a Endpoint,
+    pub(crate) headers: &'a Headers,
+}
+
+impl<'a> Environment<'a> {
+    /// A call's ticket claims (`None` without a usable ticket), its endpoint and its headers.
+    pub fn new(
+        ticket: Option<&'a Map<String, Value>>,
+        endpoint: &'a Endpoint,
+        headers: &'a Headers,
+    ) -> Self {
+        Self {
+            ticket,
+            endpoint,
+            headers,
+        }
+    }
 }
 
 /// A call's headers as conditions read them: names lowercased, every value split on commas.
