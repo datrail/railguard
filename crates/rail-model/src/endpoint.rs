@@ -1,3 +1,5 @@
+//! The endpoint an MCP call asks for, keyed as the policy bundle binds it.
+
 use std::str::FromStr;
 
 /// Rail Center caps a key at 255 characters, so a longer one is never bound.

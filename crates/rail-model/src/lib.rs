@@ -1,4 +1,4 @@
-//! The rules language and the judge.
+//! The rules language, the judge, and reading what a call names: its endpoint and its host.
 
 pub mod authority;
 pub mod body;

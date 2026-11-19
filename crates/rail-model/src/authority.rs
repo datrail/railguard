@@ -1,3 +1,5 @@
+//! The host and port an `:authority` names, spelled one way wherever a host is compared.
+
 use std::net::Ipv6Addr;
 
 const NO_HOST: &str = "names no host";

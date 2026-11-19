@@ -4,9 +4,9 @@ use serde::Serialize;
 use uuid::Uuid;
 
 use super::bundle::{Action, BindingMode, Bundle, EnforcementMode, Fallback};
-use crate::condition::Environment;
 use crate::condition::{
-    Budget, CompiledCondition, Evaluation, Refusal, Verdict, compile_condition, evaluate_condition,
+    Budget, CompiledCondition, Environment, Evaluation, Refusal, Verdict, compile_condition,
+    evaluate_condition,
 };
 use crate::endpoint::{Endpoint, ResolvedKey};
 

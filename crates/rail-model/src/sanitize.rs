@@ -1,3 +1,5 @@
+//! Text from a call made safe to log.
+
 use std::fmt;
 
 use unicode_general_category::{GeneralCategory, get_general_category};

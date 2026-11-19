@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use crate::config::Secret;
 use rail_model::authority::split_authority;
 
+use crate::config::Secret;
 use crate::protected_hosts::{ProtectedHost, ProtectedHosts};
 use crate::ticket::OpaqueTicket;
 
