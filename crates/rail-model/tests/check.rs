@@ -1,7 +1,8 @@
-use rail_model::{
+use rail_model::condition::{
     Condition, ConditionProblem, LocationSegment, OperandShape, ProblemCode, ProblemScope,
-    TicketClaimsSchema, check_condition, loc,
+    TicketClaimsSchema, check_condition,
 };
+use rail_model::loc;
 use serde::Deserialize;
 use serde_json::value::RawValue;
 use serde_json::{Value, json};

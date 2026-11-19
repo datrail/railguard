@@ -4,9 +4,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::condition::{Condition, Path, Predicate, RequestPath, Scalar, TicketPath};
+use super::environment::Environment;
+use super::grammar::{Condition, Path, Predicate, RequestPath, Scalar, TicketPath};
 use crate::endpoint::Endpoint;
-use crate::environment::Environment;
 
 /// The steps one judgement may take, unless the caller sets its own.
 pub const DEFAULT_STEP_LIMIT: u64 = 100_000;

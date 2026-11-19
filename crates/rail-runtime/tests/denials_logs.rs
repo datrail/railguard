@@ -1,4 +1,4 @@
-use rail_model::FallbackDenial;
+use rail_model::policy::FallbackDenial;
 use rail_runtime::DeniedBy;
 use reqwest::StatusCode;
 

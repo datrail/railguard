@@ -1,10 +1,11 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use rail_model::{
-    Budget, Condition, Endpoint, Environment, Headers, Refusal, Verdict, compile_condition,
+use rail_model::condition::{
+    Budget, Condition, Environment, Headers, Refusal, Verdict, compile_condition,
     evaluate_condition,
 };
+use rail_model::endpoint::Endpoint;
 use serde::Deserialize;
 use serde_json::value::RawValue;
 use serde_json::{Map, Value, json};

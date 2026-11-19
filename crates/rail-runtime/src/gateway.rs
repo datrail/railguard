@@ -5,12 +5,14 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use percent_encoding::percent_decode_str;
-use rail_model::{
-    Budget, DEFAULT_STEP_LIMIT, Decision, DecodedTicket, Endpoint, Environment, Headers,
-    JudgingMode, Outcome, Resolution, SignedTicketConfig, TicketState, decode_ticket, judge,
+use rail_model::body::read_endpoint;
+use rail_model::condition::{Budget, DEFAULT_STEP_LIMIT, Environment, Headers};
+use rail_model::endpoint::{Endpoint, Resolution};
+use rail_model::policy::{
+    Decision, DecodedTicket, JudgingMode, Outcome, SignedTicketConfig, TicketState, decode_ticket,
+    judge,
 };
 
-use crate::body::read_endpoint;
 use crate::bundle_holder::HeldBundle;
 use crate::denial::{Denial, DeniedBy, ticket_state};
 use crate::key_set::KeySet;

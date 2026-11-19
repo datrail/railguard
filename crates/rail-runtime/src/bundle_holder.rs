@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use rail_model::{
+use rail_model::policy::{
     CompiledBundle, EnforcementMode, Fallback, SchemaVersion, TicketClaim, compile_bundle,
     parse_bundle,
 };

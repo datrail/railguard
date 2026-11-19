@@ -1,7 +1,8 @@
-use rail_model::{
-    Budget, Decision, Endpoint, EnforcementMode, Environment, Evaluation, FallbackDenial, Headers,
-    JudgingMode, Outcome, Refusal, Tracer, Verdict, compile_bundle, judge, judge_traced,
-    parse_bundle,
+use rail_model::condition::{Budget, Environment, Evaluation, Headers, Refusal, Verdict};
+use rail_model::endpoint::Endpoint;
+use rail_model::policy::{
+    Decision, EnforcementMode, FallbackDenial, JudgingMode, Outcome, Tracer, compile_bundle, judge,
+    judge_traced, parse_bundle,
 };
 use serde::Deserialize;
 use serde_json::{Map, Value, json};

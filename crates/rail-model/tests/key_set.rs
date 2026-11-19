@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use ed25519_dalek::VerifyingKey;
-use rail_model::{DroppedKey, parse_key_set};
+use rail_model::policy::{DroppedKey, parse_key_set};
 use serde_json::{Value, json};
 
 // The JWT vectors' key, as Rail Center publishes it.

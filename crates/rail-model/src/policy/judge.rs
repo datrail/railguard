@@ -3,12 +3,12 @@ use std::collections::HashMap;
 use serde::Serialize;
 use uuid::Uuid;
 
-use crate::bundle::{Action, BindingMode, Bundle, EnforcementMode, Fallback};
-use crate::endpoint::{Endpoint, ResolvedKey};
-use crate::environment::Environment;
-use crate::evaluate::{
+use super::bundle::{Action, BindingMode, Bundle, EnforcementMode, Fallback};
+use crate::condition::Environment;
+use crate::condition::{
     Budget, CompiledCondition, Evaluation, Refusal, Verdict, compile_condition, evaluate_condition,
 };
+use crate::endpoint::{Endpoint, ResolvedKey};
 
 /// A bundle compiled for judging: built once per bundle, then used for every call.
 #[derive(Debug)]
