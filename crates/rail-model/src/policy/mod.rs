@@ -9,7 +9,7 @@ pub use bundle::{
     Policy, SchemaVersion, TicketClaim, UnusableBundle, parse_bundle,
 };
 pub use judge::{
-    ChainOutcome, CompiledBundle, Decision, FallbackDenial, JudgingMode, NoTracer, Outcome, Tracer,
+    ChainOutcome, CompiledBundle, Decision, FallbackDenial, JudgingMode, Outcome, Tracer,
     compile_bundle, judge, judge_traced,
 };
 pub use ticket::{

@@ -140,7 +140,7 @@ pub trait Tracer {
 }
 
 /// Records nothing, so judging with it costs nothing.
-pub struct NoTracer;
+struct NoTracer;
 
 impl Tracer for NoTracer {
     fn record(&mut self, _: Uuid, _: &Evaluation) {}
