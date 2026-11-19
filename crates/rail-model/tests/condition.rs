@@ -1,4 +1,4 @@
-use rail_policy::{Condition, Path, Predicate, Scalar, TicketPath};
+use rail_model::{Condition, Path, Predicate, Scalar, TicketPath};
 use serde_json::{Value, json};
 
 fn read(condition: Value) -> Condition {

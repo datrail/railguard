@@ -1,4 +1,4 @@
-//! The Python binding of `rail-policy`.
+//! The Python binding of `rail-model`.
 
 use pyo3::pymodule;
 
@@ -10,7 +10,7 @@ mod _native {
     use pyo3::exceptions::PyValueError;
     use pyo3::types::{PyBytes, PyBytesMethods};
     use pyo3::{Bound, IntoPyObject, PyResult, pyclass, pyfunction};
-    use rail_policy::{
+    use rail_model::{
         Budget, Decision, Endpoint, EnforcementMode, Environment, Evaluation, FallbackDenial,
         Headers, JudgingMode, Lookup, Refusal, SignedTicketConfig, TicketClaimsSchema, TicketState,
         Tracer, Verdict, judge_traced, parse_bundle, parse_ticket, sanitize,
@@ -20,7 +20,7 @@ mod _native {
     use uuid::Uuid;
 
     #[pymodule_export]
-    const DEFAULT_STEP_LIMIT: u64 = rail_policy::DEFAULT_STEP_LIMIT;
+    const DEFAULT_STEP_LIMIT: u64 = rail_model::DEFAULT_STEP_LIMIT;
 
     /// Why the bundle can't be used, or `None` when it can.
     #[pyfunction]
@@ -31,9 +31,9 @@ mod _native {
     }
 
     /// A bundle compiled once, to judge many samples against.
-    #[pyclass(frozen, module = "datrail_policy")]
+    #[pyclass(frozen, module = "datrail_model")]
     struct CompiledBundle {
-        compiled: rail_policy::CompiledBundle,
+        compiled: rail_model::CompiledBundle,
         mode: EnforcementMode,
     }
 
@@ -48,7 +48,7 @@ mod _native {
     fn compile_bundle(json: &str) -> Compiled {
         match parse_bundle(json) {
             Ok(bundle) => Compiled::Bundle(CompiledBundle {
-                compiled: rail_policy::compile_bundle(&bundle),
+                compiled: rail_model::compile_bundle(&bundle),
                 mode: bundle.enforcement.mode,
             }),
             Err(unusable) => Compiled::Unusable(unusable.to_string()),
@@ -159,9 +159,7 @@ mod _native {
             .map_err(|e| e.to_string())
             .and_then(|schema| TicketClaimsSchema::from_value(&schema))
             .map_err(|problem| PyValueError::new_err(format!("ticket claims schema: {problem}")))?;
-        Ok(write_json(&rail_policy::check_condition(
-            condition, &schema,
-        )))
+        Ok(write_json(&rail_model::check_condition(condition, &schema)))
     }
 
     /// The endpoint, and the claims of a usable ticket, or why the sample can't be read.
@@ -218,8 +216,8 @@ mod _native {
         alerts: Vec<Uuid>,
     }
 
-    impl From<rail_policy::ChainOutcome> for ChainOutcome {
-        fn from(chain: rail_policy::ChainOutcome) -> Self {
+    impl From<rail_model::ChainOutcome> for ChainOutcome {
+        fn from(chain: rail_model::ChainOutcome) -> Self {
             let (decision, policy, refusal) = match chain.decision {
                 Decision::Allowed => ("allowed", None, None),
                 Decision::Denied(policy) => ("denied", Some(policy), None),

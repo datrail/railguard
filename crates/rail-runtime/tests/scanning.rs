@@ -4,7 +4,7 @@
 use std::num::NonZeroUsize;
 use std::time::Duration;
 
-use rail_policy::Fallback;
+use rail_model::Fallback;
 use rail_runtime::{GatewaySettings, UnitSettings};
 use serde_json::{Value, json};
 

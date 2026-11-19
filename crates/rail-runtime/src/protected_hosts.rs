@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::net::Ipv6Addr;
 
-use rail_policy::sanitize;
+use rail_model::sanitize;
 
 use crate::config::{Refused, Settings};
 

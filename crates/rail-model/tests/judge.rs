@@ -1,4 +1,4 @@
-use rail_policy::{
+use rail_model::{
     Budget, Decision, Endpoint, EnforcementMode, Environment, Evaluation, FallbackDenial, Headers,
     JudgingMode, Outcome, Refusal, Tracer, Verdict, compile_bundle, judge, judge_traced,
     parse_bundle,

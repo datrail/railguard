@@ -1,7 +1,7 @@
 //! The settings every host serving a callout reads alike: the port, the largest gRPC message,
 //! and the largest body judged.
 
-use rail_policy::sanitize;
+use rail_model::sanitize;
 
 use crate::config::{Refused, Settings};
 

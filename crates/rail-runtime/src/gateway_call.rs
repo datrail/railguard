@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::available_parallelism;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use rail_policy::{EnforcementMode, Fallback};
+use rail_model::{EnforcementMode, Fallback};
 use tokio::sync::Semaphore;
 use tokio::task::spawn_blocking;
 use tokio::time::{Instant, timeout_at};

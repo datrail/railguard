@@ -1,10 +1,10 @@
-# rail-policy-py
+# rail-model-py
 
-The rules language as a Python package, `datrail-policy`, for Rail Center, to check each rule before publishing it, and
+The rules language as a Python package, `datrail-model`, for Rail Center, to check each rule before publishing it, and
 for RailDash, to try a rule on a sample call. Both then run the very code the gateways enforce rules with, instead of a
 Python copy that could drift from it. See the [main README](../../README.md) for the system around it.
 
-It's the Python binding of [`rail-policy`](../rail-policy/README.md), built with maturin into the `datrail-policy`
+It's the Python binding of [`rail-model`](../rail-model/README.md), built with maturin into the `datrail-model`
 wheel, for CPython 3.12 or later.
 
 ## Entry points
@@ -22,7 +22,7 @@ that don't apply are `None`.
 No wheel is published yet. From a checkout, with a Rust toolchain:
 
 ```sh
-pip install crates/rail-policy-py
+pip install crates/rail-model-py
 ```
 
 ## Usage
@@ -30,7 +30,7 @@ pip install crates/rail-policy-py
 ```python
 import json
 
-from datrail_policy import check_condition, compile_bundle, judge_sample
+from datrail_model import check_condition, compile_bundle, judge_sample
 
 condition = {"path": "ticket.posture.overall.score", "op": "lt", "value": 50}
 assert check_condition(condition).problems == ()

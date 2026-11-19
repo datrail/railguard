@@ -1,6 +1,4 @@
-use rail_policy::{
-    ChainOutcome, Decision, Endpoint, FallbackDenial, Outcome, Refusal, TicketState,
-};
+use rail_model::{ChainOutcome, Decision, Endpoint, FallbackDenial, Outcome, Refusal, TicketState};
 use rail_runtime::{Denial, DenialSink, DeniedBy, RailCenterDenials};
 use reqwest::StatusCode;
 use serde_json::{Value, json};

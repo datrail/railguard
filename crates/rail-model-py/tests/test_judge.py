@@ -8,7 +8,7 @@ from uuid import UUID
 
 import pytest
 
-from datrail_policy import (
+from datrail_model import (
     ChainOutcome,
     CompiledBundle,
     Judgement,

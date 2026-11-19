@@ -7,16 +7,16 @@ test:
 	cargo test --locked
 
 test-py:
-	$(MAKE) -C crates/rail-policy-py test
+	$(MAKE) -C crates/rail-model-py test
 
 fmt:
 	cargo fmt
 
 # The wheel's ruff, on the e2e's Python too.
-E2E_RUFF = cd crates/rail-policy-py && uv run --locked --only-dev ruff
+E2E_RUFF = cd crates/rail-model-py && uv run --locked --only-dev ruff
 
 fmt-py:
-	$(MAKE) -C crates/rail-policy-py fmt
+	$(MAKE) -C crates/rail-model-py fmt
 	$(E2E_RUFF) check --fix ../../e2e
 	$(E2E_RUFF) format ../../e2e
 
@@ -29,10 +29,10 @@ fmt-md:
 lint:
 	cargo fmt --check
 	cargo clippy --locked --all-targets -- -D warnings
-	cargo clippy --locked -p rail-policy-py -- -D warnings
+	cargo clippy --locked -p rail-model-py -- -D warnings
 
 lint-py:
-	$(MAKE) -C crates/rail-policy-py lint
+	$(MAKE) -C crates/rail-model-py lint
 	$(E2E_RUFF) format --check ../../e2e
 	$(E2E_RUFF) check ../../e2e
 

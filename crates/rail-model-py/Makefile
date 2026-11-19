@@ -4,7 +4,7 @@ UV_RUN := uv run --locked
 
 # Rebuilds the wheel, which uv would otherwise reuse from its cache.
 test:
-	$(UV_RUN) --reinstall-package datrail-policy pytest
+	$(UV_RUN) --reinstall-package datrail-model pytest
 
 # --only-dev, so ruff runs without building the wheel.
 fmt:

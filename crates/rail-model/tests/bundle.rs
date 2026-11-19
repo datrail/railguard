@@ -1,4 +1,4 @@
-use rail_policy::{
+use rail_model::{
     Action, BindingMode, Condition, EndpointKey, EnforcementMode, Fallback, Path, Predicate,
     SchemaVersion, TicketClaim, TicketPath, parse_bundle,
 };

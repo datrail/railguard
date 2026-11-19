@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::time::Duration;
 
-use rail_policy::sanitize;
+use rail_model::sanitize;
 
 use crate::client::{FetchError, Limits, RailCenterClient, Response};
 use crate::config::{Refused, Settings};

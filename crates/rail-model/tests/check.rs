@@ -1,4 +1,4 @@
-use rail_policy::{
+use rail_model::{
     Condition, ConditionProblem, LocationSegment, OperandShape, ProblemCode, ProblemScope,
     TicketClaimsSchema, check_condition, loc,
 };

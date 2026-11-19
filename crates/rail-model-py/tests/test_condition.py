@@ -5,8 +5,8 @@ from types import MappingProxyType
 
 import pytest
 
-import datrail_policy
-from datrail_policy import ConditionCheck, ConditionProblem, check_condition
+import datrail_model
+from datrail_model import ConditionCheck, ConditionProblem, check_condition
 
 _VECTORS = Path(__file__).parents[3] / "vectors"
 _CASES = json.loads((_VECTORS / "judge_condition_conformance_cases.json").read_text())["cases"]
@@ -91,7 +91,7 @@ def test_takes_a_custom_ticket_claims_schema():
 
 
 def test_reads_the_default_schema_at_call_time(monkeypatch):
-    monkeypatch.setattr(datrail_policy, "TICKET_CLAIMS_SCHEMA", {"tenant": "string"})
+    monkeypatch.setattr(datrail_model, "TICKET_CLAIMS_SCHEMA", {"tenant": "string"})
 
     assert check_condition({"path": "ticket.tenant", "op": "existing"}).problems == ()
 
@@ -111,7 +111,7 @@ def test_reads_any_mapping_and_sequence():
     condition = MappingProxyType({"path": "ticket.skills", "op": "in", "value": ("a", math.nan)})
 
     check = check_condition(
-        condition, ticket_claims_schema=MappingProxyType(datrail_policy.TICKET_CLAIMS_SCHEMA)
+        condition, ticket_claims_schema=MappingProxyType(datrail_model.TICKET_CLAIMS_SCHEMA)
     )
 
     assert _get_codes(check) == [(("value", 1), "unwritable_number", "authoring")]
