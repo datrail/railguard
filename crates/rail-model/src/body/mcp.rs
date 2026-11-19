@@ -31,7 +31,7 @@ impl McpReading {
         Self::of(body, root)
     }
 
-    // `content`'s reading, `root` its JSON.
+    /// `content`'s reading, `root` its JSON.
     pub(crate) fn of(content: &[u8], root: Result<Node<'_>, Unparsed>) -> Self {
         if content.is_empty() {
             return Self::Read {

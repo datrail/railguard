@@ -25,7 +25,7 @@ pub(crate) struct Tree {
 
 /// A string's text from its raw text, `escaped` if that holds anything to decode; `None` for one
 /// its format can't hold.
-pub(crate) type Decode = fn(&[u8], bool) -> Option<Cow<'_, str>>;
+type Decode = fn(&[u8], bool) -> Option<Cow<'_, str>>;
 
 #[derive(Clone, Copy, Debug)]
 struct Entry {
@@ -61,14 +61,14 @@ pub(crate) struct Builder<'g> {
 }
 
 impl<'g> Builder<'g> {
-    /// For `content` of up to 4 GiB, positions being `u32`, its strings read with `decode`. `grow`
+    /// For content of up to 4 GiB, positions being `u32`, its strings read with `decode`. `grow`
     /// is asked before the tree takes more bytes, and can refuse them.
     pub(crate) fn new(
-        content: &[u8],
+        content_bytes: usize,
         decode: Decode,
         grow: &'g mut dyn FnMut(usize) -> bool,
     ) -> Result<Self, Unparsed> {
-        if u32::try_from(content.len()).is_err() {
+        if u32::try_from(content_bytes).is_err() {
             return Err(Unparsed::Malformed);
         }
         Ok(Self {
@@ -215,8 +215,8 @@ impl<'a> Node<'a> {
         })
     }
 
-    // The value under `key`: `None` if absent, or repeated, letter case ignored. A key is compared
-    // as it reads; one that doesn't read matches nothing.
+    /// The value under `key`: `None` if absent, or repeated, letter case ignored. A key is compared
+    /// as it reads; one that doesn't read matches nothing.
     pub(crate) fn get(&self, key: &str) -> Option<Node<'a>> {
         match self.look_up(key) {
             Member::Found(value) => Some(value),
@@ -224,8 +224,8 @@ impl<'a> Node<'a> {
         }
     }
 
-    // Whether `key` is there more than once, letter case ignored: what it holds can't be told,
-    // since readers differ on which they keep.
+    /// Whether `key` is there more than once, letter case ignored: what it holds can't be told,
+    /// since readers differ on which they keep.
     pub(crate) fn repeats(&self, key: &str) -> bool {
         matches!(self.look_up(key), Member::Repeated)
     }
@@ -309,13 +309,15 @@ impl Iterator for Children<'_> {
     }
 }
 
-// Upper then lower case, so a letter lower-cased already but folding to another (`ſ`, `ı`) folds too.
 fn same_but_case(left: &str, right: &str) -> bool {
     left == right || fold_case(left).eq(fold_case(right))
 }
 
+// Upper then lower case, so a letter lower-cased already but folding to another (`ſ`, `ı`) folds
+// too; `İ` to `i`, as a server folding case with single-letter mappings reads it.
 fn fold_case(text: &str) -> impl Iterator<Item = char> + '_ {
     text.chars()
+        .map(|letter| if letter == '\u{130}' { 'i' } else { letter })
         .flat_map(char::to_uppercase)
         .flat_map(char::to_lowercase)
 }

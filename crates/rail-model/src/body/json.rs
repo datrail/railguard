@@ -22,10 +22,10 @@ pub(crate) fn parse(content: &[u8], grow: &mut dyn FnMut(usize) -> bool) -> Resu
         } else {
             0
         },
-        tree: Builder::new(content, decode_string, grow)?,
+        builder: Builder::new(content.len(), decode_string, grow)?,
     };
     parser.run()?;
-    parser.tree.finish()
+    parser.builder.finish()
 }
 
 // A JSON string's text, `raw` with its quotes; `None` for a lone surrogate, a control character, a
@@ -56,7 +56,7 @@ enum Want {
 struct Parser<'c, 'g> {
     content: &'c [u8],
     at: usize,
-    tree: Builder<'g>,
+    builder: Builder<'g>,
 }
 
 impl Parser<'_, '_> {
@@ -66,12 +66,12 @@ impl Parser<'_, '_> {
             self.skip_whitespace();
             let Some(&byte) = self.content.get(self.at) else {
                 return match want {
-                    Want::Next if self.tree.open_kind().is_none() => Ok(()),
+                    Want::Next if self.builder.open_kind().is_none() => Ok(()),
                     _ => Err(Unparsed::Malformed),
                 };
             };
             want = match (want, byte) {
-                (Want::Next, _) if self.tree.open_kind().is_none() => {
+                (Want::Next, _) if self.builder.open_kind().is_none() => {
                     return Err(Unparsed::Malformed);
                 }
                 (Want::Next, b',') => {
@@ -120,18 +120,18 @@ impl Parser<'_, '_> {
     }
 
     fn in_object(&self) -> bool {
-        self.tree.open_kind() == Some(Kind::Object)
+        self.builder.open_kind() == Some(Kind::Object)
     }
 
     fn open_container(&mut self, kind: Kind) -> Result<(), Unparsed> {
-        self.tree.open(kind, self.at)?;
+        self.builder.open(kind, self.at)?;
         self.at += 1;
         Ok(())
     }
 
     fn close(&mut self) -> Want {
         self.at += 1;
-        self.tree.close(self.at);
+        self.builder.close(self.at);
         Want::Next
     }
 
@@ -148,7 +148,7 @@ impl Parser<'_, '_> {
             self.at += offset;
             if self.content[self.at] == b'"' {
                 self.at += 1;
-                return self.tree.push(Kind::String, escaped, start, self.at);
+                return self.builder.push(Kind::String, escaped, start, self.at);
             }
             escaped = true;
             self.at += 2;
@@ -161,7 +161,7 @@ impl Parser<'_, '_> {
         }
         let start = self.at;
         self.at += word.len();
-        self.tree.push(kind, false, start, self.at)
+        self.builder.push(kind, false, start, self.at)
     }
 
     // `-? (0 | [1-9][0-9]*) (. [0-9]+)? ([eE] [+-]? [0-9]+)?`
@@ -184,7 +184,7 @@ impl Parser<'_, '_> {
                 return Err(Unparsed::Malformed);
             }
         }
-        self.tree.push(Kind::Number, false, start, self.at)
+        self.builder.push(Kind::Number, false, start, self.at)
     }
 
     fn skip_if(&mut self, accept: impl Fn(u8) -> bool) -> bool {
