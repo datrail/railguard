@@ -8,8 +8,9 @@ use serde_json::value::RawValue;
 use serde_json::{Value, json};
 
 const CONDITION_VECTORS: &str =
-    include_str!("../../../vectors/judge_condition_conformance_cases.json");
-const BUNDLE_VECTORS: &str = include_str!("../../../vectors/parse_bundle_conformance_cases.json");
+    include_str!("../../../../vectors/judge_condition_conformance_cases.json");
+const BUNDLE_VECTORS: &str =
+    include_str!("../../../../vectors/parse_bundle_conformance_cases.json");
 
 #[derive(Deserialize)]
 struct Vectors {

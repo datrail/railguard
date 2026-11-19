@@ -7,7 +7,7 @@ use serde::Deserialize;
 use serde_json::value::RawValue;
 use uuid::Uuid;
 
-const VECTORS: &str = include_str!("../../../vectors/parse_bundle_conformance_cases.json");
+const VECTORS: &str = include_str!("../../../../vectors/parse_bundle_conformance_cases.json");
 
 const EXAMPLE: &str = r##"{
   "schema_version": "2.1",

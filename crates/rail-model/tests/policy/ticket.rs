@@ -10,8 +10,9 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 const BASE64_VECTORS: &str =
-    include_str!("../../../vectors/parse_base64_ticket_conformance_cases.json");
-const JWT_VECTORS: &str = include_str!("../../../vectors/parse_jwt_ticket_conformance_cases.json");
+    include_str!("../../../../vectors/parse_base64_ticket_conformance_cases.json");
+const JWT_VECTORS: &str =
+    include_str!("../../../../vectors/parse_jwt_ticket_conformance_cases.json");
 
 #[derive(Deserialize)]
 struct Vectors {

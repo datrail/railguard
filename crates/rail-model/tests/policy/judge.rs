@@ -8,7 +8,7 @@ use serde::Deserialize;
 use serde_json::{Map, Value, json};
 use uuid::Uuid;
 
-const VECTORS: &str = include_str!("../../../vectors/judge_walk_conformance_cases.json");
+const VECTORS: &str = include_str!("../../../../vectors/judge_walk_conformance_cases.json");
 
 #[derive(Deserialize)]
 struct Vectors {

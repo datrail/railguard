@@ -10,7 +10,7 @@ use serde::Deserialize;
 use serde_json::value::RawValue;
 use serde_json::{Map, Value, json};
 
-const VECTORS: &str = include_str!("../../../vectors/judge_condition_conformance_cases.json");
+const VECTORS: &str = include_str!("../../../../vectors/judge_condition_conformance_cases.json");
 
 #[derive(Deserialize)]
 struct Vectors {
