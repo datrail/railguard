@@ -5,7 +5,7 @@ use std::fmt;
 use unicode_general_category::{GeneralCategory, get_general_category};
 
 // Rail Center's cap on an endpoint key: past it, a value is a payload, not a name.
-const MAX_CHARS: usize = 255;
+pub(crate) const MAX_CHARS: usize = 255;
 
 /// Text from the wire, made safe to write where a person reads it: each control, format or
 /// separator character is written as `\u{…}`, everything else as it is, and the text is cut at

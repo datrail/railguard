@@ -2,8 +2,7 @@
 
 use std::str::FromStr;
 
-/// Rail Center caps a key at 255 characters, so a longer one is never bound.
-const MAX_KEY_CHARS: usize = 255;
+use crate::sanitize::MAX_CHARS;
 
 /// Messages that open a session or describe it, besides `notifications/…`.
 const DISCOVERY_METHODS: [&str; 6] = [
@@ -50,7 +49,8 @@ pub fn resolve_endpoint(path: &str, method: &str, tool_name: Option<&str>) -> Re
         return Resolution::Judged(Endpoint::Unrecognised);
     };
     let text = format!("{path}#{method}#{tool_name}");
-    if text.chars().count() > MAX_KEY_CHARS {
+    // Rail Center caps a key there, so a longer one is never bound.
+    if text.chars().count() > MAX_CHARS {
         return Resolution::Judged(Endpoint::Unrecognised);
     }
     match text.parse() {
