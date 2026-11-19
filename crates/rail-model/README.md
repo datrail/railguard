@@ -10,8 +10,8 @@ enforced. The conformance cases in [`vectors/`](../../vectors) define its behavi
 ## Who uses it
 
 Rail Center and RailDash, outside this workspace, are to use it through the Python package
-[`rail-model-py`](../rail-model-py/README.md): Rail Center to check each rule before publishing it, and RailDash to
-try a rule on a sample call.
+[`rail-model-py`](../rail-model-py/README.md): Rail Center to check each rule before publishing it, and RailDash to try
+a rule on a sample call.
 
 ## Entry points
 
