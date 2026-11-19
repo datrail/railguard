@@ -199,8 +199,8 @@ fn test_reads_an_endpoint_key_with_a_separator_in_its_call() {
     let bundle = EXAMPLE.replace("#refund_order", "#refund#order");
     let bundle = parse_bundle(&bundle).unwrap();
     assert_eq!(
-        bundle.bindings[0].endpoint_key.resolved.call(),
-        "refund#order"
+        bundle.bindings[0].endpoint_key.resolved.as_str(),
+        "/mcp#tools/call#refund#order"
     );
 }
 

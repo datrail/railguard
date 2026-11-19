@@ -139,57 +139,24 @@ fn start(
     )
 }
 
+// How a body is read is `rail-model`'s, tested there; here, that the gateway reports what it names.
 #[tokio::test(start_paused = true)]
 async fn a_body_names_the_endpoint_its_method_and_tool_say() {
-    let deep = |depth: usize| {
-        let inner = "[".repeat(depth - 3) + &"]".repeat(depth - 3);
-        format!(
-            r#"{{"method": "tools\/call", "params": {{"name": "a", "arguments": {{"q": {inner}, "r": {inner}}}}}}}"#
-        )
-    };
-    let quoted = format!(
-        r#"{{"method": "tools/call", "params": {{"name": "a", "q": "\"{}"}}}}"#,
-        "[".repeat(300)
-    );
-    let resolved = "/mcp#tools/call#a";
     for (body, named) in [
-        (deep(256).into_bytes(), resolved),
-        (deep(257).into_bytes(), "unrecognised"),
-        (quoted.into_bytes(), resolved),
         (
-            r#"{"method": 1e400, "method": "tools/call", "params": {"name": "c"}, "params": {"name": 1e400, "name": "a"}}"#
-                .into(),
-            resolved,
-        ),
-        (r#"{"method": "tools/call", "params": "a\/b"}"#.into(), "unrecognised"),
-        // Keys a string can't hold, read past.
-        (r#"{"\ud800": 0, "method": "tools/call", "params": {"\udfff": 1, "name": "a"}}"#.into(), resolved),
-        (r#"{"method": "tools/call", "params": {"name": "a"}} {}"#.into(), "unrecognised"),
-        (
-            "\u{feff}{\"method\": \"tools/call\", \"params\": {\"name\": \"a\"}}".into(),
-            resolved,
+            r#"{"method": "tools/call", "params": {"name": "a"}}"#,
+            "/mcp#tools/call#a",
         ),
         (
-            r#"{"method": "tools/call", "params": {"name": 5}}"#.into(),
+            r#"{"method": "tools/call", "params": {"name": 5}}"#,
             "unrecognised",
         ),
-        (
-            r#"[{"method": "tools/call", "params": {"name": "a"}}]"#.into(),
-            "unrecognised",
-        ),
-        // Not UTF-8.
-        (
-            b"{\"method\": \"tools/call\", \"params\": {\"name\": \"a\xff\"}}".into(),
-            "unrecognised",
-        ),
-        // A method naming no tool keeps its key-less reading whatever `params` holds.
-        (r#"{"method": "resources/read", "params": [1]}"#.into(), "keyless"),
-        (r#"{"method": "resources/read", "params": 1e400}"#.into(), "keyless"),
+        (r#"{"method": "resources/read", "params": [1]}"#, "keyless"),
     ] {
-        let reported = report_for(&body).await;
+        let reported = report_for(body.as_bytes()).await;
         let read = (reported["endpoint_key"].as_str())
             .or(reported["metadata"]["endpoint_resolution"].as_str());
-        assert_eq!(read, Some(named), "{:.60}", String::from_utf8_lossy(&body));
+        assert_eq!(read, Some(named), "{body}");
     }
 }
 
