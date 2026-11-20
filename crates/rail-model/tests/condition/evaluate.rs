@@ -591,7 +591,8 @@ fn test_refuses_a_source_its_environment_doesnt_fill() {
     let verdict = evaluate_condition(&compiled, &capture, &mut Budget::default()).verdict;
     assert_eq!(verdict, not_filled);
     let predicate: Predicate =
-        serde_json::from_value(json!({"path": ["request", "body", "a"], "op": "not_existing"})).unwrap();
+        serde_json::from_value(json!({"path": ["request", "body", "a"], "op": "not_existing"}))
+            .unwrap();
     let compiled = compile_condition(&Condition::Valid(predicate), ConditionUse::PlanMatch);
     let headers = Headers::default();
     let judging = Environment::for_judging(None, &Endpoint::Keyless, &headers);
