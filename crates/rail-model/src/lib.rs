@@ -1,4 +1,5 @@
-//! The rules language, the judge, and reading what a call names: its endpoint and its host.
+//! The rules language, the judge, reading what a call names (its endpoint and its host), and
+//! reading a call's request line for capture.
 
 pub mod authority;
 pub mod body;

@@ -1,4 +1,7 @@
-//! The capture plan: which calls the proxy records, and how it reads them.
+//! How capture reads a call: its request line, its path redacted as a plan's paths are.
 
-pub mod redaction;
-pub mod request_line;
+mod call_line;
+mod redaction;
+
+pub use call_line::{CallLine, HostReading, ReportedMethod, Unmatchable};
+pub use redaction::REDACTION_VERSION;

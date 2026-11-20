@@ -2,8 +2,8 @@
 
 DatRail's rules language. Rail Center publishes the rules as a policy bundle: which calls to which MCP tools are
 allowed, judged on what an agent's ticket says about it. This crate reads bundles and tickets, reads which endpoint and
-host a call names, and judges the call against the rules. See the [main README](../../README.md) for the system around
-it.
+host a call names, judges the call against the rules, and reads a call's request line as capture does. See the
+[main README](../../README.md) for the system around it.
 
 It's one crate, used everywhere a rule is read, so a rule means the same thing where it's written and where it's
 enforced. The conformance cases in [`vectors/`](../../vectors) define its behaviour.
@@ -38,10 +38,9 @@ By module:
   value, nothing, or one that can't be told) and an MCP reading (**`mcp`**, or why it names nothing). **`BodyRead`** is
   a call's body as a reader has it: kept whole, or unread and why. **`mcp::read_endpoint`** reads the endpoint an MCP
   message names, from its method and tool; **`McpReading::read`** reads one from bytes a host holds itself.
-- **`capture`:** **`redaction::redact_path`** redacts a request path by RailMon's rule, the version
-  **`REDACTION_VERSION`** names, as Rail Center writes a capture plan's paths. **`request_line::CallLine`** reads a
-  call's `:authority`, `:method` and `:path` once: the `RequestLine` a plan's conditions compare, the host or
-  `[unparseable]`, the method a record reports, why a path can match no entry, and its `path_prefix`.
+- **`capture`:** **`CallLine`** reads a call's `:authority`, `:method` and `:path` once: the `RequestLine` a plan's
+  conditions compare, its path redacted by RailMon's rule at **`REDACTION_VERSION`** as Rail Center writes a plan's
+  paths; the host or `[unparseable]`, the method a record reports, why a path can match no entry, and its `path_prefix`.
 - **`sanitize`:** **`sanitize`**, **`sanitize_quoted`**, **`sanitize_unquoted`** and **`sanitize_for_json`** make text
   from a call safe to log.
 

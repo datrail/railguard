@@ -33,7 +33,7 @@ pub enum Endpoint {
 }
 
 impl Endpoint {
-    /// Its kind as logs and reports name it: `keyless`, `unrecognised` or `resolved`.
+    /// Its kind: `keyless`, `unrecognised` or `resolved`.
     pub fn kind(&self) -> &'static str {
         match self {
             Self::Keyless => "keyless",

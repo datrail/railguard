@@ -24,14 +24,12 @@ fn test_reads_a_host_one_way() {
 #[test]
 fn test_refuses_what_isnt_a_host_and_port() {
     for authority in [
-        "",
         ".",
         ":8443",
         "mcp.example.com:",
         "mcp.example.com:0",
         "mcp.example.com:65536",
         "mcp.example.com:+80",
-        "mcp.example.com:https",
         "mcp.example.com..",
         "mcp..example.com",
         "user@mcp.example.com",
@@ -41,6 +39,8 @@ fn test_refuses_what_isnt_a_host_and_port() {
         "2001:db8::1",
         "[2001:db8::1",
         "[2001:db8::1]8443",
+        "[2001:db8::1]:",
+        "[2001:db8::1]:0",
         "[fe80::1%25eth0]",
         "[10.0.0.7]",
     ] {

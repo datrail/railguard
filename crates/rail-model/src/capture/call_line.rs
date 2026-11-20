@@ -22,7 +22,7 @@ const STANDARD_METHODS: [&str; 9] = [
 #[derive(Clone, Debug)]
 pub struct CallLine {
     request_line: RequestLine,
-    host: HostReading,
+    host_reading: HostReading,
     unmatchable: Option<Unmatchable>,
 }
 
@@ -40,6 +40,7 @@ pub enum HostReading {
 /// Why a request path matches no entry, whatever its conditions say.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Unmatchable {
+    /// Bytes that aren't UTF-8.
     NotUtf8,
     /// A `[` or `]`, raw or percent-encoded, so a path can't spell the redaction marker.
     Bracket,
@@ -70,17 +71,23 @@ impl ReportedMethod<'_> {
 }
 
 impl CallLine {
-    /// From a call's `:authority`, `:method` and `:path` as sent. A `CONNECT`'s path is `/`.
+    /// From a call's `:authority`, `:method` and `:path` as sent: the path up to its first `?` or
+    /// `#`, and `/` for a `CONNECT`.
     pub fn read(authority: &[u8], method: &[u8], path: &[u8]) -> Self {
         let (host, host_reading) = read_host(authority);
         let method = String::from_utf8_lossy(method).into_owned();
         let path = if method == "CONNECT" { b"/" } else { path };
-        let path = &path[..path
-            .iter()
-            .position(|byte| matches!(byte, b'?' | b'#'))
-            .unwrap_or(path.len())];
-        let unmatchable = unmatchable(path);
-        let path = String::from_utf8_lossy(path).into_owned();
+        let path = path
+            .split(|byte| matches!(byte, b'?' | b'#'))
+            .next()
+            .unwrap_or_default();
+        let (path, unmatchable) = match std::str::from_utf8(path) {
+            Ok(path) => (path.to_owned(), unmatchable(path)),
+            Err(_) => (
+                String::from_utf8_lossy(path).into_owned(),
+                Some(Unmatchable::NotUtf8),
+            ),
+        };
         Self {
             request_line: RequestLine {
                 host,
@@ -88,7 +95,7 @@ impl CallLine {
                 redacted_path: redact_path(&path),
                 path,
             },
-            host: host_reading,
+            host_reading,
             unmatchable,
         }
     }
@@ -98,8 +105,8 @@ impl CallLine {
         &self.request_line
     }
 
-    pub fn host(&self) -> HostReading {
-        self.host
+    pub fn host_reading(&self) -> HostReading {
+        self.host_reading
     }
 
     /// Why the path matches no entry, if it can't.
@@ -117,15 +124,14 @@ impl CallLine {
     }
 
     /// The redacted path's first `segments` segments, `/` for none.
-    pub fn path_prefix(&self, segments: usize) -> String {
-        let kept: Vec<&str> = self
-            .request_line
-            .redacted_path
-            .split('/')
-            .filter(|segment| !segment.is_empty())
-            .take(segments)
-            .collect();
-        format!("/{}", kept.join("/"))
+    pub fn path_prefix(&self, segments: usize) -> &str {
+        // The redacted path starts with `/` and has no empty segment.
+        let path = &self.request_line.redacted_path;
+        let end = path
+            .match_indices('/')
+            .nth(segments)
+            .map_or(path.len(), |(at, _)| at);
+        &path[..end.max(1)]
     }
 }
 
@@ -144,28 +150,23 @@ fn read_host(authority: &[u8]) -> (String, HostReading) {
 }
 
 // On the path as received, before redaction.
-fn unmatchable(path: &[u8]) -> Option<Unmatchable> {
-    let Ok(path) = std::str::from_utf8(path) else {
-        return Some(Unmatchable::NotUtf8);
+fn unmatchable(path: &str) -> Option<Unmatchable> {
+    let encodes = |code: &[u8]| {
+        path.as_bytes()
+            .windows(3)
+            .any(|window| window.eq_ignore_ascii_case(code))
     };
-    let lower = path.to_ascii_lowercase();
-    if path.contains(['[', ']']) || lower.contains("%5b") || lower.contains("%5d") {
+    if path.contains(['[', ']']) || encodes(b"%5b") || encodes(b"%5d") {
         return Some(Unmatchable::Bracket);
     }
-    if lower.contains("%2f") {
+    if encodes(b"%2f") {
         return Some(Unmatchable::EncodedSlash);
     }
-    let segments: Vec<&str> = path.strip_prefix('/').unwrap_or(path).split('/').collect();
-    if segments
-        .iter()
-        .any(|segment| matches!(*segment, "." | ".."))
-    {
+    if path.split('/').any(|segment| matches!(segment, "." | "..")) {
         return Some(Unmatchable::DotSegment);
     }
-    if segments[..segments.len() - 1]
-        .iter()
-        .any(|segment| segment.is_empty())
-    {
+    // Two slashes in a row are an empty segment before another.
+    if path.contains("//") {
         return Some(Unmatchable::EmptySegment);
     }
     None

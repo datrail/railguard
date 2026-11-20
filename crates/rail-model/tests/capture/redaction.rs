@@ -1,4 +1,4 @@
-use rail_model::capture::redaction::redact_path;
+use rail_model::capture::CallLine;
 use serde::Deserialize;
 
 const VECTORS: &str = include_str!("../../../../vectors/capture/redaction.json");
@@ -21,16 +21,21 @@ fn cases() -> Vec<Case> {
     vectors.cases
 }
 
+fn redact(path: &str) -> String {
+    let line = CallLine::read(b"mcp.example.com", b"POST", path.as_bytes());
+    line.request_line().redacted_path.clone()
+}
+
 #[test]
 fn test_vectors() {
     for case in cases() {
-        assert_eq!(redact_path(&case.path), case.redacted, "{}", case.name);
+        assert_eq!(redact(&case.path), case.redacted, "{}", case.name);
     }
 }
 
 #[test]
 fn test_redacting_twice_is_redacting_once() {
     for case in cases() {
-        assert_eq!(redact_path(&case.redacted), case.redacted, "{}", case.name);
+        assert_eq!(redact(&case.redacted), case.redacted, "{}", case.name);
     }
 }
