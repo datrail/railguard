@@ -601,6 +601,7 @@ fn test_refuses_a_condition_with_its_cause() {
         json!(["request", "headers", "a"]),
         json!(["request"]),
         json!(["request", "query", "a", 0]),
+        json!(["request", "path", 0]),
         json!(["request", "redacted_path", 0]),
     ] {
         let held = evaluate_on_call(

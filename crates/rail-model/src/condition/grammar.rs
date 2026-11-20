@@ -249,8 +249,8 @@ pub enum RequestPath {
     /// Up to its first `?` or `#`, as received; or one of its segments, from 0:
     /// `["request", "path", <n>]`.
     Path(Option<usize>),
-    /// The path redacted, or one of its segments, so a segment that looked like a secret reads
-    /// `[redacted]`.
+    /// The path redacted, or one of its segments, from 0: `["request", "redacted_path", <n>]`; a
+    /// segment that looked like a secret reads `[redacted]`.
     RedactedPath(Option<usize>),
     /// A query parameter's values by its name, or one of them, from 0:
     /// `["request", "query", "<name>", <n>]`.

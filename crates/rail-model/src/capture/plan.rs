@@ -5,9 +5,8 @@ use std::collections::HashSet;
 use std::fmt;
 use std::ops::RangeInclusive;
 
-use serde::de::Error as _;
-use serde::{Deserialize, Deserializer};
-use serde_json::{Map, Value, json};
+use serde::Deserialize;
+use serde_json::{Value, json};
 
 use crate::agent::AgentId;
 use crate::condition::{BodyStep, Condition, ConditionUse, Path, RequestPath};
@@ -90,17 +89,19 @@ pub struct CatchAllRecord {
     pub measures: Vec<Measure>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Deserialize)]
+#[serde(try_from = "Fields")]
 pub enum ContextKey {
     Method,
     Named {
         name: String,
         path: Path,
-        // `field_type` goes here: what the value is, copied into each record, which none is yet.
+        // `field_type` goes here: what the value is, read past until a record carries it.
     },
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Deserialize)]
+#[serde(try_from = "Fields")]
 pub enum CatchAllKey {
     Host,
     PathPrefix { segments: u32 },
@@ -108,7 +109,8 @@ pub enum CatchAllKey {
     Operation,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Deserialize)]
+#[serde(try_from = "Fields")]
 pub enum Measure {
     CallCount,
     ErrorCount,
@@ -290,128 +292,126 @@ fn unique<'a>(what: &str, names: impl Iterator<Item = &'a str>) -> Result<(), St
     Ok(())
 }
 
-impl<'de> Deserialize<'de> for ContextKey {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let mut fields = Map::deserialize(deserializer)?;
-        read_context_key(&mut fields).map_err(D::Error::custom)
-    }
+// What a key or a measure may hold; any other field is passed over unread.
+#[derive(Deserialize)]
+struct Fields {
+    name: Option<Value>,
+    path: Option<Value>,
+    segments: Option<Value>,
+    #[serde(rename = "type")]
+    combine: Option<Value>,
+    function: Option<Value>,
+    paths: Option<Value>,
 }
 
 // A key's fields depend on its name.
-fn read_context_key(fields: &mut Map<String, Value>) -> Result<ContextKey, String> {
-    let name = take_name(fields, "context key")?;
-    let at = format!("context key {name}");
-    match name.as_str() {
-        "method" => Ok(ContextKey::Method),
-        "host" | "path_prefix" | "operation" => Err(format!("{at}: the catch-all's alone")),
-        _ => {
-            let path = take(fields, "path", &at)?;
-            Ok(ContextKey::Named {
-                path: read_record_path(&path).map_err(|why| format!("{at}: {why}"))?,
-                name,
-            })
-        }
-    }
-}
+impl TryFrom<Fields> for ContextKey {
+    type Error = String;
 
-impl<'de> Deserialize<'de> for CatchAllKey {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let mut fields = Map::deserialize(deserializer)?;
-        read_catch_all_key(&mut fields).map_err(D::Error::custom)
-    }
-}
-
-fn read_catch_all_key(fields: &mut Map<String, Value>) -> Result<CatchAllKey, String> {
-    let name = take_name(fields, "context key")?;
-    let at = format!("context key {name}");
-    Ok(match name.as_str() {
-        "host" => CatchAllKey::Host,
-        "method" => CatchAllKey::Method,
-        "operation" => CatchAllKey::Operation,
-        "path_prefix" => {
-            let segments = take(fields, "segments", &at)?;
-            match segments
-                .as_u64()
-                .and_then(|segments| u32::try_from(segments).ok())
-            {
-                Some(segments @ 1..) => CatchAllKey::PathPrefix { segments },
-                _ => return Err(format!("{at}: its segments aren't a whole number from 1")),
+    fn try_from(fields: Fields) -> Result<Self, String> {
+        let name = read_name(fields.name, "context key")?;
+        let at = format!("context key {name}");
+        match name.as_str() {
+            "method" => Ok(Self::Method),
+            "host" | "path_prefix" | "operation" => Err(format!("{at}: the catch-all's alone")),
+            _ => {
+                let path = present(fields.path, "path", &at)?;
+                Ok(Self::Named {
+                    path: read_record_path(&path).map_err(|why| format!("{at}: {why}"))?,
+                    name,
+                })
             }
         }
-        _ => return Err(format!("{at}: not a built-in one")),
-    })
+    }
 }
 
-impl<'de> Deserialize<'de> for Measure {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let mut fields = Map::deserialize(deserializer)?;
-        read_measure(&mut fields).map_err(D::Error::custom)
+impl TryFrom<Fields> for CatchAllKey {
+    type Error = String;
+
+    fn try_from(fields: Fields) -> Result<Self, String> {
+        let name = read_name(fields.name, "context key")?;
+        let at = format!("context key {name}");
+        Ok(match name.as_str() {
+            "host" => Self::Host,
+            "method" => Self::Method,
+            "operation" => Self::Operation,
+            "path_prefix" => {
+                let segments = present(fields.segments, "segments", &at)?;
+                match segments
+                    .as_u64()
+                    .and_then(|segments| u32::try_from(segments).ok())
+                {
+                    Some(segments @ 1..) => Self::PathPrefix { segments },
+                    _ => return Err(format!("{at}: its segments aren't a whole number from 1")),
+                }
+            }
+            _ => return Err(format!("{at}: not a built-in one")),
+        })
     }
 }
 
 // A measure's fields depend on its name.
-fn read_measure(fields: &mut Map<String, Value>) -> Result<Measure, String> {
-    let name = take_name(fields, "measure")?;
-    let at = format!("measure {name}");
-    let built_in = match name.as_str() {
-        "call_count" => Some(Measure::CallCount),
-        "error_count" => Some(Measure::ErrorCount),
-        _ => None,
-    };
-    if let Some(built_in) = built_in {
-        return Ok(built_in);
-    }
-    let combine = take(fields, "type", &at)?;
-    let function = take(fields, "function", &at)?;
-    let paths = take(fields, "paths", &at)?;
-    if name == "request_bytes" {
-        let whole_body = json!([["request", "body"]]);
-        if (combine, function, paths) != (json!("sum"), json!("size"), whole_body) {
-            return Err(format!(
-                "{at}: not a sum of size over [[\"request\", \"body\"]]"
-            ));
+impl TryFrom<Fields> for Measure {
+    type Error = String;
+
+    fn try_from(fields: Fields) -> Result<Self, String> {
+        let name = read_name(fields.name, "measure")?;
+        let at = format!("measure {name}");
+        match name.as_str() {
+            "call_count" => return Ok(Self::CallCount),
+            "error_count" => return Ok(Self::ErrorCount),
+            _ => {}
         }
-        return Ok(Measure::RequestBytes);
+        let combine = present(fields.combine, "type", &at)?;
+        let function = present(fields.function, "function", &at)?;
+        let paths = present(fields.paths, "paths", &at)?;
+        if name == "request_bytes" {
+            let whole_body = json!([["request", "body"]]);
+            if (combine, function, paths) != (json!("sum"), json!("size"), whole_body) {
+                return Err(format!(
+                    "{at}: not a sum of size over [[\"request\", \"body\"]]"
+                ));
+            }
+            return Ok(Self::RequestBytes);
+        }
+        let unlisted = |field: &str| format!("{at}: its {field} is none the reference lists");
+        let combine = Combine::deserialize(combine).map_err(|_| unlisted("type"))?;
+        let function = Function::deserialize(function).map_err(|_| unlisted("function"))?;
+        let paths = match paths {
+            Value::Array(paths) if !paths.is_empty() => paths,
+            _ => return Err(format!("{at}: its paths aren't a list of one or more")),
+        };
+        let paths = paths
+            .iter()
+            .map(read_record_path)
+            .collect::<Result<_, _>>()
+            .map_err(|why| format!("{at}: {why}"))?;
+        Ok(Self::Named {
+            name,
+            combine,
+            function,
+            paths,
+        })
     }
-    let unlisted = |field: &str| format!("{at}: its {field} is none the reference lists");
-    let combine = Combine::deserialize(combine).map_err(|_| unlisted("type"))?;
-    let function = Function::deserialize(function).map_err(|_| unlisted("function"))?;
-    let paths = match paths {
-        Value::Array(paths) if !paths.is_empty() => paths,
-        _ => return Err(format!("{at}: its paths aren't a list of one or more")),
-    };
-    let paths = paths
-        .iter()
-        .map(read_record_path)
-        .collect::<Result<_, _>>()
-        .map_err(|why| format!("{at}: {why}"))?;
-    Ok(Measure::Named {
-        name,
-        combine,
-        function,
-        paths,
-    })
 }
 
 // A built-in name, or one Rail Center gives: every one a name.
-fn take_name(fields: &mut Map<String, Value>, what: &str) -> Result<String, String> {
-    let Some(Value::String(name)) = fields.remove("name") else {
+fn read_name(name: Option<Value>, what: &str) -> Result<String, String> {
+    let Some(Value::String(name)) = name else {
         return Err(format!("a {what} with no name that's a string"));
     };
     if is_name(&name) {
         Ok(name)
     } else {
-        Err(format!("{what} {name}: its name {NOT_A_NAME}"))
+        Err(format!(
+            "{what} {name}: its name isn't lowercase letters, digits and _, from a letter, up to {MAX_NAME_CHARS}"
+        ))
     }
 }
 
-fn take(fields: &mut Map<String, Value>, field: &str, at: &str) -> Result<Value, String> {
-    fields
-        .remove(field)
-        .ok_or_else(|| format!("{at}: no {field}"))
+fn present(field: Option<Value>, name: &str, at: &str) -> Result<Value, String> {
+    field.ok_or_else(|| format!("{at}: no {name}"))
 }
-
-const NOT_A_NAME: &str = "isn't lowercase letters, digits and _, from a letter, up to 32";
 
 fn is_name(text: &str) -> bool {
     let mut bytes = text.bytes();

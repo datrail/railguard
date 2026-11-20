@@ -109,6 +109,11 @@ fn test_accepts_a_condition_every_reader_reads() {
         check(json!({"path": "ticket.posture", "op": "existing"})),
         []
     );
+    // As a reader reads either spelling.
+    assert_eq!(
+        check(json!({"path": ["ticket", "posture"], "op": "existing"})),
+        []
+    );
 }
 
 #[test]
@@ -123,6 +128,14 @@ fn test_reports_what_every_reader_refuses() {
     assert_eq!(
         check(json!({"path": "body.x", "op": "existing"})),
         [(loc!["path"], UnknownSource, Enforcement)]
+    );
+    assert_eq!(
+        check(json!({"path": ["body", "x"], "op": "existing"})),
+        [(loc!["path"], UnknownSource, Enforcement)]
+    );
+    assert_eq!(
+        check(json!({"path": ["request", "method"], "op": "existing"})),
+        [(loc!["path"], UnknownPath, Enforcement)]
     );
     for path in ["request.method", "request.body.x"] {
         assert_eq!(
