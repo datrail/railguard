@@ -1,0 +1,250 @@
+{
+  "_comment": "Cases for capture's port of RailMon's redaction rule (asp_redaction, REDACTION_VERSION 1): a request path, and the path redact_path makes of it. The cases not marked `ours` are RailMon's python/asp_spelling/tests/test_asp_redaction.py at 3a4e390 (master), written as paths; a change to the rule updates both. Shapes whose shortest key is 20 characters or more are redacted by length here whatever their shape.",
+  "cases": [
+    {
+      "name": "a key-shaped segment",
+      "path": "/mcp/sk-live-abc12345/sse",
+      "redacted": "/mcp/[redacted]/sse"
+    },
+    {
+      "name": "a root path has no segments",
+      "path": "",
+      "redacted": "/"
+    },
+    {
+      "name": "a root path has no segments, with its slash",
+      "path": "/",
+      "redacted": "/"
+    },
+    {
+      "name": "empty segments are collapsed",
+      "path": "//a///b/",
+      "redacted": "/a/b"
+    },
+    {
+      "name": "letter case is kept",
+      "path": "/V1",
+      "redacted": "/V1"
+    },
+    {
+      "name": "19 characters is not a key",
+      "path": "/aaaaaaaaaaaaaaaaaaa",
+      "redacted": "/aaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "name": "20 characters is a key",
+      "path": "/aaaaaaaaaaaaaaaaaaaa",
+      "redacted": "/[redacted]"
+    },
+    {
+      "name": "a short OpenAI-shaped key",
+      "path": "/sk-live-abc12",
+      "redacted": "/[redacted]"
+    },
+    {
+      "name": "a short GitHub key",
+      "path": "/ghp_abcdefghijkl",
+      "redacted": "/[redacted]"
+    },
+    {
+      "name": "a short GitLab key",
+      "path": "/glpat-abcdef",
+      "redacted": "/[redacted]"
+    },
+    {
+      "name": "a short Slack key",
+      "path": "/xoxb-1234567890",
+      "redacted": "/[redacted]"
+    },
+    {
+      "name": "a word sharing AWS's prefix",
+      "path": "/asian-markets",
+      "redacted": "/asian-markets"
+    },
+    {
+      "name": "a word sharing Google's prefix",
+      "path": "/aizawa",
+      "redacted": "/aizawa"
+    },
+    {
+      "name": "AWS's prefix alone",
+      "path": "/akia",
+      "redacted": "/akia"
+    },
+    {
+      "name": "OpenAI's prefix, too short",
+      "path": "/sk-short",
+      "redacted": "/sk-short"
+    },
+    {
+      "name": "a word holding OpenAI's prefix",
+      "path": "/risk-report",
+      "redacted": "/risk-report"
+    },
+    {
+      "name": "an AWS key id, 20 characters",
+      "path": "/AKIAAAAAAAAAAAAAAAAA",
+      "redacted": "/[redacted]"
+    },
+    {
+      "name": "not an AWS key id but 20 characters, so a key by length",
+      "path": "/AKIAaaaaaaaaaaaaaaaa",
+      "redacted": "/[redacted]"
+    },
+    {
+      "name": "a kept segment's brackets are percent-encoded",
+      "path": "/a[1]/b",
+      "redacted": "/a%5B1%5D/b"
+    },
+    {
+      "name": "the marker stays the marker",
+      "path": "/[redacted]",
+      "redacted": "/[redacted]"
+    },
+    {
+      "name": "the marker encoded",
+      "path": "/%5Bredacted%5D",
+      "redacted": "/[redacted]"
+    },
+    {
+      "name": "the marker encoded in lower case",
+      "path": "/%5bredacted%5d",
+      "redacted": "/[redacted]"
+    },
+    {
+      "name": "the length bound reads the brackets decoded",
+      "path": "/[abcdefghijklmnop]",
+      "redacted": "/%5Babcdefghijklmnop%5D"
+    },
+    {
+      "name": "a second pass keeps what the first kept",
+      "path": "/%5Babcdefghijklmnop%5D",
+      "redacted": "/%5Babcdefghijklmnop%5D"
+    },
+    {
+      "name": "a long segment",
+      "path": "/zzzzzzzzzzzzzzzzzzzzzzzzz",
+      "redacted": "/[redacted]"
+    },
+    {
+      "name": "ours: a segment of 19 characters, not bytes, is not a key",
+      "path": "/ééééééééééééééééééé",
+      "redacted": "/ééééééééééééééééééé"
+    },
+    {
+      "name": "ours: a segment of 20 characters, fewer than 40 bytes, is a key",
+      "path": "/éééééééééééééééééééé",
+      "redacted": "/[redacted]"
+    },
+    {
+      "name": "ours: OpenAI's shape at its shortest",
+      "path": "/sk-abcdefgh",
+      "redacted": "/[redacted]"
+    },
+    {
+      "name": "ours: OpenAI's shape, one short",
+      "path": "/sk-abcdefg",
+      "redacted": "/sk-abcdefg"
+    },
+    {
+      "name": "ours: OpenAI's shape, a character outside its class",
+      "path": "/sk-abc.defgh",
+      "redacted": "/sk-abc.defgh"
+    },
+    {
+      "name": "ours: OpenAI's shape, its prefix in another case",
+      "path": "/SK-abcdefgh",
+      "redacted": "/SK-abcdefgh"
+    },
+    {
+      "name": "ours: GitHub's shape, one short",
+      "path": "/ghp_abcdefghijk",
+      "redacted": "/ghp_abcdefghijk"
+    },
+    {
+      "name": "ours: GitHub's shape, each of its letters",
+      "path": "/gho_abcdefghijkl/ghu_abcdefghijkl/ghs_abcdefghijkl/ghr_abcdefghijkl",
+      "redacted": "/[redacted]/[redacted]/[redacted]/[redacted]"
+    },
+    {
+      "name": "ours: GitHub's shape, a letter outside it",
+      "path": "/ghx_abcdefghijkl",
+      "redacted": "/ghx_abcdefghijkl"
+    },
+    {
+      "name": "ours: GitHub's shape, an underscore in its run",
+      "path": "/ghp_abcdef_ghijk",
+      "redacted": "/ghp_abcdef_ghijk"
+    },
+    {
+      "name": "ours: GitLab's shape, one short",
+      "path": "/glpat-abcde",
+      "redacted": "/glpat-abcde"
+    },
+    {
+      "name": "ours: Slack's shape, one short",
+      "path": "/xoxb-123456789",
+      "redacted": "/xoxb-123456789"
+    },
+    {
+      "name": "ours: Slack's shape, each of its letters",
+      "path": "/xoxa-1234567890/xoxp-1234567890/xoxr-1234567890/xoxs-1234567890",
+      "redacted": "/[redacted]/[redacted]/[redacted]/[redacted]"
+    },
+    {
+      "name": "ours: Slack's shape, a letter outside it",
+      "path": "/xoxc-1234567890",
+      "redacted": "/xoxc-1234567890"
+    },
+    {
+      "name": "ours: Slack's app shape at its shortest",
+      "path": "/xapp-1-1234567890",
+      "redacted": "/[redacted]"
+    },
+    {
+      "name": "ours: Slack's app shape, one short",
+      "path": "/xapp-1-123456789",
+      "redacted": "/xapp-1-123456789"
+    },
+    {
+      "name": "ours: Slack's app shape, a letter for its digit",
+      "path": "/xapp-a-1234567890",
+      "redacted": "/xapp-a-1234567890"
+    },
+    {
+      "name": "ours: Slack's app shape, two digits",
+      "path": "/xapp-12-123456789",
+      "redacted": "/xapp-12-123456789"
+    },
+    {
+      "name": "ours: a kept segment's closing bracket alone",
+      "path": "/a]b",
+      "redacted": "/a%5Db"
+    },
+    {
+      "name": "ours: a kept segment's encoded bracket in lower case",
+      "path": "/a%5bb",
+      "redacted": "/a%5Bb"
+    },
+    {
+      "name": "ours: an encoded pair of brackets",
+      "path": "/%5B%5D",
+      "redacted": "/%5B%5D"
+    },
+    {
+      "name": "ours: the marker with a bracket more",
+      "path": "/%5Bredacted%5D%5D",
+      "redacted": "/%5Bredacted%5D%5D"
+    },
+    {
+      "name": "ours: other percent-encodings are kept as sent",
+      "path": "/m%63p/a%2Fb",
+      "redacted": "/m%63p/a%2Fb"
+    },
+    {
+      "name": "ours: a dot segment is a segment like any other",
+      "path": "/a/../b/.",
+      "redacted": "/a/../b/."
+    }
+  ]
+}
