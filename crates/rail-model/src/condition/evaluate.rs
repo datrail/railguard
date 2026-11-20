@@ -259,8 +259,6 @@ fn resolve<'a>(
     match path {
         Path::Ticket(path) => resolve_ticket(path, environment),
         Path::Request(path) => resolve_request(path, environment, budget),
-        // A plan record's, which no condition's use reads.
-        Path::Query { .. } | Path::Segment(_) => Err(Refusal::NotForUse),
     }
 }
 
@@ -331,6 +329,10 @@ fn resolve_request<'a>(
         RequestPath::McpMethod => read_mcp(environment, McpReading::method)?,
         RequestPath::McpTool => read_mcp(environment, McpReading::tool)?,
         RequestPath::Body(path) => resolve_body(path, environment, budget)?,
+        // A plan record's, which no condition's use reads.
+        RequestPath::RedactedPathSegment(_) | RequestPath::Query { .. } => {
+            return Err(Refusal::NotForUse);
+        }
     })
 }
 

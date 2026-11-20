@@ -165,13 +165,6 @@ pub enum Scalar {
 pub enum Path {
     Ticket(TicketPath),
     Request(RequestPath),
-    /// A query parameter by name, then which of its values, from 0: `["query", name, n]`.
-    Query {
-        name: String,
-        index: usize,
-    },
-    /// A segment of the redacted request path, from 0: `["path", n]`.
-    Segment(usize),
 }
 
 impl TryFrom<String> for Path {
@@ -207,17 +200,6 @@ impl Path {
                     .collect::<Option<_>>()?,
             )),
             "request" => Self::Request(RequestPath::parse(steps)?),
-            "query" => match steps {
-                [Value::String(name), index] if !name.is_empty() => Self::Query {
-                    name: name.clone(),
-                    index: read_index(index)?,
-                },
-                _ => return None,
-            },
-            "path" => match steps {
-                [index] => Self::Segment(read_index(index)?),
-                _ => return None,
-            },
             _ => return None,
         })
     }
@@ -231,7 +213,7 @@ pub enum ConditionUse {
     Policy,
     /// A capture plan entry's match, in [`Environment::for_capture`](super::Environment::for_capture).
     PlanMatch,
-    /// A capture plan's context key or measure: a call's body, query or path.
+    /// A capture plan's context key or measure: a call's body, query or redacted path's segments.
     PlanRecord,
 }
 
@@ -262,7 +244,11 @@ impl ConditionUse {
             ),
             Self::PlanRecord => matches!(
                 path,
-                Path::Request(RequestPath::Body(_)) | Path::Query { .. } | Path::Segment(_)
+                Path::Request(
+                    RequestPath::Body(_)
+                        | RequestPath::Query { .. }
+                        | RequestPath::RedactedPathSegment(_)
+                )
             ),
         }
     }
@@ -286,6 +272,14 @@ pub enum RequestPath {
     /// Up to its first `?` or `#`, as received.
     Path,
     RedactedPath,
+    /// A segment of the redacted path, from 0: `request.redacted_path.<n>`, so a segment that
+    /// looked like a secret reads `[redacted]`.
+    RedactedPathSegment(usize),
+    /// A query parameter by name, then which of its values, from 0: `request.query.<name>.<n>`.
+    Query {
+        name: String,
+        index: usize,
+    },
     McpMethod,
     McpTool,
     Body(BodyPath),
@@ -294,11 +288,20 @@ pub enum RequestPath {
 impl RequestPath {
     /// From the steps past `request`; `None` for any field or step this reader doesn't know.
     fn parse(steps: &[Value]) -> Option<Self> {
-        if let Some((field, steps)) = steps.split_first()
-            && field == "body"
-        {
-            let steps = steps.iter().map(BodyStep::read).collect::<Option<_>>()?;
-            return Some(Self::Body(BodyPath(steps)));
+        match steps {
+            [field, steps @ ..] if field == "body" => {
+                let steps = steps.iter().map(BodyStep::read).collect::<Option<_>>()?;
+                return Some(Self::Body(BodyPath(steps)));
+            }
+            [field, index] if field == "redacted_path" && index.is_number() => {
+                return Some(Self::RedactedPathSegment(read_index(index)?));
+            }
+            [field, Value::String(name), index] if field == "query" && !name.is_empty() => {
+                let index = read_index(index)?;
+                let name = name.clone();
+                return Some(Self::Query { name, index });
+            }
+            _ => {}
         }
         let keys: Vec<&str> = steps.iter().map(Value::as_str).collect::<Option<_>>()?;
         Some(match keys.as_slice() {
