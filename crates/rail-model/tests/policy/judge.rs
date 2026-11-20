@@ -1,4 +1,6 @@
-use rail_model::condition::{Budget, Environment, Evaluation, Headers, Refusal, Verdict};
+use rail_model::condition::{
+    Budget, Environment, Evaluation, Headers, Refusal, Uninterpretable, Verdict,
+};
 use rail_model::endpoint::Endpoint;
 use rail_model::policy::{
     Decision, EnforcementMode, FallbackDenial, JudgingMode, Outcome, Tracer, compile_bundle, judge,
@@ -273,7 +275,7 @@ fn test_traces_a_refusal_with_nothing_resolved() {
             (
                 "02".into(),
                 None,
-                Verdict::Refused(Refusal::Uninterpretable)
+                Verdict::Refused(Refusal::Uninterpretable(Uninterpretable::Invalid))
             ),
         ]
     );

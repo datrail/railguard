@@ -3,8 +3,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use rail_model::body::{BodyBuffer, BodyRead, ByteBudget, Unparsed, Unread};
 use rail_model::condition::{
-    BodyUnread, Budget, CaptureRequest, Condition, Environment, Headers, Predicate, Refusal,
-    Verdict, compile_condition, evaluate_condition,
+    BodyUnread, Budget, Condition, ConditionUse, Environment, Headers, Predicate, Refusal,
+    RequestLine, Uninterpretable, Verdict, compile_condition, evaluate_condition,
 };
 use rail_model::endpoint::Endpoint;
 use serde::Deserialize;
@@ -38,7 +38,7 @@ fn evaluate_case(case: &Case) -> Verdict {
     let headers = Headers::from_lines(case.headers.iter().map(|(n, v)| (n, v)));
     let environment = Environment::for_judging(case.ticket.as_ref(), &endpoint, &headers);
     evaluate_condition(
-        &compile_condition(&condition),
+        &compile_condition(&condition, ConditionUse::Policy),
         &environment,
         &mut Budget::default(),
     )
@@ -77,7 +77,12 @@ fn evaluate_on_header(condition: Value, value: &str, budget: &mut Budget) -> Ver
     let condition: Condition = serde_json::from_value(condition).unwrap();
     let headers = Headers::from_lines([("x-a", value)]);
     let environment = Environment::for_judging(None, &Endpoint::Keyless, &headers);
-    evaluate_condition(&compile_condition(&condition), &environment, budget).verdict
+    evaluate_condition(
+        &compile_condition(&condition, ConditionUse::Policy),
+        &environment,
+        budget,
+    )
+    .verdict
 }
 
 fn evaluate_on_endpoint(condition: Value, endpoint: &Endpoint) -> Verdict {
@@ -85,7 +90,7 @@ fn evaluate_on_endpoint(condition: Value, endpoint: &Endpoint) -> Verdict {
     let headers = Headers::from_lines([("x-a", "a")]);
     let environment = Environment::for_judging(None, endpoint, &headers);
     evaluate_condition(
-        &compile_condition(&condition),
+        &compile_condition(&condition, ConditionUse::Policy),
         &environment,
         &mut Budget::default(),
     )
@@ -247,7 +252,7 @@ fn evaluate_on_claims(condition: Value, claims: Value) -> Verdict {
     let headers = Headers::default();
     let environment = Environment::for_judging(Some(&claims), &Endpoint::Keyless, &headers);
     evaluate_condition(
-        &compile_condition(&condition),
+        &compile_condition(&condition, ConditionUse::Policy),
         &environment,
         &mut Budget::default(),
     )
@@ -330,16 +335,16 @@ fn keep_body(body: &[u8]) -> BodyRead {
 
 // As a plan writes a condition, its path a list.
 fn evaluate_on_call(condition: Value, body: &BodyRead, budget: &mut Budget) -> Verdict {
-    let request = CaptureRequest {
+    let request_line = RequestLine {
         host: "mcp.example".to_string(),
         method: "POST".to_string(),
         path: "/team-a/mcp".to_string(),
         redacted_path: "/[redacted]/mcp".to_string(),
     };
     let predicate: Predicate = serde_json::from_value(condition).unwrap();
-    let environment = Environment::for_capture(&request, body);
+    let environment = Environment::for_capture(&request_line, body);
     evaluate_condition(
-        &compile_condition(&Condition::Valid(predicate)),
+        &compile_condition(&Condition::Valid(predicate), ConditionUse::PlanMatch),
         &environment,
         budget,
     )
@@ -373,18 +378,11 @@ fn test_reads_a_calls_request_line_and_mcp_message() {
 #[test]
 fn test_reads_a_body_path_and_tells_what_cant_be_told() {
     let body = keep_body(
-        br#"{"repo": "payroll", "esc": "pay\u0072oll", "items": ["a", "b"], "n": null,
-            "big": 1e400, "small": -1e400, "dup": 1, "Dup": 2, "bad": "\ud800",
-            "mixed": ["a", "\ud800"], "o": {"k": 1, "\q": 2}}"#,
+        br#"{"esc": "pay\u0072oll", "items": ["a", "b"], "big": 1e400, "dup": 1, "Dup": 2,
+            "bad": "\ud800", "mixed": ["a", "\ud800"]}"#,
     );
     let ambiguous = Verdict::Ambiguous;
     for (path, op, value, verdict) in [
-        (
-            json!(["body", "repo"]),
-            "eq",
-            json!("payroll"),
-            Verdict::Holds,
-        ),
         (
             json!(["body", "esc"]),
             "eq",
@@ -415,21 +413,9 @@ fn test_reads_a_body_path_and_tells_what_cant_be_told() {
             json!(null),
             Verdict::Holds,
         ),
-        (
-            json!(["body", "n"]),
-            "not_existing",
-            json!(null),
-            Verdict::Holds,
-        ),
         (json!(["body"]), "existing", json!(null), Verdict::Holds),
         // Past a double, saturated.
         (json!(["body", "big"]), "gt", json!(1e300), Verdict::Holds),
-        (
-            json!(["body", "small"]),
-            "lt",
-            json!(-1e300),
-            Verdict::Holds,
-        ),
         // Whatever the op, absent included: readers differ on what's there.
         (json!(["body", "dup"]), "eq", json!(1), ambiguous),
         (
@@ -438,7 +424,6 @@ fn test_reads_a_body_path_and_tells_what_cant_be_told() {
             json!(null),
             ambiguous,
         ),
-        (json!(["body", "o", "k"]), "eq", json!(1), ambiguous),
         (json!(["body", "bad"]), "existing", json!(null), ambiguous),
         (json!(["body", "mixed"]), "contains", json!("a"), ambiguous),
     ] {
@@ -517,4 +502,63 @@ fn test_charges_an_index_by_the_items_it_passes() {
         evaluate_on_call(at(9), &body, &mut Budget::new(10)),
         Verdict::Refused(Refusal::BudgetExceeded)
     );
+    // Charged only what it passes: past the end, and past any number a step can hold.
+    assert_eq!(
+        evaluate_on_call(at(200_000), &body, &mut Budget::new(12)),
+        Verdict::DoesNotHold
+    );
+    assert_eq!(
+        evaluate_on_call(at(usize::MAX), &body, &mut Budget::new(12)),
+        Verdict::DoesNotHold
+    );
+}
+
+#[test]
+fn test_refuses_a_path_its_use_doesnt_read() {
+    let not_for_use = Verdict::Refused(Refusal::Uninterpretable(Uninterpretable::NotForUse));
+    let headers = Headers::default();
+    let judging = Environment::for_judging(None, &Endpoint::Keyless, &headers);
+    for path in ["request.host", "request.mcp.tool", "body.a"] {
+        let condition: Condition =
+            serde_json::from_value(json!({"path": path, "op": "not_existing"})).unwrap();
+        let compiled = compile_condition(&condition, ConditionUse::Policy);
+        let verdict = evaluate_condition(&compiled, &judging, &mut Budget::default()).verdict;
+        assert_eq!(verdict, not_for_use, "{path}");
+    }
+    let body = keep_body(b"{}");
+    for path in [
+        json!(["ticket", "a"]),
+        json!(["request", "endpoint_key"]),
+        json!(["request", "headers", "a"]),
+        json!(["request"]),
+    ] {
+        let held = evaluate_on_call(
+            condition(path.clone(), "not_existing", json!(null)),
+            &body,
+            &mut Budget::default(),
+        );
+        assert_eq!(held, not_for_use, "{path}");
+    }
+}
+
+// Compiled for one use, evaluated where another's environment fills other sources.
+#[test]
+fn test_refuses_a_source_its_environment_doesnt_fill() {
+    let not_filled = Verdict::Refused(Refusal::Uninterpretable(Uninterpretable::NotForUse));
+    let request_line = RequestLine::default();
+    let body = keep_body(b"{}");
+    let capture = Environment::for_capture(&request_line, &body);
+    let condition: Condition =
+        serde_json::from_value(json!({"path": "request.endpoint_key", "op": "not_existing"}))
+            .unwrap();
+    let compiled = compile_condition(&condition, ConditionUse::Policy);
+    let verdict = evaluate_condition(&compiled, &capture, &mut Budget::default()).verdict;
+    assert_eq!(verdict, not_filled);
+    let predicate: Predicate =
+        serde_json::from_value(json!({"path": ["body", "a"], "op": "not_existing"})).unwrap();
+    let compiled = compile_condition(&Condition::Valid(predicate), ConditionUse::PlanMatch);
+    let headers = Headers::default();
+    let judging = Environment::for_judging(None, &Endpoint::Keyless, &headers);
+    let verdict = evaluate_condition(&compiled, &judging, &mut Budget::default()).verdict;
+    assert_eq!(verdict, not_filled);
 }

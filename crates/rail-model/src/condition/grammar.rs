@@ -48,10 +48,8 @@ fn read_condition(value: Value, raw: &str) -> Condition {
         return Condition::Unknown(value);
     }
     match Predicate::deserialize(&value) {
-        // Rail Center publishes a policy's path as a string, and only these.
-        Ok(predicate) if value["path"].is_string() && predicate.path().is_policy_path() => {
-            Condition::Valid(predicate)
-        }
+        // A bundle spells its paths as strings; which a use reads is checked when compiling.
+        Ok(predicate) if value["path"].is_string() => Condition::Valid(predicate),
         _ => Condition::Invalid(raw.to_string()),
     }
 }
@@ -137,7 +135,7 @@ pub enum Scalar {
 
 /// What a condition reads: a source, then steps into it. Spelled as a dotted string,
 /// `<source>.<key>.<key>`, every step a key; or as a list, `["<source>", <step>, ...]`, a number
-/// step an index. Which paths a use accepts is its own check ([`Path::is_policy_path`]).
+/// step an index into a body. Which paths a use reads is checked when compiling.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Path {
     Ticket(TicketPath),
@@ -167,7 +165,7 @@ impl<'de> Deserialize<'de> for Path {
 }
 
 impl Path {
-    /// From a list's steps; `None` for a source or a field this reader doesn't know.
+    /// From a list's steps; `None` for a source, a field or a step this reader doesn't know.
     pub fn from_steps(steps: &[Value]) -> Option<Self> {
         let (source, steps) = steps.split_first()?;
         Some(match source.as_str()? {
@@ -187,19 +185,44 @@ impl Path {
             _ => return None,
         })
     }
+}
 
-    /// Whether a policy may read it: the paths Rail Center publishes in a bundle.
-    pub fn is_policy_path(&self) -> bool {
-        matches!(
-            self,
-            Self::Ticket(_)
-                | Self::Request(
-                    RequestPath::Whole
-                        | RequestPath::EndpointKey
-                        | RequestPath::Headers
-                        | RequestPath::Header(_)
-                )
-        )
+/// What a condition is read for, which decides the paths it may read: those its environment
+/// fills.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ConditionUse {
+    /// A bundle's policy, judged in `Environment::for_judging`.
+    Policy,
+    /// A capture plan entry's match, in `Environment::for_capture`.
+    PlanMatch,
+}
+
+impl ConditionUse {
+    pub fn reads(self, path: &Path) -> bool {
+        match self {
+            Self::Policy => matches!(
+                path,
+                Path::Ticket(_)
+                    | Path::Request(
+                        RequestPath::Whole
+                            | RequestPath::EndpointKey
+                            | RequestPath::Headers
+                            | RequestPath::Header(_)
+                    )
+            ),
+            Self::PlanMatch => matches!(
+                path,
+                Path::Body(_)
+                    | Path::Request(
+                        RequestPath::Host
+                            | RequestPath::Method
+                            | RequestPath::Path
+                            | RequestPath::RedactedPath
+                            | RequestPath::McpMethod
+                            | RequestPath::McpTool
+                    )
+            ),
+        }
     }
 }
 

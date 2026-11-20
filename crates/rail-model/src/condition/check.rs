@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use serde::Serialize;
 use serde_json::{Map, Value};
 
-use super::grammar::{OPS, Path, RequestPath, TicketPath};
+use super::grammar::{ConditionUse, OPS, Path, RequestPath, TicketPath};
 use crate::sanitize::sanitize;
 
 /// Rail Center nests a condition no deeper than this, so it can render it back out.
@@ -274,7 +274,7 @@ fn check_path<'a>(
         )
     } else {
         match Path::try_from(text.to_string()) {
-            Ok(path) if path.is_policy_path() => return Some((text, path)),
+            Ok(path) if ConditionUse::Policy.reads(&path) => return Some((text, path)),
             // Only a `request` path can fail: any `ticket` path is a policy's.
             _ => (
                 ProblemCode::UnknownPath,

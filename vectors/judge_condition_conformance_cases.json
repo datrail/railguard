@@ -1,5 +1,5 @@
 {
-  "_comment": "Conformance cases for evaluate_condition, taken from datrail/gateway's gateway-core/tests/vectors/v2/decide.json at 041c92f (master); its whole-bundle cases are the walk's. A ticket is the payload as the gateway's case gives it, or null without a usable ticket. Headers are the lines as sent. Endpoint keys are slugless, as the gateway reads them; a case marked `retargeted` moves a key that isn't one onto one that is, as the field says. A case marked `differs` is answered otherwise by the gateway: the three operands past what a double holds, which the contract compares as infinity and this reader refuses.",
+  "_comment": "Conformance cases for evaluate_condition, taken from datrail/gateway's gateway-core/tests/vectors/v2/decide.json at 041c92f (master); its whole-bundle cases are the walk's. A ticket is the payload as the gateway's case gives it, or null without a usable ticket. Headers are the lines as sent. Endpoint keys are slugless, as the gateway reads them; a case marked `retargeted` moves a key that isn't one onto one that is, as the field says. A case marked `differs` is answered otherwise by the gateway: the three operands past what a double holds, which the contract compares as infinity and this reader refuses. Added since: `gt does not hold at the bound`.",
   "cases": [
     {
       "name": "uninterpretable — a field outside the table",
@@ -4236,6 +4236,26 @@
       "endpoint_key": "/mcp#tools/call#track_package",
       "headers": [],
       "expect": "holds"
+    },
+    {
+      "name": "gt does not hold at the bound",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "gt",
+        "value": 40
+      },
+      "ticket": {
+        "agent_id": "agent-1",
+        "exp": 4102444800,
+        "posture": {
+          "overall": {
+            "score": 40
+          }
+        }
+      },
+      "endpoint_key": "/mcp#tools/call#track_package",
+      "headers": [],
+      "expect": "does_not_hold"
     },
     {
       "name": "a float claim compares against a whole operand",

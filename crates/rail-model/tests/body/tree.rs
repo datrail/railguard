@@ -67,7 +67,7 @@ fn test_walks_keys_and_indexes() {
             "absent",
             "a key into an array",
         ),
-        (&[Key("missing")], "absent", "absent"),
+        (&[Key("missing")], "absent", "a key not there"),
         (&[Key("n"), Key("x")], "absent", "into null"),
         (&[Key("dup")], "ambiguous", "repeated but for case"),
         (&[Key("Dup")], "ambiguous", "repeated but for case"),
@@ -93,5 +93,16 @@ fn test_walks_keys_and_indexes() {
         ),
     ] {
         assert_eq!(found(steps), walked, "{why}");
+    }
+}
+
+// The content can hold credentials.
+#[test]
+fn test_debugs_a_value_without_its_content() {
+    let body = keep(br#"{"token": "s3cret", "list": ["s3cret"]}"#);
+    let root = body.json().unwrap();
+    for steps in [&[Step::Key("token")][..], &[Step::Key("list")]] {
+        let printed = format!("{:?}", root.walk(steps));
+        assert!(!printed.contains("s3cret"), "{printed}");
     }
 }

@@ -66,7 +66,7 @@ fn test_reads_a_string_json_cant_hold_as_no_text() {
 
 // Lenient readers each read a key outside the grammar their own way, so it may be any key.
 #[test]
-fn test_reads_no_key_in_an_object_holding_a_key_not_json() {
+fn test_reads_every_key_as_ambiguous_in_an_object_holding_a_key_not_json() {
     for body in [
         &br#"{"o": {"a": 1, "\q": 2}, "b": 3}"#[..],
         br#"{"o": {"a": 1, "\u00ez": 2}, "b": 3}"#,

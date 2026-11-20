@@ -1,8 +1,6 @@
 //! What an MCP request body names: its method and tool.
 
-use std::borrow::Cow;
-
-use super::tree::{Kind, Node};
+use super::tree::{Kind, Member, Node};
 use super::{Unparsed, json};
 use crate::endpoint::{Resolution, resolve_endpoint};
 
@@ -26,7 +24,8 @@ pub enum Unreadable {
     /// A JSON-RPC batch, which names one message per item.
     Batch,
     /// `method`, `params`, `params.name` or `params.arguments` repeated, letter case ignored, or
-    /// beside a key that isn't JSON, which a lenient reader may read as any.
+    /// beside a key that isn't JSON, which a lenient reader may read as any; or `method`, or a
+    /// `tools/call`'s `params.name`, a string that doesn't decode.
     Ambiguous,
 }
 
@@ -71,9 +70,15 @@ impl McpReading {
         if params.get("arguments").is_ambiguous() {
             return Self::Unreadable(Unreadable::Ambiguous);
         }
-        let method = method.text().map(Cow::into_owned);
+        let method = match read_text(method) {
+            Ok(method) => method,
+            Err(why) => return Self::Unreadable(why),
+        };
         let tool = match method.as_deref() {
-            Some("tools/call") => name.text().map(Cow::into_owned),
+            Some("tools/call") => match read_text(name) {
+                Ok(tool) => tool,
+                Err(why) => return Self::Unreadable(why),
+            },
             _ => None,
         };
         Self::Read { method, tool }
@@ -93,6 +98,18 @@ impl McpReading {
             Self::Read { tool, .. } => tool.as_deref(),
             Self::Unreadable(_) => None,
         }
+    }
+}
+
+// A string's text, `None` for any other value; ambiguous for one that doesn't decode, which
+// readers differ on.
+fn read_text(member: Member<'_>) -> Result<Option<String>, Unreadable> {
+    match member.found() {
+        Some(node) if node.kind() == Kind::String => node
+            .text()
+            .map(|text| Some(text.into_owned()))
+            .ok_or(Unreadable::Ambiguous),
+        _ => Ok(None),
     }
 }
 

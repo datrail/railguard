@@ -145,10 +145,7 @@ fn test_reads_anything_else_as_invalid() {
         json!({"path": "ticket.sandbox_type", "op": "eq", "value": null}),
         json!({"path": "ticket.sandbox_type", "op": "in", "value": "a"}),
         json!({"path": "ticket.sandbox_type", "op": "matches", "value": 1}),
-        // Paths a policy doesn't read, and the list spelling, which Rail Center doesn't publish.
-        json!({"path": "request.host", "op": "existing"}),
-        json!({"path": "request.mcp.tool", "op": "existing"}),
-        json!({"path": "body.a", "op": "existing"}),
+        // A bundle spells its paths as strings.
         json!({"path": ["request", "endpoint_key"], "op": "existing"}),
     ];
     for condition in cases {

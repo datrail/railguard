@@ -1,21 +1,20 @@
 use std::collections::BTreeMap;
+use std::fmt;
 
 use serde_json::{Map, Value};
 
 use crate::body::BodyRead;
 use crate::endpoint::Endpoint;
 
-// Capture fills neither: a plan's check refuses the paths that read them.
-static NO_ENDPOINT: Endpoint = Endpoint::Keyless;
-static NO_HEADERS: Headers = Headers(BTreeMap::new());
-
-/// What a condition reads about one call.
+/// What a condition reads about one call. Each use fills its own sources; a condition compiled
+/// for that use reads no other.
 #[derive(Clone, Copy, Debug)]
 pub struct Environment<'a> {
+    /// `None` also where the call has no usable ticket.
     pub(crate) ticket: Option<&'a Map<String, Value>>,
-    pub(crate) endpoint: &'a Endpoint,
-    pub(crate) headers: &'a Headers,
-    pub(crate) request: Option<&'a CaptureRequest>,
+    pub(crate) endpoint: Option<&'a Endpoint>,
+    pub(crate) headers: Option<&'a Headers>,
+    pub(crate) request_line: Option<&'a RequestLine>,
     pub(crate) body: Option<&'a BodyRead>,
 }
 
@@ -29,33 +28,45 @@ impl<'a> Environment<'a> {
     ) -> Self {
         Self {
             ticket,
-            endpoint,
-            headers,
-            request: None,
+            endpoint: Some(endpoint),
+            headers: Some(headers),
+            request_line: None,
             body: None,
         }
     }
 
     /// For capture to match a call against a plan: its request line and its body.
-    pub fn for_capture(request: &'a CaptureRequest, body: &'a BodyRead) -> Self {
+    pub fn for_capture(request_line: &'a RequestLine, body: &'a BodyRead) -> Self {
         Self {
             ticket: None,
-            endpoint: &NO_ENDPOINT,
-            headers: &NO_HEADERS,
-            request: Some(request),
+            endpoint: None,
+            headers: None,
+            request_line: Some(request_line),
             body: Some(body),
         }
     }
 }
 
-/// What capture reads of a call's request line, as the caller spells each.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct CaptureRequest {
+/// A call's request line, as the caller spells each part.
+#[derive(Clone, Default, PartialEq)]
+pub struct RequestLine {
     pub host: String,
     pub method: String,
     /// Up to its first `?` or `#`, as received.
     pub path: String,
     pub redacted_path: String,
+}
+
+// The path as received can hold a secret.
+impl fmt::Debug for RequestLine {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("RequestLine")
+            .field("host", &self.host)
+            .field("method", &self.method)
+            .field("redacted_path", &self.redacted_path)
+            .finish_non_exhaustive()
+    }
 }
 
 /// A call's headers as conditions read them: names lowercased, every value split on commas.

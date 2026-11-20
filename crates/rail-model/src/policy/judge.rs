@@ -5,8 +5,8 @@ use uuid::Uuid;
 
 use super::bundle::{Action, BindingMode, Bundle, EnforcementMode, Fallback};
 use crate::condition::{
-    Budget, CompiledCondition, Environment, Evaluation, Refusal, Verdict, compile_condition,
-    evaluate_condition,
+    Budget, CompiledCondition, ConditionUse, Environment, Evaluation, Refusal, Uninterpretable,
+    Verdict, compile_condition, evaluate_condition,
 };
 use crate::endpoint::{Endpoint, ResolvedKey};
 
@@ -98,7 +98,7 @@ pub fn compile_bundle(bundle: &Bundle) -> CompiledBundle {
         .map(|policy| ChainPolicy {
             id: policy.id,
             action: policy.action,
-            condition: compile_condition(&policy.condition),
+            condition: compile_condition(&policy.condition, ConditionUse::Policy),
         })
         .collect();
     let positions: HashMap<Uuid, usize> = chain
@@ -177,10 +177,11 @@ pub fn judge_traced(
         }
     }
     // A message naming no tool by design isn't an unbound endpoint: it faces the whole chain.
+    // No endpoint only in an environment for another use: unbound, so the fallback decides.
     let (narrowed, unbound) = match environment.endpoint {
-        Endpoint::Keyless => (None, false),
-        Endpoint::Unrecognised => (None, true),
-        Endpoint::Resolved(key) => {
+        Some(Endpoint::Keyless) => (None, false),
+        Some(Endpoint::Unrecognised) | None => (None, true),
+        Some(Endpoint::Resolved(key)) => {
             let narrowed = bundle.bindings.get(key);
             (narrowed, narrowed.is_none())
         }
@@ -220,31 +221,31 @@ fn walk<'a>(
     for policy in policies {
         let evaluation = evaluate_condition(&policy.condition, environment, budget);
         tracer.record(policy.id, &evaluation);
-        match evaluation.verdict {
-            // A refused call reports nothing, its alerts included.
-            verdict @ (Verdict::Refused(_) | Verdict::Ambiguous | Verdict::BodyUnread(_)) => {
-                let refusal = match verdict {
-                    Verdict::Refused(refusal) => refusal,
-                    // Never for a bundle, whose paths read no body: a policy that can't tell is
-                    // one that can't be applied.
-                    _ => Refusal::Uninterpretable,
-                };
-                let decision = Decision::Refused {
-                    policy: policy.id,
-                    refusal,
-                };
-                return ChainOutcome {
-                    decision,
-                    alerts: Vec::new(),
-                };
+        let refusal = match evaluation.verdict {
+            Verdict::DoesNotHold => continue,
+            Verdict::Holds if policy.action == Action::Alert => {
+                alerts.push(policy.id);
+                continue;
             }
-            Verdict::DoesNotHold => {}
-            Verdict::Holds if policy.action == Action::Alert => alerts.push(policy.id),
             Verdict::Holds => {
                 let decision = Decision::Denied(policy.id);
                 return ChainOutcome { decision, alerts };
             }
-        }
+            Verdict::Refused(refusal) => refusal,
+            // Never for a policy, which reads no body: compiled as not for its use first.
+            Verdict::Ambiguous | Verdict::BodyUnread(_) => {
+                Refusal::Uninterpretable(Uninterpretable::NotForUse)
+            }
+        };
+        // A refused call reports nothing, its alerts included.
+        let decision = Decision::Refused {
+            policy: policy.id,
+            refusal,
+        };
+        return ChainOutcome {
+            decision,
+            alerts: Vec::new(),
+        };
     }
     ChainOutcome {
         decision: Decision::Allowed,

@@ -2,16 +2,16 @@ use std::borrow::Cow;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 use serde_json::Value;
 
-use super::environment::{CaptureRequest, Environment};
+use super::environment::{Environment, RequestLine};
 use super::grammar::{
-    BodyPath, BodyStep, Condition, Path, Predicate, RequestPath, Scalar, TicketPath,
+    BodyPath, BodyStep, Condition, ConditionUse, Path, Predicate, RequestPath, Scalar, TicketPath,
 };
 use crate::body::mcp::{McpReading, Unreadable};
 use crate::body::tree::{self, Kind, Member, Step};
-use crate::body::{BodyRead, Unparsed, Unread};
+use crate::body::{BodyRead, RequestBody, Unparsed, Unread};
 use crate::endpoint::Endpoint;
 
 /// The steps one judgement may take, unless the caller sets its own.
@@ -63,12 +63,31 @@ impl Default for Budget {
 }
 
 /// Why a judgement couldn't be reached. Never a deny, and never a condition that didn't hold.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
+/// Written as its kind alone, `uninterpretable` or `budget_exceeded`.
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Refusal {
-    /// An `Unknown` or `Invalid` condition was reached.
-    Uninterpretable,
+    Uninterpretable(Uninterpretable),
     BudgetExceeded,
+}
+
+impl Serialize for Refusal {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(match self {
+            Self::Uninterpretable(_) => "uninterpretable",
+            Self::BudgetExceeded => "budget_exceeded",
+        })
+    }
+}
+
+/// Why a condition can't be interpreted.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Uninterpretable {
+    /// An op this reader doesn't know, which a newer Rail Center can publish.
+    UnknownOp,
+    /// Not a condition in this reader's grammar.
+    Invalid,
+    /// A path its use doesn't read, or that an environment for another use doesn't fill.
+    NotForUse,
 }
 
 /// A condition in the form it is evaluated in.
@@ -77,7 +96,7 @@ pub struct CompiledCondition(Node);
 
 #[derive(Debug)]
 enum Node {
-    Refuse,
+    Uninterpretable(Uninterpretable),
     Test(Path, Test),
 }
 
@@ -98,7 +117,7 @@ enum Test {
     Matches(Glob),
 }
 
-/// What a path resolves to, borrowed from the environment.
+/// What a path resolves to, borrowed from the environment where it can be.
 #[derive(Clone, Debug)]
 pub enum Lookup<'a> {
     /// Also a `null`, which a producer may write for a missing claim.
@@ -125,11 +144,14 @@ pub enum Items<'a> {
 }
 
 impl<'a> Items<'a> {
-    pub fn iter(self) -> Box<dyn Iterator<Item = Lookup<'a>> + 'a> {
-        match self {
-            Self::Values(values) => Box::new(values.iter().map(read_value)),
-            Self::Body(node) => Box::new(node.items().map(read_node)),
-        }
+    /// Each item as a path to it would resolve.
+    pub fn iter(self) -> impl Iterator<Item = Lookup<'a>> {
+        let (values, node) = match self {
+            Self::Values(values) => (values, None),
+            Self::Body(node) => (&[][..], Some(node)),
+        };
+        let items = node.into_iter().flat_map(|node| node.items());
+        values.iter().map(read_value).chain(items.map(read_node))
     }
 }
 
@@ -140,14 +162,22 @@ pub enum BodyUnread {
     Unread(Unread),
     /// The body is, but not as a tree: not JSON, or its tree past the budget.
     Unparsed(Unparsed),
-    /// A JSON-RPC batch, for what names one MCP message.
+    /// A JSON-RPC batch, for `request.mcp`, which reads one MCP message.
     Batch,
 }
 
-pub fn compile_condition(condition: &Condition) -> CompiledCondition {
-    let Condition::Valid(predicate) = condition else {
-        return CompiledCondition(Node::Refuse);
+/// `condition` as `read_for` evaluates it: one whose path that use doesn't read can't be
+/// interpreted.
+pub fn compile_condition(condition: &Condition, read_for: ConditionUse) -> CompiledCondition {
+    let uninterpretable = |why| CompiledCondition(Node::Uninterpretable(why));
+    let predicate = match condition {
+        Condition::Valid(predicate) => predicate,
+        Condition::Unknown(_) => return uninterpretable(Uninterpretable::UnknownOp),
+        Condition::Invalid(_) => return uninterpretable(Uninterpretable::Invalid),
     };
+    if !read_for.reads(predicate.path()) {
+        return uninterpretable(Uninterpretable::NotForUse);
+    }
     let (path, test) = match predicate {
         Predicate::Existing { path } => (path, Test::Existing),
         Predicate::NotExisting { path } => (path, Test::NotExisting),
@@ -207,18 +237,15 @@ pub fn evaluate_condition<'a>(
     if let Err(refusal) = budget.charge(1) {
         return refuse(refusal);
     }
-    let Node::Test(path, test) = &condition.0 else {
-        return refuse(Refusal::Uninterpretable);
+    let (path, test) = match &condition.0 {
+        Node::Uninterpretable(why) => return refuse(Refusal::Uninterpretable(*why)),
+        Node::Test(path, test) => (path, test),
     };
     let value = match resolve(path, environment, budget) {
         Ok(value) => value,
         Err(refusal) => return refuse(refusal),
     };
-    let verdict = match &value {
-        Lookup::Ambiguous => Verdict::Ambiguous,
-        Lookup::BodyUnread(why) => Verdict::BodyUnread(*why),
-        _ => apply(test, &value, budget),
-    };
+    let verdict = apply(test, &value, budget);
     Evaluation {
         resolved: Some(value),
         verdict,
@@ -236,16 +263,19 @@ fn read_scalars(items: &[Value]) -> Vec<Scalar> {
         .collect()
 }
 
+// An environment for another use fills only its own sources.
+const NOT_FILLED: Refusal = Refusal::Uninterpretable(Uninterpretable::NotForUse);
+
 fn resolve<'a>(
     path: &Path,
     environment: &Environment<'a>,
     budget: &mut Budget,
 ) -> Result<Lookup<'a>, Refusal> {
-    Ok(match path {
-        Path::Ticket(path) => resolve_ticket(path, environment),
+    match path {
+        Path::Ticket(path) => Ok(resolve_ticket(path, environment)),
         Path::Request(path) => resolve_request(path, environment),
-        Path::Body(path) => return resolve_body(path, environment, budget),
-    })
+        Path::Body(path) => resolve_body(path, environment, budget),
+    }
 }
 
 /// One key at a time, so a step that is missing, `null` or not an object resolves to absent.
@@ -277,42 +307,54 @@ fn read_value(value: &Value) -> Lookup<'_> {
     }
 }
 
-fn resolve_request<'a>(path: &RequestPath, environment: &Environment<'a>) -> Lookup<'a> {
-    let field = |read: fn(&CaptureRequest) -> &str| {
-        environment.request.map_or(Lookup::Absent, |request| {
-            Lookup::String(Cow::Borrowed(read(request)))
-        })
+fn resolve_request<'a>(
+    path: &RequestPath,
+    environment: &Environment<'a>,
+) -> Result<Lookup<'a>, Refusal> {
+    let line = |read: fn(&RequestLine) -> &str| {
+        let line = environment.request_line.ok_or(NOT_FILLED)?;
+        Ok(Lookup::String(Cow::Borrowed(read(line))))
     };
-    match path {
+    Ok(match path {
         RequestPath::Whole | RequestPath::Headers => Lookup::Object,
-        RequestPath::EndpointKey => match environment.endpoint {
+        RequestPath::EndpointKey => match environment.endpoint.ok_or(NOT_FILLED)? {
             Endpoint::Resolved(key) => Lookup::String(Cow::Borrowed(key.as_str())),
             Endpoint::Keyless | Endpoint::Unrecognised => Lookup::Absent,
         },
-        RequestPath::Header(name) => match environment.headers.get(name) {
+        RequestPath::Header(name) => match environment.headers.ok_or(NOT_FILLED)?.get(name) {
             None => Lookup::Absent,
             Some([value]) => read_value(value),
             Some(values) => Lookup::List(Items::Values(values)),
         },
-        RequestPath::Host => field(|request| &request.host),
-        RequestPath::Method => field(|request| &request.method),
-        RequestPath::Path => field(|request| &request.path),
-        RequestPath::RedactedPath => field(|request| &request.redacted_path),
-        RequestPath::McpMethod => read_mcp(environment, McpReading::method),
-        RequestPath::McpTool => read_mcp(environment, McpReading::tool),
+        RequestPath::Host => line(|line| &line.host)?,
+        RequestPath::Method => line(|line| &line.method)?,
+        RequestPath::Path => line(|line| &line.path)?,
+        RequestPath::RedactedPath => line(|line| &line.redacted_path)?,
+        RequestPath::McpMethod => read_mcp(environment, McpReading::method)?,
+        RequestPath::McpTool => read_mcp(environment, McpReading::tool)?,
+    })
+}
+
+// The body kept, or what any path into it resolves to.
+fn read_body<'a>(
+    environment: &Environment<'a>,
+) -> Result<&'a RequestBody, Result<Lookup<'a>, Refusal>> {
+    match environment.body {
+        None => Err(Err(NOT_FILLED)),
+        Some(BodyRead::Unread(why)) => Err(Ok(Lookup::BodyUnread(BodyUnread::Unread(*why)))),
+        Some(BodyRead::Whole(body)) => Ok(body),
     }
 }
 
 fn read_mcp<'a>(
     environment: &Environment<'a>,
     read: fn(&McpReading) -> Option<&str>,
-) -> Lookup<'a> {
-    let body = match environment.body {
-        None => return Lookup::Absent,
-        Some(BodyRead::Unread(why)) => return Lookup::BodyUnread(BodyUnread::Unread(*why)),
-        Some(BodyRead::Whole(body)) => body,
+) -> Result<Lookup<'a>, Refusal> {
+    let body = match read_body(environment) {
+        Ok(body) => body,
+        Err(otherwise) => return otherwise,
     };
-    match body.mcp() {
+    Ok(match body.mcp() {
         McpReading::Unreadable(Unreadable::Unparsed(why)) => {
             Lookup::BodyUnread(BodyUnread::Unparsed(*why))
         }
@@ -321,39 +363,42 @@ fn read_mcp<'a>(
         reading @ McpReading::Read { .. } => {
             read(reading).map_or(Lookup::Absent, |text| Lookup::String(Cow::Borrowed(text)))
         }
-    }
+    })
 }
 
-/// An index's hops charged, one per item passed.
+/// A step at a time, an index charged one step for each item it passes.
 fn resolve_body<'a>(
     path: &BodyPath,
     environment: &Environment<'a>,
     budget: &mut Budget,
 ) -> Result<Lookup<'a>, Refusal> {
-    let body = match environment.body {
-        None => return Ok(Lookup::Absent),
-        Some(BodyRead::Unread(why)) => return Ok(Lookup::BodyUnread(BodyUnread::Unread(*why))),
-        Some(BodyRead::Whole(body)) => body,
+    let body = match read_body(environment) {
+        Ok(body) => body,
+        Err(otherwise) => return otherwise,
     };
     // An empty body, as an event stream's `GET` sends, holds nothing.
     if body.as_bytes().is_empty() {
         return Ok(Lookup::Absent);
     }
-    let root = match body.json() {
-        Ok(root) => root,
+    let mut member = match body.json() {
+        Ok(root) => Member::Found(root),
         Err(why) => return Ok(Lookup::BodyUnread(BodyUnread::Unparsed(why))),
     };
-    let mut steps = Vec::with_capacity(path.0.len());
     for step in &path.0 {
-        steps.push(match step {
-            BodyStep::Key(key) => Step::Key(key),
+        let Member::Found(node) = member else {
+            break;
+        };
+        member = match step {
+            BodyStep::Key(key) => node.walk(&[Step::Key(key)]),
             BodyStep::Index(index) => {
-                budget.charge(*index as u64 + 1)?;
-                Step::Index(*index)
+                let mut passed = 0;
+                let found = node.items().inspect(|_| passed += 1).nth(*index);
+                budget.charge(passed)?;
+                found.map_or(Member::Absent, Member::Found)
             }
-        });
+        };
     }
-    Ok(match root.walk(&steps) {
+    Ok(match member {
         Member::Found(node) => read_node(node),
         Member::Absent => Lookup::Absent,
         Member::Ambiguous => Lookup::Ambiguous,
@@ -375,19 +420,24 @@ fn read_node(node: tree::Node<'_>) -> Lookup<'_> {
     }
 }
 
-// A list's items read once, so the tests see them as values; one that can't be told makes the
-// list so.
+// What can't be told, or isn't read, is its own verdict whatever the op. A list's items are read
+// once, so the tests see them as values; one that can't be told makes the list so.
 fn apply(test: &Test, value: &Lookup, budget: &mut Budget) -> Verdict {
     let mut items = None;
-    if let Lookup::List(list) = value {
-        let read: Vec<Lookup> = list.iter().collect();
-        if let Err(refusal) = budget.charge(read.len() as u64) {
-            return Verdict::Refused(refusal);
+    match value {
+        Lookup::Ambiguous => return Verdict::Ambiguous,
+        Lookup::BodyUnread(why) => return Verdict::BodyUnread(*why),
+        Lookup::List(list) => {
+            let read: Vec<Lookup> = list.iter().collect();
+            if let Err(refusal) = budget.charge(read.len() as u64) {
+                return Verdict::Refused(refusal);
+            }
+            if read.iter().any(|item| matches!(item, Lookup::Ambiguous)) {
+                return Verdict::Ambiguous;
+            }
+            items = Some(read);
         }
-        if read.iter().any(|item| matches!(item, Lookup::Ambiguous)) {
-            return Verdict::Ambiguous;
-        }
-        items = Some(read);
+        _ => {}
     }
     holds(test, value, items.as_deref(), budget).into()
 }
