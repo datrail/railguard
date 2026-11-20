@@ -72,7 +72,6 @@ pub struct Entry {
 #[derive(Debug, Deserialize)]
 pub struct Record {
     pub context_keys: Vec<ContextKey>,
-    #[serde(rename = "measure")]
     pub measures: Vec<Measure>,
 }
 
@@ -88,7 +87,6 @@ pub struct CatchAll {
 pub struct CatchAllRecord {
     pub context_keys: Vec<CatchAllKey>,
     /// The three every record holds, and no other.
-    #[serde(rename = "measure")]
     pub measures: Vec<Measure>,
 }
 
