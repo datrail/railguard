@@ -2,9 +2,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use rail_model::policy::{
-    CompiledBundle, EnforcementMode, Fallback, SchemaVersion, TicketClaim, compile_bundle,
-    parse_bundle,
+    CompiledBundle, EnforcementMode, Fallback, TicketClaim, compile_bundle, parse_bundle,
 };
+use rail_model::schema_version::SchemaVersion;
 use serde::Deserialize;
 use serde_json::Value;
 use serde_json::error::Category;
