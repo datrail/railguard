@@ -18,3 +18,4 @@ pub use evaluate::{
 pub use grammar::{
     BodyPath, BodyStep, Condition, ConditionUse, Path, Predicate, RequestPath, Scalar, TicketPath,
 };
+pub(crate) use grammar::{Spelling, read_condition};

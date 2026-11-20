@@ -32,25 +32,50 @@ impl<'de> Deserialize<'de> for Condition {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         // Kept raw, so what serde_json can't hold fails this condition and not the bundle.
         let raw = Box::<RawValue>::deserialize(deserializer)?;
-        let Ok(value) = serde_json::from_str::<Value>(raw.get()) else {
-            return Ok(Self::Invalid(raw.get().to_string()));
-        };
-        Ok(read_condition(value, raw.get()))
+        Ok(read_condition(&raw, Spelling::Bundle))
     }
 }
 
-fn read_condition(value: Value, raw: &str) -> Condition {
+/// How a document spells its conditions.
+#[derive(Clone, Copy)]
+pub(crate) enum Spelling {
+    /// A policy bundle's: its path a dotted string; a key beside `path`, `op` and `value` passed over.
+    Bundle,
+    /// A capture plan's: its path a list; a condition closed.
+    Plan,
+}
+
+impl Spelling {
+    fn spells(self, condition: &Value) -> bool {
+        match self {
+            Self::Bundle => condition["path"].is_string(),
+            Self::Plan => {
+                condition["path"].is_array()
+                    && condition.as_object().is_some_and(|fields| {
+                        fields
+                            .keys()
+                            .all(|key| matches!(key.as_str(), "path" | "op" | "value"))
+                    })
+            }
+        }
+    }
+}
+
+/// A condition as `spelling` writes it. Which paths a use reads is checked when compiling.
+pub(crate) fn read_condition(raw: &RawValue, spelling: Spelling) -> Condition {
+    let Ok(value) = serde_json::from_str::<Value>(raw.get()) else {
+        return Condition::Invalid(raw.get().to_string());
+    };
     // Not only for `op`: `Predicate` alone would accept a positional array.
     let Some(op) = value["op"].as_str() else {
-        return Condition::Invalid(raw.to_string());
+        return Condition::Invalid(raw.get().to_string());
     };
     if !OPS.contains(&op) {
         return Condition::Unknown(value);
     }
     match Predicate::deserialize(&value) {
-        // A bundle spells its paths as strings; which a use reads is checked when compiling.
-        Ok(predicate) if value["path"].is_string() => Condition::Valid(predicate),
-        _ => Condition::Invalid(raw.to_string()),
+        Ok(predicate) if spelling.spells(&value) => Condition::Valid(predicate),
+        _ => Condition::Invalid(raw.get().to_string()),
     }
 }
 
