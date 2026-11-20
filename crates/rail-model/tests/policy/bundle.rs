@@ -1,12 +1,13 @@
-use rail_model::{
-    Action, BindingMode, Condition, EndpointKey, EnforcementMode, Fallback, Path, Predicate,
-    SchemaVersion, TicketClaim, TicketPath, parse_bundle,
+use rail_model::condition::{Condition, Path, Predicate, TicketPath};
+use rail_model::policy::{
+    Action, BindingMode, EndpointKey, EnforcementMode, Fallback, SchemaVersion, TicketClaim,
+    parse_bundle,
 };
 use serde::Deserialize;
 use serde_json::value::RawValue;
 use uuid::Uuid;
 
-const VECTORS: &str = include_str!("../../../vectors/parse_bundle_conformance_cases.json");
+const VECTORS: &str = include_str!("../../../../vectors/parse_bundle_conformance_cases.json");
 
 const EXAMPLE: &str = r##"{
   "schema_version": "2.1",

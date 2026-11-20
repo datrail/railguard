@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
+use rail_model::authority::split_authority;
+
 use crate::config::Secret;
-use crate::protected_hosts::{ProtectedHost, ProtectedHosts, split_authority};
+use crate::protected_hosts::{ProtectedHost, ProtectedHosts};
 use crate::ticket::OpaqueTicket;
 
 /// The ticket, for the gateway to check.

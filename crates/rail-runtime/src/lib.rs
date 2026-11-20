@@ -1,6 +1,5 @@
 //! The IO: configuration, the log, and talking to Rail Center.
 
-mod body;
 mod bundle;
 mod bundle_holder;
 mod callout;

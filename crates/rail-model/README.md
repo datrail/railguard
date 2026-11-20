@@ -1,8 +1,9 @@
 # rail-model
 
 DatRail's rules language. Rail Center publishes the rules as a policy bundle: which calls to which MCP tools are
-allowed, judged on what an agent's ticket says about it. This crate reads bundles and tickets, and judges one call
-against the rules. See the [main README](../../README.md) for the system around it.
+allowed, judged on what an agent's ticket says about it. This crate reads bundles and tickets, reads which endpoint and
+host a call names, and judges the call against the rules. See the [main README](../../README.md) for the system around
+it.
 
 It's one crate, used everywhere a rule is read, so a rule means the same thing where it's written and where it's
 enforced. The conformance cases in [`vectors/`](../../vectors) define its behaviour.
@@ -15,17 +16,21 @@ a rule on a sample call.
 
 ## Entry points
 
-- **`parse_bundle`** reads a policy bundle, refusing one it can't use with why; **`compile_bundle`** makes it a
-  `CompiledBundle`, ready to judge with.
-- **`parse_ticket`** reads an `x-rail` value: base64, or a signed JWT checked against a `SignedTicketConfig`'s keys,
-  issuer and audience. **`parse_key_set`** reads Rail Center's signing keys.
-- **`resolve_endpoint`** names the endpoint a call asks for, from its path, method and tool.
-- **`judge`** judges one call against a `CompiledBundle`; **`judge_traced`** also hands a `Tracer` each policy
-  evaluated.
-- **`check_condition`** reports every problem with one condition, and whether every reader refuses it or only Rail
-  Center.
-- **`sanitize`**, **`sanitize_quoted`**, **`sanitize_unquoted`** and **`sanitize_for_json`** make text from a call safe
-  to log.
+By module:
+
+- **`policy`:** **`parse_bundle`** reads a policy bundle, refusing one it can't use with why; **`compile_bundle`** makes
+  it a `CompiledBundle`, ready to judge with. **`judge`** judges one call against a `CompiledBundle`; **`judge_traced`**
+  also hands a `Tracer` each policy evaluated. **`parse_ticket`** reads an `x-rail` value: base64, or a signed JWT
+  checked against a `SignedTicketConfig`'s keys, issuer and audience. **`parse_key_set`** reads Rail Center's signing
+  keys.
+- **`condition`:** **`check_condition`** reports every problem with one condition, and whether every reader refuses it
+  or only Rail Center; **`compile_condition`** and **`evaluate_condition`** evaluate one, as the judge does.
+- **`endpoint`:** **`resolve_endpoint`** names the endpoint a call asks for, from its path, method and tool.
+- **`authority`:** **`split_authority`** reads a host and port from an `:authority`, spelled one way wherever a host is
+  compared.
+- **`body`:** **`read_endpoint`** reads the endpoint an MCP request body names.
+- **`sanitize`:** **`sanitize`**, **`sanitize_quoted`**, **`sanitize_unquoted`** and **`sanitize_for_json`** make text
+  from a call safe to log.
 
 ## What it doesn't do
 

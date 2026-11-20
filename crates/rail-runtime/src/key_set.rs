@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use ed25519_dalek::VerifyingKey;
-use rail_model::{DroppedKey, ParsedKeySet, parse_key_set};
+use rail_model::policy::{DroppedKey, ParsedKeySet, parse_key_set};
 use tokio::runtime::Handle;
 
 use crate::client::{FetchError, Limits, RailCenterClient, Response, read_ok};

@@ -8,7 +8,7 @@
 use std::borrow::Cow;
 use std::fmt;
 
-use rail_model::{Endpoint, Resolution, resolve_endpoint};
+use crate::endpoint::{Endpoint, Resolution, resolve_endpoint};
 use serde::de::{DeserializeSeed, Deserializer, MapAccess, Visitor};
 use serde_json::value::RawValue;
 
@@ -18,7 +18,7 @@ const MAX_NESTING: usize = 256;
 /// What `body`, as sent to `path`, asks for. One that isn't a JSON object in UTF-8, or nests past
 /// 256 levels, names no endpoint this reader can key; a `method` or `name` of another type reads as
 /// absent. `Content-Encoding` isn't decoded.
-pub(crate) fn read_endpoint(path: &str, body: &[u8]) -> Resolution {
+pub fn read_endpoint(path: &str, body: &[u8]) -> Resolution {
     // Read past one UTF-8 BOM, which a JSON reader may accept.
     let body = body.strip_prefix("\u{feff}".as_bytes()).unwrap_or(body);
     if nests_past(body, MAX_NESTING) {

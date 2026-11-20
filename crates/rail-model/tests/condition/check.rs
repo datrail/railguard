@@ -1,14 +1,16 @@
-use rail_model::{
+use rail_model::condition::{
     Condition, ConditionProblem, LocationSegment, OperandShape, ProblemCode, ProblemScope,
-    TicketClaimsSchema, check_condition, loc,
+    TicketClaimsSchema, check_condition,
 };
+use rail_model::loc;
 use serde::Deserialize;
 use serde_json::value::RawValue;
 use serde_json::{Value, json};
 
 const CONDITION_VECTORS: &str =
-    include_str!("../../../vectors/judge_condition_conformance_cases.json");
-const BUNDLE_VECTORS: &str = include_str!("../../../vectors/parse_bundle_conformance_cases.json");
+    include_str!("../../../../vectors/judge_condition_conformance_cases.json");
+const BUNDLE_VECTORS: &str =
+    include_str!("../../../../vectors/parse_bundle_conformance_cases.json");
 
 #[derive(Deserialize)]
 struct Vectors {

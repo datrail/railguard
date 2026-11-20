@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use serde::Serialize;
 use serde_json::{Map, Value};
 
-use crate::condition::{OPS, Path, RequestPath, TicketPath};
+use super::grammar::{OPS, Path, RequestPath, TicketPath};
 use crate::sanitize::sanitize;
 
 /// Rail Center nests a condition no deeper than this, so it can render it back out.
@@ -47,7 +47,7 @@ impl From<usize> for LocationSegment {
 #[macro_export]
 macro_rules! loc {
     ($($segment:expr),* $(,)?) => {
-        vec![$($crate::LocationSegment::from($segment)),*]
+        vec![$($crate::condition::LocationSegment::from($segment)),*]
     };
 }
 

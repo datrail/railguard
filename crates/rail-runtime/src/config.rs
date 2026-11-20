@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::{OsStr, OsString};
 use std::fmt;
 
-use rail_model::sanitize;
+use rail_model::sanitize::sanitize;
 
 /// The exit status of a process whose configuration is refused.
 pub const EXIT_CODE: u8 = 2;

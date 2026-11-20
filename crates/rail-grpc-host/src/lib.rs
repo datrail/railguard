@@ -13,7 +13,7 @@ use std::pin::pin;
 use std::process::ExitCode;
 use std::time::Duration;
 
-use rail_model::sanitize;
+use rail_model::sanitize::sanitize;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::signal::unix::Signal;
 use tokio::sync::oneshot;

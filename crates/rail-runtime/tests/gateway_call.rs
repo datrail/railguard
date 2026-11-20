@@ -2,7 +2,7 @@ use std::pin::pin;
 use std::sync::Arc;
 use std::time::Duration;
 
-use rail_model::Fallback;
+use rail_model::policy::Fallback;
 use rail_runtime::{Answer, Call, Gateway, GatewaySettings};
 use serde_json::json;
 use tokio::time::Instant;

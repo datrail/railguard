@@ -3,15 +3,16 @@ use std::collections::HashMap;
 use base64::Engine;
 use base64::engine::general_purpose::{URL_SAFE, URL_SAFE_NO_PAD};
 use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
-use rail_model::{
+use rail_model::policy::{
     SignedTicketConfig, TicketState, parse_base64_ticket, parse_jwt_ticket, parse_ticket,
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
 
 const BASE64_VECTORS: &str =
-    include_str!("../../../vectors/parse_base64_ticket_conformance_cases.json");
-const JWT_VECTORS: &str = include_str!("../../../vectors/parse_jwt_ticket_conformance_cases.json");
+    include_str!("../../../../vectors/parse_base64_ticket_conformance_cases.json");
+const JWT_VECTORS: &str =
+    include_str!("../../../../vectors/parse_jwt_ticket_conformance_cases.json");
 
 #[derive(Deserialize)]
 struct Vectors {

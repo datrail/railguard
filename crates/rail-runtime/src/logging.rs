@@ -16,7 +16,7 @@ use std::fmt::{self, Write};
 use std::panic::PanicHookInfo;
 use std::sync::OnceLock;
 
-use rail_model::{sanitize, sanitize_for_json, sanitize_quoted, sanitize_unquoted};
+use rail_model::sanitize::{sanitize, sanitize_for_json, sanitize_quoted, sanitize_unquoted};
 use tracing::field::{Field, Visit};
 use tracing::{Event, Subscriber};
 use tracing_log::NormalizeEvent;

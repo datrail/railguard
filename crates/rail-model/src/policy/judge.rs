@@ -3,12 +3,12 @@ use std::collections::HashMap;
 use serde::Serialize;
 use uuid::Uuid;
 
-use crate::bundle::{Action, BindingMode, Bundle, EnforcementMode, Fallback};
-use crate::endpoint::{Endpoint, ResolvedKey};
-use crate::environment::Environment;
-use crate::evaluate::{
-    Budget, CompiledCondition, Evaluation, Refusal, Verdict, compile_condition, evaluate_condition,
+use super::bundle::{Action, BindingMode, Bundle, EnforcementMode, Fallback};
+use crate::condition::{
+    Budget, CompiledCondition, Environment, Evaluation, Refusal, Verdict, compile_condition,
+    evaluate_condition,
 };
+use crate::endpoint::{Endpoint, ResolvedKey};
 
 /// A bundle compiled for judging: built once per bundle, then used for every call.
 #[derive(Debug)]
@@ -140,7 +140,7 @@ pub trait Tracer {
 }
 
 /// Records nothing, so judging with it costs nothing.
-pub struct NoTracer;
+struct NoTracer;
 
 impl Tracer for NoTracer {
     fn record(&mut self, _: Uuid, _: &Evaluation) {}

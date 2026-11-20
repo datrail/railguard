@@ -5,7 +5,8 @@
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use rail_model::{Endpoint, Ticket, TicketState};
+use rail_model::endpoint::Endpoint;
+use rail_model::policy::{Ticket, TicketState};
 use rail_runtime::{Denial, DenialReporter, DenialSink, DeniedBy, FetchError, Response};
 use reqwest::StatusCode;
 use serde_json::Value;

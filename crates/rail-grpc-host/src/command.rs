@@ -4,7 +4,7 @@
 use std::fmt;
 use std::path::Path;
 
-use rail_model::sanitize;
+use rail_model::sanitize::sanitize;
 
 /// What a server serves as; each binary carries the roles it lists.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
