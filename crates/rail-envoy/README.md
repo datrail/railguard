@@ -170,7 +170,8 @@ more to stop, so 6 s in all.
   and nothing reaches the upstream. Every other body mode, and ext_authz with a body, passes the body whole. The gateway
   supports full duplex.
 - **The gateway's memory:** it holds each call's body until it's judged, which can take up to about twice
-  `RAIL_MAX_BODY_MB` per call in flight. Size its memory for the calls it serves at once.
+  `RAIL_MAX_BODY_MB` per call in flight, and reading its endpoint parses it into a tree of up to 16 times the body, for
+  a body of small array items. Size its memory for the calls it serves at once.
 - **An encoded body isn't decoded:** a `Content-Encoding: gzip` call reads as naming no endpoint, so under
   `binding_fallback: pass` it escapes every rule on `request.endpoint_key`. Apigee decompresses before its callout;
   Envoy and GCP's load balancer don't.

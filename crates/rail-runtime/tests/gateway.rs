@@ -84,7 +84,7 @@ impl Request {
 #[tokio::test(start_paused = true)]
 async fn every_enforcement_case_is_answered_and_reported_as_it_says() {
     let Vectors { cases } = serde_json::from_str(VECTORS).unwrap();
-    assert_eq!(cases.len(), 88);
+    assert_eq!(cases.len(), 90);
     let mut differing = Vec::new();
     for case in cases {
         let clock = TestClock::new();

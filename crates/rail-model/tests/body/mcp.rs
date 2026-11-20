@@ -63,6 +63,11 @@ fn test_reads_the_method_and_tool_a_body_names() {
             r#"{"method": "resources/read", "params": {"arguments": {}, "Arguments": {}}}"#,
             McpReading::Unreadable,
         ),
+        // Beside a key outside JSON, which a lenient reader may read as `method`.
+        (
+            r#"{"method": "tools/list", "\method": "tools/call", "params": {"name": "a"}}"#,
+            McpReading::Unreadable,
+        ),
         // Only in another case: not the key read.
         (
             r#"{"Method": "tools/call", "params": {"name": "a"}}"#,
@@ -219,11 +224,6 @@ fn test_reads_what_the_body_names_as_json_readers_would() {
         // Keys written with escapes, read as what they spell.
         (
             br#"{"\u006dethod": "tools/call", "params": {"\u006eame": "a"}}"#.to_vec(),
-            &resolved,
-        ),
-        // Keys written with escapes, read as what they spell.
-        (
-            br#"{"method": "tools/call", "params": {"name": "a"}}"#.to_vec(),
             &resolved,
         ),
         // Keys a string can't hold, read past.

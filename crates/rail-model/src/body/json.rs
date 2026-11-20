@@ -22,7 +22,7 @@ pub(crate) fn parse(content: &[u8], grow: &mut dyn FnMut(usize) -> bool) -> Resu
         } else {
             0
         },
-        builder: Builder::new(content.len(), decode_string, grow)?,
+        builder: Builder::new(content.len(), decode_string, conforms_string, grow)?,
     };
     parser.run()?;
     parser.builder.finish()
@@ -39,6 +39,29 @@ fn decode_string(raw: &[u8], escaped: bool) -> Option<Cow<'_, str>> {
         return None;
     }
     std::str::from_utf8(inside).ok().map(Cow::Borrowed)
+}
+
+// Whether a string `decode_string` refuses, `raw` with its quotes, is still JSON: UTF-8, no
+// control character, each escape one JSON has; so it's refused for a lone surrogate, which every
+// reader keeps or reads as U+FFFD. Outside JSON, readers differ: Jackson decodes overlong UTF-8,
+// JSON5 `\x6d`, others drop an unknown escape's backslash.
+fn conforms_string(raw: &[u8]) -> bool {
+    let inside = &raw[1..raw.len() - 1];
+    if std::str::from_utf8(inside).is_err() || inside.iter().any(|&byte| byte < 0x20) {
+        return false;
+    }
+    let hex = |digits: &[u8]| digits.iter().all(u8::is_ascii_hexdigit);
+    let mut at = 0;
+    while let Some(offset) = inside[at..].iter().position(|&byte| byte == b'\\') {
+        at += offset + 1;
+        let escape_bytes = match inside.get(at) {
+            Some(b'"' | b'\\' | b'/' | b'b' | b'f' | b'n' | b'r' | b't') => 1,
+            Some(b'u') if inside.get(at + 1..at + 5).is_some_and(hex) => 5,
+            _ => return false,
+        };
+        at += escape_bytes;
+    }
+    true
 }
 
 // What may come next.
