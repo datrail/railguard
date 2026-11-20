@@ -162,14 +162,14 @@
       "expect": {"valid": false}
     },
     {
-      "name": "generated_at of any value, read past",
-      "patch": [{"op": "replace", "path": "/generated_at", "value": 1}],
+      "name": "no generated_at",
+      "patch": [{"op": "remove", "path": "/generated_at"}],
       "expect": {"valid": true}
     },
     {
-      "name": "no generated_at, read past",
-      "patch": [{"op": "remove", "path": "/generated_at"}],
-      "expect": {"valid": true}
+      "name": "generated_at that isn't a string",
+      "patch": [{"op": "replace", "path": "/generated_at", "value": 1}],
+      "expect": {"valid": false}
     },
     {
       "name": "an agent with a field the reference doesn't list",

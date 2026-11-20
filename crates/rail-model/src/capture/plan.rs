@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use std::fmt;
 use std::ops::RangeInclusive;
 
-use serde::de::{Error as _, IgnoredAny};
+use serde::de::Error as _;
 use serde::{Deserialize, Deserializer};
 use serde_json::value::RawValue;
 use serde_json::{Map, Value, json};
@@ -33,9 +33,9 @@ pub struct Plan {
     pub schema_version: SchemaVersion,
     /// Changes with every field but itself and `generated_at`. It orders nothing.
     pub content_hash: String,
-    // Read past: nothing reads it yet, and it needs a date type.
-    #[serde(default, rename = "generated_at")]
-    _generated_at: IgnoredAny,
+    /// When Rail Center built it, as it writes it.
+    #[serde(default, deserialize_with = "present")]
+    pub generated_at: Option<String>,
     #[serde(deserialize_with = "read_agent")]
     pub agent: AgentId,
     pub plan_version: u64,
