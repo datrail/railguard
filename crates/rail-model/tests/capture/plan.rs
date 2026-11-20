@@ -170,13 +170,22 @@ fn test_reads_the_worked_example_as_written() {
             },
         ]
     );
+    assert_eq!(plan.catch_all.id, "catch_all");
     assert_eq!(
-        plan.catch_all,
+        plan.catch_all.context_keys,
         [
             CatchAllKey::Host,
             CatchAllKey::PathPrefix { segments: 1 },
             CatchAllKey::Method,
             CatchAllKey::Operation,
+        ]
+    );
+    assert_eq!(
+        plan.catch_all.measures,
+        [
+            Measure::CallCount,
+            Measure::ErrorCount,
+            Measure::RequestBytes
         ]
     );
 }
