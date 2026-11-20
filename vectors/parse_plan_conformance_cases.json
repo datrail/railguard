@@ -192,8 +192,13 @@
       "expect": {"valid": false}
     },
     {
-      "name": "an agent_key, which Rail Center doesn't send yet",
+      "name": "an agent_key",
       "patch": [{"op": "add", "path": "/agent/agent_key", "value": "k"}],
+      "expect": {"valid": true}
+    },
+    {
+      "name": "an empty agent_key",
+      "patch": [{"op": "add", "path": "/agent/agent_key", "value": ""}],
       "expect": {"valid": false}
     },
     {
