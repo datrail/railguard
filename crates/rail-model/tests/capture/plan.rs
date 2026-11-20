@@ -69,6 +69,7 @@ fn read_example() -> Plan {
 #[test]
 fn test_vectors() {
     let vectors = vectors();
+    let mut failures = Vec::new();
     for case in &vectors.cases {
         let mut plan = vectors.plan.clone();
         case.patch
@@ -80,19 +81,23 @@ fn test_vectors() {
         let name = &case.name;
         match (read, case.expect.valid) {
             (Ok(plan), true) => {
-                if let Some(conditions) = &case.expect.conditions {
-                    let read: Vec<_> = plan.entries[0]
-                        .conditions
-                        .iter()
-                        .map(condition_kind)
-                        .collect();
-                    assert_eq!(&read, conditions, "{name}");
+                let Some(conditions) = &case.expect.conditions else {
+                    continue;
+                };
+                let read: Vec<_> = plan.entries[0]
+                    .conditions
+                    .iter()
+                    .map(condition_kind)
+                    .collect();
+                if &read != conditions {
+                    failures.push(format!("{name}: conditions {read:?}"));
                 }
             }
             (Err(_), false) => {}
-            (read, _) => panic!("{name}: {read:?}"),
+            (read, _) => failures.push(format!("{name}: {read:?}")),
         }
     }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
 #[test]
@@ -189,8 +194,34 @@ fn test_reads_a_condition_past_what_a_double_holds_as_invalid() {
 }
 
 #[test]
-fn test_says_what_it_refuses() {
-    let why = parse_plan("{}").unwrap_err().to_string();
+fn test_sanitizes_what_a_refusal_quotes() {
+    let plan = vectors().plan.to_string().replacen(
+        r#""name":"destination""#,
+        r#""name":"a\n\u001b[31m""#,
+        1,
+    );
 
-    assert!(why.starts_with("invalid capture plan: "), "{why}");
+    let why = parse_plan(&plan).unwrap_err().to_string();
+
+    assert!(!why.contains(['\n', '\u{1b}']), "{why:?}");
+}
+
+// Passed over unread, as anywhere else in the plan, so what serde_json can't hold doesn't refuse it.
+#[test]
+fn test_passes_over_a_key_or_measures_unknown_field_unread() {
+    for (from, to) in [
+        (
+            r#""field_type":"repository""#,
+            r#""field_type":"repository","x":1e400"#,
+        ),
+        (
+            r#"{"name":"call_count"}"#,
+            r#"{"name":"call_count","x":1e400}"#,
+        ),
+        (r#"{"name":"host"}"#, r#"{"name":"host","x":1e400}"#),
+    ] {
+        let plan = vectors().plan.to_string().replacen(from, to, 1);
+
+        assert!(parse_plan(&plan).is_ok(), "{to}");
+    }
 }

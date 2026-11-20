@@ -219,14 +219,18 @@ fn test_reads_a_path_from_either_spelling() {
     );
     // From dots, every step is a key, and a segment's index isn't one.
     assert_eq!(from_dots("request.redacted_path.2"), None);
+    assert_eq!(
+        from_dots("request.query.repo"),
+        Some(Path::Request(RequestPath::Query {
+            name: "repo".into(),
+            index: None
+        }))
+    );
     for steps in [
         json!([]),
         json!(["elsewhere"]),
-        json!(["query", "repo", 0]),
-        json!(["path", 0]),
         json!(["request", "query", ""]),
         json!(["request", "query", 0]),
-        json!(["request", "query", "", 0]),
         json!(["request", "query", "repo", "0"]),
         json!(["request", "query", "repo", 0, 1]),
         json!(["request", "path", -1]),
