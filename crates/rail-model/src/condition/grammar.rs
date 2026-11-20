@@ -140,6 +140,13 @@ pub enum Scalar {
 pub enum Path {
     Ticket(TicketPath),
     Request(RequestPath),
+    /// A query parameter by name, then which of its values, from 0: `["query", name, n]`.
+    Query {
+        name: String,
+        index: usize,
+    },
+    /// A segment of the redacted request path, from 0: `["path", n]`.
+    Segment(usize),
 }
 
 impl TryFrom<String> for Path {
@@ -175,6 +182,17 @@ impl Path {
                     .collect::<Option<_>>()?,
             )),
             "request" => Self::Request(RequestPath::parse(steps)?),
+            "query" => match steps {
+                [Value::String(name), index] if !name.is_empty() => Self::Query {
+                    name: name.clone(),
+                    index: read_index(index)?,
+                },
+                _ => return None,
+            },
+            "path" => match steps {
+                [index] => Self::Segment(read_index(index)?),
+                _ => return None,
+            },
             _ => return None,
         })
     }
@@ -188,6 +206,8 @@ pub enum ConditionUse {
     Policy,
     /// A capture plan entry's match, in [`Environment::for_capture`](super::Environment::for_capture).
     PlanMatch,
+    /// A capture plan's context key or measure: a call's body, query or path.
+    PlanRecord,
 }
 
 impl ConditionUse {
@@ -214,6 +234,10 @@ impl ConditionUse {
                         | RequestPath::McpMethod
                         | RequestPath::McpTool
                 )
+            ),
+            Self::PlanRecord => matches!(
+                path,
+                Path::Request(RequestPath::Body(_)) | Path::Query { .. } | Path::Segment(_)
             ),
         }
     }
@@ -283,8 +307,12 @@ impl BodyStep {
     fn read(step: &Value) -> Option<Self> {
         match step {
             Value::String(key) => Some(Self::Key(key.clone())),
-            Value::Number(index) => Some(Self::Index(usize::try_from(index.as_u64()?).ok()?)),
-            _ => None,
+            index => Some(Self::Index(read_index(index)?)),
         }
     }
+}
+
+// A whole number from 0, as a list spells an index.
+fn read_index(step: &Value) -> Option<usize> {
+    usize::try_from(step.as_u64()?).ok()
 }

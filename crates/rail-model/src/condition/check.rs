@@ -350,7 +350,9 @@ fn get_path_kind(
         Path::Request(RequestPath::EndpointKey) => Ok(Kind::String),
         Path::Request(RequestPath::Header(_)) => Ok(Kind::Header),
         // Never reached: `check_path` keeps only a policy's paths.
-        Path::Request(_) => Err(format!("\"{shown}\": names nothing a request carries")),
+        Path::Request(_) | Path::Query { .. } | Path::Segment(_) => {
+            Err(format!("\"{shown}\": names nothing a request carries"))
+        }
     }
 }
 

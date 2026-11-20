@@ -1,5 +1,5 @@
 use rail_model::condition::{
-    BodyPath, BodyStep, Condition, Path, Predicate, RequestPath, Scalar, TicketPath,
+    BodyPath, BodyStep, Condition, ConditionUse, Path, Predicate, RequestPath, Scalar, TicketPath,
 };
 use serde_json::{Value, json};
 
@@ -184,9 +184,25 @@ fn test_reads_a_path_from_either_spelling() {
         from_list(json!(["request", "body"])),
         Some(Path::Request(RequestPath::Body(BodyPath(vec![]))))
     );
+    assert_eq!(
+        from_list(json!(["query", "repo", 1])),
+        Some(Path::Query {
+            name: "repo".into(),
+            index: 1
+        })
+    );
+    assert_eq!(from_list(json!(["path", 2])), Some(Path::Segment(2)));
+    assert_eq!(from_dots("path.2"), None);
     for steps in [
         json!([]),
         json!(["elsewhere"]),
+        json!(["query", "repo"]),
+        json!(["query", "", 0]),
+        json!(["query", "repo", "0"]),
+        json!(["query", "repo", 0, 1]),
+        json!(["path"]),
+        json!(["path", -1]),
+        json!(["path", 0, 1]),
         json!(["body", "a"]),
         json!(["request", "nothing"]),
         json!(["request", "mcp"]),
@@ -196,5 +212,22 @@ fn test_reads_a_path_from_either_spelling() {
         json!(["request", "body", {}]),
     ] {
         assert_eq!(from_list(steps.clone()), None, "{steps}");
+    }
+}
+
+#[test]
+fn test_a_plan_record_reads_a_calls_body_query_and_path() {
+    for (steps, read) in [
+        (json!(["request", "body"]), true),
+        (json!(["request", "body", "a", 0]), true),
+        (json!(["query", "repo", 0]), true),
+        (json!(["path", 0]), true),
+        (json!(["request", "host"]), false),
+        (json!(["request", "mcp", "tool"]), false),
+        (json!(["ticket", "a"]), false),
+    ] {
+        let path = Path::from_steps(steps.as_array().unwrap()).unwrap();
+
+        assert_eq!(ConditionUse::PlanRecord.reads(&path), read, "{steps}");
     }
 }

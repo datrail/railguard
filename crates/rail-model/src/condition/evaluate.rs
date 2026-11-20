@@ -259,6 +259,8 @@ fn resolve<'a>(
     match path {
         Path::Ticket(path) => resolve_ticket(path, environment),
         Path::Request(path) => resolve_request(path, environment, budget),
+        // A plan record's, which no condition's use reads.
+        Path::Query { .. } | Path::Segment(_) => Err(Refusal::NotForUse),
     }
 }
 
