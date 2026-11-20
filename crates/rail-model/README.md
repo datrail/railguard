@@ -32,6 +32,8 @@ By module:
   keeps its cause.
 - **`endpoint`:** **`Endpoint`** and **`ResolvedKey`**, the endpoint a call asks for, keyed as a bundle binds it, and
   **`Resolution`**, whether a message is judged at all.
+- **`agent`:** **`Agent`**, the agent a host serves, as Rail Center names it: its tickets and its capture plan are
+  fetched for it.
 - **`authority`:** **`split_authority`** reads a host and port from an `:authority`, spelled one way wherever a host is
   compared.
 - **`body`:** **`BodyBuffer`** keeps a body as it arrives, up to a cap and within a **`ByteBudget`** every kept body
@@ -39,9 +41,9 @@ By module:
   value, nothing, or one that can't be told) and an MCP reading (**`mcp`**, or why it names nothing). **`BodyRead`** is
   a call's body as a reader has it: kept whole, or unread and why. **`mcp::read_endpoint`** reads the endpoint an MCP
   message names, from its method and tool; **`McpReading::read`** reads one from bytes a host holds itself.
-- **`capture`:** **`parse_plan`** reads a capture plan Rail Center serves to an **`Agent`**: refused (**`Refused`**)
-  when it isn't a plan for this proxy, else a **`PlanReading`**, its hash and version and whether it's valid, of a
-  version unknown, invalid and why, or redacted by another `REDACTION_VERSION`. A valid **`Plan`**'s entries keep their
+- **`capture`:** **`parse_plan`** reads a capture plan Rail Center serves to an `Agent`: refused (**`Refused`**) when it
+  isn't a plan for this proxy, else a **`PlanReading`**, its hash and version and whether it's valid, of a version
+  unknown, invalid and why, or redacted by another `REDACTION_VERSION`. A valid **`Plan`**'s entries keep their
   conditions as written, checked when compiled; its values are as Rail Center writes them.
 - **`request_line`:** **`RequestLine::read`** reads a call's `:authority`, `:method` and `:path` once, as conditions
   read them under `request`: the host as `split_authority` spells it, or `[unparseable]`; the path up to its query or

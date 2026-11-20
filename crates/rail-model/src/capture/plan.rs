@@ -8,6 +8,7 @@ use serde::{Deserialize, Deserializer};
 use serde_json::value::RawValue;
 use serde_json::{Value, json};
 
+use crate::agent::Agent;
 use crate::condition::{
     BodyStep, Condition, ConditionUse, Path, RequestPath, Spelling, read_condition,
 };
@@ -37,13 +38,6 @@ const MAX_STEPS_PER_WINDOW: u32 = 1_000_000;
 const MAX_UNSENT_WINDOWS: u32 = 1_000;
 
 const MAX_ENDPOINT_ID_CHARS: usize = 64;
-
-/// The proxy a plan is for, as it names itself to Rail Center.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Agent {
-    pub host_id: String,
-    pub sandbox_name: String,
-}
 
 /// An answer that isn't a plan for this proxy, so what's held is kept.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

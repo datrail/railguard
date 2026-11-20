@@ -1,6 +1,7 @@
+use rail_model::agent::Agent;
 use rail_model::capture::{
-    Agent, CatchAllKey, Combine, ContextKey, Function, Measure, OnMaxGroups, PlanReading,
-    PlanState, Refused, parse_plan,
+    CatchAllKey, Combine, ContextKey, Function, Measure, OnMaxGroups, PlanReading, PlanState,
+    Refused, parse_plan,
 };
 use rail_model::condition::{BodyPath, BodyStep, Condition, Path, RequestPath};
 use serde::Deserialize;

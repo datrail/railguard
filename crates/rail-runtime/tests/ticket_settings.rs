@@ -1,6 +1,7 @@
 use std::time::Duration;
 
-use rail_runtime::{Level, TicketQuery, TicketSettings, read_ticket_settings};
+use rail_model::agent::Agent;
+use rail_runtime::{Level, TicketSettings, read_ticket_settings};
 use rail_test_support::describe;
 
 use crate::common;
@@ -20,8 +21,8 @@ fn the_host_and_sandbox_are_read_and_the_rest_defaults() {
     let ticket = read(&NAMED).unwrap();
 
     assert_eq!(
-        ticket.query,
-        TicketQuery {
+        ticket.agent,
+        Agent {
             host_id: "host-1".to_owned(),
             sandbox_name: "sandbox a".to_owned(),
         }

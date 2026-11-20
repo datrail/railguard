@@ -40,7 +40,6 @@ pub use rail_center::{
     CenterUrl, RailCenterSettings, read_disabled, read_rail_center, read_rail_center_with,
 };
 pub use rail_center_thread::RailCenterThread;
-pub use rail_model::agent::TicketQuery;
 pub use ticket::{
     OpaqueTicket, RailCenterTickets, TicketAnswer, TicketSettings, TicketSource,
     read_ticket_settings,
