@@ -1,6 +1,7 @@
 use std::future::Future;
 use std::time::{Duration, SystemTime};
 
+use rail_model::agent::TicketQuery;
 use serde::Deserialize;
 use time::PrimitiveDateTime;
 use time::macros::format_description;
@@ -77,13 +78,6 @@ pub fn read_ticket_settings(
         settings.describe(TICKET_REFRESH_SECONDS, ticket.refresh_interval.as_secs());
     }
     Ok(ticket)
-}
-
-/// Whose ticket to fetch: this host, and the one sandbox it serves.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TicketQuery {
-    pub host_id: String,
-    pub sandbox_name: String,
 }
 
 /// A ticket to present, opaque, and the instant it stops being valid.
