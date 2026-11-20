@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use serde::Serialize;
 use serde_json::Value;
 
-use super::environment::{Environment, RequestLine, TicketClaims};
+use super::environment::{Environment, TicketClaims};
 use super::grammar::{
     BodyPath, BodyStep, Condition, ConditionUse, Path, Predicate, RequestPath, Scalar, TicketPath,
 };
@@ -13,6 +13,7 @@ use crate::body::mcp::McpReading;
 use crate::body::tree::{self, Kind, Member, Step};
 use crate::body::{BodyRead, RequestBody, Unparsed, Unread};
 use crate::endpoint::Endpoint;
+use crate::request_line::RequestLine;
 
 /// The steps one judgement may take, unless the caller sets its own.
 pub const DEFAULT_STEP_LIMIT: u64 = 100_000;
@@ -321,10 +322,10 @@ fn resolve_request<'a>(
             Some([value]) => read_value(value),
             Some(values) => Lookup::List(Items::Values(values)),
         },
-        RequestPath::Host => line(|line| &line.host)?,
-        RequestPath::Method => line(|line| &line.method)?,
-        RequestPath::Path => line(|line| &line.path)?,
-        RequestPath::RedactedPath => line(|line| &line.redacted_path)?,
+        RequestPath::Host => line(RequestLine::host)?,
+        RequestPath::Method => line(RequestLine::method)?,
+        RequestPath::Path => line(RequestLine::path)?,
+        RequestPath::RedactedPath => line(RequestLine::redacted_path)?,
         RequestPath::McpMethod => read_mcp(environment, McpReading::method)?,
         RequestPath::McpTool => read_mcp(environment, McpReading::tool)?,
         RequestPath::Body(path) => resolve_body(path, environment, budget)?,

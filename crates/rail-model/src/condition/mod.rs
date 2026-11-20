@@ -10,7 +10,7 @@ pub use check::{
     check_condition,
 };
 pub(crate) use environment::TicketClaims;
-pub use environment::{Environment, Headers, RequestLine};
+pub use environment::{Environment, Headers};
 pub use evaluate::{
     BodyUnread, Budget, CompiledCondition, DEFAULT_STEP_LIMIT, Evaluation, Items, Lookup, Refusal,
     Verdict, compile_condition, evaluate_condition,

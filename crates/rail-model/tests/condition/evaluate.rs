@@ -3,10 +3,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use rail_model::body::{BodyBuffer, BodyRead, ByteBudget, Unparsed, Unread};
 use rail_model::condition::{
-    BodyUnread, Budget, Condition, ConditionUse, Environment, Headers, Predicate, Refusal,
-    RequestLine, Verdict, compile_condition, evaluate_condition,
+    BodyUnread, Budget, Condition, ConditionUse, Environment, Headers, Predicate, Refusal, Verdict,
+    compile_condition, evaluate_condition,
 };
 use rail_model::endpoint::Endpoint;
+use rail_model::request_line::RequestLine;
 use serde::Deserialize;
 use serde_json::value::RawValue;
 use serde_json::{Map, Value, json};
@@ -335,12 +336,7 @@ fn keep_body(body: &[u8]) -> BodyRead {
 
 // As a plan writes a condition, its path a list.
 fn evaluate_on_call(condition: Value, body: &BodyRead, budget: &mut Budget) -> Verdict {
-    let request_line = RequestLine {
-        host: "mcp.example".to_string(),
-        method: "POST".to_string(),
-        path: "/team-a/mcp".to_string(),
-        redacted_path: "/[redacted]/mcp".to_string(),
-    };
+    let request_line = RequestLine::read(b"mcp.example", b"POST", b"/finretail-production-mcp/mcp");
     let predicate: Predicate = serde_json::from_value(condition).unwrap();
     let environment = Environment::for_capture(&request_line, body);
     evaluate_condition(
@@ -361,7 +357,7 @@ fn test_reads_a_calls_request_line_and_mcp_message() {
     for (path, value) in [
         (json!(["request", "host"]), "mcp.example"),
         (json!(["request", "method"]), "POST"),
-        (json!(["request", "path"]), "/team-a/mcp"),
+        (json!(["request", "path"]), "/finretail-production-mcp/mcp"),
         (json!(["request", "redacted_path"]), "/[redacted]/mcp"),
         (json!(["request", "mcp", "method"]), "tools/call"),
         (json!(["request", "mcp", "tool"]), "a"),
@@ -569,7 +565,7 @@ fn test_charges_a_key_by_the_members_it_reads() {
 #[test]
 fn test_refuses_a_condition_with_its_cause() {
     // In an environment that fills each path, so only compiling for a policy refuses them.
-    let request_line = RequestLine::default();
+    let request_line = RequestLine::read(b"mcp.example", b"POST", b"/mcp");
     let body = keep_body(b"{}");
     let capture = Environment::for_capture(&request_line, &body);
     for (condition, refusal) in [
@@ -618,7 +614,7 @@ fn test_refuses_a_condition_with_its_cause() {
 #[test]
 fn test_refuses_a_source_its_environment_doesnt_fill() {
     let not_filled = Verdict::Refused(Refusal::NotForUse);
-    let request_line = RequestLine::default();
+    let request_line = RequestLine::read(b"mcp.example", b"POST", b"/mcp");
     let body = keep_body(b"{}");
     let capture = Environment::for_capture(&request_line, &body);
     for path in [
