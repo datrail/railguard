@@ -249,8 +249,8 @@ fn rail_center_and_the_ticket_are_read_together() {
     );
     let (rail_center, ticket) = config.ticket.unwrap();
     assert_eq!(rail_center.url.to_string(), "https://rail-center.example");
-    assert_eq!(ticket.query.host_id, "host-1");
-    assert_eq!(ticket.query.sandbox_name, "sandbox-1");
+    assert_eq!(ticket.agent.host_id, "host-1");
+    assert_eq!(ticket.agent.sandbox_name, "sandbox-1");
     assert_eq!(ticket.refresh_interval, Duration::from_secs(600));
     let protected = config.protected_hosts.get("mcp.example.com").unwrap();
     assert_eq!((protected.tls, protected.port), (true, Some(8443)));

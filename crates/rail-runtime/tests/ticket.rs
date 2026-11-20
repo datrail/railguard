@@ -1,8 +1,7 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use rail_runtime::{
-    OpaqueTicket, RailCenterTickets, TicketAnswer, TicketQuery, TicketSettings, TicketSource,
-};
+use rail_model::agent::AgentId;
+use rail_runtime::{OpaqueTicket, RailCenterTickets, TicketAnswer, TicketSettings, TicketSource};
 
 use crate::common::{Reply, client, response, serve};
 use crate::holder::HOUR;
@@ -11,8 +10,8 @@ use crate::holder::HOUR;
 const EXPIRES_AT: u64 = 1_785_233_700;
 const SENT_AT: u64 = EXPIRES_AT - 900;
 
-fn query() -> TicketQuery {
-    TicketQuery {
+fn agent() -> AgentId {
+    AgentId {
         host_id: "host-1".to_owned(),
         sandbox_name: "sandbox a".to_owned(),
     }
@@ -22,7 +21,7 @@ fn tickets(url: &str) -> RailCenterTickets {
     RailCenterTickets {
         client: client(url),
         settings: TicketSettings {
-            query: query(),
+            agent: agent(),
             refresh_interval: HOUR,
         },
     }
