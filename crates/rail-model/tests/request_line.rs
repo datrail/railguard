@@ -7,26 +7,32 @@ fn read(authority: &str, method: &str, path: &str) -> RequestLine {
 #[test]
 fn test_reads_the_host_as_split_authority_spells_it() {
     let longest = "a".repeat(253);
-    let past = "a".repeat(254);
-    for (authority, host, reading) in [
-        (
-            "MCP.Example.com.:8443",
-            "mcp.example.com",
-            HostReading::Read,
-        ),
-        (longest.as_str(), longest.as_str(), HostReading::Read),
-        (&format!("{longest}."), longest.as_str(), HostReading::Read),
-        (
-            "user@mcp.example.com",
-            "[unparseable]",
-            HostReading::Refused,
-        ),
-        (past.as_str(), "[unparseable]", HostReading::PastLongest),
+    for (authority, host) in [
+        ("MCP.Example.com.:8443", "mcp.example.com"),
+        (longest.as_str(), longest.as_str()),
+        (&format!("{longest}."), longest.as_str()),
     ] {
         let line = read(authority, "POST", "/mcp");
 
         assert_eq!(line.host(), host, "{authority}");
-        assert_eq!(line.host_reading(), reading, "{authority}");
+        assert_eq!(
+            line.host_reading(),
+            &HostReading::Read(host.to_owned()),
+            "{authority}"
+        );
+    }
+}
+
+#[test]
+fn test_reads_a_host_it_cant_report_as_unparseable() {
+    for (authority, reading) in [
+        ("user@mcp.example.com", HostReading::Refused),
+        (&"a".repeat(254), HostReading::PastLongest),
+    ] {
+        let line = read(authority, "POST", "/mcp");
+
+        assert_eq!(line.host(), "[unparseable]", "{authority}");
+        assert_eq!(line.host_reading(), &reading, "{authority}");
     }
 }
 
@@ -35,7 +41,7 @@ fn test_reads_an_authority_that_isnt_utf8_as_refused() {
     let line = RequestLine::read(b"mcp.ex\xffample.com", b"POST", b"/mcp");
 
     assert_eq!(line.host(), "[unparseable]");
-    assert_eq!(line.host_reading(), HostReading::Refused);
+    assert_eq!(line.host_reading(), &HostReading::Refused);
 }
 
 #[test]

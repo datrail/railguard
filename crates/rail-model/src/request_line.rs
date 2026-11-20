@@ -7,7 +7,7 @@ use std::fmt;
 use crate::authority::split_authority;
 use crate::redaction::redact_path;
 
-// What a host that can't be read reads as.
+// What a host that can't be read reads as, compared and reported.
 const UNPARSEABLE: &str = "[unparseable]";
 
 // DNS's longest name.
@@ -22,8 +22,7 @@ const STANDARD_METHODS: [&str; 9] = [
 
 /// A call's host, method and path, as conditions read them under `request`.
 pub struct RequestLine {
-    host: String,
-    host_reading: HostReading,
+    host: HostReading,
     method: String,
     path: String,
     path_lossy: bool,
@@ -31,10 +30,10 @@ pub struct RequestLine {
 }
 
 /// How a call's host was read.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum HostReading {
     /// Spelled as `split_authority` spells it.
-    Read,
+    Read(String),
     /// An authority `split_authority` refuses, or one that isn't UTF-8: `[unparseable]`.
     Refused,
     /// Past DNS's longest name: `[unparseable]`, so its length can't carry data.
@@ -78,7 +77,7 @@ impl RequestLine {
     /// From a call's `:authority`, `:method` and `:path` as sent: the path up to its first `?` or
     /// `#`, and `/` for a `CONNECT`.
     pub fn read(authority: &[u8], method: &[u8], path: &[u8]) -> Self {
-        let (host, host_reading) = read_host(authority);
+        let host = read_host(authority);
         let method = String::from_utf8_lossy(method).into_owned();
         let path = if method == "CONNECT" { b"/" } else { path };
         let path = path
@@ -91,7 +90,6 @@ impl RequestLine {
         let path = path.into_owned();
         Self {
             host,
-            host_reading,
             method,
             redacted_path: redact_path(&path),
             path,
@@ -101,11 +99,14 @@ impl RequestLine {
 
     /// As `split_authority` spells it, or `[unparseable]`.
     pub fn host(&self) -> &str {
-        &self.host
+        match &self.host {
+            HostReading::Read(host) => host,
+            HostReading::Refused | HostReading::PastLongest => UNPARSEABLE,
+        }
     }
 
-    pub fn host_reading(&self) -> HostReading {
-        self.host_reading
+    pub fn host_reading(&self) -> &HostReading {
+        &self.host
     }
 
     /// As sent.
@@ -177,23 +178,20 @@ impl fmt::Debug for RequestLine {
         formatter
             .debug_struct("RequestLine")
             .field("host", &self.host)
-            .field("host_reading", &self.host_reading)
             .field("method", &self.method)
             .field("redacted_path", &self.redacted_path)
             .finish_non_exhaustive()
     }
 }
 
-fn read_host(authority: &[u8]) -> (String, HostReading) {
+fn read_host(authority: &[u8]) -> HostReading {
     let read = std::str::from_utf8(authority)
         .ok()
         .and_then(|authority| split_authority(authority).ok());
     match read {
-        None => (UNPARSEABLE.to_owned(), HostReading::Refused),
+        None => HostReading::Refused,
         // ASCII, so its length in bytes is in characters.
-        Some((host, _)) if host.len() > MAX_HOST_CHARS => {
-            (UNPARSEABLE.to_owned(), HostReading::PastLongest)
-        }
-        Some((host, _)) => (host, HostReading::Read),
+        Some((host, _)) if host.len() > MAX_HOST_CHARS => HostReading::PastLongest,
+        Some((host, _)) => HostReading::Read(host),
     }
 }
