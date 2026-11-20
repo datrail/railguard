@@ -152,7 +152,10 @@ struct Recorder(Vec<(String, Option<String>, Verdict)>);
 impl Tracer for Recorder {
     fn record(&mut self, policy: Uuid, evaluation: &Evaluation) {
         let id = policy.to_string();
-        let resolved = evaluation.resolved.map(|lookup| format!("{lookup:?}"));
+        let resolved = evaluation
+            .resolved
+            .as_ref()
+            .map(|lookup| format!("{lookup:?}"));
         self.0
             .push((id[id.len() - 2..].to_string(), resolved, evaluation.verdict));
     }
@@ -235,7 +238,7 @@ fn test_traces_each_policy_evaluated_until_one_decides() {
             ("02".into(), Some("Absent".into()), Verdict::DoesNotHold),
             (
                 "03".into(),
-                Some(r#"List([String("b"), String("c")])"#.into()),
+                Some(r#"List(Values([String("b"), String("c")]))"#.into()),
                 Verdict::Holds
             ),
         ]

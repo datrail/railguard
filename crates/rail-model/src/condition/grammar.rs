@@ -1,3 +1,4 @@
+use serde::de::Error;
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 use serde_json::value::RawValue;
@@ -47,8 +48,11 @@ fn read_condition(value: Value, raw: &str) -> Condition {
         return Condition::Unknown(value);
     }
     match Predicate::deserialize(&value) {
-        Ok(predicate) => Condition::Valid(predicate),
-        Err(_) => Condition::Invalid(raw.to_string()),
+        // Rail Center publishes a policy's path as a string, and only these.
+        Ok(predicate) if value["path"].is_string() && predicate.path().is_policy_path() => {
+            Condition::Valid(predicate)
+        }
+        _ => Condition::Invalid(raw.to_string()),
     }
 }
 
@@ -105,6 +109,25 @@ pub enum Predicate {
     },
 }
 
+impl Predicate {
+    pub fn path(&self) -> &Path {
+        match self {
+            Self::Existing { path }
+            | Self::NotExisting { path }
+            | Self::Eq { path, .. }
+            | Self::Ne { path, .. }
+            | Self::Lt { path, .. }
+            | Self::Lte { path, .. }
+            | Self::Gt { path, .. }
+            | Self::Gte { path, .. }
+            | Self::In { path, .. }
+            | Self::Contains { path, .. }
+            | Self::NotContains { path, .. }
+            | Self::Matches { path, .. } => path,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum Scalar {
@@ -112,29 +135,71 @@ pub enum Scalar {
     String(String),
 }
 
-/// `<source>.<key>.<key>` on the wire.
-#[derive(Clone, Debug, PartialEq, Deserialize)]
-#[serde(try_from = "String")]
+/// What a condition reads: a source, then steps into it. Spelled as a dotted string,
+/// `<source>.<key>.<key>`, every step a key; or as a list, `["<source>", <step>, ...]`, a number
+/// step an index. Which paths a use accepts is its own check ([`Path::is_policy_path`]).
+#[derive(Clone, Debug, PartialEq)]
 pub enum Path {
     Ticket(TicketPath),
     Request(RequestPath),
+    Body(BodyPath),
 }
 
 impl TryFrom<String> for Path {
     type Error = String;
 
     fn try_from(text: String) -> Result<Self, String> {
-        let mut parts = text.split('.');
-        let source = parts.next();
-        let keys: Vec<&str> = parts.collect();
-        let path = match source {
-            Some("ticket") => Some(Self::Ticket(TicketPath(
-                keys.into_iter().map(str::to_string).collect(),
-            ))),
-            Some("request") => RequestPath::parse(&keys).map(Self::Request),
+        let steps: Vec<Value> = text.split('.').map(Value::from).collect();
+        Self::from_steps(&steps).ok_or_else(|| format!("path {text:?}"))
+    }
+}
+
+impl<'de> Deserialize<'de> for Path {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let spelled = Value::deserialize(deserializer)?;
+        let path = match &spelled {
+            Value::String(text) => Self::try_from(text.clone()).ok(),
+            Value::Array(steps) => Self::from_steps(steps),
             _ => None,
         };
-        path.ok_or_else(|| format!("path {text:?}"))
+        path.ok_or_else(|| D::Error::custom(format!("path {spelled}")))
+    }
+}
+
+impl Path {
+    /// From a list's steps; `None` for a source or a field this reader doesn't know.
+    pub fn from_steps(steps: &[Value]) -> Option<Self> {
+        let (source, steps) = steps.split_first()?;
+        Some(match source.as_str()? {
+            "ticket" => Self::Ticket(TicketPath(
+                steps
+                    .iter()
+                    .map(|step| step.as_str().map(str::to_string))
+                    .collect::<Option<_>>()?,
+            )),
+            "request" => {
+                let keys: Vec<&str> = steps.iter().map(Value::as_str).collect::<Option<_>>()?;
+                Self::Request(RequestPath::parse(&keys)?)
+            }
+            "body" => Self::Body(BodyPath(
+                steps.iter().map(BodyStep::read).collect::<Option<_>>()?,
+            )),
+            _ => return None,
+        })
+    }
+
+    /// Whether a policy may read it: the paths Rail Center publishes in a bundle.
+    pub fn is_policy_path(&self) -> bool {
+        matches!(
+            self,
+            Self::Ticket(_)
+                | Self::Request(
+                    RequestPath::Whole
+                        | RequestPath::EndpointKey
+                        | RequestPath::Headers
+                        | RequestPath::Header(_)
+                )
+        )
     }
 }
 
@@ -151,17 +216,51 @@ pub enum RequestPath {
     Headers,
     /// Matched exactly, so a name with an upper-case letter never exists.
     Header(String),
+    Host,
+    Method,
+    /// Up to its first `?` or `#`, as received.
+    Path,
+    RedactedPath,
+    McpMethod,
+    McpTool,
 }
 
 impl RequestPath {
-    /// `None` for any path Rail Center doesn't publish.
+    /// `None` for any field this reader doesn't know.
     pub(crate) fn parse(keys: &[&str]) -> Option<Self> {
         Some(match keys {
             [] => Self::Whole,
             ["endpoint_key"] => Self::EndpointKey,
             ["headers"] => Self::Headers,
             ["headers", name] => Self::Header(name.to_string()),
+            ["host"] => Self::Host,
+            ["method"] => Self::Method,
+            ["path"] => Self::Path,
+            ["redacted_path"] => Self::RedactedPath,
+            ["mcp", "method"] => Self::McpMethod,
+            ["mcp", "tool"] => Self::McpTool,
             _ => return None,
         })
+    }
+}
+
+/// A path under `body`, as its steps; none for the whole body.
+#[derive(Clone, Debug, PartialEq)]
+pub struct BodyPath(pub Vec<BodyStep>);
+
+/// A step into a body: an object's key, or an array's index from 0.
+#[derive(Clone, Debug, PartialEq)]
+pub enum BodyStep {
+    Key(String),
+    Index(usize),
+}
+
+impl BodyStep {
+    fn read(step: &Value) -> Option<Self> {
+        match step {
+            Value::String(key) => Some(Self::Key(key.clone())),
+            Value::Number(index) => Some(Self::Index(usize::try_from(index.as_u64()?).ok()?)),
+            _ => None,
+        }
     }
 }

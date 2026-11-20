@@ -1,9 +1,10 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use rail_model::body::{BodyBuffer, BodyRead, ByteBudget, Unparsed, Unread};
 use rail_model::condition::{
-    Budget, Condition, Environment, Headers, Refusal, Verdict, compile_condition,
-    evaluate_condition,
+    BodyUnread, Budget, CaptureRequest, Condition, Environment, Headers, Predicate, Refusal,
+    Verdict, compile_condition, evaluate_condition,
 };
 use rail_model::endpoint::Endpoint;
 use serde::Deserialize;
@@ -48,6 +49,8 @@ fn get_outcome_name(outcome: &Verdict) -> &'static str {
     match outcome {
         Verdict::Holds => "holds",
         Verdict::DoesNotHold => "does_not_hold",
+        Verdict::Ambiguous => "ambiguous",
+        Verdict::BodyUnread(_) => "body_unread",
         Verdict::Refused(_) => "refused",
     }
 }
@@ -317,4 +320,201 @@ fn test_reads_a_list_item_that_is_not_a_scalar_as_matching_nothing() {
     assert!(!read("in", json!(["acme"]), json!([null, true])));
     assert!(!read("matches", json!("*"), json!([true, null, 1])));
     assert!(read("matches", json!("*"), json!([true, "a"])));
+}
+
+fn keep_body(body: &[u8]) -> BodyRead {
+    let mut buffer = BodyBuffer::new(usize::MAX, &ByteBudget::new(usize::MAX));
+    buffer.append(body);
+    BodyRead::Whole(Arc::new(buffer.finish().unwrap()))
+}
+
+// As a plan writes a condition, its path a list.
+fn evaluate_on_call(condition: Value, body: &BodyRead, budget: &mut Budget) -> Verdict {
+    let request = CaptureRequest {
+        host: "mcp.example".to_string(),
+        method: "POST".to_string(),
+        path: "/team-a/mcp".to_string(),
+        redacted_path: "/[redacted]/mcp".to_string(),
+    };
+    let predicate: Predicate = serde_json::from_value(condition).unwrap();
+    let environment = Environment::for_capture(&request, body);
+    evaluate_condition(
+        &compile_condition(&Condition::Valid(predicate)),
+        &environment,
+        budget,
+    )
+    .verdict
+}
+
+fn condition(path: Value, op: &str, value: Value) -> Value {
+    json!({"path": path, "op": op, "value": value})
+}
+
+#[test]
+fn test_reads_a_calls_request_line_and_mcp_message() {
+    let body = keep_body(br#"{"method": "tools/call", "params": {"name": "a"}}"#);
+    for (path, value) in [
+        (json!(["request", "host"]), "mcp.example"),
+        (json!(["request", "method"]), "POST"),
+        (json!(["request", "path"]), "/team-a/mcp"),
+        (json!(["request", "redacted_path"]), "/[redacted]/mcp"),
+        (json!(["request", "mcp", "method"]), "tools/call"),
+        (json!(["request", "mcp", "tool"]), "a"),
+    ] {
+        let held = evaluate_on_call(
+            condition(path.clone(), "eq", json!(value)),
+            &body,
+            &mut Budget::default(),
+        );
+        assert_eq!(held, Verdict::Holds, "{path}");
+    }
+}
+
+#[test]
+fn test_reads_a_body_path_and_tells_what_cant_be_told() {
+    let body = keep_body(
+        br#"{"repo": "payroll", "esc": "pay\u0072oll", "items": ["a", "b"], "n": null,
+            "big": 1e400, "small": -1e400, "dup": 1, "Dup": 2, "bad": "\ud800",
+            "mixed": ["a", "\ud800"], "o": {"k": 1, "\q": 2}}"#,
+    );
+    let ambiguous = Verdict::Ambiguous;
+    for (path, op, value, verdict) in [
+        (
+            json!(["body", "repo"]),
+            "eq",
+            json!("payroll"),
+            Verdict::Holds,
+        ),
+        (
+            json!(["body", "esc"]),
+            "eq",
+            json!("payroll"),
+            Verdict::Holds,
+        ),
+        (
+            json!(["body", "items", 1]),
+            "eq",
+            json!("b"),
+            Verdict::Holds,
+        ),
+        (
+            json!(["body", "items"]),
+            "contains",
+            json!("a"),
+            Verdict::Holds,
+        ),
+        (
+            json!(["body", "items", "1"]),
+            "existing",
+            json!(null),
+            Verdict::DoesNotHold,
+        ),
+        (
+            json!(["body", "missing"]),
+            "not_existing",
+            json!(null),
+            Verdict::Holds,
+        ),
+        (
+            json!(["body", "n"]),
+            "not_existing",
+            json!(null),
+            Verdict::Holds,
+        ),
+        (json!(["body"]), "existing", json!(null), Verdict::Holds),
+        // Past a double, saturated.
+        (json!(["body", "big"]), "gt", json!(1e300), Verdict::Holds),
+        (
+            json!(["body", "small"]),
+            "lt",
+            json!(-1e300),
+            Verdict::Holds,
+        ),
+        // Whatever the op, absent included: readers differ on what's there.
+        (json!(["body", "dup"]), "eq", json!(1), ambiguous),
+        (
+            json!(["body", "dup"]),
+            "not_existing",
+            json!(null),
+            ambiguous,
+        ),
+        (json!(["body", "o", "k"]), "eq", json!(1), ambiguous),
+        (json!(["body", "bad"]), "existing", json!(null), ambiguous),
+        (json!(["body", "mixed"]), "contains", json!("a"), ambiguous),
+    ] {
+        let verdict_read = evaluate_on_call(
+            condition(path.clone(), op, value),
+            &body,
+            &mut Budget::default(),
+        );
+        assert_eq!(verdict_read, verdict, "{path} {op}");
+    }
+    let empty = keep_body(b"");
+    let held = evaluate_on_call(
+        condition(json!(["body", "a"]), "not_existing", json!(null)),
+        &empty,
+        &mut Budget::default(),
+    );
+    assert_eq!(held, Verdict::Holds, "an empty body holds nothing");
+}
+
+#[test]
+fn test_tells_why_a_body_value_isnt_read() {
+    let tool = || {
+        condition(
+            json!(["request", "mcp", "tool"]),
+            "not_existing",
+            json!(null),
+        )
+    };
+    let key = || condition(json!(["body", "method"]), "not_existing", json!(null));
+    for (body, verdict) in [
+        (
+            BodyRead::Unread(Unread::NotSent),
+            Verdict::BodyUnread(BodyUnread::Unread(Unread::NotSent)),
+        ),
+        (
+            keep_body(b"not json"),
+            Verdict::BodyUnread(BodyUnread::Unparsed(Unparsed::Malformed)),
+        ),
+    ] {
+        assert_eq!(
+            evaluate_on_call(tool(), &body, &mut Budget::default()),
+            verdict
+        );
+        assert_eq!(
+            evaluate_on_call(key(), &body, &mut Budget::default()),
+            verdict
+        );
+    }
+    // A batch's items are read as a body, but name no one MCP message.
+    let batch = keep_body(br#"[{"method": "tools/call", "params": {"name": "a"}}]"#);
+    assert_eq!(
+        evaluate_on_call(tool(), &batch, &mut Budget::default()),
+        Verdict::BodyUnread(BodyUnread::Batch)
+    );
+    let first = condition(json!(["body", 0, "method"]), "eq", json!("tools/call"));
+    assert_eq!(
+        evaluate_on_call(first, &batch, &mut Budget::default()),
+        Verdict::Holds
+    );
+    let repeated = keep_body(br#"{"method": "tools/call", "params": {"name": "a", "Name": "b"}}"#);
+    assert_eq!(
+        evaluate_on_call(tool(), &repeated, &mut Budget::default()),
+        Verdict::Ambiguous
+    );
+}
+
+#[test]
+fn test_charges_an_index_by_the_items_it_passes() {
+    let body = keep_body(br#"{"items": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]}"#);
+    let at = |index: usize| condition(json!(["body", "items", index]), "existing", json!(null));
+    assert_eq!(
+        evaluate_on_call(at(8), &body, &mut Budget::new(10)),
+        Verdict::Holds
+    );
+    assert_eq!(
+        evaluate_on_call(at(9), &body, &mut Budget::new(10)),
+        Verdict::Refused(Refusal::BudgetExceeded)
+    );
 }

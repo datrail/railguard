@@ -222,7 +222,13 @@ fn walk<'a>(
         tracer.record(policy.id, &evaluation);
         match evaluation.verdict {
             // A refused call reports nothing, its alerts included.
-            Verdict::Refused(refusal) => {
+            verdict @ (Verdict::Refused(_) | Verdict::Ambiguous | Verdict::BodyUnread(_)) => {
+                let refusal = match verdict {
+                    Verdict::Refused(refusal) => refusal,
+                    // Never for a bundle, whose paths read no body: a policy that can't tell is
+                    // one that can't be applied.
+                    _ => Refusal::Uninterpretable,
+                };
                 let decision = Decision::Refused {
                     policy: policy.id,
                     refusal,

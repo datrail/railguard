@@ -1,11 +1,17 @@
+use std::borrow::Cow;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::Serialize;
 use serde_json::Value;
 
-use super::environment::Environment;
-use super::grammar::{Condition, Path, Predicate, RequestPath, Scalar, TicketPath};
+use super::environment::{CaptureRequest, Environment};
+use super::grammar::{
+    BodyPath, BodyStep, Condition, Path, Predicate, RequestPath, Scalar, TicketPath,
+};
+use crate::body::mcp::{McpReading, Unreadable};
+use crate::body::tree::{self, Kind, Member, Step};
+use crate::body::{BodyRead, Unparsed, Unread};
 use crate::endpoint::Endpoint;
 
 /// The steps one judgement may take, unless the caller sets its own.
@@ -93,17 +99,49 @@ enum Test {
 }
 
 /// What a path resolves to, borrowed from the environment.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum Lookup<'a> {
     /// Also a `null`, which a producer may write for a missing claim.
     Absent,
-    String(&'a str),
+    /// Decoded where the body writes it with an escape.
+    String(Cow<'a, str>),
+    /// A body's number past a double saturated to ±inf.
     Number(f64),
     /// Never compared: `true == 1` in some languages and not in others.
     Bool(bool),
-    /// A header with several values, or a list in the ticket, which may hold anything.
-    List(&'a [Value]),
+    /// A header with several values, or a list in the ticket or the body, which may hold anything.
+    List(Items<'a>),
     Object,
+    /// A body value that can't be told: readers differ on it.
+    Ambiguous,
+    BodyUnread(BodyUnread),
+}
+
+/// A list's items, from where it's read.
+#[derive(Clone, Copy, Debug)]
+pub enum Items<'a> {
+    Values(&'a [Value]),
+    Body(tree::Node<'a>),
+}
+
+impl<'a> Items<'a> {
+    pub fn iter(self) -> Box<dyn Iterator<Item = Lookup<'a>> + 'a> {
+        match self {
+            Self::Values(values) => Box::new(values.iter().map(read_value)),
+            Self::Body(node) => Box::new(node.items().map(read_node)),
+        }
+    }
+}
+
+/// Why a body value isn't read.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BodyUnread {
+    /// The body isn't: not kept, not sent, or cut short.
+    Unread(Unread),
+    /// The body is, but not as a tree: not JSON, or its tree past the budget.
+    Unparsed(Unparsed),
+    /// A JSON-RPC batch, for what names one MCP message.
+    Batch,
 }
 
 pub fn compile_condition(condition: &Condition) -> CompiledCondition {
@@ -136,11 +174,14 @@ pub struct Evaluation<'a> {
     pub verdict: Verdict,
 }
 
-/// Whether a condition held. A refusal is neither.
+/// Whether a condition held. The others are neither, each for its own reason.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Verdict {
     Holds,
     DoesNotHold,
+    /// The value read can't be told.
+    Ambiguous,
+    BodyUnread(BodyUnread),
     Refused(Refusal),
 }
 
@@ -169,10 +210,18 @@ pub fn evaluate_condition<'a>(
     let Node::Test(path, test) = &condition.0 else {
         return refuse(Refusal::Uninterpretable);
     };
-    let value = resolve(path, environment);
+    let value = match resolve(path, environment, budget) {
+        Ok(value) => value,
+        Err(refusal) => return refuse(refusal),
+    };
+    let verdict = match &value {
+        Lookup::Ambiguous => Verdict::Ambiguous,
+        Lookup::BodyUnread(why) => Verdict::BodyUnread(*why),
+        _ => apply(test, &value, budget),
+    };
     Evaluation {
         resolved: Some(value),
-        verdict: apply(test, value, budget).into(),
+        verdict,
     }
 }
 
@@ -187,11 +236,16 @@ fn read_scalars(items: &[Value]) -> Vec<Scalar> {
         .collect()
 }
 
-fn resolve<'a>(path: &Path, environment: &Environment<'a>) -> Lookup<'a> {
-    match path {
+fn resolve<'a>(
+    path: &Path,
+    environment: &Environment<'a>,
+    budget: &mut Budget,
+) -> Result<Lookup<'a>, Refusal> {
+    Ok(match path {
         Path::Ticket(path) => resolve_ticket(path, environment),
         Path::Request(path) => resolve_request(path, environment),
-    }
+        Path::Body(path) => return resolve_body(path, environment, budget),
+    })
 }
 
 /// One key at a time, so a step that is missing, `null` or not an object resolves to absent.
@@ -217,76 +271,163 @@ fn read_value(value: &Value) -> Lookup<'_> {
         Value::Bool(value) => Lookup::Bool(*value),
         // Always some double, since serde_json reads no number past one.
         Value::Number(number) => number.as_f64().map_or(Lookup::Absent, Lookup::Number),
-        Value::String(text) => Lookup::String(text),
-        Value::Array(values) => Lookup::List(values),
+        Value::String(text) => Lookup::String(Cow::Borrowed(text)),
+        Value::Array(values) => Lookup::List(Items::Values(values)),
         Value::Object(_) => Lookup::Object,
     }
 }
 
 fn resolve_request<'a>(path: &RequestPath, environment: &Environment<'a>) -> Lookup<'a> {
+    let field = |read: fn(&CaptureRequest) -> &str| {
+        environment.request.map_or(Lookup::Absent, |request| {
+            Lookup::String(Cow::Borrowed(read(request)))
+        })
+    };
     match path {
         RequestPath::Whole | RequestPath::Headers => Lookup::Object,
         RequestPath::EndpointKey => match environment.endpoint {
-            Endpoint::Resolved(key) => Lookup::String(key.as_str()),
+            Endpoint::Resolved(key) => Lookup::String(Cow::Borrowed(key.as_str())),
             Endpoint::Keyless | Endpoint::Unrecognised => Lookup::Absent,
         },
         RequestPath::Header(name) => match environment.headers.get(name) {
             None => Lookup::Absent,
             Some([value]) => read_value(value),
-            Some(values) => Lookup::List(values),
+            Some(values) => Lookup::List(Items::Values(values)),
         },
+        RequestPath::Host => field(|request| &request.host),
+        RequestPath::Method => field(|request| &request.method),
+        RequestPath::Path => field(|request| &request.path),
+        RequestPath::RedactedPath => field(|request| &request.redacted_path),
+        RequestPath::McpMethod => read_mcp(environment, McpReading::method),
+        RequestPath::McpTool => read_mcp(environment, McpReading::tool),
     }
 }
 
-fn apply(test: &Test, value: Lookup, budget: &mut Budget) -> Result<bool, Refusal> {
-    if let Lookup::List(items) = value {
-        budget.charge(items.len() as u64)?;
+fn read_mcp<'a>(
+    environment: &Environment<'a>,
+    read: fn(&McpReading) -> Option<&str>,
+) -> Lookup<'a> {
+    let body = match environment.body {
+        None => return Lookup::Absent,
+        Some(BodyRead::Unread(why)) => return Lookup::BodyUnread(BodyUnread::Unread(*why)),
+        Some(BodyRead::Whole(body)) => body,
+    };
+    match body.mcp() {
+        McpReading::Unreadable(Unreadable::Unparsed(why)) => {
+            Lookup::BodyUnread(BodyUnread::Unparsed(*why))
+        }
+        McpReading::Unreadable(Unreadable::Batch) => Lookup::BodyUnread(BodyUnread::Batch),
+        McpReading::Unreadable(Unreadable::Ambiguous) => Lookup::Ambiguous,
+        reading @ McpReading::Read { .. } => {
+            read(reading).map_or(Lookup::Absent, |text| Lookup::String(Cow::Borrowed(text)))
+        }
     }
-    Ok(match (test, value) {
-        (Test::Existing, value) => !matches!(value, Lookup::Absent),
-        (Test::NotExisting, value) => matches!(value, Lookup::Absent),
+}
+
+/// An index's hops charged, one per item passed.
+fn resolve_body<'a>(
+    path: &BodyPath,
+    environment: &Environment<'a>,
+    budget: &mut Budget,
+) -> Result<Lookup<'a>, Refusal> {
+    let body = match environment.body {
+        None => return Ok(Lookup::Absent),
+        Some(BodyRead::Unread(why)) => return Ok(Lookup::BodyUnread(BodyUnread::Unread(*why))),
+        Some(BodyRead::Whole(body)) => body,
+    };
+    // An empty body, as an event stream's `GET` sends, holds nothing.
+    if body.as_bytes().is_empty() {
+        return Ok(Lookup::Absent);
+    }
+    let root = match body.json() {
+        Ok(root) => root,
+        Err(why) => return Ok(Lookup::BodyUnread(BodyUnread::Unparsed(why))),
+    };
+    let mut steps = Vec::with_capacity(path.0.len());
+    for step in &path.0 {
+        steps.push(match step {
+            BodyStep::Key(key) => Step::Key(key),
+            BodyStep::Index(index) => {
+                budget.charge(*index as u64 + 1)?;
+                Step::Index(*index)
+            }
+        });
+    }
+    Ok(match root.walk(&steps) {
+        Member::Found(node) => read_node(node),
+        Member::Absent => Lookup::Absent,
+        Member::Ambiguous => Lookup::Ambiguous,
+    })
+}
+
+fn read_node(node: tree::Node<'_>) -> Lookup<'_> {
+    match node.kind() {
+        Kind::Null => Lookup::Absent,
+        Kind::Bool(value) => Lookup::Bool(value),
+        Kind::Number => std::str::from_utf8(node.raw())
+            .ok()
+            .and_then(|text| text.parse().ok())
+            .map_or(Lookup::Ambiguous, Lookup::Number),
+        // One that doesn't decode: readers differ on what it holds.
+        Kind::String => node.text().map_or(Lookup::Ambiguous, Lookup::String),
+        Kind::Array => Lookup::List(Items::Body(node)),
+        Kind::Object => Lookup::Object,
+    }
+}
+
+// A list's items read once, so the tests see them as values; one that can't be told makes the
+// list so.
+fn apply(test: &Test, value: &Lookup, budget: &mut Budget) -> Verdict {
+    let mut items = None;
+    if let Lookup::List(list) = value {
+        let read: Vec<Lookup> = list.iter().collect();
+        if let Err(refusal) = budget.charge(read.len() as u64) {
+            return Verdict::Refused(refusal);
+        }
+        if read.iter().any(|item| matches!(item, Lookup::Ambiguous)) {
+            return Verdict::Ambiguous;
+        }
+        items = Some(read);
+    }
+    holds(test, value, items.as_deref(), budget).into()
+}
+
+fn holds(
+    test: &Test,
+    value: &Lookup,
+    items: Option<&[Lookup]>,
+    budget: &mut Budget,
+) -> Result<bool, Refusal> {
+    Ok(match (test, value, items) {
+        (Test::Existing, value, _) => !matches!(value, Lookup::Absent),
+        (Test::NotExisting, value, _) => matches!(value, Lookup::Absent),
         // On a list, `eq` needs every value to equal, and `ne` any value to differ.
-        (Test::Eq(operand), Lookup::List(items)) => {
-            !items.is_empty()
-                && items
-                    .iter()
-                    .map(read_value)
-                    .all(|item| equals(item, operand))
+        (Test::Eq(operand), _, Some(items)) => {
+            !items.is_empty() && items.iter().all(|item| equals(item, operand))
         }
-        (Test::Eq(operand), value) => equals(value, operand),
-        (Test::Ne(operand), Lookup::List(items)) => {
-            !items.is_empty()
-                && items
-                    .iter()
-                    .map(read_value)
-                    .any(|item| !equals(item, operand))
+        (Test::Eq(operand), value, None) => equals(value, operand),
+        (Test::Ne(operand), _, Some(items)) => {
+            !items.is_empty() && items.iter().any(|item| !equals(item, operand))
         }
-        (Test::Ne(operand), value) => is_scalar(value) && !equals(value, operand),
-        (Test::Lt(operand), Lookup::Number(number)) => number < *operand,
-        (Test::Lte(operand), Lookup::Number(number)) => number <= *operand,
-        (Test::Gt(operand), Lookup::Number(number)) => number > *operand,
-        (Test::Gte(operand), Lookup::Number(number)) => number >= *operand,
-        (Test::In(operand), Lookup::List(items)) => {
+        (Test::Ne(operand), value, None) => is_scalar(value) && !equals(value, operand),
+        (Test::Lt(operand), Lookup::Number(number), _) => number < operand,
+        (Test::Lte(operand), Lookup::Number(number), _) => number <= operand,
+        (Test::Gt(operand), Lookup::Number(number), _) => number > operand,
+        (Test::Gte(operand), Lookup::Number(number), _) => number >= operand,
+        (Test::In(operand), _, Some(items)) => {
             budget.charge((items.len() as u64).saturating_mul(operand.len() as u64))?;
-            items
-                .iter()
-                .map(read_value)
-                .any(|item| is_member(item, operand))
+            items.iter().any(|item| is_member(item, operand))
         }
-        (Test::In(operand), value) => {
+        (Test::In(operand), value, None) => {
             budget.charge(operand.len() as u64)?;
             is_member(value, operand)
         }
-        (Test::Contains(operand), Lookup::List(items)) => items
-            .iter()
-            .map(read_value)
-            .any(|item| equals(item, operand)),
-        (Test::NotContains(operand), Lookup::List(items)) => !items
-            .iter()
-            .map(read_value)
-            .any(|item| equals(item, operand)),
-        (Test::Matches(glob), Lookup::List(items)) => {
-            for item in items.iter().map(read_value) {
+        (Test::Contains(operand), _, Some(items)) => items.iter().any(|item| equals(item, operand)),
+        (Test::NotContains(operand), _, Some(items)) => {
+            !items.iter().any(|item| equals(item, operand))
+        }
+        (Test::Matches(glob), _, Some(items)) => {
+            for item in items {
                 if let Lookup::String(text) = item
                     && glob.matches(text, budget)?
                 {
@@ -295,25 +436,25 @@ fn apply(test: &Test, value: Lookup, budget: &mut Budget) -> Result<bool, Refusa
             }
             false
         }
-        (Test::Matches(glob), Lookup::String(text)) => glob.matches(text, budget)?,
+        (Test::Matches(glob), Lookup::String(text), None) => glob.matches(text, budget)?,
         _ => false,
     })
 }
 
 /// A string or a number: the only kinds that compare, and only with their own kind.
-fn is_scalar(value: Lookup) -> bool {
+fn is_scalar(value: &Lookup) -> bool {
     matches!(value, Lookup::String(_) | Lookup::Number(_))
 }
 
-fn equals(value: Lookup, operand: &Scalar) -> bool {
+fn equals(value: &Lookup, operand: &Scalar) -> bool {
     match (value, operand) {
-        (Lookup::Number(number), Scalar::Number(operand)) => number == *operand,
+        (Lookup::Number(number), Scalar::Number(operand)) => number == operand,
         (Lookup::String(text), Scalar::String(operand)) => text == operand,
         _ => false,
     }
 }
 
-fn is_member(value: Lookup, operand: &[Scalar]) -> bool {
+fn is_member(value: &Lookup, operand: &[Scalar]) -> bool {
     operand.iter().any(|item| equals(value, item))
 }
 

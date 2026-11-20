@@ -24,15 +24,20 @@ By module:
   checked against a `SignedTicketConfig`'s keys, issuer and audience. **`parse_key_set`** reads Rail Center's signing
   keys.
 - **`condition`:** **`check_condition`** reports every problem with one condition, and whether every reader refuses it
-  or only Rail Center; **`compile_condition`** and **`evaluate_condition`** evaluate one, as the judge does.
+  or only Rail Center; **`compile_condition`** and **`evaluate_condition`** evaluate one, as the judge does, in an
+  **`Environment`** built for judging a call (`for_judging`) or for capture to match one (`for_capture`), which reads
+  its request line and its body. A **`Path`** is spelled as the bundle's dotted string or as a list, and each use checks
+  which paths it accepts (`Path::is_policy_path`, a bundle's). A body value that can't be told, or isn't read, is a
+  verdict of its own (`Ambiguous`, `BodyUnread`), never false.
 - **`endpoint`:** **`Endpoint`** and **`ResolvedKey`**, the endpoint a call asks for, keyed as a bundle binds it, and
   **`Resolution`**, whether a message is judged at all.
 - **`authority`:** **`split_authority`** reads a host and port from an `:authority`, spelled one way wherever a host is
   compared.
 - **`body`:** **`BodyBuffer`** keeps a body as it arrives, up to a cap and within a **`ByteBudget`** every kept body
-  shares, as a **`RequestBody`**: read once into a JSON tree (**`json`**, walked with `tree::Node`) and an MCP reading
-  (**`mcp`**). **`mcp::read_endpoint`** reads the endpoint an MCP message names, from its method and tool;
-  **`McpReading::read`** reads one from bytes a host holds itself.
+  shares, as a **`RequestBody`**: read once into a JSON tree (**`json`**, walked with `tree::Node`, a walk finding a
+  value, nothing, or one that can't be told) and an MCP reading (**`mcp`**, unreadable with its reason). **`BodyRead`**
+  is a call's body as a reader has it: kept whole, or unread and why. **`mcp::read_endpoint`** reads the endpoint an MCP
+  message names, from its method and tool; **`McpReading::read`** reads one from bytes a host holds itself.
 - **`sanitize`:** **`sanitize`**, **`sanitize_quoted`**, **`sanitize_unquoted`** and **`sanitize_for_json`** make text
   from a call safe to log.
 

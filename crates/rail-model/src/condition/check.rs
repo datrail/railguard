@@ -274,9 +274,9 @@ fn check_path<'a>(
         )
     } else {
         match Path::try_from(text.to_string()) {
-            Ok(path) => return Some((text, path)),
-            // Only a `request` path can fail: any `ticket` path parses.
-            Err(_) => (
+            Ok(path) if path.is_policy_path() => return Some((text, path)),
+            // Only a `request` path can fail: any `ticket` path is a policy's.
+            _ => (
                 ProblemCode::UnknownPath,
                 format!("\"{shown}\": names nothing a request carries"),
             ),
@@ -349,6 +349,10 @@ fn get_path_kind(
         Path::Request(RequestPath::Whole | RequestPath::Headers) => Ok(Kind::Object),
         Path::Request(RequestPath::EndpointKey) => Ok(Kind::String),
         Path::Request(RequestPath::Header(_)) => Ok(Kind::Header),
+        // Never reached: `check_path` keeps only a policy's paths.
+        Path::Request(_) | Path::Body(_) => {
+            Err(format!("\"{shown}\": names nothing a request carries"))
+        }
     }
 }
 

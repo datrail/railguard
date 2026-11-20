@@ -9,9 +9,11 @@ pub use check::{
     ConditionProblem, LocationSegment, OperandShape, ProblemCode, ProblemScope, TicketClaimsSchema,
     check_condition,
 };
-pub use environment::{Environment, Headers};
+pub use environment::{CaptureRequest, Environment, Headers};
 pub use evaluate::{
-    Budget, CompiledCondition, DEFAULT_STEP_LIMIT, Evaluation, Lookup, Refusal, Verdict,
-    compile_condition, evaluate_condition,
+    BodyUnread, Budget, CompiledCondition, DEFAULT_STEP_LIMIT, Evaluation, Items, Lookup, Refusal,
+    Verdict, compile_condition, evaluate_condition,
 };
-pub use grammar::{Condition, Path, Predicate, RequestPath, Scalar, TicketPath};
+pub use grammar::{
+    BodyPath, BodyStep, Condition, Path, Predicate, RequestPath, Scalar, TicketPath,
+};
