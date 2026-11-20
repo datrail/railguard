@@ -41,10 +41,11 @@ By module:
   value, nothing, or one that can't be told) and an MCP reading (**`mcp`**, or why it names nothing). **`BodyRead`** is
   a call's body as a reader has it: kept whole, or unread and why. **`mcp::read_endpoint`** reads the endpoint an MCP
   message names, from its method and tool; **`McpReading::read`** reads one from bytes a host holds itself.
-- **`capture`:** **`parse_plan`** reads a capture plan Rail Center serves to an `AgentId`: refused (**`Refused`**) when
-  it isn't a plan for this proxy, else a **`PlanReading`**, its hash and version and whether it's valid, of a version
-  unknown, invalid and why, or redacted by another `REDACTION_VERSION`. A valid **`Plan`**'s entries keep their
-  conditions as written, checked when compiled; its values are as Rail Center writes them.
+- **`capture`:** **`parse_plan`** reads a capture plan, refusing one that breaks the field reference with why
+  (**`InvalidPlan`**). A **`Plan`**'s entries keep their conditions as written, checked when compiled; its values are as
+  Rail Center writes them. Its `schema_version`'s major, its agent and its `redaction_version` are the caller's to
+  compare.
+- **`schema_version`:** **`SchemaVersion`**, a document's `MAJOR.MINOR`, a bundle's or a plan's.
 - **`request_line`:** **`RequestLine::read`** reads a call's `:authority`, `:method` and `:path` once, as conditions
   read them under `request`: the host as `split_authority` spells it, or `[unparseable]`; the path up to its query or
   fragment (`/` for a `CONNECT`), as received and redacted. It also tells why a path can match no capture plan entry

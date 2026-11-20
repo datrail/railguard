@@ -1,35 +1,23 @@
-//! A capture plan as Rail Center serves it: read once and checked whole, its values as written.
+//! A capture plan as Rail Center serves it: its shape, every object closed, then what the field
+//! reference adds to it. Its values are as Rail Center writes them.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::HashSet;
+use std::fmt;
 use std::ops::RangeInclusive;
 
-use serde::de::DeserializeOwned;
+use serde::de::Error as _;
 use serde::{Deserialize, Deserializer};
 use serde_json::value::RawValue;
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 use crate::agent::AgentId;
 use crate::condition::{
     BodyStep, Condition, ConditionUse, Path, RequestPath, Spelling, read_condition,
 };
-use crate::redaction::REDACTION_VERSION;
-
-const SCHEMA_VERSION: &str = "1.0";
+use crate::sanitize::sanitize;
+use crate::schema_version::SchemaVersion;
 
 const CATCH_ALL: &str = "catch_all";
-
-const FIELDS: [&str; 10] = [
-    "schema_version",
-    "content_hash",
-    "generated_at",
-    "agent",
-    "plan_version",
-    "redaction_version",
-    "window_seconds",
-    "budget",
-    "entries",
-    "catch_all",
-];
 
 // The proxy's ceilings on what Rail Center may ask it to hold; the schema has only minimums.
 const WINDOW_SECONDS: RangeInclusive<u32> = 60..=86_400;
@@ -38,57 +26,21 @@ const MAX_STEPS_PER_WINDOW: u32 = 1_000_000;
 const MAX_UNSENT_WINDOWS: u32 = 1_000;
 
 const MAX_ENDPOINT_ID_CHARS: usize = 64;
+const MAX_NAME_CHARS: usize = 32;
 
-/// An answer that isn't a plan for this proxy, so what's held is kept.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Refused {
-    NotJson,
-    /// No `content_hash` reading as `sha256:` and 64 lowercase hex characters.
-    NoContentHash,
-    /// Another agent's, or one naming no agent.
-    OtherAgent,
-}
-
-/// A plan as read: its hash and version, whatever else it holds, and what the proxy makes of it.
-#[derive(Debug)]
-pub struct PlanReading {
-    pub content_hash: ContentHash,
-    /// Where it reads as a whole number from 1.
-    pub plan_version: Option<u64>,
-    pub state: PlanState,
-}
-
-#[derive(Debug)]
-pub enum PlanState {
-    Valid(Plan),
-    /// Its `schema_version` isn't `1.0`.
-    Unknown,
-    /// Of `1.0`, but breaking the field reference: why, naming the field, never a value.
-    Invalid(String),
-    /// Valid, but its paths redacted by another `REDACTION_VERSION`.
-    RedactionMismatch,
-}
-
-/// Rail Center's name for a plan, `sha256:` and 64 lowercase hex characters: compared, never
-/// recomputed.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ContentHash(String);
-
-impl ContentHash {
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
-    fn read(text: String) -> Option<Self> {
-        let hex = text.strip_prefix("sha256:")?;
-        let is_hex = |byte: u8| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte);
-        (hex.len() == 64 && hex.bytes().all(is_hex)).then_some(Self(text))
-    }
-}
-
-/// A valid plan, what the proxy applies of it.
-#[derive(Debug)]
+/// The body of Rail Center's `GET /v1/capture-plan`.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Plan {
+    pub schema_version: SchemaVersion,
+    /// Changes with every field but itself and `generated_at`. It orders nothing.
+    pub content_hash: String,
+    /// RFC 3339 in UTC, with a `Z`.
+    pub generated_at: String,
+    pub agent: AgentId,
+    pub plan_version: u64,
+    /// The `REDACTION_VERSION` its paths were redacted with.
+    pub redaction_version: u64,
     pub window_seconds: u32,
     pub budget: Budget,
     /// Tried in this order.
@@ -96,20 +48,12 @@ pub struct Plan {
     pub catch_all: CatchAll,
 }
 
-/// How every call no entry takes is counted.
-#[derive(Debug)]
-pub struct CatchAll {
-    /// Always `catch_all`.
-    pub id: String,
-    pub context_keys: Vec<CatchAllKey>,
-    /// The three every record holds, and no other.
-    pub measures: Vec<Measure>,
-}
-
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Budget {
     pub max_groups_per_window: u32,
     /// Present: the order of calls is recorded too, up to this many steps.
+    #[serde(default, deserialize_with = "present")]
     pub max_steps_per_window: Option<u32>,
     pub on_max_groups: OnMaxGroups,
     pub max_unsent_windows: u32,
@@ -121,12 +65,42 @@ pub enum OnMaxGroups {
     CoarsenToCatchAll,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Entry {
     pub id: String,
+    /// Rail Center's id for the endpoint, never read.
+    #[serde(default, deserialize_with = "present")]
+    pub endpoint_id: Option<String>,
     /// Read as written; checked when compiled, so one that fails refuses its entry, not the plan.
+    #[serde(rename = "match", deserialize_with = "read_conditions")]
     pub conditions: Vec<Condition>,
+    pub record: Record,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Record {
     pub context_keys: Vec<ContextKey>,
+    #[serde(rename = "measure")]
+    pub measures: Vec<Measure>,
+}
+
+/// How every call no entry takes is counted.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CatchAll {
+    /// Always `catch_all`.
+    pub id: String,
+    pub record: CatchAllRecord,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CatchAllRecord {
+    pub context_keys: Vec<CatchAllKey>,
+    /// The three every record holds, and no other.
+    #[serde(rename = "measure")]
     pub measures: Vec<Measure>,
 }
 
@@ -177,124 +151,148 @@ pub enum Function {
     Size,
 }
 
-/// Reads a plan Rail Center served to `agent`. `Err` for one that isn't a plan for it.
-pub fn parse_plan(bytes: &[u8], agent: &AgentId) -> Result<PlanReading, Refused> {
-    let raw: Box<RawValue> = serde_json::from_slice(bytes).map_err(|_| Refused::NotJson)?;
-    let fields: Fields = serde_json::from_str(raw.get()).map_err(|_| Refused::NoContentHash)?;
-    let content_hash = peek::<String>(&fields, "content_hash")
-        .and_then(ContentHash::read)
-        .ok_or(Refused::NoContentHash)?;
-    let named = peek::<Value>(&fields, "agent").unwrap_or_default();
-    if named["host_id"] != agent.host_id.as_str()
-        || named["sandbox_name"] != agent.sandbox_name.as_str()
-    {
-        return Err(Refused::OtherAgent);
+/// Why a plan can't be used. It is refused whole.
+#[derive(Debug)]
+pub struct InvalidPlan(String);
+
+impl fmt::Display for InvalidPlan {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "invalid capture plan: {}", self.0)
     }
-    let plan_version = peek::<u64>(&fields, "plan_version").filter(|version| *version >= 1);
-    let state = if peek::<String>(&fields, "schema_version").as_deref() != Some(SCHEMA_VERSION) {
-        PlanState::Unknown
-    } else {
-        match read_plan(&fields) {
-            Err(why) => PlanState::Invalid(why),
-            // Compared last, so a mismatch only describes a plan otherwise applied.
-            Ok((_, redaction_version)) if redaction_version != REDACTION_VERSION => {
-                PlanState::RedactionMismatch
-            }
-            Ok((plan, _)) => PlanState::Valid(plan),
-        }
-    };
-    Ok(PlanReading {
-        content_hash,
-        plan_version,
-        state,
-    })
 }
 
-// Raw, so what serde_json can't hold fails a condition, not the plan.
-type Fields = BTreeMap<String, Box<RawValue>>;
+impl std::error::Error for InvalidPlan {}
 
-fn peek<T: DeserializeOwned>(fields: &Fields, name: &str) -> Option<T> {
-    serde_json::from_str(fields.get(name)?.get()).ok()
+/// Reads a plan and checks it against the field reference. Its `schema_version`'s major, its
+/// agent and its `redaction_version` are the caller's to compare.
+pub fn parse_plan(json: &str) -> Result<Plan, InvalidPlan> {
+    let refuse = |why: &str| InvalidPlan(sanitize(why).to_string());
+    let plan: Plan = serde_json::from_str(json).map_err(|error| refuse(&error.to_string()))?;
+    check_plan(&plan).map_err(|why| refuse(&why))?;
+    Ok(plan)
 }
 
-// The plan and its `redaction_version`.
-fn read_plan(fields: &Fields) -> Result<(Plan, u64), String> {
-    if let Some(name) = fields.keys().find(|name| !FIELDS.contains(&name.as_str())) {
-        return Err(format!("{name}: not a field of a plan"));
+fn check_plan(plan: &Plan) -> Result<(), String> {
+    if !is_utc_time(&plan.generated_at) {
+        return Err("generated_at isn't an RFC 3339 time in UTC, with a Z".to_owned());
     }
-    let generated_at: String = read_field(fields, "generated_at")?;
-    if !is_utc_time(&generated_at) {
-        return Err("generated_at: not an RFC 3339 time in UTC, with a Z".to_owned());
+    if plan.plan_version == 0 || plan.redaction_version == 0 {
+        return Err("plan_version and redaction_version are from 1".to_owned());
     }
-    let agent: WireAgent = read_field(fields, "agent")?;
-    if agent.agent_key.is_some_and(|key| key.is_empty()) {
-        return Err("agent.agent_key: empty".to_owned());
-    }
-    let plan_version: u64 = read_field(fields, "plan_version")?;
-    at_least_one(plan_version, "plan_version")?;
-    let redaction_version: u64 = read_field(fields, "redaction_version")?;
-    at_least_one(redaction_version, "redaction_version")?;
-    let window_seconds: u32 = read_field(fields, "window_seconds")?;
-    if !WINDOW_SECONDS.contains(&window_seconds) {
+    if !WINDOW_SECONDS.contains(&plan.window_seconds) {
         return Err(format!(
-            "window_seconds: outside {} to {}",
+            "window_seconds is outside {} to {}",
             WINDOW_SECONDS.start(),
             WINDOW_SECONDS.end()
         ));
     }
-    let budget = read_budget(read_field(fields, "budget")?)?;
-    let entries: Vec<Box<RawValue>> = read_field(fields, "entries")?;
-    let entries = entries
-        .iter()
-        .enumerate()
-        .map(|(index, raw)| read_entry(&format!("entries[{index}]"), raw))
-        .collect::<Result<Vec<_>, _>>()?;
+    check_budget(&plan.budget)?;
     let mut ids = HashSet::new();
-    if let Some(index) = entries
-        .iter()
-        .position(|entry| !ids.insert(entry.id.as_str()))
+    for entry in &plan.entries {
+        if !ids.insert(entry.id.as_str()) {
+            return Err(format!("entry {} appears twice", entry.id));
+        }
+        check_entry(entry).map_err(|why| format!("entry {}: {why}", entry.id))?;
+    }
+    check_catch_all(&plan.catch_all).map_err(|why| format!("catch_all: {why}"))
+}
+
+fn check_budget(budget: &Budget) -> Result<(), String> {
+    let groups = budget.max_groups_per_window;
+    if !(1..=MAX_GROUPS_PER_WINDOW).contains(&groups) {
+        return Err(format!(
+            "max_groups_per_window is outside 1 to {MAX_GROUPS_PER_WINDOW}"
+        ));
+    }
+    if let Some(steps) = budget.max_steps_per_window
+        && !(groups..=MAX_STEPS_PER_WINDOW).contains(&steps)
     {
-        return Err(format!("entries[{index}].id: an earlier entry's"));
+        return Err(format!(
+            "max_steps_per_window is outside max_groups_per_window to {MAX_STEPS_PER_WINDOW}"
+        ));
     }
-    let catch_all = read_catch_all(read_field(fields, "catch_all")?)?;
-    let plan = Plan {
-        window_seconds,
-        budget,
-        entries,
-        catch_all,
-    };
-    Ok((plan, redaction_version))
+    if budget.max_unsent_windows > MAX_UNSENT_WINDOWS {
+        return Err(format!("max_unsent_windows is above {MAX_UNSENT_WINDOWS}"));
+    }
+    Ok(())
 }
 
-fn read_field<T: DeserializeOwned>(fields: &Fields, name: &str) -> Result<T, String> {
-    let raw = fields.get(name).ok_or_else(|| format!("{name}: missing"))?;
-    read_raw(raw, name)
+fn check_entry(entry: &Entry) -> Result<(), String> {
+    if entry.id.is_empty() || entry.id == CATCH_ALL {
+        return Err(format!("its id is empty or {CATCH_ALL}"));
+    }
+    if let Some(endpoint_id) = &entry.endpoint_id
+        && !(1..=MAX_ENDPOINT_ID_CHARS).contains(&endpoint_id.chars().count())
+    {
+        return Err(format!(
+            "its endpoint_id isn't 1 to {MAX_ENDPOINT_ID_CHARS} characters"
+        ));
+    }
+    if entry.conditions.is_empty() {
+        return Err("its match is empty".to_owned());
+    }
+    let keys = entry.record.context_keys.iter().map(|key| match key {
+        ContextKey::Method => "method",
+        ContextKey::Named { name, .. } => name,
+    });
+    unique("context key", keys)?;
+    check_measures(&entry.record.measures)
 }
 
-fn read_raw<T: DeserializeOwned>(raw: &RawValue, at: &str) -> Result<T, String> {
-    serde_json::from_str(raw.get()).map_err(|error| format!("{at}: {}", describe(&error)))
-}
-
-// serde's message names a field, but may quote a value, which a reason never holds.
-fn describe(error: &serde_json::Error) -> String {
-    let message = error.to_string();
-    let message = message.split(" at line ").next().unwrap_or_default();
-    let names_a_field = ["unknown field", "missing field", "duplicate field"]
+fn check_catch_all(catch_all: &CatchAll) -> Result<(), String> {
+    if catch_all.id != CATCH_ALL {
+        return Err(format!("its id isn't {CATCH_ALL}"));
+    }
+    let keys = &catch_all.record.context_keys;
+    let names = keys.iter().map(|key| match key {
+        CatchAllKey::Host => "host",
+        CatchAllKey::PathPrefix { .. } => "path_prefix",
+        CatchAllKey::Method => "method",
+        CatchAllKey::Operation => "operation",
+    });
+    unique("context key", names)?;
+    if !keys.contains(&CatchAllKey::Host) {
+        return Err("no host context key".to_owned());
+    }
+    let measures = &catch_all.record.measures;
+    if let Some(Measure::Named { name, .. }) = measures
         .iter()
-        .any(|kind| message.starts_with(kind));
-    if names_a_field {
-        message.split(',').next().unwrap_or_default().to_owned()
-    } else {
-        "a value of the wrong type or out of range".to_owned()
+        .find(|measure| matches!(measure, Measure::Named { .. }))
+    {
+        return Err(format!("measure {name}: only the built-in ones"));
     }
+    check_measures(measures)
 }
 
-fn at_least_one(value: u64, at: &str) -> Result<(), String> {
-    if value == 0 {
-        Err(format!("{at}: below 1"))
-    } else {
-        Ok(())
+// A set by name, holding the three every record does.
+fn check_measures(measures: &[Measure]) -> Result<(), String> {
+    let names = measures.iter().map(|measure| match measure {
+        Measure::CallCount => "call_count",
+        Measure::ErrorCount => "error_count",
+        Measure::RequestBytes => "request_bytes",
+        Measure::Named { name, .. } => name,
+    });
+    unique("measure", names)?;
+    for (built_in, name) in [
+        (Measure::CallCount, "call_count"),
+        (Measure::ErrorCount, "error_count"),
+        (Measure::RequestBytes, "request_bytes"),
+    ] {
+        if !measures.contains(&built_in) {
+            return Err(format!("no {name} measure"));
+        }
     }
+    Ok(())
+}
+
+fn unique<'a>(what: &str, names: impl Iterator<Item = &'a str>) -> Result<(), String> {
+    let mut seen = HashSet::new();
+    for name in names {
+        if !seen.insert(name) {
+            return Err(format!("{what} {name} appears twice"));
+        }
+    }
+    Ok(())
 }
 
 // `YYYY-MM-DDTHH:MM:SS`, fractional seconds or none, then `Z`.
@@ -316,103 +314,6 @@ fn is_utc_time(text: &str) -> bool {
         && fraction.bytes().all(|byte| byte.is_ascii_digit())
 }
 
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct WireAgent {
-    #[serde(rename = "host_id")]
-    _host_id: String,
-    #[serde(rename = "sandbox_name")]
-    _sandbox_name: String,
-    #[serde(default, deserialize_with = "present")]
-    agent_key: Option<String>,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct WireBudget {
-    max_groups_per_window: u32,
-    #[serde(default, deserialize_with = "present")]
-    max_steps_per_window: Option<u32>,
-    on_max_groups: OnMaxGroups,
-    max_unsent_windows: u32,
-}
-
-fn read_budget(budget: WireBudget) -> Result<Budget, String> {
-    let groups = budget.max_groups_per_window;
-    if !(1..=MAX_GROUPS_PER_WINDOW).contains(&groups) {
-        return Err(format!(
-            "budget.max_groups_per_window: outside 1 to {MAX_GROUPS_PER_WINDOW}"
-        ));
-    }
-    if let Some(steps) = budget.max_steps_per_window
-        && !(groups..=MAX_STEPS_PER_WINDOW).contains(&steps)
-    {
-        return Err(format!(
-            "budget.max_steps_per_window: outside max_groups_per_window to {MAX_STEPS_PER_WINDOW}"
-        ));
-    }
-    if budget.max_unsent_windows > MAX_UNSENT_WINDOWS {
-        return Err(format!(
-            "budget.max_unsent_windows: above {MAX_UNSENT_WINDOWS}"
-        ));
-    }
-    Ok(Budget {
-        max_groups_per_window: groups,
-        max_steps_per_window: budget.max_steps_per_window,
-        on_max_groups: budget.on_max_groups,
-        max_unsent_windows: budget.max_unsent_windows,
-    })
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct WireEntry {
-    id: String,
-    #[serde(default, deserialize_with = "present")]
-    endpoint_id: Option<String>,
-    #[serde(rename = "match")]
-    conditions: Vec<Box<RawValue>>,
-    record: WireRecord,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct WireRecord {
-    context_keys: Vec<WireKey>,
-    measure: Vec<WireMeasure>,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct WireKey {
-    name: String,
-    #[serde(default, deserialize_with = "present")]
-    path: Option<Vec<Value>>,
-    #[serde(default, deserialize_with = "present")]
-    field_type: Option<String>,
-    #[serde(default, deserialize_with = "present")]
-    segments: Option<u32>,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct WireMeasure {
-    name: String,
-    #[serde(rename = "type", default, deserialize_with = "present")]
-    combine: Option<Combine>,
-    #[serde(default, deserialize_with = "present")]
-    function: Option<Function>,
-    #[serde(default, deserialize_with = "present")]
-    paths: Option<Vec<Vec<Value>>>,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct WireCatchAll {
-    id: String,
-    record: WireRecord,
-}
-
 // An optional field is left out, never `null`.
 fn present<'de, D: Deserializer<'de>, T: Deserialize<'de>>(
     deserializer: D,
@@ -420,242 +321,198 @@ fn present<'de, D: Deserializer<'de>, T: Deserialize<'de>>(
     T::deserialize(deserializer).map(Some)
 }
 
-fn read_entry(at: &str, raw: &RawValue) -> Result<Entry, String> {
-    let entry: WireEntry = read_raw(raw, at)?;
-    if entry.id.is_empty() || entry.id == CATCH_ALL {
-        return Err(format!("{at}.id: empty or {CATCH_ALL}"));
-    }
-    if let Some(endpoint_id) = &entry.endpoint_id
-        && !(1..=MAX_ENDPOINT_ID_CHARS).contains(&endpoint_id.chars().count())
-    {
-        return Err(format!(
-            "{at}.endpoint_id: not 1 to {MAX_ENDPOINT_ID_CHARS} characters"
-        ));
-    }
-    if entry.conditions.is_empty() {
-        return Err(format!("{at}.match: empty"));
-    }
-    // A raw value holds no whitespace around it.
-    if let Some(index) = entry
-        .conditions
+// Raw, so what serde_json can't hold fails a condition, not the plan.
+fn read_conditions<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Condition>, D::Error> {
+    let conditions = Vec::<Box<RawValue>>::deserialize(deserializer)?;
+    conditions
         .iter()
-        .position(|raw| !raw.get().starts_with('{'))
-    {
-        return Err(format!("{at}.match[{index}]: not an object"));
-    }
-    let conditions = entry
-        .conditions
-        .iter()
-        .map(|raw| read_condition(raw, Spelling::Plan))
-        .collect();
-    let record = &entry.record;
-    unique_names(
-        record.context_keys.iter().map(|key| &key.name),
-        &format!("{at}.record.context_keys"),
-    )?;
-    let context_keys = record
-        .context_keys
-        .iter()
-        .enumerate()
-        .map(|(index, key)| read_context_key(&format!("{at}.record.context_keys[{index}]"), key))
-        .collect::<Result<_, _>>()?;
-    let measures = read_measures(&format!("{at}.record.measure"), &record.measure, true)?;
-    Ok(Entry {
-        id: entry.id,
-        conditions,
-        context_keys,
-        measures,
-    })
+        .map(|raw| {
+            // A raw value holds no whitespace around it.
+            if !raw.get().starts_with('{') {
+                return Err(D::Error::custom("a condition isn't an object"));
+            }
+            Ok(read_condition(raw, Spelling::Plan))
+        })
+        .collect()
 }
 
-fn read_context_key(at: &str, key: &WireKey) -> Result<ContextKey, String> {
-    match key.name.as_str() {
+impl<'de> Deserialize<'de> for ContextKey {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let mut fields = Map::deserialize(deserializer)?;
+        read_context_key(&mut fields).map_err(D::Error::custom)
+    }
+}
+
+// A key's fields depend on its name.
+fn read_context_key(fields: &mut Map<String, Value>) -> Result<ContextKey, String> {
+    let name = take_name(fields, "context key")?;
+    let at = format!("context key {name}");
+    match name.as_str() {
         "method" => {
-            only_name(
-                at,
-                key.path.is_none() && key.field_type.is_none() && key.segments.is_none(),
-            )?;
+            only_its_own(fields, &at)?;
             Ok(ContextKey::Method)
         }
         "host" | "path_prefix" | "operation" => Err(format!("{at}: the catch-all's alone")),
-        name => {
-            if !is_name(name) {
-                return Err(format!("{at}.name: {NOT_A_NAME}"));
-            }
-            if key.segments.is_some() {
-                return Err(format!("{at}.segments: only on path_prefix"));
-            }
-            let path = key
-                .path
-                .as_deref()
-                .ok_or_else(|| format!("{at}.path: missing"))?;
-            let field_type = key
-                .field_type
-                .clone()
-                .ok_or_else(|| format!("{at}.field_type: missing"))?;
+        _ => {
+            let path = take(fields, "path", &at)?;
+            let field_type = take(fields, "field_type", &at)?;
+            only_its_own(fields, &at)?;
+            let Value::String(field_type) = field_type else {
+                return Err(format!("{at}: its field_type isn't a string"));
+            };
             if !is_name(&field_type) {
-                return Err(format!("{at}.field_type: {NOT_A_NAME}"));
+                return Err(format!("{at}: its field_type {NOT_A_NAME}"));
             }
             Ok(ContextKey::Named {
-                name: name.to_owned(),
-                path: read_record_path(&format!("{at}.path"), path)?,
+                path: read_record_path(&path).map_err(|why| format!("{at}: {why}"))?,
+                name,
                 field_type,
             })
         }
     }
 }
 
-// An entry's measures, or the catch-all's, which holds the three alone.
-fn read_measures(at: &str, wire: &[WireMeasure], entry: bool) -> Result<Vec<Measure>, String> {
-    unique_names(wire.iter().map(|measure| &measure.name), at)?;
-    let measures = wire
-        .iter()
-        .enumerate()
-        .map(|(index, measure)| read_measure(&format!("{at}[{index}]"), measure, entry))
-        .collect::<Result<Vec<_>, _>>()?;
-    for (built_in, name) in [
-        (Measure::CallCount, "call_count"),
-        (Measure::ErrorCount, "error_count"),
-        (Measure::RequestBytes, "request_bytes"),
-    ] {
-        if !measures.contains(&built_in) {
-            return Err(format!("{at}: no {name}"));
-        }
-    }
-    Ok(measures)
-}
-
-fn read_measure(at: &str, measure: &WireMeasure, entry: bool) -> Result<Measure, String> {
-    let parts = (measure.combine, measure.function, measure.paths.as_deref());
-    match measure.name.as_str() {
-        "call_count" | "error_count" => {
-            only_name(at, parts == (None, None, None))?;
-            Ok(match measure.name.as_str() {
-                "call_count" => Measure::CallCount,
-                _ => Measure::ErrorCount,
-            })
-        }
-        "request_bytes" => {
-            let whole_body = [vec![json!("request"), json!("body")]];
-            match parts {
-                (Some(Combine::Sum), Some(Function::Size), Some(paths)) if paths == whole_body => {
-                    Ok(Measure::RequestBytes)
-                }
-                _ => Err(format!(
-                    "{at}: not a sum of size over [[\"request\", \"body\"]]"
-                )),
-            }
-        }
-        _ if !entry => Err(format!(
-            "{at}: the catch-all holds only the built-in measures"
-        )),
-        name => {
-            if !is_name(name) {
-                return Err(format!("{at}.name: {NOT_A_NAME}"));
-            }
-            let (Some(combine), Some(function), Some(paths)) = parts else {
-                return Err(format!("{at}: missing its type, function or paths"));
-            };
-            if paths.is_empty() {
-                return Err(format!("{at}.paths: empty"));
-            }
-            let paths = paths
-                .iter()
-                .enumerate()
-                .map(|(index, path)| read_record_path(&format!("{at}.paths[{index}]"), path))
-                .collect::<Result<_, _>>()?;
-            Ok(Measure::Named {
-                name: name.to_owned(),
-                combine,
-                function,
-                paths,
-            })
-        }
+impl<'de> Deserialize<'de> for CatchAllKey {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let mut fields = Map::deserialize(deserializer)?;
+        read_catch_all_key(&mut fields).map_err(D::Error::custom)
     }
 }
 
-fn read_catch_all(catch_all: WireCatchAll) -> Result<CatchAll, String> {
-    if catch_all.id != CATCH_ALL {
-        return Err(format!("catch_all.id: not {CATCH_ALL}"));
-    }
-    let at = "catch_all.record.context_keys";
-    let wire = &catch_all.record.context_keys;
-    unique_names(wire.iter().map(|key| &key.name), at)?;
-    let context_keys = wire
-        .iter()
-        .enumerate()
-        .map(|(index, key)| {
-            let at = format!("{at}[{index}]");
-            let named_alone = key.path.is_none() && key.field_type.is_none();
-            match (key.name.as_str(), key.segments) {
-                ("path_prefix", Some(segments)) if named_alone && segments >= 1 => {
-                    Ok(CatchAllKey::PathPrefix { segments })
-                }
-                ("path_prefix", _) => Err(format!("{at}: not a name and segments from 1")),
-                (name, segments) => {
-                    let key = match name {
-                        "host" => CatchAllKey::Host,
-                        "method" => CatchAllKey::Method,
-                        "operation" => CatchAllKey::Operation,
-                        _ => return Err(format!("{at}: not a built-in key")),
-                    };
-                    only_name(&at, named_alone && segments.is_none())?;
-                    Ok(key)
-                }
+fn read_catch_all_key(fields: &mut Map<String, Value>) -> Result<CatchAllKey, String> {
+    let name = take_name(fields, "context key")?;
+    let at = format!("context key {name}");
+    let key = match name.as_str() {
+        "host" => CatchAllKey::Host,
+        "method" => CatchAllKey::Method,
+        "operation" => CatchAllKey::Operation,
+        "path_prefix" => {
+            let segments = take(fields, "segments", &at)?;
+            match segments
+                .as_u64()
+                .and_then(|segments| u32::try_from(segments).ok())
+            {
+                Some(segments @ 1..) => CatchAllKey::PathPrefix { segments },
+                _ => return Err(format!("{at}: its segments aren't a whole number from 1")),
             }
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    if !context_keys.contains(&CatchAllKey::Host) {
-        return Err(format!("{at}: no host"));
+        }
+        _ => return Err(format!("{at}: not a built-in one")),
+    };
+    only_its_own(fields, &at)?;
+    Ok(key)
+}
+
+impl<'de> Deserialize<'de> for Measure {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let mut fields = Map::deserialize(deserializer)?;
+        read_measure(&mut fields).map_err(D::Error::custom)
     }
-    let measures = read_measures("catch_all.record.measure", &catch_all.record.measure, false)?;
-    Ok(CatchAll {
-        id: catch_all.id,
-        context_keys,
-        measures,
+}
+
+// A measure's fields depend on its name.
+fn read_measure(fields: &mut Map<String, Value>) -> Result<Measure, String> {
+    let name = take_name(fields, "measure")?;
+    let at = format!("measure {name}");
+    let built_in = match name.as_str() {
+        "call_count" => Some(Measure::CallCount),
+        "error_count" => Some(Measure::ErrorCount),
+        _ => None,
+    };
+    if let Some(built_in) = built_in {
+        only_its_own(fields, &at)?;
+        return Ok(built_in);
+    }
+    let combine = take(fields, "type", &at)?;
+    let function = take(fields, "function", &at)?;
+    let paths = take(fields, "paths", &at)?;
+    only_its_own(fields, &at)?;
+    if name == "request_bytes" {
+        let whole_body = json!([["request", "body"]]);
+        if (combine, function, paths) != (json!("sum"), json!("size"), whole_body) {
+            return Err(format!(
+                "{at}: not a sum of size over [[\"request\", \"body\"]]"
+            ));
+        }
+        return Ok(Measure::RequestBytes);
+    }
+    let unlisted = |field: &str| format!("{at}: its {field} is none the reference lists");
+    let combine = Combine::deserialize(combine).map_err(|_| unlisted("type"))?;
+    let function = Function::deserialize(function).map_err(|_| unlisted("function"))?;
+    let paths = match paths {
+        Value::Array(paths) if !paths.is_empty() => paths,
+        _ => return Err(format!("{at}: its paths aren't a list of one or more")),
+    };
+    let paths = paths
+        .iter()
+        .map(read_record_path)
+        .collect::<Result<_, _>>()
+        .map_err(|why| format!("{at}: {why}"))?;
+    Ok(Measure::Named {
+        name,
+        combine,
+        function,
+        paths,
     })
 }
 
-fn only_name(at: &str, holds_only_its_name: bool) -> Result<(), String> {
-    if holds_only_its_name {
-        Ok(())
+// A built-in name, or one synthesis names.
+fn take_name(fields: &mut Map<String, Value>, what: &str) -> Result<String, String> {
+    let Some(Value::String(name)) = fields.remove("name") else {
+        return Err(format!("a {what} with no name that's a string"));
+    };
+    let built_in = [
+        "host",
+        "path_prefix",
+        "method",
+        "operation",
+        "call_count",
+        "error_count",
+        "request_bytes",
+    ];
+    if built_in.contains(&name.as_str()) || is_name(&name) {
+        Ok(name)
     } else {
-        Err(format!("{at}: a built-in holds only its name"))
+        Err(format!("{what} {name}: its name {NOT_A_NAME}"))
     }
 }
 
-// A set by name.
-fn unique_names<'a>(mut names: impl Iterator<Item = &'a String>, at: &str) -> Result<(), String> {
-    let mut seen = HashSet::new();
-    match names.position(|name| !seen.insert(name)) {
-        Some(index) => Err(format!("{at}[{index}].name: an earlier one's")),
+fn take(fields: &mut Map<String, Value>, field: &str, at: &str) -> Result<Value, String> {
+    fields
+        .remove(field)
+        .ok_or_else(|| format!("{at}: no {field}"))
+}
+
+// What's left once its own fields are taken.
+fn only_its_own(fields: &Map<String, Value>, at: &str) -> Result<(), String> {
+    match fields.keys().next() {
+        Some(field) => Err(format!("{at}: a field {field} it doesn't have")),
         None => Ok(()),
     }
 }
 
-const NOT_A_NAME: &str = "not lowercase letters, digits and _, from a letter, up to 32";
+const NOT_A_NAME: &str = "isn't lowercase letters, digits and _, from a letter, up to 32";
 
 fn is_name(text: &str) -> bool {
     let mut bytes = text.bytes();
     bytes.next().is_some_and(|first| first.is_ascii_lowercase())
-        && text.len() <= 32
+        && text.len() <= MAX_NAME_CHARS
         && bytes.all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_')
 }
 
 // A context key's or a measure's: into the body, the query or the redacted path's segments.
-fn read_record_path(at: &str, steps: &[Value]) -> Result<Path, String> {
-    let path = Path::from_steps(steps)
+fn read_record_path(steps: &Value) -> Result<Path, String> {
+    let path = steps
+        .as_array()
+        .and_then(|steps| Path::from_steps(steps))
         .filter(|path| ConditionUse::PlanRecord.reads(path))
-        .ok_or_else(|| {
-            format!("{at}: not a path into the body, the query or a redacted path segment")
-        })?;
+        .ok_or("a path not into the body, the query or a redacted path segment")?;
     if let Path::Request(RequestPath::Body(body)) = &path
         && body
             .0
             .iter()
             .any(|step| matches!(step, BodyStep::Key(key) if key.is_empty()))
     {
-        return Err(format!("{at}: an empty key"));
+        return Err("a path with an empty key".to_owned());
     }
     Ok(path)
 }
