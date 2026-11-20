@@ -10,8 +10,8 @@ use crate::endpoint::{Resolution, resolve_endpoint};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum McpReading {
     /// Not read as a tree (not JSON, or past the budget), a JSON-RPC batch, or with `method`,
-    /// `params`, `params.name` or `params.arguments` repeated, letter case ignored: what it names
-    /// can't be told.
+    /// `params`, `params.name` or `params.arguments` repeated, letter case ignored, or written as a
+    /// key that doesn't read but a forgiving reader takes for it: what it names can't be told.
     Unreadable,
     /// An empty body, or a JSON value: `method` and `tool` are absent where it doesn't name them.
     Read {
@@ -46,10 +46,12 @@ impl McpReading {
             return Self::Unreadable;
         }
         let params = root.get("params");
-        let repeated = root.repeats("method")
-            || root.repeats("params")
-            || params.is_some_and(|params| params.repeats("name") || params.repeats("arguments"));
-        if repeated {
+        let ambiguous = root.is_ambiguous("method")
+            || root.is_ambiguous("params")
+            || params.is_some_and(|params| {
+                params.is_ambiguous("name") || params.is_ambiguous("arguments")
+            });
+        if ambiguous {
             return Self::Unreadable;
         }
         let method = root

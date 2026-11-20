@@ -21,11 +21,15 @@ const MAX_NESTING: usize = 256;
 pub(crate) struct Tree {
     entries: Vec<Entry>,
     decode: Decode,
+    guess: Guess,
 }
 
 /// A string's text from its raw text, `escaped` if that holds anything to decode; `None` for one
 /// its format can't hold.
 type Decode = fn(&[u8], bool) -> Option<Cow<'_, str>>;
+
+/// The text a forgiving reader makes of a string its format can't hold, from its raw text.
+type Guess = fn(&[u8]) -> String;
 
 #[derive(Clone, Copy, Debug)]
 struct Entry {
@@ -55,17 +59,20 @@ impl Tree {
 pub(crate) struct Builder<'g> {
     entries: Vec<Entry>,
     decode: Decode,
+    guess: Guess,
     // The containers open, innermost last.
     open: Vec<usize>,
     grow: &'g mut dyn FnMut(usize) -> bool,
 }
 
 impl<'g> Builder<'g> {
-    /// For content of up to 4 GiB, positions being `u32`, its strings read with `decode`. `grow`
-    /// is asked before the tree takes more bytes, and can refuse them.
+    /// For content of up to 4 GiB, positions being `u32`, its strings read with `decode`, or
+    /// `guess` where that fails. `grow` is asked before the tree takes more bytes, and can refuse
+    /// them.
     pub(crate) fn new(
         content_bytes: usize,
         decode: Decode,
+        guess: Guess,
         grow: &'g mut dyn FnMut(usize) -> bool,
     ) -> Result<Self, Unparsed> {
         if u32::try_from(content_bytes).is_err() {
@@ -74,6 +81,7 @@ impl<'g> Builder<'g> {
         Ok(Self {
             entries: Vec::new(),
             decode,
+            guess,
             open: Vec::new(),
             grow,
         })
@@ -111,6 +119,7 @@ impl<'g> Builder<'g> {
         Ok(Tree {
             entries: self.entries,
             decode: self.decode,
+            guess: self.guess,
         })
     }
 
@@ -215,8 +224,7 @@ impl<'a> Node<'a> {
         })
     }
 
-    /// The value under `key`: `None` if absent, or repeated, letter case ignored. A key is compared
-    /// as it reads; one that doesn't read matches nothing.
+    /// The value under `key`: `None` if absent or not told apart ([`Self::is_ambiguous`]).
     pub(crate) fn get(&self, key: &str) -> Option<Node<'a>> {
         match self.look_up(key) {
             Member::Found(value) => Some(value),
@@ -224,10 +232,11 @@ impl<'a> Node<'a> {
         }
     }
 
-    /// Whether `key` is there more than once, letter case ignored: what it holds can't be told,
-    /// since readers differ on which they keep.
-    pub(crate) fn repeats(&self, key: &str) -> bool {
-        matches!(self.look_up(key), Member::Repeated)
+    /// Whether what `key` holds can't be told: it's there more than once, letter case ignored, and
+    /// readers differ on which they keep; or a key that doesn't read is one a forgiving reader
+    /// takes for it.
+    pub(crate) fn is_ambiguous(&self, key: &str) -> bool {
+        matches!(self.look_up(key), Member::Ambiguous)
     }
 
     fn look_up(&self, key: &str) -> Member<'a> {
@@ -235,13 +244,16 @@ impl<'a> Node<'a> {
         let mut seen = false;
         for (name, value) in self.members() {
             let Some(name) = name.text() else {
+                if same_but_case(&(self.tree.guess)(name.raw()), key) {
+                    return Member::Ambiguous;
+                }
                 continue;
             };
             if !same_but_case(&name, key) {
                 continue;
             }
             if seen {
-                return Member::Repeated;
+                return Member::Ambiguous;
             }
             seen = true;
             if name == key {
@@ -251,9 +263,9 @@ impl<'a> Node<'a> {
         found
     }
 
-    /// The value at `steps` from this one: a key, absent if repeated with letter case ignored, or an
-    /// index into an array; `None` where a step finds nothing, or the value found is `null`. A key
-    /// is compared as it reads; one that doesn't read matches nothing.
+    /// The value at `steps` from this one: a key, absent if repeated with letter case ignored, or
+    /// if a key that doesn't read is one a forgiving reader takes for it; or an index into an
+    /// array. `None` where a step finds nothing, or the value found is `null`.
     pub fn walk(&self, steps: &[Step<'_>]) -> Option<Node<'a>> {
         let mut node = *self;
         for step in steps {
@@ -287,7 +299,7 @@ impl<'a> Node<'a> {
 enum Member<'a> {
     Absent,
     Found(Node<'a>),
-    Repeated,
+    Ambiguous,
 }
 
 struct Children<'a> {

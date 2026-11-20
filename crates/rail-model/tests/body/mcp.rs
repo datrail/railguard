@@ -63,6 +63,20 @@ fn test_reads_the_method_and_tool_a_body_names() {
             r#"{"method": "resources/read", "params": {"arguments": {}, "Arguments": {}}}"#,
             McpReading::Unreadable,
         ),
+        // Written as a key that doesn't read, but a forgiving reader takes for it.
+        (
+            r#"{"method": "tools/list", "\method": "tools/call", "params": {"name": "a"}}"#,
+            McpReading::Unreadable,
+        ),
+        (
+            r#"{"method": "tools/call", "params": {"name": "a", "N\u0041m\e": "b"}}"#,
+            McpReading::Unreadable,
+        ),
+        // Keys that don't read, nor read as one read: read past.
+        (
+            "{\"\\q\": 0, \"meth\tod\": 0, \"\\ud800method\": 0, \"method\": \"ping\"}",
+            build_reading(Some("ping"), None),
+        ),
         // Only in another case: not the key read.
         (
             r#"{"Method": "tools/call", "params": {"name": "a"}}"#,

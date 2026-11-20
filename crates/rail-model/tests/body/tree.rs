@@ -30,7 +30,8 @@ fn test_walks_keys_and_indexes() {
     let body = keep(
         br#"{"a": {"b": [10, {"c": "x"}, null]}, "Dup": 1, "dup": 2, "\ud800": 5, "Solo": 3,
             "n": null, "e\u0073c": 4, "\u00c9": 6, "\u00e9": 7, "foo\u017f": 8, "foos": 9,
-            "\u0130d": 10, "id": 11}"#,
+            "\u0130d": 10, "id": 11, "\u0041\u0042\q": 12, "abq": 13,
+            "\ud83d\ude00\q": 14, "\ud83d\ude00q": 15}"#,
     );
     let root = body.json().unwrap();
     let found = |steps: &[Step]| root.walk(steps).map(render);
@@ -61,6 +62,11 @@ fn test_walks_keys_and_indexes() {
         (&[Key("foos")], "repeated but for case, ſ folding to s"),
         (&[Key("id")], "repeated but for case, İ folding to i"),
         (&[Key("solo")], "only there in another case"),
+        (&[Key("abq")], "a key that doesn't read but is taken for it"),
+        (
+            &[Key("\u{1f600}q")],
+            "a key that doesn't read, its surrogate pair taken for it",
+        ),
         (&[Key("a"), Index(0)], "an index into an object"),
         (&[Key("a"), Key("b"), Key("0")], "a key into an array"),
         (&[Key("missing")], "absent"),

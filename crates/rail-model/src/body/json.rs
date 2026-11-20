@@ -22,7 +22,7 @@ pub(crate) fn parse(content: &[u8], grow: &mut dyn FnMut(usize) -> bool) -> Resu
         } else {
             0
         },
-        builder: Builder::new(content.len(), decode_string, grow)?,
+        builder: Builder::new(content.len(), decode_string, guess_string, grow)?,
     };
     parser.run()?;
     parser.builder.finish()
@@ -39,6 +39,68 @@ fn decode_string(raw: &[u8], escaped: bool) -> Option<Cow<'_, str>> {
         return None;
     }
     std::str::from_utf8(inside).ok().map(Cow::Borrowed)
+}
+
+// What a forgiving reader makes of a string `decode_string` refuses, `raw` with its quotes: an
+// unknown escape its letter, a lone surrogate or bytes not UTF-8 U+FFFD, a control character kept.
+fn guess_string(raw: &[u8]) -> String {
+    let inside = &raw[1..raw.len() - 1];
+    let mut text = Vec::with_capacity(inside.len());
+    let mut at = 0;
+    while let Some(&byte) = inside.get(at) {
+        at += 1;
+        if byte != b'\\' {
+            text.push(byte);
+            continue;
+        }
+        let Some(&letter) = inside.get(at) else {
+            break;
+        };
+        at += 1;
+        let decoded = match letter {
+            b'b' => '\u{8}',
+            b'f' => '\u{c}',
+            b'n' => '\n',
+            b'r' => '\r',
+            b't' => '\t',
+            b'u' => match code_unit(inside, at) {
+                None => 'u',
+                Some(unit) => {
+                    at += 4;
+                    if let Some(pair) = code_pair(inside, at, unit) {
+                        at += 6;
+                        pair
+                    } else {
+                        char::from_u32(unit.into()).unwrap_or(char::REPLACEMENT_CHARACTER)
+                    }
+                }
+            },
+            _ => {
+                text.push(letter);
+                continue;
+            }
+        };
+        text.extend_from_slice(decoded.encode_utf8(&mut [0; 4]).as_bytes());
+    }
+    String::from_utf8_lossy(&text).into_owned()
+}
+
+// The four hex digits at `at`, if they're there.
+fn code_unit(inside: &[u8], at: usize) -> Option<u16> {
+    let digits = inside.get(at..at + 4)?;
+    if !digits.iter().all(u8::is_ascii_hexdigit) {
+        return None;
+    }
+    u16::from_str_radix(std::str::from_utf8(digits).ok()?, 16).ok()
+}
+
+// A high surrogate `high` and the `\u` low surrogate at `at`, as one character.
+fn code_pair(inside: &[u8], at: usize, high: u16) -> Option<char> {
+    if !(0xd800..0xdc00).contains(&high) || inside.get(at..at + 2)? != b"\\u" {
+        return None;
+    }
+    let low = code_unit(inside, at + 2)?;
+    char::decode_utf16([high, low]).next()?.ok()
 }
 
 // What may come next.
