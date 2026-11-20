@@ -38,20 +38,20 @@ Each host's README has its own flow: [rail-apigee](crates/rail-apigee/README.md#
 
 ## What's here
 
-| Path                                                                   | What it is                                                                                                           |
-| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| [`crates/rail-model`](crates/rail-model/README.md)                     | The rules language: reads policy bundles and tickets, judges a call, and reads its request line for capture.         |
-| [`crates/rail-model-py`](crates/rail-model-py/README.md)               | The language as a Python package, `datrail-model`, for Rail Center and RailDash.                                     |
-| [`crates/rail-runtime`](crates/rail-runtime/README.md)                 | What a running host does around the language: its settings, Rail Center, and the gateway's judging of each call.     |
-| [`crates/rail-grpc-host`](crates/rail-grpc-host/README.md)             | The process parts both gRPC hosts share: the command line, health checks and shutdown.                               |
-| [`crates/rail-apigee`](crates/rail-apigee/README.md)                   | The gateway, as an Apigee callout.                                                                                   |
-| [`crates/apigee-callout-proto`](crates/apigee-callout-proto/README.md) | Apigee's callout interface, as Rust code.                                                                            |
-| [`crates/rail-envoy`](crates/rail-envoy/README.md)                     | The proxy, and the gateway, as an Envoy extension.                                                                   |
-| [`crates/rail-test-support`](crates/rail-test-support/README.md)       | What the tests share.                                                                                                |
-| [`e2e`](e2e/README.md)                                                 | End-to-end tests: each host's image in front of the software it plugs into.                                          |
-| [`CONFIGURATION.md`](CONFIGURATION.md)                                 | Every setting both hosts read.                                                                                       |
-| [`GATEWAY.md`](GATEWAY.md)                                             | What the gateway does with each request, as decision trees.                                                          |
-| `vectors`                                                              | The conformance cases that define how the language, the gateway, path redaction and a capture plan's reading behave. |
+| Path                                                                   | What it is                                                                                                       |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| [`crates/rail-model`](crates/rail-model/README.md)                     | The rules language: reads policy bundles and tickets, judges a call, and reads its request line for capture.     |
+| [`crates/rail-model-py`](crates/rail-model-py/README.md)               | The language as a Python package, `datrail-model`, for Rail Center and RailDash.                                 |
+| [`crates/rail-runtime`](crates/rail-runtime/README.md)                 | What a running host does around the language: its settings, Rail Center, and the gateway's judging of each call. |
+| [`crates/rail-grpc-host`](crates/rail-grpc-host/README.md)             | The process parts both gRPC hosts share: the command line, health checks and shutdown.                           |
+| [`crates/rail-apigee`](crates/rail-apigee/README.md)                   | The gateway, as an Apigee callout.                                                                               |
+| [`crates/apigee-callout-proto`](crates/apigee-callout-proto/README.md) | Apigee's callout interface, as Rust code.                                                                        |
+| [`crates/rail-envoy`](crates/rail-envoy/README.md)                     | The proxy, and the gateway, as an Envoy extension.                                                               |
+| [`crates/rail-test-support`](crates/rail-test-support/README.md)       | What the tests share.                                                                                            |
+| [`e2e`](e2e/README.md)                                                 | End-to-end tests: each host's image in front of the software it plugs into.                                      |
+| [`CONFIGURATION.md`](CONFIGURATION.md)                                 | Every setting both hosts read.                                                                                   |
+| [`GATEWAY.md`](GATEWAY.md)                                             | What the gateway does with each request, as decision trees.                                                      |
+| `vectors`                                                              | The conformance cases that define the language, the gateway, path redaction and plan reading.                    |
 
 ## Development
 
