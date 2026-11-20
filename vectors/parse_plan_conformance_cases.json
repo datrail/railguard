@@ -1,5 +1,5 @@
 {
-  "_comment": "Conformance cases for parse_plan, reading a capture plan Rail Center serves and checking it against the field reference, read as a policy bundle is: a field the reader doesn't know is passed over. `plan` is the worked example in railxia/docs' design/2026-11-10-rc-dg-capture-plan/design.md at 95b5c7b (its section 2), its body paths under request, as are a query's and a path segment's (in place of the reference's body, query and path roots); each case is that plan with `patch` applied (RFC 6902: add, remove, replace). `expect.valid` is whether parse_plan accepts it; `conditions`, where given, are the first entry's as read (`valid`, `unknown`, `invalid`), each checked when compiled. Not here, since they're the caller's to check: the content_hash's form, the schema_version's major, the agent, the redaction_version. The proxy's ceilings: window_seconds 60 to 86400, max_groups_per_window up to 100000, max_steps_per_window up to 1000000, max_unsent_windows up to 1000.",
+  "_comment": "Conformance cases for parse_plan, reading a capture plan Rail Center serves and checking it against the field reference, read as a policy bundle is: a field the reader doesn't know is passed over. `plan` is the worked example in railxia/docs' design/2026-11-10-rc-dg-capture-plan/design.md at 95b5c7b (its section 2), a record's `measure` named `measures`; its body paths under request, as are a query's and a path segment's (in place of the reference's body, query and path roots); each case is that plan with `patch` applied (RFC 6902: add, remove, replace). `expect.valid` is whether parse_plan accepts it; `conditions`, where given, are the first entry's as read (`valid`, `unknown`, `invalid`), each checked when compiled. Not here, since they're the caller's to check: the content_hash's form, the schema_version's major, the agent, the redaction_version. The proxy's ceilings: window_seconds 60 to 86400, max_groups_per_window up to 100000, max_steps_per_window up to 1000000, max_unsent_windows up to 1000.",
   "plan": {
     "schema_version": "1.0",
     "content_hash": "sha256:fb3733bbe47258024770ac2cc2521f60c5709ddc2a31b87744ed1c213229d77c",
@@ -70,7 +70,7 @@
               "field_type": "repository"
             }
           ],
-          "measure": [
+          "measures": [
             {
               "name": "call_count"
             },
@@ -124,7 +124,7 @@
             "name": "operation"
           }
         ],
-        "measure": [
+        "measures": [
           {
             "name": "call_count"
           },
@@ -293,7 +293,7 @@
     },
     {
       "name": "two entries with one id",
-      "patch": [{"op": "add", "path": "/entries/-", "value": {"id": "e1", "match": [{"path": ["request", "host"], "op": "eq", "value": "api.github.com"}, {"path": ["request", "redacted_path"], "op": "eq", "value": "/mcp"}, {"path": ["request", "mcp", "method"], "op": "eq", "value": "tools/call"}, {"path": ["request", "mcp", "tool"], "op": "eq", "value": "create_or_update_file"}], "record": {"context_keys": [{"name": "destination", "path": ["request", "body", "params", "arguments", "repo"], "field_type": "repository"}], "measure": [{"name": "call_count"}, {"name": "error_count"}, {"name": "request_bytes", "type": "sum", "function": "size", "paths": [["request", "body"]]}, {"name": "argument_bytes", "type": "sum", "function": "size", "paths": [["request", "body", "params", "arguments", "content"]]}]}}}],
+      "patch": [{"op": "add", "path": "/entries/-", "value": {"id": "e1", "match": [{"path": ["request", "host"], "op": "eq", "value": "api.github.com"}, {"path": ["request", "redacted_path"], "op": "eq", "value": "/mcp"}, {"path": ["request", "mcp", "method"], "op": "eq", "value": "tools/call"}, {"path": ["request", "mcp", "tool"], "op": "eq", "value": "create_or_update_file"}], "record": {"context_keys": [{"name": "destination", "path": ["request", "body", "params", "arguments", "repo"], "field_type": "repository"}], "measures": [{"name": "call_count"}, {"name": "error_count"}, {"name": "request_bytes", "type": "sum", "function": "size", "paths": [["request", "body"]]}, {"name": "argument_bytes", "type": "sum", "function": "size", "paths": [["request", "body", "params", "arguments", "content"]]}]}}}],
       "expect": {"valid": false}
     },
     {
@@ -467,63 +467,68 @@
       "expect": {"valid": true}
     },
     {
+      "name": "a record's measures under the reference's name, measure",
+      "patch": [{"op": "add", "path": "/entries/0/record/measure", "value": [{"name": "call_count"}, {"name": "error_count"}, {"name": "request_bytes", "type": "sum", "function": "size", "paths": [["request", "body"]]}, {"name": "argument_bytes", "type": "sum", "function": "size", "paths": [["request", "body", "params", "arguments", "content"]]}]}, {"op": "remove", "path": "/entries/0/record/measures"}],
+      "expect": {"valid": false}
+    },
+    {
       "name": "an entry's measures without call_count",
-      "patch": [{"op": "remove", "path": "/entries/0/record/measure/0"}],
+      "patch": [{"op": "remove", "path": "/entries/0/record/measures/0"}],
       "expect": {"valid": false}
     },
     {
       "name": "an entry's measures without request_bytes",
-      "patch": [{"op": "remove", "path": "/entries/0/record/measure/2"}],
+      "patch": [{"op": "remove", "path": "/entries/0/record/measures/2"}],
       "expect": {"valid": false}
     },
     {
       "name": "request_bytes over the body as its own root",
-      "patch": [{"op": "replace", "path": "/entries/0/record/measure/2/paths", "value": [["body"]]}],
+      "patch": [{"op": "replace", "path": "/entries/0/record/measures/2/paths", "value": [["body"]]}],
       "expect": {"valid": false}
     },
     {
       "name": "request_bytes of a type but sum",
-      "patch": [{"op": "replace", "path": "/entries/0/record/measure/2/type", "value": "max"}],
+      "patch": [{"op": "replace", "path": "/entries/0/record/measures/2/type", "value": "max"}],
       "expect": {"valid": false}
     },
     {
       "name": "request_bytes of a function but size",
-      "patch": [{"op": "replace", "path": "/entries/0/record/measure/2/function", "value": "count"}],
+      "patch": [{"op": "replace", "path": "/entries/0/record/measures/2/function", "value": "count"}],
       "expect": {"valid": false}
     },
     {
       "name": "request_bytes with no type",
-      "patch": [{"op": "remove", "path": "/entries/0/record/measure/2/type"}],
+      "patch": [{"op": "remove", "path": "/entries/0/record/measures/2/type"}],
       "expect": {"valid": false}
     },
     {
       "name": "a measure of a type unknown",
-      "patch": [{"op": "replace", "path": "/entries/0/record/measure/3/type", "value": "max"}],
+      "patch": [{"op": "replace", "path": "/entries/0/record/measures/3/type", "value": "max"}],
       "expect": {"valid": false}
     },
     {
       "name": "a measure of a function unknown",
-      "patch": [{"op": "replace", "path": "/entries/0/record/measure/3/function", "value": "count"}],
+      "patch": [{"op": "replace", "path": "/entries/0/record/measures/3/function", "value": "count"}],
       "expect": {"valid": false}
     },
     {
       "name": "a measure with no paths",
-      "patch": [{"op": "remove", "path": "/entries/0/record/measure/3/paths"}],
+      "patch": [{"op": "remove", "path": "/entries/0/record/measures/3/paths"}],
       "expect": {"valid": false}
     },
     {
       "name": "a measure with empty paths",
-      "patch": [{"op": "replace", "path": "/entries/0/record/measure/3/paths", "value": []}],
+      "patch": [{"op": "replace", "path": "/entries/0/record/measures/3/paths", "value": []}],
       "expect": {"valid": false}
     },
     {
       "name": "a measure over the request line",
-      "patch": [{"op": "replace", "path": "/entries/0/record/measure/3/paths", "value": [["request", "method"]]}],
+      "patch": [{"op": "replace", "path": "/entries/0/record/measures/3/paths", "value": [["request", "method"]]}],
       "expect": {"valid": false}
     },
     {
       "name": "a measure over the query and a redacted path segment",
-      "patch": [{"op": "replace", "path": "/entries/0/record/measure/3/paths", "value": [["request", "query", "q", 0], ["request", "redacted_path", 0]]}],
+      "patch": [{"op": "replace", "path": "/entries/0/record/measures/3/paths", "value": [["request", "query", "q", 0], ["request", "redacted_path", 0]]}],
       "expect": {"valid": true}
     },
     {
@@ -538,12 +543,12 @@
     },
     {
       "name": "a measure with no name",
-      "patch": [{"op": "remove", "path": "/entries/0/record/measure/3/name"}],
+      "patch": [{"op": "remove", "path": "/entries/0/record/measures/3/name"}],
       "expect": {"valid": false}
     },
     {
       "name": "a measure with a field the reference doesn't list, ignored",
-      "patch": [{"op": "add", "path": "/entries/0/record/measure/3/extra", "value": 1}],
+      "patch": [{"op": "add", "path": "/entries/0/record/measures/3/extra", "value": 1}],
       "expect": {"valid": true}
     },
     {
@@ -558,7 +563,7 @@
     },
     {
       "name": "two measures with one name",
-      "patch": [{"op": "add", "path": "/entries/0/record/measure/-", "value": {"name": "call_count"}}],
+      "patch": [{"op": "add", "path": "/entries/0/record/measures/-", "value": {"name": "call_count"}}],
       "expect": {"valid": false}
     },
     {
@@ -593,12 +598,12 @@
     },
     {
       "name": "a catch-all's measure beside the three",
-      "patch": [{"op": "add", "path": "/catch_all/record/measure/-", "value": {"name": "argument_bytes", "type": "sum", "function": "size", "paths": [["request", "body", "params", "arguments", "content"]]}}],
+      "patch": [{"op": "add", "path": "/catch_all/record/measures/-", "value": {"name": "argument_bytes", "type": "sum", "function": "size", "paths": [["request", "body", "params", "arguments", "content"]]}}],
       "expect": {"valid": false}
     },
     {
       "name": "a catch-all without error_count",
-      "patch": [{"op": "remove", "path": "/catch_all/record/measure/1"}],
+      "patch": [{"op": "remove", "path": "/catch_all/record/measures/1"}],
       "expect": {"valid": false}
     }
   ]
