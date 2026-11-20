@@ -1,4 +1,4 @@
-use rail_model::body::tree::{Kind, Node, Step};
+use rail_model::body::tree::{Kind, Member, Node, Step};
 
 use super::keep;
 
@@ -25,6 +25,15 @@ pub(super) fn render(node: Node) -> String {
     }
 }
 
+// What a walk finds: a value rendered, or why there's none.
+pub(super) fn describe(member: Member) -> String {
+    match member {
+        Member::Found(node) => render(node),
+        Member::Absent => "absent".to_string(),
+        Member::Ambiguous => "ambiguous".to_string(),
+    }
+}
+
 #[test]
 fn test_walks_keys_and_indexes() {
     let body = keep(
@@ -33,38 +42,56 @@ fn test_walks_keys_and_indexes() {
             "\u0130d": 10, "id": 11}"#,
     );
     let root = body.json().unwrap();
-    let found = |steps: &[Step]| root.walk(steps).map(render);
+    let found = |steps: &[Step]| describe(root.walk(steps));
     use Step::{Index, Key};
-    assert_eq!(
-        found(&[Key("a"), Key("b"), Index(0)]).as_deref(),
-        Some("10")
-    );
-    assert_eq!(
-        found(&[Key("a"), Key("b"), Index(1), Key("c")]).as_deref(),
-        Some(r#""x""#)
-    );
-    assert_eq!(found(&[Key("Solo")]).as_deref(), Some("3"));
-    assert_eq!(found(&[Key("esc")]).as_deref(), Some("4"));
     // Containers' raw text too, from their opening to their closing byte.
-    assert_eq!(
-        root.walk(&[Key("a"), Key("b")]).unwrap().raw(),
-        br#"[10, {"c": "x"}, null]"#
-    );
+    let list = root.walk(&[Key("a"), Key("b")]).found().unwrap();
+    assert_eq!(list.raw(), br#"[10, {"c": "x"}, null]"#);
     assert_eq!(root.raw(), body.as_bytes());
-    for (steps, why) in [
-        (&[Key("a"), Key("b"), Index(2)][..], "null"),
-        (&[Key("n")], "null"),
-        (&[Key("a"), Key("b"), Index(3)], "past the end"),
-        (&[Key("dup")], "repeated but for case"),
-        (&[Key("Dup")], "repeated but for case"),
-        (&[Key("é")], "repeated but for case, past ASCII"),
-        (&[Key("foos")], "repeated but for case, ſ folding to s"),
-        (&[Key("id")], "repeated but for case, İ folding to i"),
-        (&[Key("solo")], "only there in another case"),
-        (&[Key("a"), Index(0)], "an index into an object"),
-        (&[Key("a"), Key("b"), Key("0")], "a key into an array"),
-        (&[Key("missing")], "absent"),
+    for (steps, walked, why) in [
+        (&[Key("a"), Key("b"), Index(0)][..], "10", "an index"),
+        (
+            &[Key("a"), Key("b"), Index(1), Key("c")],
+            r#""x""#,
+            "into an array's object",
+        ),
+        (&[Key("Solo")], "3", "past a lone surrogate"),
+        (&[Key("esc")], "4", "a key written with an escape"),
+        (&[Key("a"), Key("b"), Index(2)], "absent", "null"),
+        (&[Key("n")], "absent", "null"),
+        (&[Key("a"), Key("b"), Index(3)], "absent", "past the end"),
+        (&[Key("solo")], "absent", "only there in another case"),
+        (&[Key("a"), Index(0)], "absent", "an index into an object"),
+        (
+            &[Key("a"), Key("b"), Key("0")],
+            "absent",
+            "a key into an array",
+        ),
+        (&[Key("missing")], "absent", "absent"),
+        (&[Key("n"), Key("x")], "absent", "into null"),
+        (&[Key("dup")], "ambiguous", "repeated but for case"),
+        (&[Key("Dup")], "ambiguous", "repeated but for case"),
+        (
+            &[Key("é")],
+            "ambiguous",
+            "repeated but for case, past ASCII",
+        ),
+        (
+            &[Key("foos")],
+            "ambiguous",
+            "repeated but for case, ſ folding to s",
+        ),
+        (
+            &[Key("id")],
+            "ambiguous",
+            "repeated but for case, İ folding to i",
+        ),
+        (
+            &[Key("dup"), Key("x")],
+            "ambiguous",
+            "a step past an ambiguous one",
+        ),
     ] {
-        assert_eq!(found(steps), None, "{why}");
+        assert_eq!(found(steps), walked, "{why}");
     }
 }

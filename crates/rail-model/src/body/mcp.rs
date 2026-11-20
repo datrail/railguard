@@ -9,15 +9,25 @@ use crate::endpoint::{Resolution, resolve_endpoint};
 /// What a body names as an MCP message.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum McpReading {
-    /// Not read as a tree (not JSON, or past the budget), a JSON-RPC batch, or with `method`,
-    /// `params`, `params.name` or `params.arguments` repeated, letter case ignored, or beside a key
-    /// that isn't JSON, which a lenient reader may read as any: what it names can't be told.
-    Unreadable,
+    /// What it names can't be told.
+    Unreadable(Unreadable),
     /// An empty body, or a JSON value: `method` and `tool` are absent where it doesn't name them.
     Read {
         method: Option<String>,
         tool: Option<String>,
     },
+}
+
+/// Why what a body names as an MCP message can't be told.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Unreadable {
+    /// Not read as a tree: not JSON, or past the budget.
+    Unparsed(Unparsed),
+    /// A JSON-RPC batch, which names one message per item.
+    Batch,
+    /// `method`, `params`, `params.name` or `params.arguments` repeated, letter case ignored, or
+    /// beside a key that isn't JSON, which a lenient reader may read as any.
+    Ambiguous,
 }
 
 impl McpReading {
@@ -39,26 +49,27 @@ impl McpReading {
                 tool: None,
             };
         }
-        let Ok(root) = root else {
-            return Self::Unreadable;
+        let root = match root {
+            Ok(root) => root,
+            Err(why) => return Self::Unreadable(Unreadable::Unparsed(why)),
         };
         if root.kind() == Kind::Array {
-            return Self::Unreadable;
+            return Self::Unreadable(Unreadable::Batch);
         }
         let method = root.get("method");
         if method.is_ambiguous() {
-            return Self::Unreadable;
+            return Self::Unreadable(Unreadable::Ambiguous);
         }
         let params = root.get("params");
         if params.is_ambiguous() {
-            return Self::Unreadable;
+            return Self::Unreadable(Unreadable::Ambiguous);
         }
         let name = params.get("name");
         if name.is_ambiguous() {
-            return Self::Unreadable;
+            return Self::Unreadable(Unreadable::Ambiguous);
         }
         if params.get("arguments").is_ambiguous() {
-            return Self::Unreadable;
+            return Self::Unreadable(Unreadable::Ambiguous);
         }
         let method = method.text().map(Cow::into_owned);
         let tool = match method.as_deref() {
@@ -72,7 +83,7 @@ impl McpReading {
     pub fn method(&self) -> Option<&str> {
         match self {
             Self::Read { method, .. } => method.as_deref(),
-            Self::Unreadable => None,
+            Self::Unreadable(_) => None,
         }
     }
 
@@ -80,7 +91,7 @@ impl McpReading {
     pub fn tool(&self) -> Option<&str> {
         match self {
             Self::Read { tool, .. } => tool.as_deref(),
-            Self::Unreadable => None,
+            Self::Unreadable(_) => None,
         }
     }
 }

@@ -29,6 +29,23 @@ pub enum Unkept {
     PastBudget,
 }
 
+/// A call's body as a reader has it: kept whole, or unread and why.
+#[derive(Clone, Debug)]
+pub enum BodyRead {
+    Whole(Arc<RequestBody>),
+    Unread(Unread),
+}
+
+/// Why a call's body isn't read.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Unread {
+    Unkept(Unkept),
+    /// The reader wasn't sent it.
+    NotSent,
+    /// The reader was sent only part of it.
+    CutShort,
+}
+
 /// The bytes every kept body and its tree share, so many large bodies at once can't exhaust memory.
 #[derive(Debug)]
 pub struct ByteBudget {
