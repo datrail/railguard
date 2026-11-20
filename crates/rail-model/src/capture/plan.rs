@@ -37,6 +37,7 @@ pub struct Plan {
     pub content_hash: String,
     /// RFC 3339 in UTC, with a `Z`.
     pub generated_at: String,
+    #[serde(deserialize_with = "read_agent")]
     pub agent: AgentId,
     pub plan_version: u64,
     /// The `REDACTION_VERSION` its paths were redacted with.
@@ -319,6 +320,26 @@ fn present<'de, D: Deserializer<'de>, T: Deserialize<'de>>(
     deserializer: D,
 ) -> Result<Option<T>, D::Error> {
     T::deserialize(deserializer).map(Some)
+}
+
+// The agent and its `agent_key`, which a plan may carry before the proxy has one to compare.
+fn read_agent<'de, D: Deserializer<'de>>(deserializer: D) -> Result<AgentId, D::Error> {
+    #[derive(Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct Agent {
+        host_id: String,
+        sandbox_name: String,
+        #[serde(default, deserialize_with = "present")]
+        agent_key: Option<String>,
+    }
+    let agent = Agent::deserialize(deserializer)?;
+    if agent.agent_key.is_some_and(|key| key.is_empty()) {
+        return Err(D::Error::custom("agent_key is empty"));
+    }
+    Ok(AgentId {
+        host_id: agent.host_id,
+        sandbox_name: agent.sandbox_name,
+    })
 }
 
 // Raw, so what serde_json can't hold fails a condition, not the plan.
