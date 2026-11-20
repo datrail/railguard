@@ -3,6 +3,7 @@
 
 pub mod authority;
 pub mod body;
+pub mod capture;
 pub mod condition;
 pub mod endpoint;
 pub mod policy;
