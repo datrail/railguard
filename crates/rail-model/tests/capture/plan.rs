@@ -1,9 +1,9 @@
 use rail_model::agent::AgentId;
 use rail_model::capture::{
-    CatchAllKey, Combine, ContextKey, Function, Measure, OnMaxGroups, PlanReading, PlanState,
-    Refused, parse_plan,
+    CatchAllKey, Combine, ContextKey, Function, Measure, OnMaxGroups, Plan, parse_plan,
 };
 use rail_model::condition::{BodyPath, BodyStep, Condition, Path, RequestPath};
+use rail_model::schema_version::SchemaVersion;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -11,7 +11,6 @@ const VECTORS: &str = include_str!("../../../../vectors/parse_plan_conformance_c
 
 #[derive(Deserialize)]
 struct Vectors {
-    agent: Value,
     plan: Value,
     cases: Vec<Case>,
 }
@@ -19,23 +18,22 @@ struct Vectors {
 #[derive(Deserialize)]
 struct Case {
     name: String,
-    bytes: Option<String>,
     #[serde(default)]
     patch: Vec<Value>,
-    expect: Value,
+    expect: Expect,
+}
+
+#[derive(Deserialize)]
+struct Expect {
+    valid: bool,
+    /// The first entry's, as read.
+    conditions: Option<Vec<String>>,
 }
 
 fn vectors() -> Vectors {
     let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
     assert!(!vectors.cases.is_empty());
     vectors
-}
-
-fn agent(vectors: &Vectors) -> AgentId {
-    AgentId {
-        host_id: vectors.agent["host_id"].as_str().unwrap().to_owned(),
-        sandbox_name: vectors.agent["sandbox_name"].as_str().unwrap().to_owned(),
-    }
 }
 
 // RFC 6902's add, remove and replace, as the vectors use them.
@@ -56,17 +54,6 @@ fn patch(document: &mut Value, operation: &Value) {
     }
 }
 
-fn read(vectors: &Vectors, case: &Case) -> Result<PlanReading, Refused> {
-    let bytes = case.bytes.clone().unwrap_or_else(|| {
-        let mut plan = vectors.plan.clone();
-        case.patch
-            .iter()
-            .for_each(|operation| patch(&mut plan, operation));
-        plan.to_string()
-    });
-    parse_plan(bytes.as_bytes(), &agent(vectors))
-}
-
 fn condition_kind(condition: &Condition) -> &'static str {
     match condition {
         Condition::Valid(_) => "valid",
@@ -75,62 +62,42 @@ fn condition_kind(condition: &Condition) -> &'static str {
     }
 }
 
+fn read_example() -> Plan {
+    parse_plan(&vectors().plan.to_string()).unwrap()
+}
+
 #[test]
 fn test_vectors() {
     let vectors = vectors();
     for case in &vectors.cases {
+        let mut plan = vectors.plan.clone();
+        case.patch
+            .iter()
+            .for_each(|operation| patch(&mut plan, operation));
+
+        let read = parse_plan(&plan.to_string());
+
         let name = &case.name;
-        let expect = &case.expect;
-        let reading = match read(&vectors, case) {
-            Err(refused) => {
-                let expected = match expect["refused"].as_str() {
-                    Some("not_json") => Refused::NotJson,
-                    Some("no_content_hash") => Refused::NoContentHash,
-                    Some("other_agent") => Refused::OtherAgent,
-                    _ => panic!("{name}: refused as {refused:?}"),
-                };
-                assert_eq!(refused, expected, "{name}");
-                continue;
-            }
-            Ok(reading) => reading,
-        };
-        assert_eq!(
-            reading.content_hash.as_str(),
-            vectors.plan["content_hash"],
-            "{name}"
-        );
-        if let Some(version) = expect.get("plan_version") {
-            assert_eq!(reading.plan_version, version.as_u64(), "{name}");
-        }
-        match (expect["reading"].as_str(), &reading.state) {
-            (Some("valid"), PlanState::Valid(plan)) => {
-                if let Some(conditions) = expect.get("conditions") {
+        match (read, case.expect.valid) {
+            (Ok(plan), true) => {
+                if let Some(conditions) = &case.expect.conditions {
                     let read: Vec<_> = plan.entries[0]
                         .conditions
                         .iter()
                         .map(condition_kind)
                         .collect();
-                    assert_eq!(Value::from(read), *conditions, "{name}");
+                    assert_eq!(&read, conditions, "{name}");
                 }
             }
-            (Some("unknown"), PlanState::Unknown) => {}
-            (Some("redaction_mismatch"), PlanState::RedactionMismatch) => {}
-            (Some("invalid"), PlanState::Invalid(why)) => {
-                let at = expect["at"].as_str().unwrap();
-                assert!(why.starts_with(&format!("{at}:")), "{name}: {why}");
-            }
-            (_, state) => panic!("{name}: read as {state:?}"),
+            (Err(_), false) => {}
+            (read, _) => panic!("{name}: {read:?}"),
         }
     }
 }
 
 #[test]
 fn test_reads_the_worked_example_as_written() {
-    let vectors = vectors();
-    let reading = parse_plan(vectors.plan.to_string().as_bytes(), &agent(&vectors)).unwrap();
-    let PlanState::Valid(plan) = reading.state else {
-        panic!("{:?}", reading.state);
-    };
+    let plan = read_example();
     let body = |keys: &[&str]| {
         let steps = keys
             .iter()
@@ -139,6 +106,20 @@ fn test_reads_the_worked_example_as_written() {
         Path::Request(RequestPath::Body(BodyPath(steps)))
     };
 
+    assert_eq!(plan.schema_version, SchemaVersion { major: 1, minor: 0 });
+    assert_eq!(
+        plan.content_hash,
+        "sha256:fb3733bbe47258024770ac2cc2521f60c5709ddc2a31b87744ed1c213229d77c"
+    );
+    assert_eq!(
+        plan.agent,
+        AgentId {
+            host_id: "host-7f3c".into(),
+            sandbox_name: "agent-finretail".into(),
+        }
+    );
+    assert_eq!(plan.plan_version, 7);
+    assert_eq!(plan.redaction_version, 1);
     assert_eq!(plan.window_seconds, 900);
     assert_eq!(plan.budget.max_groups_per_window, 1000);
     assert_eq!(plan.budget.max_steps_per_window, Some(10000));
@@ -148,8 +129,9 @@ fn test_reads_the_worked_example_as_written() {
         panic!("{:?}", plan.entries);
     };
     assert_eq!(entry.id, "e1");
+    assert_eq!(entry.endpoint_id, None);
     assert_eq!(
-        entry.context_keys,
+        entry.record.context_keys,
         [ContextKey::Named {
             name: "destination".into(),
             path: body(&["params", "arguments", "repo"]),
@@ -157,7 +139,7 @@ fn test_reads_the_worked_example_as_written() {
         }]
     );
     assert_eq!(
-        entry.measures,
+        entry.record.measures,
         [
             Measure::CallCount,
             Measure::ErrorCount,
@@ -172,7 +154,7 @@ fn test_reads_the_worked_example_as_written() {
     );
     assert_eq!(plan.catch_all.id, "catch_all");
     assert_eq!(
-        plan.catch_all.context_keys,
+        plan.catch_all.record.context_keys,
         [
             CatchAllKey::Host,
             CatchAllKey::PathPrefix { segments: 1 },
@@ -181,7 +163,7 @@ fn test_reads_the_worked_example_as_written() {
         ]
     );
     assert_eq!(
-        plan.catch_all.measures,
+        plan.catch_all.record.measures,
         [
             Measure::CallCount,
             Measure::ErrorCount,
@@ -193,18 +175,14 @@ fn test_reads_the_worked_example_as_written() {
 // What serde_json can't hold fails the condition, as in a bundle, not the plan.
 #[test]
 fn test_reads_a_condition_past_what_a_double_holds_as_invalid() {
-    let vectors = vectors();
     let plan =
-        vectors
+        vectors()
             .plan
             .to_string()
             .replacen(r#""value":"api.github.com""#, r#""value":1e400"#, 1);
 
-    let reading = parse_plan(plan.as_bytes(), &agent(&vectors)).unwrap();
+    let plan = parse_plan(&plan).unwrap();
 
-    let PlanState::Valid(plan) = reading.state else {
-        panic!("{:?}", reading.state);
-    };
     assert!(matches!(
         plan.entries[0].conditions[0],
         Condition::Invalid(_)
