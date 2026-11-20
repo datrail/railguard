@@ -2,7 +2,7 @@
 
 use std::borrow::Cow;
 
-use super::tree::{Kind, Member, Node};
+use super::tree::{Kind, Node};
 use super::{Unparsed, json};
 use crate::endpoint::{Resolution, resolve_endpoint};
 
@@ -53,16 +53,11 @@ impl McpReading {
         if params.is_ambiguous() {
             return Self::Unreadable;
         }
-        let in_params = |key| {
-            params
-                .found()
-                .map_or(Member::Absent, |params| params.get(key))
-        };
-        let name = in_params("name");
+        let name = params.get("name");
         if name.is_ambiguous() {
             return Self::Unreadable;
         }
-        if in_params("arguments").is_ambiguous() {
+        if params.get("arguments").is_ambiguous() {
             return Self::Unreadable;
         }
         let method = method.text().map(Cow::into_owned);

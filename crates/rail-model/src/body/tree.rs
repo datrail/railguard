@@ -300,6 +300,14 @@ impl<'a> Member<'a> {
         }
     }
 
+    /// The value under `key` in an object found; absent or ambiguous as this is otherwise.
+    pub(crate) fn get(self, key: &str) -> Member<'a> {
+        match self {
+            Self::Found(node) => node.get(key),
+            Self::Absent | Self::Ambiguous => self,
+        }
+    }
+
     /// The text of a string found; `None` otherwise ([`Node::text`]).
     pub(crate) fn text(self) -> Option<Cow<'a, str>> {
         self.found()?.text()
