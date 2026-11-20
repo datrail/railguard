@@ -65,10 +65,9 @@ impl McpReading {
         if in_params("arguments").is_ambiguous() {
             return Self::Unreadable;
         }
-        let text = |member: Member<'_>| member.found()?.text().map(Cow::into_owned);
-        let method = text(method);
+        let method = method.text().map(Cow::into_owned);
         let tool = match method.as_deref() {
-            Some("tools/call") => text(name),
+            Some("tools/call") => name.text().map(Cow::into_owned),
             _ => None,
         };
         Self::Read { method, tool }

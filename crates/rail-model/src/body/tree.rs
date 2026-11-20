@@ -300,6 +300,11 @@ impl<'a> Member<'a> {
         }
     }
 
+    /// The text of a string found; `None` otherwise ([`Node::text`]).
+    pub(crate) fn text(self) -> Option<Cow<'a, str>> {
+        self.found()?.text()
+    }
+
     pub(crate) fn is_ambiguous(&self) -> bool {
         matches!(self, Self::Ambiguous)
     }
