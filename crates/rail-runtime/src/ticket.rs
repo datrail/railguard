@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::time::{Duration, SystemTime};
 
-use rail_model::agent::Agent;
+use rail_model::agent::AgentId;
 use serde::Deserialize;
 use time::PrimitiveDateTime;
 use time::macros::format_description;
@@ -35,7 +35,7 @@ const MAX_LIFETIME: Duration = Duration::from_secs(86_400 + 300);
 /// How this host's ticket is fetched and kept.
 #[derive(Clone, Debug)]
 pub struct TicketSettings {
-    pub agent: Agent,
+    pub agent: AgentId,
     /// The longest a valid ticket goes unrefreshed, before jitter; its own lifetime paces
     /// refreshes below it.
     pub refresh_interval: Duration,
@@ -66,7 +66,7 @@ pub fn read_ticket_settings(
     let ticket = host_id
         .zip(sandbox_name)
         .map(|(host_id, sandbox_name)| TicketSettings {
-            agent: Agent {
+            agent: AgentId {
                 host_id: host_id.to_owned(),
                 sandbox_name: sandbox_name.to_owned(),
             },

@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use rail_model::agent::Agent;
+use rail_model::agent::AgentId;
 use rail_runtime::{Level, TicketSettings, read_ticket_settings};
 use rail_test_support::describe;
 
@@ -22,7 +22,7 @@ fn the_host_and_sandbox_are_read_and_the_rest_defaults() {
 
     assert_eq!(
         ticket.agent,
-        Agent {
+        AgentId {
             host_id: "host-1".to_owned(),
             sandbox_name: "sandbox a".to_owned(),
         }
