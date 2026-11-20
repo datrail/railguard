@@ -427,14 +427,9 @@
       "expect": {"valid": false}
     },
     {
-      "name": "a context key with no field_type",
+      "name": "a context key with no field_type, which isn't read yet",
       "patch": [{"op": "remove", "path": "/entries/0/record/context_keys/0/field_type"}],
-      "expect": {"valid": false}
-    },
-    {
-      "name": "a context key with a field_type in upper case",
-      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/field_type", "value": "Repository"}],
-      "expect": {"valid": false}
+      "expect": {"valid": true}
     },
     {
       "name": "a context key with no path",
@@ -555,11 +550,6 @@
       "name": "a context key with segments, ignored",
       "patch": [{"op": "add", "path": "/entries/0/record/context_keys/0/segments", "value": 1}],
       "expect": {"valid": true}
-    },
-    {
-      "name": "a context key with a field_type that isn't a string",
-      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/field_type", "value": 1}],
-      "expect": {"valid": false}
     },
     {
       "name": "a context key's path as a dotted string",

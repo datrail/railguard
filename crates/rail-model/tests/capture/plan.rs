@@ -135,7 +135,6 @@ fn test_reads_the_worked_example_as_written() {
         [ContextKey::Named {
             name: "destination".into(),
             path: body(&["params", "arguments", "repo"]),
-            field_type: "repository".into(),
         }]
     );
     assert_eq!(
