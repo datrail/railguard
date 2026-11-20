@@ -57,7 +57,6 @@ pub enum Refused {
 
 /// A plan as read: its hash and version, whatever else it holds, and what the proxy makes of it.
 #[derive(Debug)]
-#[non_exhaustive]
 pub struct PlanReading {
     pub content_hash: ContentHash,
     /// Where it reads as a whole number from 1.
@@ -95,7 +94,6 @@ impl ContentHash {
 
 /// A valid plan, what the proxy applies of it.
 #[derive(Debug)]
-#[non_exhaustive]
 pub struct Plan {
     pub window_seconds: u32,
     pub budget: Budget,
@@ -106,7 +104,6 @@ pub struct Plan {
 }
 
 #[derive(Debug)]
-#[non_exhaustive]
 pub struct Budget {
     pub max_groups_per_window: u32,
     /// Present: the order of calls is recorded too, up to this many steps.
@@ -122,7 +119,6 @@ pub enum OnMaxGroups {
 }
 
 #[derive(Debug)]
-#[non_exhaustive]
 pub struct Entry {
     pub id: String,
     /// Read as written; checked when compiled, so one that fails refuses its entry, not the plan.
