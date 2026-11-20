@@ -5,7 +5,7 @@ mod tree;
 use std::sync::Arc;
 
 use rail_model::body::mcp::McpReading;
-use rail_model::body::{BodyBuffer, ByteBudget, RequestBody, Unkept, Unparsed};
+use rail_model::body::{BodyBuffer, ByteBudget, RequestBody, Unkept, Unparsed, Unread};
 
 // A body kept whole, with no cap or budget to meet.
 fn keep(body: &[u8]) -> RequestBody {
@@ -80,4 +80,10 @@ fn test_charges_a_bodys_tree_to_the_budget_too() {
 fn test_debugs_a_body_without_its_bytes() {
     let printed = format!("{:?}", keep(b"secret"));
     assert!(!printed.contains("secret"), "{printed}");
+}
+
+#[test]
+fn test_reads_a_body_not_kept_as_unread_for_the_same_reason() {
+    assert_eq!(Unread::from(Unkept::PastCap), Unread::PastCap);
+    assert_eq!(Unread::from(Unkept::PastBudget), Unread::PastBudget);
 }

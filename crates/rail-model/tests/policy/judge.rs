@@ -274,6 +274,21 @@ fn test_traces_a_refusal_with_nothing_resolved() {
         ]
     );
 
+    // A path a policy doesn't read refuses the call, as any refusal does.
+    let host = json!([traced_policy(
+        1,
+        json!({"path": "request.host", "op": "existing"}),
+        "alert"
+    )]);
+    let (outcome, _) = trace_bundle(host, json!([]), 100);
+    assert_eq!(
+        outcome.chain.unwrap().decision,
+        Decision::Refused {
+            policy: "5c8f1e42-0000-4000-8000-000000000001".parse().unwrap(),
+            refusal: Refusal::NotForUse
+        }
+    );
+
     // The first step is past the limit, so no path is resolved.
     let (_, recorder) = trace_bundle(policies, json!([]), 0);
     assert_eq!(

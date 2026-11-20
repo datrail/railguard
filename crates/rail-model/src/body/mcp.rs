@@ -81,7 +81,7 @@ impl McpReading {
     pub fn method(&self) -> Option<&str> {
         match self {
             Self::Read { method, .. } => method.as_deref(),
-            _ => None,
+            Self::Unparsed(_) | Self::Batch | Self::Ambiguous => None,
         }
     }
 
@@ -89,7 +89,7 @@ impl McpReading {
     pub fn tool(&self) -> Option<&str> {
         match self {
             Self::Read { tool, .. } => tool.as_deref(),
-            _ => None,
+            Self::Unparsed(_) | Self::Batch | Self::Ambiguous => None,
         }
     }
 }

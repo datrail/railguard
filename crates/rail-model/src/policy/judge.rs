@@ -167,7 +167,7 @@ pub fn judge_traced(
 ) -> Outcome {
     let enforcing = mode == JudgingMode::Enforce;
     let mut fallback_denials = Vec::new();
-    if environment.ticket.is_none() && bundle.ticket_fallback == Fallback::Block {
+    if environment.ticket.flatten().is_none() && bundle.ticket_fallback == Fallback::Block {
         fallback_denials.push(FallbackDenial::Ticket);
         if enforcing {
             return Outcome {

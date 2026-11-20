@@ -531,11 +531,11 @@ fn test_charges_an_index_by_the_items_it_passes() {
         )
     };
     assert_eq!(
-        evaluate_on_call(at(8), &body, &mut Budget::new(10)),
+        evaluate_on_call(at(8), &body, &mut Budget::new(11)),
         Verdict::Holds
     );
     assert_eq!(
-        evaluate_on_call(at(9), &body, &mut Budget::new(10)),
+        evaluate_on_call(at(9), &body, &mut Budget::new(11)),
         Verdict::Refused(Refusal::BudgetExceeded)
     );
     // Charged only what it passes: past the end, and past any number a step can hold.
@@ -549,19 +549,56 @@ fn test_charges_an_index_by_the_items_it_passes() {
     );
 }
 
+// Every member read, as a key repeated past the first must be.
 #[test]
-fn test_refuses_a_path_its_use_doesnt_read() {
-    let not_for_use = Verdict::Refused(Refusal::NotForUse);
-    let headers = Headers::default();
-    let judging = Environment::for_judging(None, &Endpoint::Keyless, &headers);
-    for path in ["request.host", "request.mcp.tool", "request.body.a"] {
-        let condition: Condition =
-            serde_json::from_value(json!({"path": path, "op": "not_existing"})).unwrap();
-        let compiled = compile_condition(&condition, ConditionUse::Policy);
-        let verdict = evaluate_condition(&compiled, &judging, &mut Budget::default()).verdict;
-        assert_eq!(verdict, not_for_use, "{path}");
-    }
+fn test_charges_a_key_by_the_members_it_reads() {
+    let body = keep_body(
+        br#"{"a": 0, "b": 1, "c": 2, "d": 3, "e": 4, "f": 5, "g": 6, "h": 7, "i": 8, "j": 9}"#,
+    );
+    let first = || condition(json!(["request", "body", "a"]), "existing", json!(null));
+    assert_eq!(
+        evaluate_on_call(first(), &body, &mut Budget::new(11)),
+        Verdict::Holds
+    );
+    assert_eq!(
+        evaluate_on_call(first(), &body, &mut Budget::new(10)),
+        Verdict::Refused(Refusal::BudgetExceeded)
+    );
+}
+
+#[test]
+fn test_refuses_a_condition_with_its_cause() {
+    // In an environment that fills each path, so only compiling for a policy refuses them.
+    let request_line = RequestLine::default();
     let body = keep_body(b"{}");
+    let capture = Environment::for_capture(&request_line, &body);
+    for (condition, refusal) in [
+        (
+            json!({"path": "ticket.a", "op": "newer_op"}),
+            Refusal::UnknownOp,
+        ),
+        (
+            json!({"path": "ticket.a", "op": "lt", "value": "x"}),
+            Refusal::Invalid,
+        ),
+        (
+            json!({"path": "request.host", "op": "existing"}),
+            Refusal::NotForUse,
+        ),
+        (
+            json!({"path": "request.mcp.tool", "op": "existing"}),
+            Refusal::NotForUse,
+        ),
+        (
+            json!({"path": "request.body.a", "op": "not_existing"}),
+            Refusal::NotForUse,
+        ),
+    ] {
+        let read: Condition = serde_json::from_value(condition.clone()).unwrap();
+        let compiled = compile_condition(&read, ConditionUse::Policy);
+        let verdict = evaluate_condition(&compiled, &capture, &mut Budget::default()).verdict;
+        assert_eq!(verdict, Verdict::Refused(refusal), "{condition}");
+    }
     for path in [
         json!(["ticket", "a"]),
         json!(["request", "endpoint_key"]),
@@ -573,7 +610,7 @@ fn test_refuses_a_path_its_use_doesnt_read() {
             &body,
             &mut Budget::default(),
         );
-        assert_eq!(held, not_for_use, "{path}");
+        assert_eq!(held, Verdict::Refused(Refusal::NotForUse), "{path}");
     }
 }
 
@@ -584,35 +621,25 @@ fn test_refuses_a_source_its_environment_doesnt_fill() {
     let request_line = RequestLine::default();
     let body = keep_body(b"{}");
     let capture = Environment::for_capture(&request_line, &body);
-    let condition: Condition =
-        serde_json::from_value(json!({"path": "request.endpoint_key", "op": "not_existing"}))
-            .unwrap();
-    let compiled = compile_condition(&condition, ConditionUse::Policy);
-    let verdict = evaluate_condition(&compiled, &capture, &mut Budget::default()).verdict;
-    assert_eq!(verdict, not_filled);
-    let predicate: Predicate =
-        serde_json::from_value(json!({"path": ["request", "body", "a"], "op": "not_existing"}))
-            .unwrap();
-    let compiled = compile_condition(&Condition::Valid(predicate), ConditionUse::PlanMatch);
+    for path in [
+        "request.endpoint_key",
+        "request.headers",
+        "request.headers.a",
+        "ticket.a",
+    ] {
+        let condition: Condition =
+            serde_json::from_value(json!({"path": path, "op": "not_existing"})).unwrap();
+        let compiled = compile_condition(&condition, ConditionUse::Policy);
+        let verdict = evaluate_condition(&compiled, &capture, &mut Budget::default()).verdict;
+        assert_eq!(verdict, not_filled, "{path}");
+    }
     let headers = Headers::default();
     let judging = Environment::for_judging(None, &Endpoint::Keyless, &headers);
-    let verdict = evaluate_condition(&compiled, &judging, &mut Budget::default()).verdict;
-    assert_eq!(verdict, not_filled);
-}
-
-// Each cause written apart, as the binding's callers read it.
-#[test]
-fn test_writes_each_refusal_as_its_cause() {
-    for (refusal, kind) in [
-        (Refusal::UnknownOp, "unknown_op"),
-        (Refusal::Invalid, "invalid"),
-        (Refusal::NotForUse, "not_for_use"),
-        (Refusal::BudgetExceeded, "budget_exceeded"),
-    ] {
-        assert_eq!(
-            serde_json::to_value(refusal).unwrap(),
-            json!(kind),
-            "{refusal:?}"
-        );
+    for path in [json!(["request", "body", "a"]), json!(["request", "host"])] {
+        let predicate: Predicate =
+            serde_json::from_value(json!({"path": path, "op": "not_existing"})).unwrap();
+        let compiled = compile_condition(&Condition::Valid(predicate), ConditionUse::PlanMatch);
+        let verdict = evaluate_condition(&compiled, &judging, &mut Budget::default()).verdict;
+        assert_eq!(verdict, not_filled, "{path}");
     }
 }

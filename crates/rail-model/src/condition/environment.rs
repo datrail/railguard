@@ -10,8 +10,8 @@ use crate::endpoint::Endpoint;
 /// for that use reads no other.
 #[derive(Clone, Copy, Debug)]
 pub struct Environment<'a> {
-    /// `None` also where the call has no usable ticket.
-    pub(crate) ticket: Option<&'a Map<String, Value>>,
+    /// Filled with `None` where the call has no usable ticket.
+    pub(crate) ticket: Option<Option<&'a Map<String, Value>>>,
     pub(crate) endpoint: Option<&'a Endpoint>,
     pub(crate) headers: Option<&'a Headers>,
     pub(crate) request_line: Option<&'a RequestLine>,
@@ -27,7 +27,7 @@ impl<'a> Environment<'a> {
         headers: &'a Headers,
     ) -> Self {
         Self {
-            ticket,
+            ticket: Some(ticket),
             endpoint: Some(endpoint),
             headers: Some(headers),
             request_line: None,

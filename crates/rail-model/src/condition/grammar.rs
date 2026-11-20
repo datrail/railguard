@@ -184,9 +184,9 @@ impl Path {
 /// fills.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ConditionUse {
-    /// A bundle's policy, judged in `Environment::for_judging`.
+    /// A bundle's policy, judged in [`Environment::for_judging`](super::Environment::for_judging).
     Policy,
-    /// A capture plan entry's match, in `Environment::for_capture`.
+    /// A capture plan entry's match, in [`Environment::for_capture`](super::Environment::for_capture).
     PlanMatch,
 }
 
@@ -244,7 +244,7 @@ pub enum RequestPath {
 
 impl RequestPath {
     /// From the steps past `request`; `None` for any field or step this reader doesn't know.
-    pub(crate) fn parse(steps: &[Value]) -> Option<Self> {
+    fn parse(steps: &[Value]) -> Option<Self> {
         if let Some((field, steps)) = steps.split_first()
             && field == "body"
         {

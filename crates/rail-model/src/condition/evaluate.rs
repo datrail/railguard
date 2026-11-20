@@ -62,7 +62,8 @@ impl Default for Budget {
     }
 }
 
-/// Why a judgement couldn't be reached. Never a deny, and never a condition that didn't hold.
+/// Why a condition couldn't be evaluated, written as its snake-case name. Never a deny, and never
+/// a condition that didn't hold.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Refusal {
@@ -72,6 +73,7 @@ pub enum Refusal {
     Invalid,
     /// A path its use doesn't read, or that an environment for another use doesn't fill.
     NotForUse,
+    /// The step budget spent, or the evaluation stopped by its caller.
     BudgetExceeded,
 }
 
@@ -151,8 +153,8 @@ pub enum BodyUnread {
     Batch,
 }
 
-/// `condition` as `read_for` evaluates it: one whose path that use doesn't read can't be
-/// interpreted.
+/// `condition` as `read_for` evaluates it: one this reader can't evaluate, or whose path that use
+/// doesn't read, is refused with its cause.
 pub fn compile_condition(condition: &Condition, read_for: ConditionUse) -> CompiledCondition {
     let refused = |why| CompiledCondition(Node::Refused(why));
     let predicate = match condition {
@@ -248,27 +250,28 @@ fn read_scalars(items: &[Value]) -> Vec<Scalar> {
         .collect()
 }
 
-// An environment for another use fills only its own sources.
-const NOT_FILLED: Refusal = Refusal::NotForUse;
-
 fn resolve<'a>(
     path: &Path,
     environment: &Environment<'a>,
     budget: &mut Budget,
 ) -> Result<Lookup<'a>, Refusal> {
     match path {
-        Path::Ticket(path) => Ok(resolve_ticket(path, environment)),
+        Path::Ticket(path) => resolve_ticket(path, environment),
         Path::Request(path) => resolve_request(path, environment, budget),
     }
 }
 
 /// One key at a time, so a step that is missing, `null` or not an object resolves to absent.
-fn resolve_ticket<'a>(path: &TicketPath, environment: &Environment<'a>) -> Lookup<'a> {
-    let Some(claims) = environment.ticket else {
-        return Lookup::Absent;
+fn resolve_ticket<'a>(
+    path: &TicketPath,
+    environment: &Environment<'a>,
+) -> Result<Lookup<'a>, Refusal> {
+    // An environment for another use fills only its own sources.
+    let Some(claims) = environment.ticket.ok_or(Refusal::NotForUse)? else {
+        return Ok(Lookup::Absent);
     };
     let Some((first, rest)) = path.0.split_first() else {
-        return Lookup::Object;
+        return Ok(Lookup::Object);
     };
     let mut value = claims.get(first);
     for key in rest {
@@ -276,7 +279,7 @@ fn resolve_ticket<'a>(path: &TicketPath, environment: &Environment<'a>) -> Looku
             .and_then(Value::as_object)
             .and_then(|object| object.get(key));
     }
-    value.map_or(Lookup::Absent, read_value)
+    Ok(value.map_or(Lookup::Absent, read_value))
 }
 
 fn read_value(value: &Value) -> Lookup<'_> {
@@ -297,16 +300,21 @@ fn resolve_request<'a>(
     budget: &mut Budget,
 ) -> Result<Lookup<'a>, Refusal> {
     let line = |read: fn(&RequestLine) -> &str| {
-        let line = environment.request_line.ok_or(NOT_FILLED)?;
+        let line = environment.request_line.ok_or(Refusal::NotForUse)?;
         Ok(Lookup::String(Cow::Borrowed(read(line))))
     };
     Ok(match path {
-        RequestPath::Whole | RequestPath::Headers => Lookup::Object,
-        RequestPath::EndpointKey => match environment.endpoint.ok_or(NOT_FILLED)? {
+        RequestPath::Whole => Lookup::Object,
+        RequestPath::Headers => {
+            environment.headers.ok_or(Refusal::NotForUse)?;
+            Lookup::Object
+        }
+        RequestPath::EndpointKey => match environment.endpoint.ok_or(Refusal::NotForUse)? {
             Endpoint::Resolved(key) => Lookup::String(Cow::Borrowed(key.as_str())),
             Endpoint::Keyless | Endpoint::Unrecognised => Lookup::Absent,
         },
-        RequestPath::Header(name) => match environment.headers.ok_or(NOT_FILLED)?.get(name) {
+        RequestPath::Header(name) => match environment.headers.ok_or(Refusal::NotForUse)?.get(name)
+        {
             None => Lookup::Absent,
             Some([value]) => read_value(value),
             Some(values) => Lookup::List(Items::Values(values)),
@@ -326,7 +334,7 @@ fn read_body<'a>(
     environment: &Environment<'a>,
 ) -> Result<&'a RequestBody, Result<Lookup<'a>, Refusal>> {
     match environment.body {
-        None => Err(Err(NOT_FILLED)),
+        None => Err(Err(Refusal::NotForUse)),
         Some(BodyRead::Unread(why)) => Err(Ok(Lookup::BodyUnread(BodyUnread::Unread(*why)))),
         Some(BodyRead::Whole(body)) => Ok(body),
     }
@@ -373,7 +381,11 @@ fn resolve_body<'a>(
             break;
         };
         member = match step {
-            BodyStep::Key(key) => node.walk(&[Step::Key(key)]),
+            // Every member read, for a key repeated past the first.
+            BodyStep::Key(key) => {
+                budget.charge(node.members().count() as u64)?;
+                node.walk(&[Step::Key(key)])
+            }
             BodyStep::Index(index) => {
                 let mut passed = 0;
                 let found = node.items().inspect(|_| passed += 1).nth(*index);

@@ -215,15 +215,17 @@ def test_traces_a_refusal_with_nothing_resolved():
     )
 
 
-def test_refuses_with_each_cause():
-    cases = [
+@pytest.mark.parametrize(
+    ("condition", "refusal"),
+    [
         ({"path": "ticket.score", "op": "newer_op", "value": 1}, "unknown_op"),
         ({"path": "request.host", "op": "existing"}, "not_for_use"),
-    ]
-    for condition, refusal in cases:
-        compiled = _compile_bundle([_build_policy(1, condition)])
-        judgement = judge_sample(compiled, endpoint_key="keyless", claims={"score": 10})
-        assert judgement.chain.refusal == refusal, condition
+    ],
+)
+def test_refuses_with_each_cause(condition, refusal):
+    compiled = _compile_bundle([_build_policy(1, condition)])
+    judgement = judge_sample(compiled, endpoint_key="keyless", claims={"score": 10})
+    assert judgement.chain.refusal == refusal
 
 
 def test_refuses_past_the_step_limit():

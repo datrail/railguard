@@ -39,11 +39,21 @@ pub enum BodyRead {
 /// Why a call's body isn't read.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Unread {
-    Unkept(Unkept),
+    PastCap,
+    PastBudget,
     /// The reader wasn't sent it.
     NotSent,
     /// The reader was sent only part of it.
     CutShort,
+}
+
+impl From<Unkept> for Unread {
+    fn from(unkept: Unkept) -> Self {
+        match unkept {
+            Unkept::PastCap => Self::PastCap,
+            Unkept::PastBudget => Self::PastBudget,
+        }
+    }
 }
 
 /// The bytes every kept body and its tree share, so many large bodies at once can't exhaust memory.
