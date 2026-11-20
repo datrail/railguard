@@ -1,9 +1,6 @@
 {
   "_comment": "Conformance cases for parse_plan, the proxy reading a capture plan Rail Center serves to the agent below. `plan` is the capture design's worked example (its section 2), its body paths under request; each case is that plan with `patch` applied (RFC 6902: add, remove, replace), or `bytes` as sent. `expect` is `refused` (`not_json`, `no_content_hash`, `other_agent`), or a `reading`: `valid`, with the first entry's conditions as read (`valid`, `unknown`, `invalid`) where given; `unknown`; `redaction_mismatch`; or `invalid`, `at` the field its reason starts with. `plan_version`, where given, is as read, null where it doesn't read. The proxy's ceilings: window_seconds 60 to 86400, max_groups_per_window up to 100000, max_steps_per_window up to 1000000, max_unsent_windows up to 1000.",
-  "agent": {
-    "host_id": "host-7f3c",
-    "sandbox_name": "agent-finretail"
-  },
+  "agent": {"host_id": "host-7f3c", "sandbox_name": "agent-finretail"},
   "plan": {
     "schema_version": "1.0",
     "content_hash": "sha256:fb3733bbe47258024770ac2cc2521f60c5709ddc2a31b87744ed1c213229d77c",
@@ -154,1844 +151,556 @@
     {
       "name": "not JSON",
       "bytes": "{",
-      "expect": {
-        "refused": "not_json"
-      }
+      "expect": {"refused": "not_json"}
     },
     {
       "name": "JSON but not an object",
       "bytes": "[]",
-      "expect": {
-        "refused": "no_content_hash"
-      }
+      "expect": {"refused": "no_content_hash"}
     },
     {
       "name": "no content_hash",
-      "patch": [
-        {
-          "op": "remove",
-          "path": "/content_hash"
-        }
-      ],
-      "expect": {
-        "refused": "no_content_hash"
-      }
+      "patch": [{"op": "remove", "path": "/content_hash"}],
+      "expect": {"refused": "no_content_hash"}
     },
     {
       "name": "a content_hash in upper case",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/content_hash",
-          "value": "sha256:FB3733BBE47258024770AC2CC2521F60C5709DDC2A31B87744ED1C213229D77C"
-        }
-      ],
-      "expect": {
-        "refused": "no_content_hash"
-      }
+      "patch": [{"op": "replace", "path": "/content_hash", "value": "sha256:FB3733BBE47258024770AC2CC2521F60C5709DDC2A31B87744ED1C213229D77C"}],
+      "expect": {"refused": "no_content_hash"}
     },
     {
       "name": "a content_hash too short",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/content_hash",
-          "value": "sha256:fb3733bb"
-        }
-      ],
-      "expect": {
-        "refused": "no_content_hash"
-      }
+      "patch": [{"op": "replace", "path": "/content_hash", "value": "sha256:fb3733bb"}],
+      "expect": {"refused": "no_content_hash"}
     },
     {
       "name": "a content_hash without its prefix",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/content_hash",
-          "value": "fb3733bbe47258024770ac2cc2521f60c5709ddc2a31b87744ed1c213229d77c"
-        }
-      ],
-      "expect": {
-        "refused": "no_content_hash"
-      }
+      "patch": [{"op": "replace", "path": "/content_hash", "value": "fb3733bbe47258024770ac2cc2521f60c5709ddc2a31b87744ed1c213229d77c"}],
+      "expect": {"refused": "no_content_hash"}
     },
     {
       "name": "another host's",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/agent/host_id",
-          "value": "host-0000"
-        }
-      ],
-      "expect": {
-        "refused": "other_agent"
-      }
+      "patch": [{"op": "replace", "path": "/agent/host_id", "value": "host-0000"}],
+      "expect": {"refused": "other_agent"}
     },
     {
       "name": "another sandbox's",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/agent/sandbox_name",
-          "value": "agent-other"
-        }
-      ],
-      "expect": {
-        "refused": "other_agent"
-      }
+      "patch": [{"op": "replace", "path": "/agent/sandbox_name", "value": "agent-other"}],
+      "expect": {"refused": "other_agent"}
     },
     {
       "name": "naming no agent",
-      "patch": [
-        {
-          "op": "remove",
-          "path": "/agent"
-        }
-      ],
-      "expect": {
-        "refused": "other_agent"
-      }
+      "patch": [{"op": "remove", "path": "/agent"}],
+      "expect": {"refused": "other_agent"}
     },
     {
       "name": "another agent's, of a version unknown",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/agent/host_id",
-          "value": "host-0000"
-        },
-        {
-          "op": "replace",
-          "path": "/schema_version",
-          "value": "2.0"
-        }
-      ],
-      "expect": {
-        "refused": "other_agent"
-      }
+      "patch": [{"op": "replace", "path": "/agent/host_id", "value": "host-0000"}, {"op": "replace", "path": "/schema_version", "value": "2.0"}],
+      "expect": {"refused": "other_agent"}
     },
     {
       "name": "the worked example",
-      "expect": {
-        "reading": "valid",
-        "plan_version": 7,
-        "conditions": [
-          "valid",
-          "valid",
-          "valid",
-          "valid"
-        ]
-      }
+      "expect": {"reading": "valid", "plan_version": 7, "conditions": ["valid", "valid", "valid", "valid"]}
     },
     {
       "name": "a version unknown, whatever else it holds",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/schema_version",
-          "value": "2.0"
-        },
-        {
-          "op": "remove",
-          "path": "/entries"
-        },
-        {
-          "op": "add",
-          "path": "/extra",
-          "value": true
-        }
-      ],
-      "expect": {
-        "reading": "unknown",
-        "plan_version": 7
-      }
+      "patch": [{"op": "replace", "path": "/schema_version", "value": "2.0"}, {"op": "remove", "path": "/entries"}, {"op": "add", "path": "/extra", "value": true}],
+      "expect": {"reading": "unknown", "plan_version": 7}
     },
     {
       "name": "no schema_version",
-      "patch": [
-        {
-          "op": "remove",
-          "path": "/schema_version"
-        }
-      ],
-      "expect": {
-        "reading": "unknown",
-        "plan_version": 7
-      }
+      "patch": [{"op": "remove", "path": "/schema_version"}],
+      "expect": {"reading": "unknown", "plan_version": 7}
     },
     {
       "name": "a schema_version as a number",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/schema_version",
-          "value": 1
-        }
-      ],
-      "expect": {
-        "reading": "unknown",
-        "plan_version": 7
-      }
+      "patch": [{"op": "replace", "path": "/schema_version", "value": 1}],
+      "expect": {"reading": "unknown", "plan_version": 7}
     },
     {
       "name": "a plan_version of 0",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/plan_version",
-          "value": 0
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "plan_version",
-        "plan_version": null
-      }
+      "patch": [{"op": "replace", "path": "/plan_version", "value": 0}],
+      "expect": {"reading": "invalid", "at": "plan_version", "plan_version": null}
     },
     {
       "name": "a plan_version that isn't a number",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/plan_version",
-          "value": "7"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "plan_version",
-        "plan_version": null
-      }
+      "patch": [{"op": "replace", "path": "/plan_version", "value": "7"}],
+      "expect": {"reading": "invalid", "at": "plan_version", "plan_version": null}
     },
     {
       "name": "a field the reference doesn't list",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/extra",
-          "value": 1
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "extra"
-      }
+      "patch": [{"op": "add", "path": "/extra", "value": 1}],
+      "expect": {"reading": "invalid", "at": "extra"}
     },
     {
       "name": "no generated_at",
-      "patch": [
-        {
-          "op": "remove",
-          "path": "/generated_at"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "generated_at"
-      }
+      "patch": [{"op": "remove", "path": "/generated_at"}],
+      "expect": {"reading": "invalid", "at": "generated_at"}
     },
     {
       "name": "generated_at with an offset",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/generated_at",
-          "value": "2026-11-10T09:58:02+00:00"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "generated_at"
-      }
+      "patch": [{"op": "replace", "path": "/generated_at", "value": "2026-11-10T09:58:02+00:00"}],
+      "expect": {"reading": "invalid", "at": "generated_at"}
     },
     {
       "name": "generated_at with fractional seconds",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/generated_at",
-          "value": "2026-11-10T09:58:02.125Z"
-        }
-      ],
-      "expect": {
-        "reading": "valid"
-      }
+      "patch": [{"op": "replace", "path": "/generated_at", "value": "2026-11-10T09:58:02.125Z"}],
+      "expect": {"reading": "valid"}
     },
     {
       "name": "generated_at with a dot and no fraction",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/generated_at",
-          "value": "2026-11-10T09:58:02.Z"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "generated_at"
-      }
+      "patch": [{"op": "replace", "path": "/generated_at", "value": "2026-11-10T09:58:02.Z"}],
+      "expect": {"reading": "invalid", "at": "generated_at"}
     },
     {
       "name": "an agent with a field the reference doesn't list",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/agent/extra",
-          "value": "x"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "agent"
-      }
+      "patch": [{"op": "add", "path": "/agent/extra", "value": "x"}],
+      "expect": {"reading": "invalid", "at": "agent"}
     },
     {
       "name": "an agent_key",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/agent/agent_key",
-          "value": "k"
-        }
-      ],
-      "expect": {
-        "reading": "valid"
-      }
+      "patch": [{"op": "add", "path": "/agent/agent_key", "value": "k"}],
+      "expect": {"reading": "valid"}
     },
     {
       "name": "an empty agent_key",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/agent/agent_key",
-          "value": ""
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "agent.agent_key"
-      }
+      "patch": [{"op": "add", "path": "/agent/agent_key", "value": ""}],
+      "expect": {"reading": "invalid", "at": "agent.agent_key"}
     },
     {
       "name": "a redaction_version of 0",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/redaction_version",
-          "value": 0
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "redaction_version"
-      }
+      "patch": [{"op": "replace", "path": "/redaction_version", "value": 0}],
+      "expect": {"reading": "invalid", "at": "redaction_version"}
     },
     {
       "name": "another redaction_version",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/redaction_version",
-          "value": 2
-        }
-      ],
-      "expect": {
-        "reading": "redaction_mismatch",
-        "plan_version": 7
-      }
+      "patch": [{"op": "replace", "path": "/redaction_version", "value": 2}],
+      "expect": {"reading": "redaction_mismatch", "plan_version": 7}
     },
     {
       "name": "another redaction_version, invalid otherwise",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/redaction_version",
-          "value": 2
-        },
-        {
-          "op": "replace",
-          "path": "/budget/max_groups_per_window",
-          "value": 0
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "budget.max_groups_per_window"
-      }
+      "patch": [{"op": "replace", "path": "/redaction_version", "value": 2}, {"op": "replace", "path": "/budget/max_groups_per_window", "value": 0}],
+      "expect": {"reading": "invalid", "at": "budget.max_groups_per_window"}
     },
     {
       "name": "window_seconds 59",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/window_seconds",
-          "value": 59
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "window_seconds"
-      }
+      "patch": [{"op": "replace", "path": "/window_seconds", "value": 59}],
+      "expect": {"reading": "invalid", "at": "window_seconds"}
     },
     {
       "name": "window_seconds 60",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/window_seconds",
-          "value": 60
-        }
-      ],
-      "expect": {
-        "reading": "valid"
-      }
+      "patch": [{"op": "replace", "path": "/window_seconds", "value": 60}],
+      "expect": {"reading": "valid"}
     },
     {
       "name": "window_seconds 86400",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/window_seconds",
-          "value": 86400
-        }
-      ],
-      "expect": {
-        "reading": "valid"
-      }
+      "patch": [{"op": "replace", "path": "/window_seconds", "value": 86400}],
+      "expect": {"reading": "valid"}
     },
     {
       "name": "window_seconds 86401",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/window_seconds",
-          "value": 86401
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "window_seconds"
-      }
+      "patch": [{"op": "replace", "path": "/window_seconds", "value": 86401}],
+      "expect": {"reading": "invalid", "at": "window_seconds"}
     },
     {
       "name": "max_groups_per_window 0",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/budget/max_groups_per_window",
-          "value": 0
-        },
-        {
-          "op": "remove",
-          "path": "/budget/max_steps_per_window"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "budget.max_groups_per_window"
-      }
+      "patch": [{"op": "replace", "path": "/budget/max_groups_per_window", "value": 0}, {"op": "remove", "path": "/budget/max_steps_per_window"}],
+      "expect": {"reading": "invalid", "at": "budget.max_groups_per_window"}
     },
     {
       "name": "max_groups_per_window 100000",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/budget/max_groups_per_window",
-          "value": 100000
-        },
-        {
-          "op": "remove",
-          "path": "/budget/max_steps_per_window"
-        }
-      ],
-      "expect": {
-        "reading": "valid"
-      }
+      "patch": [{"op": "replace", "path": "/budget/max_groups_per_window", "value": 100000}, {"op": "remove", "path": "/budget/max_steps_per_window"}],
+      "expect": {"reading": "valid"}
     },
     {
       "name": "max_groups_per_window 100001",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/budget/max_groups_per_window",
-          "value": 100001
-        },
-        {
-          "op": "remove",
-          "path": "/budget/max_steps_per_window"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "budget.max_groups_per_window"
-      }
+      "patch": [{"op": "replace", "path": "/budget/max_groups_per_window", "value": 100001}, {"op": "remove", "path": "/budget/max_steps_per_window"}],
+      "expect": {"reading": "invalid", "at": "budget.max_groups_per_window"}
     },
     {
       "name": "max_steps_per_window 999",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/budget/max_steps_per_window",
-          "value": 999
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "budget.max_steps_per_window"
-      }
+      "patch": [{"op": "replace", "path": "/budget/max_steps_per_window", "value": 999}],
+      "expect": {"reading": "invalid", "at": "budget.max_steps_per_window"}
     },
     {
       "name": "max_steps_per_window 1000",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/budget/max_steps_per_window",
-          "value": 1000
-        }
-      ],
-      "expect": {
-        "reading": "valid"
-      }
+      "patch": [{"op": "replace", "path": "/budget/max_steps_per_window", "value": 1000}],
+      "expect": {"reading": "valid"}
     },
     {
       "name": "max_steps_per_window 1000000",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/budget/max_steps_per_window",
-          "value": 1000000
-        }
-      ],
-      "expect": {
-        "reading": "valid"
-      }
+      "patch": [{"op": "replace", "path": "/budget/max_steps_per_window", "value": 1000000}],
+      "expect": {"reading": "valid"}
     },
     {
       "name": "max_steps_per_window 1000001",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/budget/max_steps_per_window",
-          "value": 1000001
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "budget.max_steps_per_window"
-      }
+      "patch": [{"op": "replace", "path": "/budget/max_steps_per_window", "value": 1000001}],
+      "expect": {"reading": "invalid", "at": "budget.max_steps_per_window"}
     },
     {
       "name": "no max_steps_per_window",
-      "patch": [
-        {
-          "op": "remove",
-          "path": "/budget/max_steps_per_window"
-        }
-      ],
-      "expect": {
-        "reading": "valid"
-      }
+      "patch": [{"op": "remove", "path": "/budget/max_steps_per_window"}],
+      "expect": {"reading": "valid"}
     },
     {
       "name": "max_steps_per_window null",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/budget/max_steps_per_window",
-          "value": null
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "budget"
-      }
+      "patch": [{"op": "replace", "path": "/budget/max_steps_per_window", "value": null}],
+      "expect": {"reading": "invalid", "at": "budget"}
     },
     {
       "name": "on_max_groups unknown",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/budget/on_max_groups",
-          "value": "drop"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "budget"
-      }
+      "patch": [{"op": "replace", "path": "/budget/on_max_groups", "value": "drop"}],
+      "expect": {"reading": "invalid", "at": "budget"}
     },
     {
       "name": "max_unsent_windows 0",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/budget/max_unsent_windows",
-          "value": 0
-        }
-      ],
-      "expect": {
-        "reading": "valid"
-      }
+      "patch": [{"op": "replace", "path": "/budget/max_unsent_windows", "value": 0}],
+      "expect": {"reading": "valid"}
     },
     {
       "name": "max_unsent_windows 1000",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/budget/max_unsent_windows",
-          "value": 1000
-        }
-      ],
-      "expect": {
-        "reading": "valid"
-      }
+      "patch": [{"op": "replace", "path": "/budget/max_unsent_windows", "value": 1000}],
+      "expect": {"reading": "valid"}
     },
     {
       "name": "max_unsent_windows 1001",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/budget/max_unsent_windows",
-          "value": 1001
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "budget.max_unsent_windows"
-      }
+      "patch": [{"op": "replace", "path": "/budget/max_unsent_windows", "value": 1001}],
+      "expect": {"reading": "invalid", "at": "budget.max_unsent_windows"}
     },
     {
       "name": "max_unsent_windows below 0",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/budget/max_unsent_windows",
-          "value": -1
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "budget"
-      }
+      "patch": [{"op": "replace", "path": "/budget/max_unsent_windows", "value": -1}],
+      "expect": {"reading": "invalid", "at": "budget"}
     },
     {
       "name": "a budget with a field the reference doesn't list",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/budget/extra",
-          "value": 1
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "budget"
-      }
+      "patch": [{"op": "add", "path": "/budget/extra", "value": 1}],
+      "expect": {"reading": "invalid", "at": "budget"}
     },
     {
       "name": "no entries",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries",
-          "value": []
-        }
-      ],
-      "expect": {
-        "reading": "valid"
-      }
+      "patch": [{"op": "replace", "path": "/entries", "value": []}],
+      "expect": {"reading": "valid"}
     },
     {
       "name": "an entry with the catch-all's id",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/id",
-          "value": "catch_all"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].id"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/id", "value": "catch_all"}],
+      "expect": {"reading": "invalid", "at": "entries[0].id"}
     },
     {
       "name": "an entry with an empty id",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/id",
-          "value": ""
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].id"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/id", "value": ""}],
+      "expect": {"reading": "invalid", "at": "entries[0].id"}
     },
     {
       "name": "two entries with one id",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/entries/-",
-          "value": {
-            "id": "e1",
-            "match": [
-              {
-                "path": [
-                  "request",
-                  "host"
-                ],
-                "op": "eq",
-                "value": "api.github.com"
-              },
-              {
-                "path": [
-                  "request",
-                  "redacted_path"
-                ],
-                "op": "eq",
-                "value": "/mcp"
-              },
-              {
-                "path": [
-                  "request",
-                  "mcp",
-                  "method"
-                ],
-                "op": "eq",
-                "value": "tools/call"
-              },
-              {
-                "path": [
-                  "request",
-                  "mcp",
-                  "tool"
-                ],
-                "op": "eq",
-                "value": "create_or_update_file"
-              }
-            ],
-            "record": {
-              "context_keys": [
-                {
-                  "name": "destination",
-                  "path": [
-                    "request",
-                    "body",
-                    "params",
-                    "arguments",
-                    "repo"
-                  ],
-                  "field_type": "repository"
-                }
-              ],
-              "measure": [
-                {
-                  "name": "call_count"
-                },
-                {
-                  "name": "error_count"
-                },
-                {
-                  "name": "request_bytes",
-                  "type": "sum",
-                  "function": "size",
-                  "paths": [
-                    [
-                      "request",
-                      "body"
-                    ]
-                  ]
-                },
-                {
-                  "name": "argument_bytes",
-                  "type": "sum",
-                  "function": "size",
-                  "paths": [
-                    [
-                      "request",
-                      "body",
-                      "params",
-                      "arguments",
-                      "content"
-                    ]
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[1].id"
-      }
+      "patch": [{"op": "add", "path": "/entries/-", "value": {"id": "e1", "match": [{"path": ["request", "host"], "op": "eq", "value": "api.github.com"}, {"path": ["request", "redacted_path"], "op": "eq", "value": "/mcp"}, {"path": ["request", "mcp", "method"], "op": "eq", "value": "tools/call"}, {"path": ["request", "mcp", "tool"], "op": "eq", "value": "create_or_update_file"}], "record": {"context_keys": [{"name": "destination", "path": ["request", "body", "params", "arguments", "repo"], "field_type": "repository"}], "measure": [{"name": "call_count"}, {"name": "error_count"}, {"name": "request_bytes", "type": "sum", "function": "size", "paths": [["request", "body"]]}, {"name": "argument_bytes", "type": "sum", "function": "size", "paths": [["request", "body", "params", "arguments", "content"]]}]}}}],
+      "expect": {"reading": "invalid", "at": "entries[1].id"}
     },
     {
       "name": "two entries",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/entries/-",
-          "value": {
-            "id": "e2",
-            "match": [
-              {
-                "path": [
-                  "request",
-                  "host"
-                ],
-                "op": "eq",
-                "value": "api.github.com"
-              },
-              {
-                "path": [
-                  "request",
-                  "redacted_path"
-                ],
-                "op": "eq",
-                "value": "/mcp"
-              },
-              {
-                "path": [
-                  "request",
-                  "mcp",
-                  "method"
-                ],
-                "op": "eq",
-                "value": "tools/call"
-              },
-              {
-                "path": [
-                  "request",
-                  "mcp",
-                  "tool"
-                ],
-                "op": "eq",
-                "value": "create_or_update_file"
-              }
-            ],
-            "record": {
-              "context_keys": [
-                {
-                  "name": "destination",
-                  "path": [
-                    "request",
-                    "body",
-                    "params",
-                    "arguments",
-                    "repo"
-                  ],
-                  "field_type": "repository"
-                }
-              ],
-              "measure": [
-                {
-                  "name": "call_count"
-                },
-                {
-                  "name": "error_count"
-                },
-                {
-                  "name": "request_bytes",
-                  "type": "sum",
-                  "function": "size",
-                  "paths": [
-                    [
-                      "request",
-                      "body"
-                    ]
-                  ]
-                },
-                {
-                  "name": "argument_bytes",
-                  "type": "sum",
-                  "function": "size",
-                  "paths": [
-                    [
-                      "request",
-                      "body",
-                      "params",
-                      "arguments",
-                      "content"
-                    ]
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      ],
-      "expect": {
-        "reading": "valid"
-      }
+      "patch": [{"op": "add", "path": "/entries/-", "value": {"id": "e2", "match": [{"path": ["request", "host"], "op": "eq", "value": "api.github.com"}, {"path": ["request", "redacted_path"], "op": "eq", "value": "/mcp"}, {"path": ["request", "mcp", "method"], "op": "eq", "value": "tools/call"}, {"path": ["request", "mcp", "tool"], "op": "eq", "value": "create_or_update_file"}], "record": {"context_keys": [{"name": "destination", "path": ["request", "body", "params", "arguments", "repo"], "field_type": "repository"}], "measure": [{"name": "call_count"}, {"name": "error_count"}, {"name": "request_bytes", "type": "sum", "function": "size", "paths": [["request", "body"]]}, {"name": "argument_bytes", "type": "sum", "function": "size", "paths": [["request", "body", "params", "arguments", "content"]]}]}}}],
+      "expect": {"reading": "valid"}
     },
     {
       "name": "an endpoint_id of 64 characters",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/entries/0/endpoint_id",
-          "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-        }
-      ],
-      "expect": {
-        "reading": "valid"
-      }
+      "patch": [{"op": "add", "path": "/entries/0/endpoint_id", "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}],
+      "expect": {"reading": "valid"}
     },
     {
       "name": "an endpoint_id of 65 characters",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/entries/0/endpoint_id",
-          "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].endpoint_id"
-      }
+      "patch": [{"op": "add", "path": "/entries/0/endpoint_id", "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}],
+      "expect": {"reading": "invalid", "at": "entries[0].endpoint_id"}
     },
     {
       "name": "an empty endpoint_id",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/entries/0/endpoint_id",
-          "value": ""
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].endpoint_id"
-      }
+      "patch": [{"op": "add", "path": "/entries/0/endpoint_id", "value": ""}],
+      "expect": {"reading": "invalid", "at": "entries[0].endpoint_id"}
     },
     {
       "name": "an entry with a field the reference doesn't list",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/entries/0/extra",
-          "value": 1
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0]"
-      }
+      "patch": [{"op": "add", "path": "/entries/0/extra", "value": 1}],
+      "expect": {"reading": "invalid", "at": "entries[0]"}
     },
     {
       "name": "an entry with no match",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/match",
-          "value": []
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].match"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/match", "value": []}],
+      "expect": {"reading": "invalid", "at": "entries[0].match"}
     },
     {
       "name": "a condition that isn't an object",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/match/1",
-          "value": "request.host"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].match[1]"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/match/1", "value": "request.host"}],
+      "expect": {"reading": "invalid", "at": "entries[0].match[1]"}
     },
     {
       "name": "a condition's path as a dotted string",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/match/0/path",
-          "value": "request.host"
-        }
-      ],
-      "expect": {
-        "reading": "valid",
-        "conditions": [
-          "invalid",
-          "valid",
-          "valid",
-          "valid"
-        ]
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/match/0/path", "value": "request.host"}],
+      "expect": {"reading": "valid", "conditions": ["invalid", "valid", "valid", "valid"]}
     },
     {
       "name": "a condition with a key beside path, op and value",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/entries/0/match/0/note",
-          "value": "x"
-        }
-      ],
-      "expect": {
-        "reading": "valid",
-        "conditions": [
-          "invalid",
-          "valid",
-          "valid",
-          "valid"
-        ]
-      }
+      "patch": [{"op": "add", "path": "/entries/0/match/0/note", "value": "x"}],
+      "expect": {"reading": "valid", "conditions": ["invalid", "valid", "valid", "valid"]}
     },
     {
       "name": "a condition whose op is unknown",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/match/0/op",
-          "value": "newer_op"
-        }
-      ],
-      "expect": {
-        "reading": "valid",
-        "conditions": [
-          "unknown",
-          "valid",
-          "valid",
-          "valid"
-        ]
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/match/0/op", "value": "newer_op"}],
+      "expect": {"reading": "valid", "conditions": ["unknown", "valid", "valid", "valid"]}
     },
     {
       "name": "a condition whose path names nothing",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/match/0/path",
-          "value": [
-            "request",
-            "nothing"
-          ]
-        }
-      ],
-      "expect": {
-        "reading": "valid",
-        "conditions": [
-          "invalid",
-          "valid",
-          "valid",
-          "valid"
-        ]
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/match/0/path", "value": ["request", "nothing"]}],
+      "expect": {"reading": "valid", "conditions": ["invalid", "valid", "valid", "valid"]}
     },
     {
       "name": "a condition on a header",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/match/0/path",
-          "value": [
-            "request",
-            "headers",
-            "a"
-          ]
-        }
-      ],
-      "expect": {
-        "reading": "valid",
-        "conditions": [
-          "valid",
-          "valid",
-          "valid",
-          "valid"
-        ]
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/match/0/path", "value": ["request", "headers", "a"]}],
+      "expect": {"reading": "valid", "conditions": ["valid", "valid", "valid", "valid"]}
     },
     {
       "name": "a context key into the query",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/record/context_keys/0/path",
-          "value": [
-            "query",
-            "repo",
-            0
-          ]
-        }
-      ],
-      "expect": {
-        "reading": "valid"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["query", "repo", 0]}],
+      "expect": {"reading": "valid"}
     },
     {
       "name": "a context key into the path",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/record/context_keys/0/path",
-          "value": [
-            "path",
-            1
-          ]
-        }
-      ],
-      "expect": {
-        "reading": "valid"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["path", 1]}],
+      "expect": {"reading": "valid"}
     },
     {
       "name": "a context key on the whole body",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/record/context_keys/0/path",
-          "value": [
-            "request",
-            "body"
-          ]
-        }
-      ],
-      "expect": {
-        "reading": "valid"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["request", "body"]}],
+      "expect": {"reading": "valid"}
     },
     {
       "name": "a context key into the body as its own root",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/record/context_keys/0/path",
-          "value": [
-            "body",
-            "params"
-          ]
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.context_keys[0].path"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["body", "params"]}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.context_keys[0].path"}
     },
     {
       "name": "a context key on the request line",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/record/context_keys/0/path",
-          "value": [
-            "request",
-            "host"
-          ]
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.context_keys[0].path"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["request", "host"]}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.context_keys[0].path"}
     },
     {
       "name": "a context key with an object step",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/record/context_keys/0/path",
-          "value": [
-            "request",
-            "body",
-            {
-              "type": "wildcard"
-            }
-          ]
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.context_keys[0].path"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["request", "body", {"type": "wildcard"}]}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.context_keys[0].path"}
     },
     {
       "name": "a context key with an empty key",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/record/context_keys/0/path",
-          "value": [
-            "request",
-            "body",
-            ""
-          ]
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.context_keys[0].path"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["request", "body", ""]}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.context_keys[0].path"}
     },
     {
       "name": "a context key's name in upper case",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/record/context_keys/0/name",
-          "value": "Destination"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.context_keys[0].name"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/name", "value": "Destination"}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.context_keys[0].name"}
     },
     {
       "name": "a context key's name of 32 characters",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/record/context_keys/0/name",
-          "value": "dddddddddddddddddddddddddddddddd"
-        }
-      ],
-      "expect": {
-        "reading": "valid"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/name", "value": "dddddddddddddddddddddddddddddddd"}],
+      "expect": {"reading": "valid"}
     },
     {
       "name": "a context key's name of 33 characters",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/record/context_keys/0/name",
-          "value": "ddddddddddddddddddddddddddddddddd"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.context_keys[0].name"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/name", "value": "ddddddddddddddddddddddddddddddddd"}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.context_keys[0].name"}
     },
     {
       "name": "a context key's name from a digit",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/record/context_keys/0/name",
-          "value": "1destination"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.context_keys[0].name"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/name", "value": "1destination"}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.context_keys[0].name"}
     },
     {
       "name": "a context key with no field_type",
-      "patch": [
-        {
-          "op": "remove",
-          "path": "/entries/0/record/context_keys/0/field_type"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.context_keys[0].field_type"
-      }
+      "patch": [{"op": "remove", "path": "/entries/0/record/context_keys/0/field_type"}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.context_keys[0].field_type"}
     },
     {
       "name": "a context key with a field_type in upper case",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/record/context_keys/0/field_type",
-          "value": "Repository"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.context_keys[0].field_type"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/field_type", "value": "Repository"}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.context_keys[0].field_type"}
     },
     {
       "name": "a context key with no path",
-      "patch": [
-        {
-          "op": "remove",
-          "path": "/entries/0/record/context_keys/0/path"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.context_keys[0].path"
-      }
+      "patch": [{"op": "remove", "path": "/entries/0/record/context_keys/0/path"}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.context_keys[0].path"}
     },
     {
       "name": "a context key with segments",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/entries/0/record/context_keys/0/segments",
-          "value": 1
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.context_keys[0].segments"
-      }
+      "patch": [{"op": "add", "path": "/entries/0/record/context_keys/0/segments", "value": 1}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.context_keys[0].segments"}
     },
     {
       "name": "two context keys with one name",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/entries/0/record/context_keys/-",
-          "value": {
-            "name": "destination",
-            "path": [
-              "request",
-              "body",
-              "params",
-              "arguments",
-              "repo"
-            ],
-            "field_type": "repository"
-          }
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.context_keys[1].name"
-      }
+      "patch": [{"op": "add", "path": "/entries/0/record/context_keys/-", "value": {"name": "destination", "path": ["request", "body", "params", "arguments", "repo"], "field_type": "repository"}}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.context_keys[1].name"}
     },
     {
       "name": "an entry's method key",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/entries/0/record/context_keys/-",
-          "value": {
-            "name": "method"
-          }
-        }
-      ],
-      "expect": {
-        "reading": "valid"
-      }
+      "patch": [{"op": "add", "path": "/entries/0/record/context_keys/-", "value": {"name": "method"}}],
+      "expect": {"reading": "valid"}
     },
     {
       "name": "an entry's method key with a path",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/entries/0/record/context_keys/-",
-          "value": {
-            "name": "method",
-            "path": [
-              "path",
-              0
-            ]
-          }
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.context_keys[1]"
-      }
+      "patch": [{"op": "add", "path": "/entries/0/record/context_keys/-", "value": {"name": "method", "path": ["path", 0]}}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.context_keys[1]"}
     },
     {
       "name": "an entry's host key",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/entries/0/record/context_keys/-",
-          "value": {
-            "name": "host"
-          }
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.context_keys[1]"
-      }
+      "patch": [{"op": "add", "path": "/entries/0/record/context_keys/-", "value": {"name": "host"}}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.context_keys[1]"}
     },
     {
       "name": "an entry's operation key",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/entries/0/record/context_keys/-",
-          "value": {
-            "name": "operation"
-          }
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.context_keys[1]"
-      }
+      "patch": [{"op": "add", "path": "/entries/0/record/context_keys/-", "value": {"name": "operation"}}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.context_keys[1]"}
     },
     {
       "name": "an entry's path_prefix key",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/entries/0/record/context_keys/-",
-          "value": {
-            "name": "path_prefix",
-            "segments": 1
-          }
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.context_keys[1]"
-      }
+      "patch": [{"op": "add", "path": "/entries/0/record/context_keys/-", "value": {"name": "path_prefix", "segments": 1}}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.context_keys[1]"}
     },
     {
       "name": "a context key with a field the reference doesn't list",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/entries/0/record/context_keys/0/extra",
-          "value": 1
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0]"
-      }
+      "patch": [{"op": "add", "path": "/entries/0/record/context_keys/0/extra", "value": 1}],
+      "expect": {"reading": "invalid", "at": "entries[0]"}
     },
     {
       "name": "no context keys",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/record/context_keys",
-          "value": []
-        }
-      ],
-      "expect": {
-        "reading": "valid"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys", "value": []}],
+      "expect": {"reading": "valid"}
     },
     {
       "name": "an entry's measures without call_count",
-      "patch": [
-        {
-          "op": "remove",
-          "path": "/entries/0/record/measure/0"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.measure"
-      }
+      "patch": [{"op": "remove", "path": "/entries/0/record/measure/0"}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.measure"}
     },
     {
       "name": "an entry's measures without request_bytes",
-      "patch": [
-        {
-          "op": "remove",
-          "path": "/entries/0/record/measure/2"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.measure"
-      }
+      "patch": [{"op": "remove", "path": "/entries/0/record/measure/2"}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.measure"}
     },
     {
       "name": "request_bytes over the body as its own root",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/record/measure/2/paths",
-          "value": [
-            [
-              "body"
-            ]
-          ]
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.measure[2]"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/record/measure/2/paths", "value": [["body"]]}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.measure[2]"}
     },
     {
       "name": "request_bytes over part of the body",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/record/measure/2/paths",
-          "value": [
-            [
-              "request",
-              "body",
-              "params"
-            ]
-          ]
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.measure[2]"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/record/measure/2/paths", "value": [["request", "body", "params"]]}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.measure[2]"}
     },
     {
       "name": "request_bytes with no type",
-      "patch": [
-        {
-          "op": "remove",
-          "path": "/entries/0/record/measure/2/type"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.measure[2]"
-      }
+      "patch": [{"op": "remove", "path": "/entries/0/record/measure/2/type"}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.measure[2]"}
     },
     {
       "name": "call_count with a type",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/entries/0/record/measure/0/type",
-          "value": "sum"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.measure[0]"
-      }
+      "patch": [{"op": "add", "path": "/entries/0/record/measure/0/type", "value": "sum"}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.measure[0]"}
     },
     {
       "name": "a measure of a type unknown",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/record/measure/3/type",
-          "value": "max"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0]"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/record/measure/3/type", "value": "max"}],
+      "expect": {"reading": "invalid", "at": "entries[0]"}
     },
     {
       "name": "a measure of a function unknown",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/record/measure/3/function",
-          "value": "count"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0]"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/record/measure/3/function", "value": "count"}],
+      "expect": {"reading": "invalid", "at": "entries[0]"}
     },
     {
       "name": "a measure with no paths",
-      "patch": [
-        {
-          "op": "remove",
-          "path": "/entries/0/record/measure/3/paths"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.measure[3]"
-      }
+      "patch": [{"op": "remove", "path": "/entries/0/record/measure/3/paths"}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.measure[3]"}
     },
     {
       "name": "a measure with empty paths",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/record/measure/3/paths",
-          "value": []
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.measure[3].paths"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/record/measure/3/paths", "value": []}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.measure[3].paths"}
     },
     {
       "name": "a measure over the request line",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/record/measure/3/paths",
-          "value": [
-            [
-              "request",
-              "method"
-            ]
-          ]
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.measure[3].paths[0]"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/record/measure/3/paths", "value": [["request", "method"]]}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.measure[3].paths[0]"}
     },
     {
       "name": "a measure over the query and the path",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/record/measure/3/paths",
-          "value": [
-            [
-              "query",
-              "q",
-              0
-            ],
-            [
-              "path",
-              0
-            ]
-          ]
-        }
-      ],
-      "expect": {
-        "reading": "valid"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/record/measure/3/paths", "value": [["query", "q", 0], ["path", 0]]}],
+      "expect": {"reading": "valid"}
     },
     {
       "name": "a measure's name in upper case",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/entries/0/record/measure/3/name",
-          "value": "Argument_bytes"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.measure[3].name"
-      }
+      "patch": [{"op": "replace", "path": "/entries/0/record/measure/3/name", "value": "Argument_bytes"}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.measure[3].name"}
     },
     {
       "name": "two measures with one name",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/entries/0/record/measure/-",
-          "value": {
-            "name": "call_count"
-          }
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "entries[0].record.measure[4].name"
-      }
+      "patch": [{"op": "add", "path": "/entries/0/record/measure/-", "value": {"name": "call_count"}}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.measure[4].name"}
     },
     {
       "name": "a catch-all with another id",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/catch_all/id",
-          "value": "e9"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "catch_all.id"
-      }
+      "patch": [{"op": "replace", "path": "/catch_all/id", "value": "e9"}],
+      "expect": {"reading": "invalid", "at": "catch_all.id"}
     },
     {
       "name": "a catch-all with no host",
-      "patch": [
-        {
-          "op": "remove",
-          "path": "/catch_all/record/context_keys/0"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "catch_all.record.context_keys"
-      }
+      "patch": [{"op": "remove", "path": "/catch_all/record/context_keys/0"}],
+      "expect": {"reading": "invalid", "at": "catch_all.record.context_keys"}
     },
     {
       "name": "a catch-all with only host",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/catch_all/record/context_keys",
-          "value": [
-            {
-              "name": "host"
-            }
-          ]
-        }
-      ],
-      "expect": {
-        "reading": "valid"
-      }
+      "patch": [{"op": "replace", "path": "/catch_all/record/context_keys", "value": [{"name": "host"}]}],
+      "expect": {"reading": "valid"}
     },
     {
       "name": "a catch-all key it doesn't know",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/catch_all/record/context_keys/3",
-          "value": {
-            "name": "destination"
-          }
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "catch_all.record.context_keys[3]"
-      }
+      "patch": [{"op": "replace", "path": "/catch_all/record/context_keys/3", "value": {"name": "destination"}}],
+      "expect": {"reading": "invalid", "at": "catch_all.record.context_keys[3]"}
     },
     {
       "name": "a catch-all key read from a path",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/catch_all/record/context_keys/3",
-          "value": {
-            "name": "destination",
-            "path": [
-              "request",
-              "body",
-              "params",
-              "arguments",
-              "repo"
-            ],
-            "field_type": "repository"
-          }
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "catch_all.record.context_keys[3]"
-      }
+      "patch": [{"op": "replace", "path": "/catch_all/record/context_keys/3", "value": {"name": "destination", "path": ["request", "body", "params", "arguments", "repo"], "field_type": "repository"}}],
+      "expect": {"reading": "invalid", "at": "catch_all.record.context_keys[3]"}
     },
     {
       "name": "a catch-all's path_prefix without segments",
-      "patch": [
-        {
-          "op": "remove",
-          "path": "/catch_all/record/context_keys/1/segments"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "catch_all.record.context_keys[1]"
-      }
+      "patch": [{"op": "remove", "path": "/catch_all/record/context_keys/1/segments"}],
+      "expect": {"reading": "invalid", "at": "catch_all.record.context_keys[1]"}
     },
     {
       "name": "a catch-all's path_prefix of 0 segments",
-      "patch": [
-        {
-          "op": "replace",
-          "path": "/catch_all/record/context_keys/1/segments",
-          "value": 0
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "catch_all.record.context_keys[1]"
-      }
+      "patch": [{"op": "replace", "path": "/catch_all/record/context_keys/1/segments", "value": 0}],
+      "expect": {"reading": "invalid", "at": "catch_all.record.context_keys[1]"}
     },
     {
       "name": "a catch-all's host with segments",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/catch_all/record/context_keys/0/segments",
-          "value": 1
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "catch_all.record.context_keys[0]"
-      }
+      "patch": [{"op": "add", "path": "/catch_all/record/context_keys/0/segments", "value": 1}],
+      "expect": {"reading": "invalid", "at": "catch_all.record.context_keys[0]"}
     },
     {
       "name": "a catch-all's two hosts",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/catch_all/record/context_keys/-",
-          "value": {
-            "name": "host"
-          }
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "catch_all.record.context_keys[4].name"
-      }
+      "patch": [{"op": "add", "path": "/catch_all/record/context_keys/-", "value": {"name": "host"}}],
+      "expect": {"reading": "invalid", "at": "catch_all.record.context_keys[4].name"}
     },
     {
       "name": "a catch-all's measure beside the three",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/catch_all/record/measure/-",
-          "value": {
-            "name": "argument_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body",
-                "params",
-                "arguments",
-                "content"
-              ]
-            ]
-          }
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "catch_all.record.measure[3]"
-      }
+      "patch": [{"op": "add", "path": "/catch_all/record/measure/-", "value": {"name": "argument_bytes", "type": "sum", "function": "size", "paths": [["request", "body", "params", "arguments", "content"]]}}],
+      "expect": {"reading": "invalid", "at": "catch_all.record.measure[3]"}
     },
     {
       "name": "a catch-all without error_count",
-      "patch": [
-        {
-          "op": "remove",
-          "path": "/catch_all/record/measure/1"
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "catch_all.record.measure"
-      }
+      "patch": [{"op": "remove", "path": "/catch_all/record/measure/1"}],
+      "expect": {"reading": "invalid", "at": "catch_all.record.measure"}
     },
     {
       "name": "a catch-all with a field the reference doesn't list",
-      "patch": [
-        {
-          "op": "add",
-          "path": "/catch_all/extra",
-          "value": 1
-        }
-      ],
-      "expect": {
-        "reading": "invalid",
-        "at": "catch_all"
-      }
+      "patch": [{"op": "add", "path": "/catch_all/extra", "value": 1}],
+      "expect": {"reading": "invalid", "at": "catch_all"}
     }
   ]
 }
