@@ -1,4 +1,5 @@
-//! A call's request line, read once, its host and path spelled one way wherever they're compared.
+//! A call's request line, read once, its host and path spelled one way wherever they're compared,
+//! and what a capture record reports of it.
 
 use std::borrow::Cow;
 use std::fmt;
@@ -11,6 +12,13 @@ const UNPARSEABLE: &str = "[unparseable]";
 
 // DNS's longest name.
 const MAX_HOST_CHARS: usize = 253;
+
+// What a method outside the standard nine is reported as.
+const OTHER_METHOD: &str = "[other]";
+
+const STANDARD_METHODS: [&str; 9] = [
+    "GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH",
+];
 
 /// A call's host, method and path, as conditions read them under `request`.
 pub struct RequestLine {
@@ -31,6 +39,39 @@ pub enum HostReading {
     Refused,
     /// Past DNS's longest name: `[unparseable]`, so its length can't carry data.
     PastLongest,
+}
+
+/// Why a request path matches no entry, whatever its conditions say.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Unmatchable {
+    /// Bytes that aren't UTF-8.
+    NotUtf8,
+    /// A `[` or `]`, raw or percent-encoded, so a path can't spell the redaction marker.
+    Bracket,
+    /// A `/` percent-encoded.
+    EncodedSlash,
+    /// A `.` or `..` segment.
+    DotSegment,
+    /// Two slashes in a row: an empty segment before another.
+    EmptySegment,
+}
+
+/// The method a call record reports.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ReportedMethod {
+    /// One of the nine standard methods, as sent.
+    Standard(&'static str),
+    /// Any other, so a custom method can't carry data: `[other]`.
+    Other,
+}
+
+impl ReportedMethod {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Standard(method) => method,
+            Self::Other => OTHER_METHOD,
+        }
+    }
 }
 
 impl RequestLine {
@@ -77,14 +118,56 @@ impl RequestLine {
         &self.path
     }
 
-    // Whether the path wasn't UTF-8, so `path` replaced what wasn't.
-    pub(crate) fn path_lossy(&self) -> bool {
-        self.path_lossy
-    }
-
     /// The path by RailMon's redaction rule, as Rail Center writes a plan's paths.
     pub fn redacted_path(&self) -> &str {
         &self.redacted_path
+    }
+
+    /// Why the path matches no entry, if it can't. On the path as received, before redaction.
+    pub fn unmatchable(&self) -> Option<Unmatchable> {
+        if self.path_lossy {
+            return Some(Unmatchable::NotUtf8);
+        }
+        let path = self.path.as_str();
+        let encodes = |code: &[u8]| {
+            path.as_bytes()
+                .windows(3)
+                .any(|window| window.eq_ignore_ascii_case(code))
+        };
+        if path.contains(['[', ']']) || encodes(b"%5b") || encodes(b"%5d") {
+            return Some(Unmatchable::Bracket);
+        }
+        if encodes(b"%2f") {
+            return Some(Unmatchable::EncodedSlash);
+        }
+        if path.split('/').any(|segment| matches!(segment, "." | "..")) {
+            return Some(Unmatchable::DotSegment);
+        }
+        if path.contains("//") {
+            return Some(Unmatchable::EmptySegment);
+        }
+        None
+    }
+
+    /// The method a call record reports.
+    pub fn reported_method(&self) -> ReportedMethod {
+        STANDARD_METHODS
+            .iter()
+            .find(|standard| **standard == self.method)
+            .map_or(ReportedMethod::Other, |standard| {
+                ReportedMethod::Standard(standard)
+            })
+    }
+
+    /// The redacted path's first `segments` segments, `/` for none.
+    pub fn path_prefix(&self, segments: usize) -> &str {
+        // The redacted path starts with `/` and has no empty segment.
+        let path = &self.redacted_path;
+        let end = path
+            .match_indices('/')
+            .nth(segments)
+            .map_or(path.len(), |(at, _)| at);
+        &path[..end.max(1)]
     }
 }
 
