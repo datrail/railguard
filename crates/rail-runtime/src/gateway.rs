@@ -196,8 +196,7 @@ fn one_value<'a, B>(call: &'a Call<B>, header: &'a str) -> Option<&'a str> {
 fn name(endpoint: &Endpoint) -> &str {
     match endpoint {
         Endpoint::Resolved(key) => key.as_str(),
-        Endpoint::Keyless => "keyless",
-        Endpoint::Unrecognised => "unrecognised",
+        Endpoint::Keyless | Endpoint::Unrecognised => endpoint.kind(),
     }
 }
 

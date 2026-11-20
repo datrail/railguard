@@ -32,6 +32,17 @@ pub enum Endpoint {
     Resolved(ResolvedKey),
 }
 
+impl Endpoint {
+    /// Its kind as logs and reports name it: `keyless`, `unrecognised` or `resolved`.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Self::Keyless => "keyless",
+            Self::Unrecognised => "unrecognised",
+            Self::Resolved(_) => "resolved",
+        }
+    }
+}
+
 /// From the path the upstream serves a message at, and its method and tool name, in the key's
 /// order. A message whose method is missing or not a string is passed as `""`.
 pub(crate) fn resolve_endpoint(path: &str, method: &str, tool_name: Option<&str>) -> Resolution {
