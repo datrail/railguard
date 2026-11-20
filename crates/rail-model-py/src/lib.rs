@@ -257,13 +257,13 @@ mod _native {
         BodyUnread,
     }
 
-    impl From<Lookup<'_>> for ResolvedValue {
-        fn from(lookup: Lookup) -> Self {
+    impl From<&Lookup<'_>> for ResolvedValue {
+        fn from(lookup: &Lookup) -> Self {
             match lookup {
                 Lookup::Absent => Self::Absent,
                 Lookup::String(text) => Self::String(text.to_string()),
-                Lookup::Number(number) => Self::Number(number),
-                Lookup::Bool(value) => Self::Bool(value),
+                Lookup::Number(number) => Self::Number(*number),
+                Lookup::Bool(value) => Self::Bool(*value),
                 Lookup::List(Items::Values(values)) => Self::List(values.to_vec()),
                 // Never here, since a sample has no body; read as JSON, as a ticket's list is.
                 Lookup::List(Items::Body(node)) => Self::List(
@@ -299,7 +299,7 @@ mod _native {
             };
             self.0.push(TraceStep {
                 policy,
-                resolved: evaluation.resolved.clone().map(ResolvedValue::from),
+                resolved: evaluation.resolved.as_ref().map(ResolvedValue::from),
                 verdict,
                 refusal,
             });
