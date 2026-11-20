@@ -224,28 +224,15 @@ impl<'a> Node<'a> {
         })
     }
 
-    /// The value under `key`: `None` if absent or not told apart ([`Self::is_ambiguous`]).
-    pub(crate) fn get(&self, key: &str) -> Option<Node<'a>> {
-        match self.look_up(key) {
-            Member::Found(value) => Some(value),
-            _ => None,
-        }
-    }
-
-    /// Whether what `key` holds can't be told: it's there more than once, letter case ignored, and
-    /// readers differ on which they keep; or a key that doesn't read is one a forgiving reader
-    /// takes for it.
-    pub(crate) fn is_ambiguous(&self, key: &str) -> bool {
-        matches!(self.look_up(key), Member::Ambiguous)
-    }
-
-    fn look_up(&self, key: &str) -> Member<'a> {
-        let mut found = Member::Absent;
+    /// The value under `key`, `None` if absent; `Ambiguous` if it's there more than once, letter
+    /// case ignored, or a key that doesn't read is one a forgiving reader takes for it.
+    pub(crate) fn get(&self, key: &str) -> Result<Option<Node<'a>>, Ambiguous> {
+        let mut found = None;
         let mut seen = false;
         for (name, value) in self.members() {
             let Some(name) = name.text() else {
                 if same_but_case(&(self.tree.guess)(name.raw()), key) {
-                    return Member::Ambiguous;
+                    return Err(Ambiguous);
                 }
                 continue;
             };
@@ -253,14 +240,14 @@ impl<'a> Node<'a> {
                 continue;
             }
             if seen {
-                return Member::Ambiguous;
+                return Err(Ambiguous);
             }
             seen = true;
             if name == key {
-                found = Member::Found(value);
+                found = Some(value);
             }
         }
-        found
+        Ok(found)
     }
 
     /// The value at `steps` from this one: a key, absent if repeated with letter case ignored, or
@@ -270,7 +257,7 @@ impl<'a> Node<'a> {
         let mut node = *self;
         for step in steps {
             node = match *step {
-                Step::Key(key) => node.get(key)?,
+                Step::Key(key) => node.get(key).ok().flatten()?,
                 Step::Index(index) => node.items().nth(index)?,
             };
         }
@@ -296,11 +283,9 @@ impl<'a> Node<'a> {
     }
 }
 
-enum Member<'a> {
-    Absent,
-    Found(Node<'a>),
-    Ambiguous,
-}
+/// What a key holds can't be told: readers differ on which of its values they keep.
+#[derive(Debug)]
+pub(crate) struct Ambiguous;
 
 struct Children<'a> {
     entries: &'a [Entry],
