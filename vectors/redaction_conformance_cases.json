@@ -293,6 +293,12 @@
       "path": "/AKIAAAAAAAAAAAAAAAA",
       "redacted": "/AKIAAAAAAAAAAAAAAAA",
       "added": true
+    },
+    {
+      "name": "a key past 20 characters holding a percent-encoding",
+      "path": "/aaaaaaaaaaaaaaaaaa%20",
+      "redacted": "/[redacted]",
+      "added": true
     }
   ]
 }

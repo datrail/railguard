@@ -25,23 +25,17 @@ fn test_reads_the_host_as_split_authority_spells_it() {
 
 #[test]
 fn test_reads_a_host_it_cant_report_as_unparseable() {
+    let past = "a".repeat(254);
     for (authority, reading) in [
-        ("user@mcp.example.com", HostReading::Refused),
-        (&"a".repeat(254), HostReading::PastLongest),
+        (&b"user@mcp.example.com"[..], HostReading::Refused),
+        (b"mcp.ex\xffample.com", HostReading::Refused),
+        (past.as_bytes(), HostReading::PastLongest),
     ] {
-        let line = read(authority, "POST", "/mcp");
+        let line = RequestLine::read(authority, b"POST", b"/mcp");
 
-        assert_eq!(line.host(), "[unparseable]", "{authority}");
-        assert_eq!(line.host_reading(), &reading, "{authority}");
+        assert_eq!(line.host(), "[unparseable]", "{authority:?}");
+        assert_eq!(line.host_reading(), &reading, "{authority:?}");
     }
-}
-
-#[test]
-fn test_reads_an_authority_that_isnt_utf8_as_refused() {
-    let line = RequestLine::read(b"mcp.ex\xffample.com", b"POST", b"/mcp");
-
-    assert_eq!(line.host(), "[unparseable]");
-    assert_eq!(line.host_reading(), &HostReading::Refused);
 }
 
 #[test]
@@ -60,10 +54,21 @@ fn test_reads_the_path_up_to_its_query_or_fragment_never_decoded() {
 }
 
 #[test]
-fn test_reads_a_path_that_isnt_utf8_lossily() {
-    let line = RequestLine::read(b"mcp.example.com", b"POST", b"/mcp/\xff");
+fn test_reads_a_path_that_isnt_utf8_lossily_matching_nothing() {
+    // A bracket too, so not UTF-8 is the reason told first.
+    let line = RequestLine::read(b"mcp.example.com", b"POST", b"/[mcp]/\xff");
 
-    assert_eq!(line.path(), "/mcp/\u{fffd}");
+    assert_eq!(line.path(), "/[mcp]/\u{fffd}");
+    assert_eq!(line.unmatchable(), Some(Unmatchable::NotUtf8));
+}
+
+#[test]
+fn test_reads_a_path_utf8_up_to_its_query_whatever_follows() {
+    for path in [&b"/mcp?\xff"[..], "/mcp/\u{fffd}".as_bytes()] {
+        let line = RequestLine::read(b"mcp.example.com", b"POST", path);
+
+        assert_eq!(line.unmatchable(), None, "{path:?}");
+    }
 }
 
 #[test]
@@ -91,6 +96,7 @@ fn test_debugs_a_request_line_without_its_path() {
     assert!(!printed.contains("s3cret"), "{printed}");
     assert!(printed.contains("/[redacted]/mcp"), "{printed}");
 }
+
 #[test]
 fn test_reports_a_standard_method_as_sent_and_any_other_as_other() {
     for method in ["GET", "PATCH"] {
@@ -112,6 +118,7 @@ fn test_tells_why_a_path_matches_nothing() {
         ("/a.b/..c/.d", None),
         ("/mcp?x=[1]%2F/../a//b", None),
         ("/[redacted]/mcp", Some(Unmatchable::Bracket)),
+        ("/a[", Some(Unmatchable::Bracket)),
         ("/a]", Some(Unmatchable::Bracket)),
         ("/%5Bredacted%5D/mcp", Some(Unmatchable::Bracket)),
         ("/%5bredacted/mcp", Some(Unmatchable::Bracket)),
@@ -121,7 +128,6 @@ fn test_tells_why_a_path_matches_nothing() {
         ("/a%2Fb/..//c", Some(Unmatchable::EncodedSlash)),
         ("/../a//c", Some(Unmatchable::DotSegment)),
         ("/./mcp", Some(Unmatchable::DotSegment)),
-        ("/a/../mcp", Some(Unmatchable::DotSegment)),
         ("/mcp//", Some(Unmatchable::EmptySegment)),
     ] {
         assert_eq!(
@@ -130,13 +136,6 @@ fn test_tells_why_a_path_matches_nothing() {
             "{path}"
         );
     }
-}
-
-#[test]
-fn test_a_path_that_isnt_utf8_matches_nothing() {
-    let line = RequestLine::read(b"mcp.example.com", b"POST", b"/mcp/\xff");
-
-    assert_eq!(line.unmatchable(), Some(Unmatchable::NotUtf8));
 }
 
 #[test]

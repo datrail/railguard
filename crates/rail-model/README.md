@@ -41,7 +41,7 @@ By module:
 - **`request_line`:** **`RequestLine::read`** reads a call's `:authority`, `:method` and `:path` once, as conditions
   read them under `request`: the host as `split_authority` spells it, or `[unparseable]`; the path up to its query or
   fragment (`/` for a `CONNECT`), as received and redacted. It also tells why a path can match no capture plan entry
-  (**`unmatchable`**), and what a record reports of the call (**`reported_method`**, **`path_prefix`**).
+  (**`unmatchable`**), and what a call record reports of the call (**`reported_method`**, **`path_prefix`**).
 - **`redaction`:** RailMon's rule for a path, at **`REDACTION_VERSION`**, as Rail Center writes a capture plan's paths.
 - **`sanitize`:** **`sanitize`**, **`sanitize_quoted`**, **`sanitize_unquoted`** and **`sanitize_for_json`** make text
   from a call safe to log.

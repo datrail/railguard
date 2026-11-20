@@ -1,5 +1,5 @@
 //! A call's request line, read once, its host and path spelled one way wherever they're compared,
-//! and what a capture record reports of it.
+//! and what a call record reports of it.
 
 use std::borrow::Cow;
 use std::fmt;
@@ -30,7 +30,7 @@ pub struct RequestLine {
 }
 
 /// How a call's host was read.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum HostReading {
     /// Spelled as `split_authority` spells it.
     Read(String),
@@ -40,7 +40,7 @@ pub enum HostReading {
     PastLongest,
 }
 
-/// Why a request path matches no entry, whatever its conditions say.
+/// Why a request path matches no capture plan entry, whatever its conditions say.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Unmatchable {
     /// Bytes that aren't UTF-8.
@@ -65,7 +65,7 @@ pub enum ReportedMethod {
 }
 
 impl ReportedMethod {
-    pub fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &'static str {
         match self {
             Self::Standard(method) => method,
             Self::Other => OTHER_METHOD,
@@ -105,6 +105,7 @@ impl RequestLine {
         }
     }
 
+    /// Whether `host` is the name, or `[unparseable]` and why.
     pub fn host_reading(&self) -> &HostReading {
         &self.host
     }
@@ -114,7 +115,7 @@ impl RequestLine {
         &self.method
     }
 
-    /// As received, never decoded.
+    /// As received, never percent-decoded; bytes that aren't UTF-8 replaced.
     pub fn path(&self) -> &str {
         &self.path
     }
@@ -124,7 +125,7 @@ impl RequestLine {
         &self.redacted_path
     }
 
-    /// Why the path matches no entry, if it can't. On the path as received, before redaction.
+    /// Why the path matches no plan entry, if it can't. On the path as received, before redaction.
     pub fn unmatchable(&self) -> Option<Unmatchable> {
         if self.path_lossy {
             return Some(Unmatchable::NotUtf8);
@@ -153,11 +154,9 @@ impl RequestLine {
     /// The method a call record reports.
     pub fn reported_method(&self) -> ReportedMethod {
         STANDARD_METHODS
-            .iter()
-            .find(|standard| **standard == self.method)
-            .map_or(ReportedMethod::Other, |standard| {
-                ReportedMethod::Standard(standard)
-            })
+            .into_iter()
+            .find(|standard| *standard == self.method)
+            .map_or(ReportedMethod::Other, ReportedMethod::Standard)
     }
 
     /// The redacted path's first `segments` segments, `/` for none.

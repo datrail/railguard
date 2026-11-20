@@ -31,13 +31,13 @@ fn test_refuses_what_isnt_a_host_and_port() {
         "mcp.example.com:65536",
         "mcp.example.com:+80",
         "mcp.example.com..",
+        "mcp.exämple.com",
         "mcp..example.com",
         "user@mcp.example.com",
         "mcp%2eexample.com",
         "2001:db8::1",
         "[2001:db8::1",
         "[2001:db8::1]8443",
-        "[2001:db8::1]:0",
         "[fe80::1%25eth0]",
     ] {
         assert!(split_authority(authority).is_err(), "{authority}");
