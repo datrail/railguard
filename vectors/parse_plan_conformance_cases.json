@@ -1,5 +1,5 @@
 {
-  "_comment": "Conformance cases for parse_plan, the proxy reading a capture plan Rail Center serves to the agent below. `plan` is the capture design's worked example (its section 2), its body paths under request; each case is that plan with `patch` applied (RFC 6902: add, remove, replace), or `bytes` as sent. `expect` is `refused` (`not_json`, `no_content_hash`, `other_agent`), or a `reading`: `valid`, with the first entry's conditions as read (`valid`, `unknown`, `invalid`) where given; `unknown`; `redaction_mismatch`; or `invalid`, `at` the field its reason starts with. `plan_version`, where given, is as read, null where it doesn't read. The proxy's ceilings: window_seconds 60 to 86400, max_groups_per_window up to 100000, max_steps_per_window up to 1000000, max_unsent_windows up to 1000.",
+  "_comment": "Conformance cases for parse_plan, the proxy reading a capture plan Rail Center serves to the agent below. `plan` is the capture design's worked example (its section 2), its body paths under request, as are a query's and a redacted path segment's; each case is that plan with `patch` applied (RFC 6902: add, remove, replace), or `bytes` as sent. `expect` is `refused` (`not_json`, `no_content_hash`, `other_agent`), or a `reading`: `valid`, with the first entry's conditions as read (`valid`, `unknown`, `invalid`) where given; `unknown`; `redaction_mismatch`; or `invalid`, `at` the field its reason starts with. `plan_version`, where given, is as read, null where it doesn't read. The proxy's ceilings: window_seconds 60 to 86400, max_groups_per_window up to 100000, max_steps_per_window up to 1000000, max_unsent_windows up to 1000.",
   "agent": {"host_id": "host-7f3c", "sandbox_name": "agent-finretail"},
   "plan": {
     "schema_version": "1.0",
@@ -459,13 +459,28 @@
     },
     {
       "name": "a context key into the query",
-      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["query", "repo", 0]}],
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["request", "query", "repo", 0]}],
       "expect": {"reading": "valid"}
     },
     {
-      "name": "a context key into the path",
-      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["path", 1]}],
+      "name": "a context key into the query as its own root",
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["query", "repo", 0]}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.context_keys[0].path"}
+    },
+    {
+      "name": "a context key on a redacted path segment",
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["request", "redacted_path", 1]}],
       "expect": {"reading": "valid"}
+    },
+    {
+      "name": "a context key on a path segment as its own root",
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["path", 1]}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.context_keys[0].path"}
+    },
+    {
+      "name": "a context key on a segment of the path as received",
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["request", "path", 1]}],
+      "expect": {"reading": "invalid", "at": "entries[0].record.context_keys[0].path"}
     },
     {
       "name": "a context key on the whole body",
@@ -628,8 +643,8 @@
       "expect": {"reading": "invalid", "at": "entries[0].record.measure[3].paths[0]"}
     },
     {
-      "name": "a measure over the query and the path",
-      "patch": [{"op": "replace", "path": "/entries/0/record/measure/3/paths", "value": [["query", "q", 0], ["path", 0]]}],
+      "name": "a measure over the query and a redacted path segment",
+      "patch": [{"op": "replace", "path": "/entries/0/record/measure/3/paths", "value": [["request", "query", "q", 0], ["request", "redacted_path", 0]]}],
       "expect": {"reading": "valid"}
     },
     {

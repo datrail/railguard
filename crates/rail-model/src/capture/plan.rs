@@ -639,11 +639,13 @@ fn is_name(text: &str) -> bool {
         && bytes.all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_')
 }
 
-// A context key's or a measure's: into the body, the query or the path's segments.
+// A context key's or a measure's: into the body, the query or the redacted path's segments.
 fn read_record_path(at: &str, steps: &[Value]) -> Result<Path, String> {
     let path = Path::from_steps(steps)
         .filter(|path| ConditionUse::PlanRecord.reads(path))
-        .ok_or_else(|| format!("{at}: not a path into the body, the query or the path"))?;
+        .ok_or_else(|| {
+            format!("{at}: not a path into the body, the query or a redacted path segment")
+        })?;
     if let Path::Request(RequestPath::Body(body)) = &path
         && body
             .0
