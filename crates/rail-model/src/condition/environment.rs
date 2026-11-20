@@ -7,10 +7,25 @@ use crate::endpoint::Endpoint;
 /// What a condition reads about one call.
 #[derive(Clone, Copy, Debug)]
 pub struct Environment<'a> {
-    /// A usable ticket's claims. `None` without one: every `ticket` path then reads as absent.
-    pub ticket: Option<&'a Map<String, Value>>,
-    pub endpoint: &'a Endpoint,
-    pub headers: &'a Headers,
+    pub(crate) ticket: Option<&'a Map<String, Value>>,
+    pub(crate) endpoint: &'a Endpoint,
+    pub(crate) headers: &'a Headers,
+}
+
+impl<'a> Environment<'a> {
+    /// For judging a call against the policy bundle: its ticket claims (`None` without a usable
+    /// ticket), its endpoint and its headers.
+    pub fn for_judging(
+        ticket: Option<&'a Map<String, Value>>,
+        endpoint: &'a Endpoint,
+        headers: &'a Headers,
+    ) -> Self {
+        Self {
+            ticket,
+            endpoint,
+            headers,
+        }
+    }
 }
 
 /// A call's headers as conditions read them: names lowercased, every value split on commas.

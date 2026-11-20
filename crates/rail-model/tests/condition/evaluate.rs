@@ -35,11 +35,7 @@ fn evaluate_case(case: &Case) -> Verdict {
         None => Endpoint::Keyless,
     };
     let headers = Headers::from_lines(case.headers.iter().map(|(n, v)| (n, v)));
-    let environment = Environment {
-        ticket: case.ticket.as_ref(),
-        endpoint: &endpoint,
-        headers: &headers,
-    };
+    let environment = Environment::for_judging(case.ticket.as_ref(), &endpoint, &headers);
     evaluate_condition(
         &compile_condition(&condition),
         &environment,
@@ -77,22 +73,14 @@ fn test_vectors() {
 fn evaluate_on_header(condition: Value, value: &str, budget: &mut Budget) -> Verdict {
     let condition: Condition = serde_json::from_value(condition).unwrap();
     let headers = Headers::from_lines([("x-a", value)]);
-    let environment = Environment {
-        ticket: None,
-        endpoint: &Endpoint::Keyless,
-        headers: &headers,
-    };
+    let environment = Environment::for_judging(None, &Endpoint::Keyless, &headers);
     evaluate_condition(&compile_condition(&condition), &environment, budget).verdict
 }
 
 fn evaluate_on_endpoint(condition: Value, endpoint: &Endpoint) -> Verdict {
     let condition: Condition = serde_json::from_value(condition).unwrap();
     let headers = Headers::from_lines([("x-a", "a")]);
-    let environment = Environment {
-        ticket: None,
-        endpoint,
-        headers: &headers,
-    };
+    let environment = Environment::for_judging(None, endpoint, &headers);
     evaluate_condition(
         &compile_condition(&condition),
         &environment,
@@ -254,11 +242,7 @@ fn evaluate_on_claims(condition: Value, claims: Value) -> Verdict {
         panic!();
     };
     let headers = Headers::default();
-    let environment = Environment {
-        ticket: Some(&claims),
-        endpoint: &Endpoint::Keyless,
-        headers: &headers,
-    };
+    let environment = Environment::for_judging(Some(&claims), &Endpoint::Keyless, &headers);
     evaluate_condition(
         &compile_condition(&condition),
         &environment,

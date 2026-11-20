@@ -133,14 +133,14 @@ pub(crate) fn judge_call<B: AsRef<[u8]>>(unit: Unit<B>, report: &dyn Fn(&Denial)
     };
     let ticket = ticket.verify(&config, now_epoch_seconds);
     let headers = Headers::from_lines(call.headers.iter().map(|(name, value)| (name, value)));
-    let environment = Environment {
-        ticket: match &ticket {
+    let environment = Environment::for_judging(
+        match &ticket {
             TicketState::Valid(ticket) => Some(&ticket.claims),
             _ => None,
         },
-        endpoint: &endpoint,
-        headers: &headers,
-    };
+        &endpoint,
+        &headers,
+    );
     let mut budget = Budget::new(settings.step_limit).stopped_by(Arc::clone(&stop));
     let outcome = judge(&bundle.compiled, &environment, mode, &mut budget);
     // Claims the answer, unless it was given without this judgement: then nothing is acted on.

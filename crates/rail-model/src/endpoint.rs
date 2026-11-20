@@ -34,7 +34,7 @@ pub enum Endpoint {
 
 /// From the path the upstream serves a message at, and its method and tool name, in the key's
 /// order. A message whose method is missing or not a string is passed as `""`.
-pub fn resolve_endpoint(path: &str, method: &str, tool_name: Option<&str>) -> Resolution {
+pub(crate) fn resolve_endpoint(path: &str, method: &str, tool_name: Option<&str>) -> Resolution {
     // Drift or garbage, not a message naming no tool, so it doesn't escape the binding fallback.
     if method.is_empty() {
         return Resolution::Judged(Endpoint::Unrecognised);
@@ -63,23 +63,9 @@ pub fn resolve_endpoint(path: &str, method: &str, tool_name: Option<&str>) -> Re
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ResolvedKey {
     text: String,
-    path_len: usize,
-    method_len: usize,
 }
 
 impl ResolvedKey {
-    pub fn path(&self) -> &str {
-        &self.text[..self.path_len]
-    }
-
-    pub fn method(&self) -> &str {
-        &self.text[self.path_len + 1..self.path_len + 1 + self.method_len]
-    }
-
-    pub fn call(&self) -> &str {
-        &self.text[self.path_len + self.method_len + 2..]
-    }
-
     pub fn as_str(&self) -> &str {
         &self.text
     }
@@ -99,8 +85,6 @@ impl FromStr for ResolvedKey {
         }
         Ok(Self {
             text: text.to_string(),
-            path_len: path.len(),
-            method_len: method.len(),
         })
     }
 }

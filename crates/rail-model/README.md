@@ -25,10 +25,11 @@ By module:
   keys.
 - **`condition`:** **`check_condition`** reports every problem with one condition, and whether every reader refuses it
   or only Rail Center; **`compile_condition`** and **`evaluate_condition`** evaluate one, as the judge does.
-- **`endpoint`:** **`resolve_endpoint`** names the endpoint a call asks for, from its path, method and tool.
+- **`endpoint`:** **`Endpoint`** and **`ResolvedKey`**, the endpoint a call asks for, keyed as a bundle binds it, and
+  **`Resolution`**, whether a message is judged at all.
 - **`authority`:** **`split_authority`** reads a host and port from an `:authority`, spelled one way wherever a host is
   compared.
-- **`body`:** **`read_endpoint`** reads the endpoint an MCP request body names.
+- **`body`:** **`read_endpoint`** reads the endpoint an MCP request body names, from its method and tool.
 - **`sanitize`:** **`sanitize`**, **`sanitize_quoted`**, **`sanitize_unquoted`** and **`sanitize_for_json`** make text
   from a call safe to log.
 

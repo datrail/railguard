@@ -89,11 +89,7 @@ mod _native {
             },
             (Ok((endpoint, claims)), Some(mode)) => {
                 let headers = Headers::from_lines(headers);
-                let environment = Environment {
-                    ticket: claims.as_ref(),
-                    endpoint: &endpoint,
-                    headers: &headers,
-                };
+                let environment = Environment::for_judging(claims.as_ref(), &endpoint, &headers);
                 let mut recorder = Recorder(Vec::new());
                 let outcome = judge_traced(
                     &bundle.compiled,
