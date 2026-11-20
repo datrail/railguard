@@ -1315,7 +1315,8 @@
             "x-rail-status": "valid"
           }
         }
-      }
+      },
+      "differs": "the gateway reads a key repeated in another letter case as another key; here it names nothing"
     },
     {
       "name": "unrecognised key not json, endpoint rule",

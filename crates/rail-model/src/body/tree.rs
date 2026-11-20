@@ -21,15 +21,15 @@ const MAX_NESTING: usize = 256;
 pub(crate) struct Tree {
     entries: Vec<Entry>,
     decode: Decode,
-    guess: Guess,
+    conforms: Conforms,
 }
 
 /// A string's text from its raw text, `escaped` if that holds anything to decode; `None` for one
 /// its format can't hold.
 type Decode = fn(&[u8], bool) -> Option<Cow<'_, str>>;
 
-/// The text a forgiving reader makes of a string its format can't hold, from its raw text.
-type Guess = fn(&[u8]) -> String;
+/// Whether a string `Decode` refuses, from its raw text, is still of its format's grammar.
+type Conforms = fn(&[u8]) -> bool;
 
 #[derive(Clone, Copy, Debug)]
 struct Entry {
@@ -59,20 +59,20 @@ impl Tree {
 pub(crate) struct Builder<'g> {
     entries: Vec<Entry>,
     decode: Decode,
-    guess: Guess,
+    conforms: Conforms,
     // The containers open, innermost last.
     open: Vec<usize>,
     grow: &'g mut dyn FnMut(usize) -> bool,
 }
 
 impl<'g> Builder<'g> {
-    /// For content of up to 4 GiB, positions being `u32`, its strings read with `decode`, or
-    /// `guess` where that fails. `grow` is asked before the tree takes more bytes, and can refuse
-    /// them.
+    /// For content of up to 4 GiB, positions being `u32`, its strings read with `decode`, a key
+    /// that doesn't decode checked with `conforms`. `grow` is asked before the tree takes more
+    /// bytes, and can refuse them.
     pub(crate) fn new(
         content_bytes: usize,
         decode: Decode,
-        guess: Guess,
+        conforms: Conforms,
         grow: &'g mut dyn FnMut(usize) -> bool,
     ) -> Result<Self, Unparsed> {
         if u32::try_from(content_bytes).is_err() {
@@ -81,7 +81,7 @@ impl<'g> Builder<'g> {
         Ok(Self {
             entries: Vec::new(),
             decode,
-            guess,
+            conforms,
             open: Vec::new(),
             grow,
         })
@@ -119,7 +119,7 @@ impl<'g> Builder<'g> {
         Ok(Tree {
             entries: self.entries,
             decode: self.decode,
-            guess: self.guess,
+            conforms: self.conforms,
         })
     }
 
@@ -224,13 +224,17 @@ impl<'a> Node<'a> {
         })
     }
 
-    /// The value under `key`.
+    /// The value under `key`, matched exactly; absent if only there in another letter case, or
+    /// ambiguous ([`Member::Ambiguous`]).
     pub(crate) fn get(&self, key: &str) -> Member<'a> {
         let mut found = Member::Absent;
         let mut seen = false;
         for (name, value) in self.members() {
             let Some(name) = name.text() else {
-                if same_but_case(&(self.tree.guess)(name.raw()), key) {
+                // A key outside its format's grammar may be any key: lenient readers each read it
+                // their own way, too many to follow. One the grammar allows but that doesn't decode
+                // reads the same to every reader, as no key sought.
+                if !(self.tree.conforms)(name.raw()) {
                     return Member::Ambiguous;
                 }
                 continue;
@@ -250,8 +254,8 @@ impl<'a> Node<'a> {
     }
 
     /// The value at `steps` from this one: a key, absent if repeated with letter case ignored, or
-    /// if a key that doesn't read is one a forgiving reader takes for it; or an index into an
-    /// array. `None` where a step finds nothing, or the value found is `null`.
+    /// if its object holds a key outside its format's grammar; or an index into an array. `None`
+    /// where a step finds nothing, or the value found is `null`.
     pub fn walk(&self, steps: &[Step<'_>]) -> Option<Node<'a>> {
         let mut node = *self;
         for step in steps {
@@ -288,11 +292,13 @@ pub(crate) enum Member<'a> {
     Found(Node<'a>),
     Absent,
     /// Can't be told: the key is there more than once, letter case ignored, and readers differ on
-    /// which they keep; or a key that doesn't read is one a forgiving reader takes for it.
+    /// which they keep; or the object holds a key outside its format's grammar, which readers
+    /// differ on.
     Ambiguous,
 }
 
 impl<'a> Member<'a> {
+    /// The value, if found.
     pub(crate) fn found(self) -> Option<Node<'a>> {
         match self {
             Self::Found(node) => Some(node),
@@ -313,7 +319,7 @@ impl<'a> Member<'a> {
         self.found()?.text()
     }
 
-    pub(crate) fn is_ambiguous(&self) -> bool {
+    pub(crate) fn is_ambiguous(self) -> bool {
         matches!(self, Self::Ambiguous)
     }
 }

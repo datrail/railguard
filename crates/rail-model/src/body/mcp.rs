@@ -10,8 +10,8 @@ use crate::endpoint::{Resolution, resolve_endpoint};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum McpReading {
     /// Not read as a tree (not JSON, or past the budget), a JSON-RPC batch, or with `method`,
-    /// `params`, `params.name` or `params.arguments` repeated, letter case ignored, or written as a
-    /// key that doesn't read but a forgiving reader takes for it: what it names can't be told.
+    /// `params`, `params.name` or `params.arguments` repeated, letter case ignored, or beside a key
+    /// that isn't JSON, which a lenient reader may read as any: what it names can't be told.
     Unreadable,
     /// An empty body, or a JSON value: `method` and `tool` are absent where it doesn't name them.
     Read {
