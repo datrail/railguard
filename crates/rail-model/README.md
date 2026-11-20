@@ -29,7 +29,10 @@ By module:
   **`Resolution`**, whether a message is judged at all.
 - **`authority`:** **`split_authority`** reads a host and port from an `:authority`, spelled one way wherever a host is
   compared.
-- **`body`:** **`read_endpoint`** reads the endpoint an MCP request body names, from its method and tool.
+- **`body`:** **`BodyBuffer`** keeps a body as it arrives, up to a cap and within a **`ByteBudget`** every kept body
+  shares, as a **`RequestBody`**: read once into a JSON tree (**`json`**, walked with `tree::Node`) and an MCP reading
+  (**`mcp`**). **`mcp::read_endpoint`** reads the endpoint an MCP message names, from its method and tool;
+  **`McpReading::read`** reads one from bytes a host holds itself.
 - **`sanitize`:** **`sanitize`**, **`sanitize_quoted`**, **`sanitize_unquoted`** and **`sanitize_for_json`** make text
   from a call safe to log.
 

@@ -37,7 +37,8 @@ Anything that gets a call past rail-apigee that its rules refuse:
   Center didn't publish, or for another issuer or audience than the bundle names;
 - **a parser disagreement:** the gateway reading a ticket, a bundle or a call differently from Rail Center, or from the
   MCP server behind it, so what's judged isn't what's sent (Apigee splits a header on commas, so a ticket holding one
-  reads as undecodable);
+  reads as undecodable; a call repeating `method`, `params`, `params.name` or `params.arguments`, letter case ignored,
+  names nothing, so the binding fallback decides it);
 - **a hostile call or bundle** that crashes the gateway, or holds it past its deadline or its step budget (a judgement
   past 100,000 steps is refused, 503, at `enforce`);
 - **a call forwarded unjudged** other than in the cases below;
