@@ -10,8 +10,7 @@ use crate::endpoint::Endpoint;
 /// for that use reads no other.
 #[derive(Clone, Copy, Debug)]
 pub struct Environment<'a> {
-    /// Filled with `None` where the call has no usable ticket.
-    pub(crate) ticket: Option<Option<&'a Map<String, Value>>>,
+    pub(crate) ticket: TicketClaims<'a>,
     pub(crate) endpoint: Option<&'a Endpoint>,
     pub(crate) headers: Option<&'a Headers>,
     pub(crate) request_line: Option<&'a RequestLine>,
@@ -27,7 +26,7 @@ impl<'a> Environment<'a> {
         headers: &'a Headers,
     ) -> Self {
         Self {
-            ticket: Some(ticket),
+            ticket: ticket.map_or(TicketClaims::Unusable, TicketClaims::Usable),
             endpoint: Some(endpoint),
             headers: Some(headers),
             request_line: None,
@@ -38,13 +37,23 @@ impl<'a> Environment<'a> {
     /// For capture to match a call against a plan: its request line and its body.
     pub fn for_capture(request_line: &'a RequestLine, body: &'a BodyRead) -> Self {
         Self {
-            ticket: None,
+            ticket: TicketClaims::NotFilled,
             endpoint: None,
             headers: None,
             request_line: Some(request_line),
             body: Some(body),
         }
     }
+}
+
+/// A call's ticket as an environment holds it.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum TicketClaims<'a> {
+    /// An environment for a use that reads no ticket.
+    NotFilled,
+    /// The call has no ticket, or none that verifies.
+    Unusable,
+    Usable(&'a Map<String, Value>),
 }
 
 /// A call's request line, as the caller spells each part.

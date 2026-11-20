@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use serde::Serialize;
 use serde_json::Value;
 
-use super::environment::{Environment, RequestLine};
+use super::environment::{Environment, RequestLine, TicketClaims};
 use super::grammar::{
     BodyPath, BodyStep, Condition, ConditionUse, Path, Predicate, RequestPath, Scalar, TicketPath,
 };
@@ -266,9 +266,11 @@ fn resolve_ticket<'a>(
     path: &TicketPath,
     environment: &Environment<'a>,
 ) -> Result<Lookup<'a>, Refusal> {
-    // An environment for another use fills only its own sources.
-    let Some(claims) = environment.ticket.ok_or(Refusal::NotForUse)? else {
-        return Ok(Lookup::Absent);
+    let claims = match environment.ticket {
+        // An environment for another use fills only its own sources.
+        TicketClaims::NotFilled => return Err(Refusal::NotForUse),
+        TicketClaims::Unusable => return Ok(Lookup::Absent),
+        TicketClaims::Usable(claims) => claims,
     };
     let Some((first, rest)) = path.0.split_first() else {
         return Ok(Lookup::Object);

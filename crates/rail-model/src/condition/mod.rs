@@ -9,6 +9,7 @@ pub use check::{
     ConditionProblem, LocationSegment, OperandShape, ProblemCode, ProblemScope, TicketClaimsSchema,
     check_condition,
 };
+pub(crate) use environment::TicketClaims;
 pub use environment::{Environment, Headers, RequestLine};
 pub use evaluate::{
     BodyUnread, Budget, CompiledCondition, DEFAULT_STEP_LIMIT, Evaluation, Items, Lookup, Refusal,

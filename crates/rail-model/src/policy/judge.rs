@@ -5,8 +5,8 @@ use uuid::Uuid;
 
 use super::bundle::{Action, BindingMode, Bundle, EnforcementMode, Fallback};
 use crate::condition::{
-    Budget, CompiledCondition, ConditionUse, Environment, Evaluation, Refusal, Verdict,
-    compile_condition, evaluate_condition,
+    Budget, CompiledCondition, ConditionUse, Environment, Evaluation, Refusal, TicketClaims,
+    Verdict, compile_condition, evaluate_condition,
 };
 use crate::endpoint::{Endpoint, ResolvedKey};
 
@@ -167,7 +167,9 @@ pub fn judge_traced(
 ) -> Outcome {
     let enforcing = mode == JudgingMode::Enforce;
     let mut fallback_denials = Vec::new();
-    if environment.ticket.flatten().is_none() && bundle.ticket_fallback == Fallback::Block {
+    // A ticket not filled only in an environment for another use: as no usable one.
+    let usable = matches!(environment.ticket, TicketClaims::Usable(_));
+    if !usable && bundle.ticket_fallback == Fallback::Block {
         fallback_denials.push(FallbackDenial::Ticket);
         if enforcing {
             return Outcome {
