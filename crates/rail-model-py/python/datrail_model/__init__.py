@@ -10,6 +10,8 @@ from datrail_model import _native
 from datrail_model._native import DEFAULT_STEP_LIMIT, CompiledBundle
 
 _EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
+# Why a condition was refused, each cause its own.
+_Refusal = Literal["unknown_op", "invalid", "not_for_use", "budget_exceeded"]
 # Past what `rail-model` reads (128), and short of `json.dumps`'s recursion limit.
 _MAX_WALK_DEPTH = 200
 
@@ -90,7 +92,7 @@ class TraceStep:
     resolved: ResolvedValue | None
     verdict: Literal["holds", "does_not_hold", "refused"]
     # Why the condition refused; `None` unless `refused`.
-    refusal: Literal["uninterpretable", "budget_exceeded"] | None
+    refusal: _Refusal | None
 
 
 @dataclass(frozen=True)
@@ -98,7 +100,7 @@ class ChainOutcome:
     decision: Literal["allowed", "denied", "refused"]
     # The deciding policy; `None` when allowed.
     policy: UUID | None
-    refusal: Literal["uninterpretable", "budget_exceeded"] | None
+    refusal: _Refusal | None
     alerts: tuple[UUID, ...]
 
 

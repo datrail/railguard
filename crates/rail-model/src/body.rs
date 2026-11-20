@@ -29,6 +29,33 @@ pub enum Unkept {
     PastBudget,
 }
 
+/// A call's body as a reader has it: kept whole, or unread and why.
+#[derive(Clone, Debug)]
+pub enum BodyRead {
+    Whole(Arc<RequestBody>),
+    Unread(Unread),
+}
+
+/// Why a call's body isn't read.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Unread {
+    PastCap,
+    PastBudget,
+    /// The reader wasn't sent it.
+    NotSent,
+    /// The reader was sent only part of it.
+    CutShort,
+}
+
+impl From<Unkept> for Unread {
+    fn from(unkept: Unkept) -> Self {
+        match unkept {
+            Unkept::PastCap => Self::PastCap,
+            Unkept::PastBudget => Self::PastBudget,
+        }
+    }
+}
+
 /// The bytes every kept body and its tree share, so many large bodies at once can't exhaust memory.
 #[derive(Debug)]
 pub struct ByteBudget {

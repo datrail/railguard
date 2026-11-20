@@ -9,9 +9,12 @@ pub use check::{
     ConditionProblem, LocationSegment, OperandShape, ProblemCode, ProblemScope, TicketClaimsSchema,
     check_condition,
 };
-pub use environment::{Environment, Headers};
+pub(crate) use environment::TicketClaims;
+pub use environment::{Environment, Headers, RequestLine};
 pub use evaluate::{
-    Budget, CompiledCondition, DEFAULT_STEP_LIMIT, Evaluation, Lookup, Refusal, Verdict,
-    compile_condition, evaluate_condition,
+    BodyUnread, Budget, CompiledCondition, DEFAULT_STEP_LIMIT, Evaluation, Items, Lookup, Refusal,
+    Verdict, compile_condition, evaluate_condition,
 };
-pub use grammar::{Condition, Path, Predicate, RequestPath, Scalar, TicketPath};
+pub use grammar::{
+    BodyPath, BodyStep, Condition, ConditionUse, Path, Predicate, RequestPath, Scalar, TicketPath,
+};

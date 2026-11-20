@@ -11,7 +11,8 @@ mod _native {
     use pyo3::types::{PyBytes, PyBytesMethods};
     use pyo3::{Bound, IntoPyObject, PyResult, pyclass, pyfunction};
     use rail_model::condition::{
-        Budget, Environment, Evaluation, Headers, Lookup, Refusal, TicketClaimsSchema, Verdict,
+        Budget, Environment, Evaluation, Headers, Items, Lookup, Refusal, TicketClaimsSchema,
+        Verdict,
     };
     use rail_model::endpoint::Endpoint;
     use rail_model::policy::{
@@ -252,17 +253,28 @@ mod _native {
         Bool(bool),
         List(Vec<Value>),
         Object,
+        Ambiguous,
+        BodyUnread,
     }
 
-    impl From<Lookup<'_>> for ResolvedValue {
-        fn from(lookup: Lookup) -> Self {
+    impl From<&Lookup<'_>> for ResolvedValue {
+        fn from(lookup: &Lookup) -> Self {
             match lookup {
                 Lookup::Absent => Self::Absent,
                 Lookup::String(text) => Self::String(text.to_string()),
-                Lookup::Number(number) => Self::Number(number),
-                Lookup::Bool(value) => Self::Bool(value),
-                Lookup::List(items) => Self::List(items.to_vec()),
+                Lookup::Number(number) => Self::Number(*number),
+                Lookup::Bool(value) => Self::Bool(*value),
+                Lookup::List(Items::Values(values)) => Self::List(values.to_vec()),
+                // Never here, since a sample has no body; read as JSON, as a ticket's list is.
+                Lookup::List(Items::Body(node)) => Self::List(
+                    node.items()
+                        .map(|item| serde_json::from_slice(item.raw()).unwrap_or(Value::Null))
+                        .collect(),
+                ),
                 Lookup::Object => Self::Object,
+                // Never for a sample either.
+                Lookup::Ambiguous => Self::Ambiguous,
+                Lookup::BodyUnread(_) => Self::BodyUnread,
             }
         }
     }
@@ -280,11 +292,14 @@ mod _native {
             let (verdict, refusal) = match evaluation.verdict {
                 Verdict::Holds => ("holds", None),
                 Verdict::DoesNotHold => ("does_not_hold", None),
+                // Never for a sample, which has no body.
+                Verdict::Ambiguous => ("ambiguous", None),
+                Verdict::BodyUnread(_) => ("body_unread", None),
                 Verdict::Refused(refusal) => ("refused", Some(refusal)),
             };
             self.0.push(TraceStep {
                 policy,
-                resolved: evaluation.resolved.map(ResolvedValue::from),
+                resolved: evaluation.resolved.as_ref().map(ResolvedValue::from),
                 verdict,
                 refusal,
             });

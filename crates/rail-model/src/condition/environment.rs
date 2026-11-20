@@ -1,15 +1,20 @@
 use std::collections::BTreeMap;
+use std::fmt;
 
 use serde_json::{Map, Value};
 
+use crate::body::BodyRead;
 use crate::endpoint::Endpoint;
 
-/// What a condition reads about one call.
+/// What a condition reads about one call. Each use fills its own sources; a condition compiled
+/// for that use reads no other.
 #[derive(Clone, Copy, Debug)]
 pub struct Environment<'a> {
-    pub(crate) ticket: Option<&'a Map<String, Value>>,
-    pub(crate) endpoint: &'a Endpoint,
-    pub(crate) headers: &'a Headers,
+    pub(crate) ticket: TicketClaims<'a>,
+    pub(crate) endpoint: Option<&'a Endpoint>,
+    pub(crate) headers: Option<&'a Headers>,
+    pub(crate) request_line: Option<&'a RequestLine>,
+    pub(crate) body: Option<&'a BodyRead>,
 }
 
 impl<'a> Environment<'a> {
@@ -21,10 +26,55 @@ impl<'a> Environment<'a> {
         headers: &'a Headers,
     ) -> Self {
         Self {
-            ticket,
-            endpoint,
-            headers,
+            ticket: ticket.map_or(TicketClaims::Unusable, TicketClaims::Usable),
+            endpoint: Some(endpoint),
+            headers: Some(headers),
+            request_line: None,
+            body: None,
         }
+    }
+
+    /// For capture to match a call against a plan: its request line and its body.
+    pub fn for_capture(request_line: &'a RequestLine, body: &'a BodyRead) -> Self {
+        Self {
+            ticket: TicketClaims::NotFilled,
+            endpoint: None,
+            headers: None,
+            request_line: Some(request_line),
+            body: Some(body),
+        }
+    }
+}
+
+/// A call's ticket as an environment holds it.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum TicketClaims<'a> {
+    /// An environment for a use that reads no ticket.
+    NotFilled,
+    /// The call has no ticket, or none that verifies.
+    Unusable,
+    Usable(&'a Map<String, Value>),
+}
+
+/// A call's request line, as the caller spells each part.
+#[derive(Clone, Default, PartialEq)]
+pub struct RequestLine {
+    pub host: String,
+    pub method: String,
+    /// Up to its first `?` or `#`, as received.
+    pub path: String,
+    pub redacted_path: String,
+}
+
+// The path as received can hold a secret.
+impl fmt::Debug for RequestLine {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("RequestLine")
+            .field("host", &self.host)
+            .field("method", &self.method)
+            .field("redacted_path", &self.redacted_path)
+            .finish_non_exhaustive()
     }
 }
 

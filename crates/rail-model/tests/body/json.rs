@@ -5,7 +5,7 @@ use rail_model::body::tree::Step::{self, Key};
 use serde::de::IgnoredAny;
 
 use super::keep;
-use super::tree::render;
+use super::tree::{describe, render};
 
 fn parse(body: &[u8]) -> Result<String, Unparsed> {
     keep(body).json().map(render)
@@ -66,7 +66,7 @@ fn test_reads_a_string_json_cant_hold_as_no_text() {
 
 // Lenient readers each read a key outside the grammar their own way, so it may be any key.
 #[test]
-fn test_reads_no_key_in_an_object_holding_a_key_not_json() {
+fn test_reads_every_key_as_ambiguous_in_an_object_holding_a_key_not_json() {
     for body in [
         &br#"{"o": {"a": 1, "\q": 2}, "b": 3}"#[..],
         br#"{"o": {"a": 1, "\u00ez": 2}, "b": 3}"#,
@@ -75,21 +75,14 @@ fn test_reads_no_key_in_an_object_holding_a_key_not_json() {
     ] {
         let kept = keep(body);
         let root = kept.json().unwrap();
-        let found = |steps: &[Step]| root.walk(steps).map(render);
+        let found = |steps: &[Step]| describe(root.walk(steps));
         let shown = String::from_utf8_lossy(body);
-        assert_eq!(found(&[Key("o"), Key("a")]), None, "{shown}");
-        assert_eq!(found(&[Key("b")]).as_deref(), Some("3"), "{shown}");
+        assert_eq!(found(&[Key("o"), Key("a")]), "ambiguous", "{shown}");
+        assert_eq!(found(&[Key("b")]), "3", "{shown}");
     }
     // A lone surrogate is JSON, a surrogate or U+FFFD to every reader, whatever escapes are beside it.
     let kept = keep(br#"{"\ud800\"\\\/\b\f\n\r\t\u00e9": 1, "a": 2}"#);
-    assert_eq!(
-        kept.json()
-            .unwrap()
-            .walk(&[Key("a")])
-            .map(render)
-            .as_deref(),
-        Some("2")
-    );
+    assert_eq!(describe(kept.json().unwrap().walk(&[Key("a")])), "2");
 }
 
 #[test]

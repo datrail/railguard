@@ -9,6 +9,7 @@
 //! but the `n`th item of an array takes `n` hops, not one.
 
 use std::borrow::Cow;
+use std::fmt;
 
 use super::Unparsed;
 
@@ -174,6 +175,14 @@ pub struct Node<'a> {
     index: usize,
 }
 
+// The content can hold credentials.
+impl fmt::Debug for Node<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let raw_bytes = self.raw().len();
+        write!(formatter, "Node({:?}, {raw_bytes} bytes)", self.kind())
+    }
+}
+
 /// One step of a path into a body.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Step<'s> {
@@ -253,18 +262,27 @@ impl<'a> Node<'a> {
         found
     }
 
-    /// The value at `steps` from this one: a key, absent if repeated with letter case ignored, or
-    /// if its object holds a key outside its format's grammar; or an index into an array. `None`
-    /// where a step finds nothing, or the value found is `null`.
-    pub fn walk(&self, steps: &[Step<'_>]) -> Option<Node<'a>> {
-        let mut node = *self;
+    /// The value at `steps` from this one: a key, ambiguous if repeated with letter case ignored,
+    /// or if its object holds a key outside its format's grammar; or an index into an array.
+    /// Absent where a step finds nothing, or the value found is `null`.
+    pub fn walk(&self, steps: &[Step<'_>]) -> Member<'a> {
+        let mut member = Member::Found(*self);
         for step in steps {
-            node = match *step {
-                Step::Key(key) => node.get(key).found()?,
-                Step::Index(index) => node.items().nth(index)?,
+            let Member::Found(node) = member else {
+                return member;
+            };
+            member = match *step {
+                Step::Key(key) => node.get(key),
+                Step::Index(index) => node
+                    .items()
+                    .nth(index)
+                    .map_or(Member::Absent, Member::Found),
             };
         }
-        Some(node).filter(|node| node.kind() != Kind::Null)
+        match member {
+            Member::Found(node) if node.kind() == Kind::Null => Member::Absent,
+            _ => member,
+        }
     }
 
     fn at(&self, index: usize) -> Node<'a> {
@@ -286,9 +304,9 @@ impl<'a> Node<'a> {
     }
 }
 
-/// What an object holds under a key.
-#[derive(Clone, Copy)]
-pub(crate) enum Member<'a> {
+/// What a lookup into a body finds.
+#[derive(Clone, Copy, Debug)]
+pub enum Member<'a> {
     Found(Node<'a>),
     Absent,
     /// Can't be told: the key is there more than once, letter case ignored, and readers differ on
@@ -299,7 +317,7 @@ pub(crate) enum Member<'a> {
 
 impl<'a> Member<'a> {
     /// The value, if found.
-    pub(crate) fn found(self) -> Option<Node<'a>> {
+    pub fn found(self) -> Option<Node<'a>> {
         match self {
             Self::Found(node) => Some(node),
             Self::Absent | Self::Ambiguous => None,
@@ -307,7 +325,7 @@ impl<'a> Member<'a> {
     }
 
     /// The value under `key` in an object found; absent or ambiguous as this is otherwise.
-    pub(crate) fn get(self, key: &str) -> Member<'a> {
+    pub fn get(self, key: &str) -> Member<'a> {
         match self {
             Self::Found(node) => node.get(key),
             Self::Absent | Self::Ambiguous => self,
@@ -315,11 +333,11 @@ impl<'a> Member<'a> {
     }
 
     /// The text of a string found; `None` otherwise ([`Node::text`]).
-    pub(crate) fn text(self) -> Option<Cow<'a, str>> {
+    pub fn text(self) -> Option<Cow<'a, str>> {
         self.found()?.text()
     }
 
-    pub(crate) fn is_ambiguous(self) -> bool {
+    pub fn is_ambiguous(self) -> bool {
         matches!(self, Self::Ambiguous)
     }
 }

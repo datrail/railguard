@@ -1,3 +1,4 @@
+use rail_model::body::Unparsed;
 use rail_model::body::mcp::{McpReading, read_endpoint};
 use rail_model::endpoint::{Endpoint, Resolution};
 use serde_json::{Value, json};
@@ -42,31 +43,42 @@ fn test_reads_the_method_and_tool_a_body_names() {
         // What these name can't be told.
         (
             r#"[{"method": "tools/call", "params": {"name": "a"}}]"#,
-            McpReading::Unreadable,
+            McpReading::Batch,
         ),
-        ("not json", McpReading::Unreadable),
-        (" ", McpReading::Unreadable),
+        ("not json", McpReading::Unparsed(Unparsed::Malformed)),
+        (" ", McpReading::Unparsed(Unparsed::Malformed)),
         // Repeated, letter case ignored: readers differ on which they keep.
         (
             r#"{"Method": "ping", "method": "tools/call", "params": {"name": "a"}}"#,
-            McpReading::Unreadable,
+            McpReading::Ambiguous,
         ),
         (
             r#"{"method": "tools/call", "params": {"name": "c"}, "params": {"name": "a"}}"#,
-            McpReading::Unreadable,
+            McpReading::Ambiguous,
         ),
         (
             r#"{"method": "tools/call", "params": {"name": "c", "NAME": "a"}}"#,
-            McpReading::Unreadable,
+            McpReading::Ambiguous,
         ),
         (
             r#"{"method": "resources/read", "params": {"arguments": {}, "Arguments": {}}}"#,
-            McpReading::Unreadable,
+            McpReading::Ambiguous,
         ),
         // Beside a key outside JSON, which a lenient reader may read as `method`.
         (
             r#"{"method": "tools/list", "\method": "tools/call", "params": {"name": "a"}}"#,
-            McpReading::Unreadable,
+            McpReading::Ambiguous,
+        ),
+        // A string that doesn't decode: readers differ on what it spells.
+        (r#"{"method": "\ud800"}"#, McpReading::Ambiguous),
+        (
+            r#"{"method": "tools/call", "params": {"name": "\ud800"}}"#,
+            McpReading::Ambiguous,
+        ),
+        // On another method, the name isn't read.
+        (
+            r#"{"method": "resources/read", "params": {"name": "\ud800"}}"#,
+            build_reading(Some("resources/read"), None),
         ),
         // Only in another case: not the key read.
         (
