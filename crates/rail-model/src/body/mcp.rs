@@ -2,7 +2,7 @@
 
 use std::borrow::Cow;
 
-use super::tree::{Ambiguous, Kind, Node};
+use super::tree::{Kind, Member, Node};
 use super::{Unparsed, json};
 use crate::endpoint::{Resolution, resolve_endpoint};
 
@@ -45,27 +45,27 @@ impl McpReading {
         if root.kind() == Kind::Array {
             return Self::Unreadable;
         }
-        Self::names(root).unwrap_or(Self::Unreadable)
-    }
-
-    // What `root` names; `Ambiguous` if a key read, or `params.arguments`, can't be told.
-    fn names(root: Node<'_>) -> Result<Self, Ambiguous> {
-        let method = root.get("method")?;
-        let params = root.get("params")?;
-        let name = match params {
-            Some(params) => {
-                params.get("arguments")?;
-                params.get("name")?
-            }
-            None => None,
+        let method = root.get("method");
+        let params = root.get("params");
+        let in_params = |key| {
+            params
+                .found()
+                .map_or(Member::Absent, |params| params.get(key))
         };
-        let text = |node: Option<Node<'_>>| node.and_then(|node| node.text().map(Cow::into_owned));
+        let (name, arguments) = (in_params("name"), in_params("arguments"));
+        if [method, params, name, arguments]
+            .iter()
+            .any(Member::is_ambiguous)
+        {
+            return Self::Unreadable;
+        }
+        let text = |member: Member<'_>| member.found()?.text().map(Cow::into_owned);
         let method = text(method);
         let tool = match method.as_deref() {
             Some("tools/call") => text(name),
             _ => None,
         };
-        Ok(Self::Read { method, tool })
+        Self::Read { method, tool }
     }
 
     /// The JSON-RPC `method`, where it's a string.

@@ -224,15 +224,14 @@ impl<'a> Node<'a> {
         })
     }
 
-    /// The value under `key`, `None` if absent; `Ambiguous` if it's there more than once, letter
-    /// case ignored, or a key that doesn't read is one a forgiving reader takes for it.
-    pub(crate) fn get(&self, key: &str) -> Result<Option<Node<'a>>, Ambiguous> {
-        let mut found = None;
+    /// The value under `key`.
+    pub(crate) fn get(&self, key: &str) -> Member<'a> {
+        let mut found = Member::Absent;
         let mut seen = false;
         for (name, value) in self.members() {
             let Some(name) = name.text() else {
                 if same_but_case(&(self.tree.guess)(name.raw()), key) {
-                    return Err(Ambiguous);
+                    return Member::Ambiguous;
                 }
                 continue;
             };
@@ -240,14 +239,14 @@ impl<'a> Node<'a> {
                 continue;
             }
             if seen {
-                return Err(Ambiguous);
+                return Member::Ambiguous;
             }
             seen = true;
             if name == key {
-                found = Some(value);
+                found = Member::Found(value);
             }
         }
-        Ok(found)
+        found
     }
 
     /// The value at `steps` from this one: a key, absent if repeated with letter case ignored, or
@@ -257,7 +256,7 @@ impl<'a> Node<'a> {
         let mut node = *self;
         for step in steps {
             node = match *step {
-                Step::Key(key) => node.get(key).ok().flatten()?,
+                Step::Key(key) => node.get(key).found()?,
                 Step::Index(index) => node.items().nth(index)?,
             };
         }
@@ -283,9 +282,28 @@ impl<'a> Node<'a> {
     }
 }
 
-/// What a key holds can't be told: readers differ on which of its values they keep.
-#[derive(Debug)]
-pub(crate) struct Ambiguous;
+/// What an object holds under a key.
+#[derive(Clone, Copy)]
+pub(crate) enum Member<'a> {
+    Found(Node<'a>),
+    Absent,
+    /// Can't be told: the key is there more than once, letter case ignored, and readers differ on
+    /// which they keep; or a key that doesn't read is one a forgiving reader takes for it.
+    Ambiguous,
+}
+
+impl<'a> Member<'a> {
+    pub(crate) fn found(self) -> Option<Node<'a>> {
+        match self {
+            Self::Found(node) => Some(node),
+            Self::Absent | Self::Ambiguous => None,
+        }
+    }
+
+    pub(crate) fn is_ambiguous(&self) -> bool {
+        matches!(self, Self::Ambiguous)
+    }
+}
 
 struct Children<'a> {
     entries: &'a [Entry],
