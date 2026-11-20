@@ -89,8 +89,9 @@ class TraceStep:
     # `None` when no path was resolved: the condition can't be read, or the budget ran out first.
     resolved: ResolvedValue | None
     verdict: Literal["holds", "does_not_hold", "refused"]
-    # Why the condition refused; `None` unless `refused`.
-    refusal: Literal["uninterpretable", "budget_exceeded"] | None
+    # Why the condition refused, `None` unless `refused`: an op this reader doesn't know, a condition
+    # outside its grammar, a path a policy doesn't read, or the step budget spent.
+    refusal: Literal["unknown_op", "invalid", "not_for_use", "budget_exceeded"] | None
 
 
 @dataclass(frozen=True)
@@ -98,7 +99,7 @@ class ChainOutcome:
     decision: Literal["allowed", "denied", "refused"]
     # The deciding policy; `None` when allowed.
     policy: UUID | None
-    refusal: Literal["uninterpretable", "budget_exceeded"] | None
+    refusal: Literal["unknown_op", "invalid", "not_for_use", "budget_exceeded"] | None
     alerts: tuple[UUID, ...]
 
 

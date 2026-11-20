@@ -600,13 +600,13 @@ fn test_refuses_a_source_its_environment_doesnt_fill() {
     assert_eq!(verdict, not_filled);
 }
 
-// Each cause is written as the kind the binding's callers know.
+// Each cause written apart, as the binding's callers read it.
 #[test]
-fn test_writes_a_refusal_as_its_kind() {
+fn test_writes_each_refusal_as_its_cause() {
     for (refusal, kind) in [
-        (Refusal::UnknownOp, "uninterpretable"),
-        (Refusal::Invalid, "uninterpretable"),
-        (Refusal::NotForUse, "uninterpretable"),
+        (Refusal::UnknownOp, "unknown_op"),
+        (Refusal::Invalid, "invalid"),
+        (Refusal::NotForUse, "not_for_use"),
         (Refusal::BudgetExceeded, "budget_exceeded"),
     ] {
         assert_eq!(

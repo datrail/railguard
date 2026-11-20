@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use serde::{Serialize, Serializer};
+use serde::Serialize;
 use serde_json::Value;
 
 use super::environment::{Environment, RequestLine};
@@ -63,7 +63,8 @@ impl Default for Budget {
 }
 
 /// Why a judgement couldn't be reached. Never a deny, and never a condition that didn't hold.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Refusal {
     /// An op this reader doesn't know, which a newer Rail Center can publish.
     UnknownOp,
@@ -72,17 +73,6 @@ pub enum Refusal {
     /// A path its use doesn't read, or that an environment for another use doesn't fill.
     NotForUse,
     BudgetExceeded,
-}
-
-// Written as the kind Rail Center and the binding know: the condition can't be interpreted, or
-// the budget ran out.
-impl Serialize for Refusal {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(match self {
-            Self::UnknownOp | Self::Invalid | Self::NotForUse => "uninterpretable",
-            Self::BudgetExceeded => "budget_exceeded",
-        })
-    }
 }
 
 /// A condition in the form it is evaluated in.
