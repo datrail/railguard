@@ -1,5 +1,5 @@
 use rail_model::condition::{
-    BodyPath, BodyStep, Condition, ConditionUse, Path, Predicate, RequestPath, Scalar, TicketPath,
+    BodyPath, BodyStep, Condition, Path, Predicate, RequestPath, Scalar, TicketPath,
 };
 use serde_json::{Value, json};
 
@@ -145,14 +145,25 @@ fn test_reads_anything_else_as_invalid() {
         json!({"path": "ticket.sandbox_type", "op": "eq", "value": null}),
         json!({"path": "ticket.sandbox_type", "op": "in", "value": "a"}),
         json!({"path": "ticket.sandbox_type", "op": "matches", "value": 1}),
-        // A bundle spells its paths as strings.
-        json!({"path": ["request", "endpoint_key"], "op": "existing"}),
     ];
     for condition in cases {
         assert_eq!(
             read(condition.clone()),
             Condition::Invalid(condition.to_string())
         );
+    }
+}
+
+#[test]
+fn test_reads_a_conditions_path_in_either_spelling() {
+    for path in [
+        json!("request.endpoint_key"),
+        json!(["request", "endpoint_key"]),
+    ] {
+        let condition = read(json!({"path": path, "op": "existing"}));
+
+        let path = Path::Request(RequestPath::EndpointKey);
+        assert_eq!(condition, Condition::Valid(Predicate::Existing { path }));
     }
 }
 
@@ -188,12 +199,23 @@ fn test_reads_a_path_from_either_spelling() {
         from_list(json!(["request", "query", "repo", 1])),
         Some(Path::Request(RequestPath::Query {
             name: "repo".into(),
-            index: 1
+            index: Some(1)
         }))
     );
     assert_eq!(
+        from_list(json!(["request", "query", "repo"])),
+        Some(Path::Request(RequestPath::Query {
+            name: "repo".into(),
+            index: None
+        }))
+    );
+    assert_eq!(
+        from_list(json!(["request", "path", 2])),
+        Some(Path::Request(RequestPath::Path(Some(2))))
+    );
+    assert_eq!(
         from_list(json!(["request", "redacted_path", 2])),
-        Some(Path::Request(RequestPath::RedactedPathSegment(2)))
+        Some(Path::Request(RequestPath::RedactedPath(Some(2))))
     );
     // From dots, every step is a key, and a segment's index isn't one.
     assert_eq!(from_dots("request.redacted_path.2"), None);
@@ -202,11 +224,13 @@ fn test_reads_a_path_from_either_spelling() {
         json!(["elsewhere"]),
         json!(["query", "repo", 0]),
         json!(["path", 0]),
-        json!(["request", "query", "repo"]),
+        json!(["request", "query", ""]),
+        json!(["request", "query", 0]),
         json!(["request", "query", "", 0]),
         json!(["request", "query", "repo", "0"]),
         json!(["request", "query", "repo", 0, 1]),
-        json!(["request", "path", 0]),
+        json!(["request", "path", -1]),
+        json!(["request", "path", "0"]),
         json!(["request", "redacted_path", -1]),
         json!(["request", "redacted_path", 0, 1]),
         json!(["body", "a"]),
@@ -218,23 +242,5 @@ fn test_reads_a_path_from_either_spelling() {
         json!(["request", "body", {}]),
     ] {
         assert_eq!(from_list(steps.clone()), None, "{steps}");
-    }
-}
-
-#[test]
-fn test_a_plan_record_reads_a_calls_body_query_and_redacted_segments() {
-    for (steps, read) in [
-        (json!(["request", "body"]), true),
-        (json!(["request", "body", "a", 0]), true),
-        (json!(["request", "query", "repo", 0]), true),
-        (json!(["request", "redacted_path", 0]), true),
-        (json!(["request", "redacted_path"]), false),
-        (json!(["request", "host"]), false),
-        (json!(["request", "mcp", "tool"]), false),
-        (json!(["ticket", "a"]), false),
-    ] {
-        let path = Path::from_steps(steps.as_array().unwrap()).unwrap();
-
-        assert_eq!(ConditionUse::PlanRecord.reads(&path), read, "{steps}");
     }
 }

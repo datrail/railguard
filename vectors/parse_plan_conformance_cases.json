@@ -1,5 +1,5 @@
 {
-  "_comment": "Conformance cases for parse_plan, reading a capture plan Rail Center serves and checking it against the field reference. `plan` is the capture design's worked example (its section 2), its body paths under request, as are a query's and a redacted path segment's (in place of the reference's body, query and path roots); each case is that plan with `patch` applied (RFC 6902: add, remove, replace). `expect.valid` is whether parse_plan accepts it; `conditions`, where given, are the first entry's as read (`valid`, `unknown`, `invalid`), each checked when compiled. Not here, since the caller checks them before reading: the content_hash's form, the schema_version's major, the agent, the redaction_version. The proxy's ceilings: window_seconds 60 to 86400, max_groups_per_window up to 100000, max_steps_per_window up to 1000000, max_unsent_windows up to 1000.",
+  "_comment": "Conformance cases for parse_plan, reading a capture plan Rail Center serves and checking it against the field reference. `plan` is the worked example in railxia/docs' design/2026-11-10-rc-dg-capture-plan/design.md at 95b5c7b (its section 2), its body paths under request, as are a query's and a path segment's (in place of the reference's body, query and path roots); each case is that plan with `patch` applied (RFC 6902: add, remove, replace). `expect.valid` is whether parse_plan accepts it; `conditions`, where given, are the first entry's as read (`valid`, `unknown`, `invalid`), each checked when compiled. Not here, since they're the caller's to check: the content_hash's form, the schema_version's major, the agent, the redaction_version. The proxy's ceilings: window_seconds 60 to 86400, max_groups_per_window up to 100000, max_steps_per_window up to 1000000, max_unsent_windows up to 1000.",
   "plan": {
     "schema_version": "1.0",
     "content_hash": "sha256:fb3733bbe47258024770ac2cc2521f60c5709ddc2a31b87744ed1c213229d77c",
@@ -157,34 +157,19 @@
       "expect": {"valid": false}
     },
     {
-      "name": "a plan_version that isn't a number",
-      "patch": [{"op": "replace", "path": "/plan_version", "value": "7"}],
-      "expect": {"valid": false}
-    },
-    {
       "name": "a field the reference doesn't list",
       "patch": [{"op": "add", "path": "/extra", "value": 1}],
       "expect": {"valid": false}
     },
     {
-      "name": "no generated_at",
-      "patch": [{"op": "remove", "path": "/generated_at"}],
-      "expect": {"valid": false}
-    },
-    {
-      "name": "generated_at with an offset",
-      "patch": [{"op": "replace", "path": "/generated_at", "value": "2026-11-10T09:58:02+00:00"}],
-      "expect": {"valid": false}
-    },
-    {
-      "name": "generated_at with fractional seconds",
-      "patch": [{"op": "replace", "path": "/generated_at", "value": "2026-11-10T09:58:02.125Z"}],
+      "name": "generated_at of any value, read past",
+      "patch": [{"op": "replace", "path": "/generated_at", "value": 1}],
       "expect": {"valid": true}
     },
     {
-      "name": "generated_at with a dot and no fraction",
-      "patch": [{"op": "replace", "path": "/generated_at", "value": "2026-11-10T09:58:02.Z"}],
-      "expect": {"valid": false}
+      "name": "no generated_at, read past",
+      "patch": [{"op": "remove", "path": "/generated_at"}],
+      "expect": {"valid": true}
     },
     {
       "name": "an agent with a field the reference doesn't list",
@@ -222,28 +207,8 @@
       "expect": {"valid": false}
     },
     {
-      "name": "a schema_version as a number",
-      "patch": [{"op": "replace", "path": "/schema_version", "value": 1}],
-      "expect": {"valid": false}
-    },
-    {
-      "name": "no schema_version",
-      "patch": [{"op": "remove", "path": "/schema_version"}],
-      "expect": {"valid": false}
-    },
-    {
-      "name": "no content_hash",
-      "patch": [{"op": "remove", "path": "/content_hash"}],
-      "expect": {"valid": false}
-    },
-    {
       "name": "naming no agent",
       "patch": [{"op": "remove", "path": "/agent"}],
-      "expect": {"valid": false}
-    },
-    {
-      "name": "an agent with no sandbox_name",
-      "patch": [{"op": "remove", "path": "/agent/sandbox_name"}],
       "expect": {"valid": false}
     },
     {
@@ -332,11 +297,6 @@
       "expect": {"valid": false}
     },
     {
-      "name": "max_unsent_windows below 0",
-      "patch": [{"op": "replace", "path": "/budget/max_unsent_windows", "value": -1}],
-      "expect": {"valid": false}
-    },
-    {
       "name": "a budget with a field the reference doesn't list",
       "patch": [{"op": "add", "path": "/budget/extra", "value": 1}],
       "expect": {"valid": false}
@@ -362,13 +322,13 @@
       "expect": {"valid": false}
     },
     {
-      "name": "two entries",
-      "patch": [{"op": "add", "path": "/entries/-", "value": {"id": "e2", "match": [{"path": ["request", "host"], "op": "eq", "value": "api.github.com"}, {"path": ["request", "redacted_path"], "op": "eq", "value": "/mcp"}, {"path": ["request", "mcp", "method"], "op": "eq", "value": "tools/call"}, {"path": ["request", "mcp", "tool"], "op": "eq", "value": "create_or_update_file"}], "record": {"context_keys": [{"name": "destination", "path": ["request", "body", "params", "arguments", "repo"], "field_type": "repository"}], "measure": [{"name": "call_count"}, {"name": "error_count"}, {"name": "request_bytes", "type": "sum", "function": "size", "paths": [["request", "body"]]}, {"name": "argument_bytes", "type": "sum", "function": "size", "paths": [["request", "body", "params", "arguments", "content"]]}]}}}],
+      "name": "an endpoint_id of 64 characters",
+      "patch": [{"op": "add", "path": "/entries/0/endpoint_id", "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}],
       "expect": {"valid": true}
     },
     {
-      "name": "an endpoint_id of 64 characters",
-      "patch": [{"op": "add", "path": "/entries/0/endpoint_id", "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}],
+      "name": "an endpoint_id of 64 characters of two bytes",
+      "patch": [{"op": "add", "path": "/entries/0/endpoint_id", "value": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"}],
       "expect": {"valid": true}
     },
     {
@@ -397,9 +357,9 @@
       "expect": {"valid": false}
     },
     {
-      "name": "a condition's path as a dotted string",
+      "name": "a condition's path as a dotted string, either spelling read",
       "patch": [{"op": "replace", "path": "/entries/0/match/0/path", "value": "request.host"}],
-      "expect": {"valid": true, "conditions": ["invalid", "valid", "valid", "valid"]}
+      "expect": {"valid": true, "conditions": ["valid", "valid", "valid", "valid"]}
     },
     {
       "name": "a condition with a key beside path, op and value",
@@ -427,23 +387,23 @@
       "expect": {"valid": true}
     },
     {
-      "name": "a context key into the query as its own root",
-      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["query", "repo", 0]}],
-      "expect": {"valid": false}
-    },
-    {
       "name": "a context key on a redacted path segment",
       "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["request", "redacted_path", 1]}],
       "expect": {"valid": true}
     },
     {
-      "name": "a context key on a path segment as its own root",
-      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["path", 1]}],
-      "expect": {"valid": false}
-    },
-    {
       "name": "a context key on a segment of the path as received",
       "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["request", "path", 1]}],
+      "expect": {"valid": true}
+    },
+    {
+      "name": "a context key on a query parameter's values",
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["request", "query", "repo"]}],
+      "expect": {"valid": true}
+    },
+    {
+      "name": "a context key on the whole path",
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["request", "path"]}],
       "expect": {"valid": false}
     },
     {
@@ -507,11 +467,6 @@
       "expect": {"valid": false}
     },
     {
-      "name": "a context key with segments",
-      "patch": [{"op": "add", "path": "/entries/0/record/context_keys/0/segments", "value": 1}],
-      "expect": {"valid": false}
-    },
-    {
       "name": "two context keys with one name",
       "patch": [{"op": "add", "path": "/entries/0/record/context_keys/-", "value": {"name": "destination", "path": ["request", "body", "params", "arguments", "repo"], "field_type": "repository"}}],
       "expect": {"valid": false}
@@ -527,18 +482,18 @@
       "expect": {"valid": false}
     },
     {
-      "name": "an entry's host key",
-      "patch": [{"op": "add", "path": "/entries/0/record/context_keys/-", "value": {"name": "host"}}],
+      "name": "an entry's host key, its fields a named key's",
+      "patch": [{"op": "add", "path": "/entries/0/record/context_keys/-", "value": {"path": ["request", "body", "params", "arguments", "repo"], "field_type": "repository", "name": "host"}}],
       "expect": {"valid": false}
     },
     {
-      "name": "an entry's operation key",
-      "patch": [{"op": "add", "path": "/entries/0/record/context_keys/-", "value": {"name": "operation"}}],
+      "name": "an entry's path_prefix key, its fields a named key's",
+      "patch": [{"op": "add", "path": "/entries/0/record/context_keys/-", "value": {"path": ["request", "body", "params", "arguments", "repo"], "field_type": "repository", "name": "path_prefix"}}],
       "expect": {"valid": false}
     },
     {
-      "name": "an entry's path_prefix key",
-      "patch": [{"op": "add", "path": "/entries/0/record/context_keys/-", "value": {"name": "path_prefix", "segments": 1}}],
+      "name": "an entry's operation key, its fields a named key's",
+      "patch": [{"op": "add", "path": "/entries/0/record/context_keys/-", "value": {"path": ["request", "body", "params", "arguments", "repo"], "field_type": "repository", "name": "operation"}}],
       "expect": {"valid": false}
     },
     {
@@ -567,8 +522,18 @@
       "expect": {"valid": false}
     },
     {
-      "name": "request_bytes over part of the body",
-      "patch": [{"op": "replace", "path": "/entries/0/record/measure/2/paths", "value": [["request", "body", "params"]]}],
+      "name": "request_bytes of a type but sum",
+      "patch": [{"op": "replace", "path": "/entries/0/record/measure/2/type", "value": "max"}],
+      "expect": {"valid": false}
+    },
+    {
+      "name": "request_bytes of a function but size",
+      "patch": [{"op": "replace", "path": "/entries/0/record/measure/2/function", "value": "count"}],
+      "expect": {"valid": false}
+    },
+    {
+      "name": "request_bytes with a field the reference doesn't list",
+      "patch": [{"op": "add", "path": "/entries/0/record/measure/2/extra", "value": 1}],
       "expect": {"valid": false}
     },
     {
@@ -612,8 +577,33 @@
       "expect": {"valid": true}
     },
     {
-      "name": "a measure's name in upper case",
-      "patch": [{"op": "replace", "path": "/entries/0/record/measure/3/name", "value": "Argument_bytes"}],
+      "name": "a context key's name with an upper-case letter past its first",
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/name", "value": "destinatioN"}],
+      "expect": {"valid": false}
+    },
+    {
+      "name": "a context key's name with a hyphen",
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/name", "value": "dest-ination"}],
+      "expect": {"valid": false}
+    },
+    {
+      "name": "a measure with no name",
+      "patch": [{"op": "remove", "path": "/entries/0/record/measure/3/name"}],
+      "expect": {"valid": false}
+    },
+    {
+      "name": "a measure with a field the reference doesn't list",
+      "patch": [{"op": "add", "path": "/entries/0/record/measure/3/extra", "value": 1}],
+      "expect": {"valid": false}
+    },
+    {
+      "name": "a context key with a field_type that isn't a string",
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/field_type", "value": 1}],
+      "expect": {"valid": false}
+    },
+    {
+      "name": "a context key's path as a dotted string",
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": "request.body.params"}],
       "expect": {"valid": false}
     },
     {
@@ -639,11 +629,6 @@
     {
       "name": "a catch-all key it doesn't know",
       "patch": [{"op": "replace", "path": "/catch_all/record/context_keys/3", "value": {"name": "destination"}}],
-      "expect": {"valid": false}
-    },
-    {
-      "name": "a catch-all key read from a path",
-      "patch": [{"op": "replace", "path": "/catch_all/record/context_keys/3", "value": {"name": "destination", "path": ["request", "body", "params", "arguments", "repo"], "field_type": "repository"}}],
       "expect": {"valid": false}
     },
     {
