@@ -1,5 +1,6 @@
 //! A call's request line, read once, its host and path spelled one way wherever they're compared.
 
+use std::borrow::Cow;
 use std::fmt;
 
 use crate::authority::split_authority;
@@ -12,7 +13,6 @@ const UNPARSEABLE: &str = "[unparseable]";
 const MAX_HOST_CHARS: usize = 253;
 
 /// A call's host, method and path, as conditions read them under `request`.
-#[derive(Clone, PartialEq)]
 pub struct RequestLine {
     host: String,
     host_reading: HostReading,
@@ -44,10 +44,10 @@ impl RequestLine {
             .split(|byte| matches!(byte, b'?' | b'#'))
             .next()
             .unwrap_or_default();
-        let (path, path_lossy) = match std::str::from_utf8(path) {
-            Ok(path) => (path.to_owned(), false),
-            Err(_) => (String::from_utf8_lossy(path).into_owned(), true),
-        };
+        let path = String::from_utf8_lossy(path);
+        // Borrowed exactly when the bytes are UTF-8.
+        let path_lossy = matches!(path, Cow::Owned(_));
+        let path = path.into_owned();
         Self {
             host,
             host_reading,
@@ -77,8 +77,8 @@ impl RequestLine {
         &self.path
     }
 
-    /// Whether the path wasn't UTF-8, so `path` replaced what wasn't.
-    pub fn path_lossy(&self) -> bool {
+    // Whether the path wasn't UTF-8, so `path` replaced what wasn't.
+    pub(crate) fn path_lossy(&self) -> bool {
         self.path_lossy
     }
 

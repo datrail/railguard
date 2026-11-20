@@ -20,20 +20,20 @@ pub enum Unmatchable {
     EncodedSlash,
     /// A `.` or `..` segment.
     DotSegment,
-    /// An empty segment other than a trailing one.
+    /// Two slashes in a row: an empty segment before another.
     EmptySegment,
 }
 
 /// The method a call record reports.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ReportedMethod<'a> {
+pub enum ReportedMethod {
     /// One of the nine standard methods, as sent.
-    Standard(&'a str),
+    Standard(&'static str),
     /// Any other, so a custom method can't carry data: `[other]`.
     Other,
 }
 
-impl ReportedMethod<'_> {
+impl ReportedMethod {
     pub fn as_str(&self) -> &str {
         match self {
             Self::Standard(method) => method,
@@ -62,20 +62,19 @@ pub fn unmatchable(line: &RequestLine) -> Option<Unmatchable> {
     if path.split('/').any(|segment| matches!(segment, "." | "..")) {
         return Some(Unmatchable::DotSegment);
     }
-    // Two slashes in a row are an empty segment before another.
     if path.contains("//") {
         return Some(Unmatchable::EmptySegment);
     }
     None
 }
 
-pub fn reported_method(line: &RequestLine) -> ReportedMethod<'_> {
-    let method = line.method();
-    if STANDARD_METHODS.contains(&method) {
-        ReportedMethod::Standard(method)
-    } else {
-        ReportedMethod::Other
-    }
+pub fn reported_method(line: &RequestLine) -> ReportedMethod {
+    STANDARD_METHODS
+        .iter()
+        .find(|standard| **standard == line.method())
+        .map_or(ReportedMethod::Other, |standard| {
+            ReportedMethod::Standard(standard)
+        })
 }
 
 /// The redacted path's first `segments` segments, `/` for none.

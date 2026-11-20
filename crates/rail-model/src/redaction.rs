@@ -1,8 +1,6 @@
-//! RailMon's redaction rule for a URL's path, `asp_redaction`'s `redact_path_segment`, ported.
+//! RailMon's redaction rule for a URL's path, `asp_redaction`'s, ported.
 //! Rail Center writes a capture plan's paths redacted by it, so a call's path is redacted the same
 //! way before the two are compared. Kept in step by `vectors/redaction_conformance_cases.json`.
-
-use std::borrow::Cow;
 
 /// The version of the rule this port implements; a plan names the one it was written with.
 pub const REDACTION_VERSION: u64 = 1;
@@ -16,7 +14,7 @@ pub(crate) fn redact_path(path: &str) -> String {
     let mut redacted = String::with_capacity(path.len() + 1);
     for segment in path.split('/').filter(|segment| !segment.is_empty()) {
         redacted.push('/');
-        redacted.push_str(&redact_segment(segment));
+        push_segment(&mut redacted, segment);
     }
     if redacted.is_empty() {
         redacted.push('/');
@@ -25,13 +23,11 @@ pub(crate) fn redact_path(path: &str) -> String {
 }
 
 // The key test reads the brackets decoded, so a second pass can't push a segment past 20.
-fn redact_segment(segment: &str) -> Cow<'_, str> {
+fn push_segment(redacted: &mut String, segment: &str) {
     if !segment.contains(['%', '[', ']']) {
-        return Cow::Borrowed(if looks_like_secret_segment(segment) {
-            REDACTED
-        } else {
-            segment
-        });
+        let secret = looks_like_secret_segment(segment);
+        redacted.push_str(if secret { REDACTED } else { segment });
+        return;
     }
     let raw = segment
         .replace("%5D", "]")
@@ -39,9 +35,16 @@ fn redact_segment(segment: &str) -> Cow<'_, str> {
         .replace("%5B", "[")
         .replace("%5b", "[");
     if raw == REDACTED || looks_like_secret_segment(&raw) {
-        return Cow::Borrowed(REDACTED);
+        redacted.push_str(REDACTED);
+        return;
     }
-    Cow::Owned(raw.replace('[', "%5B").replace(']', "%5D"))
+    for character in raw.chars() {
+        match character {
+            '[' => redacted.push_str("%5B"),
+            ']' => redacted.push_str("%5D"),
+            other => redacted.push(other),
+        }
+    }
 }
 
 // The rule counts characters, not bytes.

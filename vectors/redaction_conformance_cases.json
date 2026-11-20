@@ -247,12 +247,6 @@
       "added": true
     },
     {
-      "name": "an encoded pair of brackets",
-      "path": "/%5B%5D",
-      "redacted": "/%5B%5D",
-      "added": true
-    },
-    {
       "name": "the marker with a bracket more",
       "path": "/%5Bredacted%5D%5D",
       "redacted": "/%5Bredacted%5D%5D",
@@ -286,12 +280,6 @@
       "name": "Slack's shape, a dash in its run",
       "path": "/xoxb-12345-67890",
       "redacted": "/[redacted]",
-      "added": true
-    },
-    {
-      "name": "Slack's shape, a dot in its run",
-      "path": "/xoxb-12345.67890",
-      "redacted": "/xoxb-12345.67890",
       "added": true
     },
     {

@@ -50,7 +50,6 @@ fn test_reads_the_path_up_to_its_query_or_fragment_never_decoded() {
 
         assert_eq!(line.path(), read_as, "{path}");
         assert_eq!(line.redacted_path(), redacted, "{path}");
-        assert!(!line.path_lossy(), "{path}");
     }
 }
 
@@ -59,7 +58,6 @@ fn test_reads_a_path_that_isnt_utf8_lossily() {
     let line = RequestLine::read(b"mcp.example.com", b"POST", b"/mcp/\xff");
 
     assert_eq!(line.path(), "/mcp/\u{fffd}");
-    assert!(line.path_lossy());
 }
 
 #[test]

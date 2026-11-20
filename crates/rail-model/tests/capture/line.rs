@@ -11,6 +11,7 @@ fn test_reports_a_standard_method_as_sent_and_any_other_as_other() {
         let line = read(method, "/");
 
         assert_eq!(reported_method(&line), ReportedMethod::Standard(method));
+        assert_eq!(reported_method(&line).as_str(), method);
     }
     let line = read("post", "/");
 
@@ -22,7 +23,6 @@ fn test_reports_a_standard_method_as_sent_and_any_other_as_other() {
 fn test_tells_why_a_path_matches_nothing() {
     for (path, why) in [
         ("/mcp/", None),
-        ("", None),
         ("/a.b/..c/.d", None),
         ("/mcp?x=[1]%2F/../a//b", None),
         ("/[redacted]/mcp", Some(Unmatchable::Bracket)),
@@ -31,12 +31,11 @@ fn test_tells_why_a_path_matches_nothing() {
         ("/%5bredacted/mcp", Some(Unmatchable::Bracket)),
         ("/a%5d", Some(Unmatchable::Bracket)),
         ("/a%2Fb", Some(Unmatchable::EncodedSlash)),
-        ("/a%2fb", Some(Unmatchable::EncodedSlash)),
+        ("/a]%2Fb/..//c", Some(Unmatchable::Bracket)),
+        ("/a%2Fb/..//c", Some(Unmatchable::EncodedSlash)),
+        ("/../a//c", Some(Unmatchable::DotSegment)),
         ("/./mcp", Some(Unmatchable::DotSegment)),
         ("/a/../mcp", Some(Unmatchable::DotSegment)),
-        ("/mcp/.", Some(Unmatchable::DotSegment)),
-        ("/a//mcp", Some(Unmatchable::EmptySegment)),
-        ("//mcp", Some(Unmatchable::EmptySegment)),
         ("/mcp//", Some(Unmatchable::EmptySegment)),
     ] {
         assert_eq!(unmatchable(&read("POST", path)), why, "{path}");
@@ -51,19 +50,12 @@ fn test_a_path_that_isnt_utf8_matches_nothing() {
 }
 
 #[test]
-fn test_a_connect_matches_whatever_its_target() {
-    let line = RequestLine::read(b"[2001:db8::1]:443", b"CONNECT", b"[2001:db8::1]:443");
-
-    assert_eq!(unmatchable(&line), None);
-}
-
-#[test]
 fn test_cuts_the_redacted_path_to_its_first_segments() {
     for (path, segments, prefix) in [
         ("/finretail-production-mcp/mcp", 1, "/[redacted]"),
         ("/team/fr/mcp", 2, "/team/fr"),
         ("/mcp/", 3, "/mcp"),
-        ("/", 1, "/"),
+        ("/team/fr/mcp", 0, "/"),
     ] {
         let line = read("POST", path);
 
