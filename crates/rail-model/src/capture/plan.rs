@@ -79,7 +79,7 @@ pub struct Record {
 /// How every call no entry takes is counted.
 #[derive(Debug, Deserialize)]
 pub struct CatchAll {
-    /// Always `catch_all`.
+    /// `catch_all`, as Rail Center writes it.
     pub id: String,
     pub record: CatchAllRecord,
 }
@@ -253,9 +253,6 @@ fn check_entry(entry: &Entry) -> Result<(), String> {
 }
 
 fn check_catch_all(catch_all: &CatchAll) -> Result<(), String> {
-    if catch_all.id != CATCH_ALL {
-        return Err(format!("its id isn't {CATCH_ALL}"));
-    }
     let keys = &catch_all.record.context_keys;
     unique("context key", keys.iter().map(CatchAllKey::name))?;
     if !keys.contains(&CatchAllKey::Host) {

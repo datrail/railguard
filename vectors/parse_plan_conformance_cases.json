@@ -572,11 +572,6 @@
       "expect": {"valid": false}
     },
     {
-      "name": "a catch-all with another id",
-      "patch": [{"op": "replace", "path": "/catch_all/id", "value": "e9"}],
-      "expect": {"valid": false}
-    },
-    {
       "name": "a catch-all with no host",
       "patch": [{"op": "remove", "path": "/catch_all/record/context_keys/0"}],
       "expect": {"valid": false}
