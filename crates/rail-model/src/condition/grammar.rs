@@ -140,7 +140,6 @@ pub enum Scalar {
 pub enum Path {
     Ticket(TicketPath),
     Request(RequestPath),
-    Body(BodyPath),
 }
 
 impl TryFrom<String> for Path {
@@ -175,13 +174,7 @@ impl Path {
                     .map(|step| step.as_str().map(str::to_string))
                     .collect::<Option<_>>()?,
             )),
-            "request" => {
-                let keys: Vec<&str> = steps.iter().map(Value::as_str).collect::<Option<_>>()?;
-                Self::Request(RequestPath::parse(&keys)?)
-            }
-            "body" => Self::Body(BodyPath(
-                steps.iter().map(BodyStep::read).collect::<Option<_>>()?,
-            )),
+            "request" => Self::Request(RequestPath::parse(steps)?),
             _ => return None,
         })
     }
@@ -212,15 +205,15 @@ impl ConditionUse {
             ),
             Self::PlanMatch => matches!(
                 path,
-                Path::Body(_)
-                    | Path::Request(
-                        RequestPath::Host
-                            | RequestPath::Method
-                            | RequestPath::Path
-                            | RequestPath::RedactedPath
-                            | RequestPath::McpMethod
-                            | RequestPath::McpTool
-                    )
+                Path::Request(
+                    RequestPath::Body(_)
+                        | RequestPath::Host
+                        | RequestPath::Method
+                        | RequestPath::Path
+                        | RequestPath::RedactedPath
+                        | RequestPath::McpMethod
+                        | RequestPath::McpTool
+                )
             ),
         }
     }
@@ -246,12 +239,20 @@ pub enum RequestPath {
     RedactedPath,
     McpMethod,
     McpTool,
+    Body(BodyPath),
 }
 
 impl RequestPath {
-    /// `None` for any field this reader doesn't know.
-    pub(crate) fn parse(keys: &[&str]) -> Option<Self> {
-        Some(match keys {
+    /// From the steps past `request`; `None` for any field or step this reader doesn't know.
+    pub(crate) fn parse(steps: &[Value]) -> Option<Self> {
+        if let Some((field, steps)) = steps.split_first()
+            && field == "body"
+        {
+            let steps = steps.iter().map(BodyStep::read).collect::<Option<_>>()?;
+            return Some(Self::Body(BodyPath(steps)));
+        }
+        let keys: Vec<&str> = steps.iter().map(Value::as_str).collect::<Option<_>>()?;
+        Some(match keys.as_slice() {
             [] => Self::Whole,
             ["endpoint_key"] => Self::EndpointKey,
             ["headers"] => Self::Headers,
@@ -267,7 +268,7 @@ impl RequestPath {
     }
 }
 
-/// A path under `body`, as its steps; none for the whole body.
+/// A path under `request.body`, as its steps; none for the whole body.
 #[derive(Clone, Debug, PartialEq)]
 pub struct BodyPath(pub Vec<BodyStep>);
 

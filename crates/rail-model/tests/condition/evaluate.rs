@@ -384,48 +384,68 @@ fn test_reads_a_body_path_and_tells_what_cant_be_told() {
     let ambiguous = Verdict::Ambiguous;
     for (path, op, value, verdict) in [
         (
-            json!(["body", "esc"]),
+            json!(["request", "body", "esc"]),
             "eq",
             json!("payroll"),
             Verdict::Holds,
         ),
         (
-            json!(["body", "items", 1]),
+            json!(["request", "body", "items", 1]),
             "eq",
             json!("b"),
             Verdict::Holds,
         ),
         (
-            json!(["body", "items"]),
+            json!(["request", "body", "items"]),
             "contains",
             json!("a"),
             Verdict::Holds,
         ),
         (
-            json!(["body", "items", "1"]),
+            json!(["request", "body", "items", "1"]),
             "existing",
             json!(null),
             Verdict::DoesNotHold,
         ),
         (
-            json!(["body", "missing"]),
+            json!(["request", "body", "missing"]),
             "not_existing",
             json!(null),
             Verdict::Holds,
         ),
-        (json!(["body"]), "existing", json!(null), Verdict::Holds),
-        // Past a double, saturated.
-        (json!(["body", "big"]), "gt", json!(1e300), Verdict::Holds),
-        // Whatever the op, absent included: readers differ on what's there.
-        (json!(["body", "dup"]), "eq", json!(1), ambiguous),
         (
-            json!(["body", "dup"]),
+            json!(["request", "body"]),
+            "existing",
+            json!(null),
+            Verdict::Holds,
+        ),
+        // Past a double, saturated.
+        (
+            json!(["request", "body", "big"]),
+            "gt",
+            json!(1e300),
+            Verdict::Holds,
+        ),
+        // Whatever the op, absent included: readers differ on what's there.
+        (json!(["request", "body", "dup"]), "eq", json!(1), ambiguous),
+        (
+            json!(["request", "body", "dup"]),
             "not_existing",
             json!(null),
             ambiguous,
         ),
-        (json!(["body", "bad"]), "existing", json!(null), ambiguous),
-        (json!(["body", "mixed"]), "contains", json!("a"), ambiguous),
+        (
+            json!(["request", "body", "bad"]),
+            "existing",
+            json!(null),
+            ambiguous,
+        ),
+        (
+            json!(["request", "body", "mixed"]),
+            "contains",
+            json!("a"),
+            ambiguous,
+        ),
     ] {
         let verdict_read = evaluate_on_call(
             condition(path.clone(), op, value),
@@ -436,7 +456,7 @@ fn test_reads_a_body_path_and_tells_what_cant_be_told() {
     }
     let empty = keep_body(b"");
     let held = evaluate_on_call(
-        condition(json!(["body", "a"]), "not_existing", json!(null)),
+        condition(json!(["request", "body", "a"]), "not_existing", json!(null)),
         &empty,
         &mut Budget::default(),
     );
@@ -452,7 +472,13 @@ fn test_tells_why_a_body_value_isnt_read() {
             json!(null),
         )
     };
-    let key = || condition(json!(["body", "method"]), "not_existing", json!(null));
+    let key = || {
+        condition(
+            json!(["request", "body", "method"]),
+            "not_existing",
+            json!(null),
+        )
+    };
     for (body, verdict) in [
         (
             BodyRead::Unread(Unread::NotSent),
@@ -478,7 +504,11 @@ fn test_tells_why_a_body_value_isnt_read() {
         evaluate_on_call(tool(), &batch, &mut Budget::default()),
         Verdict::BodyUnread(BodyUnread::Batch)
     );
-    let first = condition(json!(["body", 0, "method"]), "eq", json!("tools/call"));
+    let first = condition(
+        json!(["request", "body", 0, "method"]),
+        "eq",
+        json!("tools/call"),
+    );
     assert_eq!(
         evaluate_on_call(first, &batch, &mut Budget::default()),
         Verdict::Holds
@@ -493,7 +523,13 @@ fn test_tells_why_a_body_value_isnt_read() {
 #[test]
 fn test_charges_an_index_by_the_items_it_passes() {
     let body = keep_body(br#"{"items": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]}"#);
-    let at = |index: usize| condition(json!(["body", "items", index]), "existing", json!(null));
+    let at = |index: usize| {
+        condition(
+            json!(["request", "body", "items", index]),
+            "existing",
+            json!(null),
+        )
+    };
     assert_eq!(
         evaluate_on_call(at(8), &body, &mut Budget::new(10)),
         Verdict::Holds
@@ -518,7 +554,7 @@ fn test_refuses_a_path_its_use_doesnt_read() {
     let not_for_use = Verdict::Refused(Refusal::Uninterpretable(Uninterpretable::NotForUse));
     let headers = Headers::default();
     let judging = Environment::for_judging(None, &Endpoint::Keyless, &headers);
-    for path in ["request.host", "request.mcp.tool", "body.a"] {
+    for path in ["request.host", "request.mcp.tool", "request.body.a"] {
         let condition: Condition =
             serde_json::from_value(json!({"path": path, "op": "not_existing"})).unwrap();
         let compiled = compile_condition(&condition, ConditionUse::Policy);
@@ -555,7 +591,7 @@ fn test_refuses_a_source_its_environment_doesnt_fill() {
     let verdict = evaluate_condition(&compiled, &capture, &mut Budget::default()).verdict;
     assert_eq!(verdict, not_filled);
     let predicate: Predicate =
-        serde_json::from_value(json!({"path": ["body", "a"], "op": "not_existing"})).unwrap();
+        serde_json::from_value(json!({"path": ["request", "body", "a"], "op": "not_existing"})).unwrap();
     let compiled = compile_condition(&Condition::Valid(predicate), ConditionUse::PlanMatch);
     let headers = Headers::default();
     let judging = Environment::for_judging(None, &Endpoint::Keyless, &headers);

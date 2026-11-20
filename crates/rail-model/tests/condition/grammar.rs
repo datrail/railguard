@@ -169,29 +169,31 @@ fn test_reads_a_path_from_either_spelling() {
     );
     // A number step is an index; from dots, every step is a key.
     let items = |last: BodyStep| {
-        Some(Path::Body(BodyPath(vec![
-            BodyStep::Key("items".into()),
-            last,
-        ])))
+        let steps = vec![BodyStep::Key("items".into()), last];
+        Some(Path::Request(RequestPath::Body(BodyPath(steps))))
     };
     assert_eq!(
-        from_list(json!(["body", "items", 0])),
+        from_list(json!(["request", "body", "items", 0])),
         items(BodyStep::Index(0))
     );
-    assert_eq!(from_dots("body.items.0"), items(BodyStep::Key("0".into())));
     assert_eq!(
-        from_list(json!(["body"])),
-        Some(Path::Body(BodyPath(vec![])))
+        from_dots("request.body.items.0"),
+        items(BodyStep::Key("0".into()))
+    );
+    assert_eq!(
+        from_list(json!(["request", "body"])),
+        Some(Path::Request(RequestPath::Body(BodyPath(vec![]))))
     );
     for steps in [
         json!([]),
         json!(["elsewhere"]),
+        json!(["body", "a"]),
         json!(["request", "nothing"]),
         json!(["request", "mcp"]),
         json!(["ticket", 0]),
-        json!(["body", -1]),
-        json!(["body", 1.5]),
-        json!(["body", {}]),
+        json!(["request", "body", -1]),
+        json!(["request", "body", 1.5]),
+        json!(["request", "body", {}]),
     ] {
         assert_eq!(from_list(steps.clone()), None, "{steps}");
     }

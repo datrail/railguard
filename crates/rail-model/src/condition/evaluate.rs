@@ -273,8 +273,7 @@ fn resolve<'a>(
 ) -> Result<Lookup<'a>, Refusal> {
     match path {
         Path::Ticket(path) => Ok(resolve_ticket(path, environment)),
-        Path::Request(path) => resolve_request(path, environment),
-        Path::Body(path) => resolve_body(path, environment, budget),
+        Path::Request(path) => resolve_request(path, environment, budget),
     }
 }
 
@@ -310,6 +309,7 @@ fn read_value(value: &Value) -> Lookup<'_> {
 fn resolve_request<'a>(
     path: &RequestPath,
     environment: &Environment<'a>,
+    budget: &mut Budget,
 ) -> Result<Lookup<'a>, Refusal> {
     let line = |read: fn(&RequestLine) -> &str| {
         let line = environment.request_line.ok_or(NOT_FILLED)?;
@@ -332,6 +332,7 @@ fn resolve_request<'a>(
         RequestPath::RedactedPath => line(|line| &line.redacted_path)?,
         RequestPath::McpMethod => read_mcp(environment, McpReading::method)?,
         RequestPath::McpTool => read_mcp(environment, McpReading::tool)?,
+        RequestPath::Body(path) => resolve_body(path, environment, budget)?,
     })
 }
 
