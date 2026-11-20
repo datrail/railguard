@@ -221,11 +221,6 @@ fn test_reads_what_the_body_names_as_json_readers_would() {
             br#"{"\u006dethod": "tools/call", "params": {"\u006eame": "a"}}"#.to_vec(),
             &resolved,
         ),
-        // Keys written with escapes, read as what they spell.
-        (
-            br#"{"method": "tools/call", "params": {"name": "a"}}"#.to_vec(),
-            &resolved,
-        ),
         // Keys a string can't hold, read past.
         (
             r#"{"\ud800": 0, "method": "tools/call", "params": {"\udfff": 1, "name": "a"}}"#.into(),

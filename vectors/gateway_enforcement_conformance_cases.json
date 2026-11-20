@@ -1,5 +1,5 @@
 {
-  "_comment": "Conformance cases for the gateway role: one held bundle, one call, and what the caller and Rail Center get. Taken from datrail/gateway's gateway-core/tests/core_support.py, ENFORCEMENT_CASES, at d6ae488 (master), dumped losslessly: `bundle` is the object the case hands to validate_bundle, null where none is held; `key_set` the JWKS signed tickets are checked against, null where the gateway holds none; `request` the call as the Apigee servicer's table test sends it, `x_rail` and `x_rail_status` each header's values as sent and `headers` every other header as (name, value) pairs. `expect.status` is the refusal's, null where the call is forwarded, with its body in `refusal_body`; `expect.report` is the denial report less `denied_at`, null where none is sent; `expect.python_logged` holds parts of one line the Python gateway logs, for reference: this gateway's log text differs. `not_for` names the Python interfaces a case is skipped for, and why. Tickets are judged at any time from 1700000000 (their `nbf`) to before 4102444800 (their `exp`). Removed: 3 with a 1.x bundle (`v1, no ticket, the chain's rule decides`, `v1, a flat claim`, `v1, a v2 condition is uninterpretable`), since only 2.0 and later is read; 1 whose bundle has no `ticket_fallback` (`no usable ticket, the fallback is block when the bundle names none`), which Rail Center always publishes and this reader refuses with the bundle. A case marked `retargeted` has its input moved, as the field says; one marked `differs` is answered otherwise by the gateway, and its expectation is this reader's. Checked when dumped, before the changes above: the Python Apigee servicer passed all 89 cases from the file alone. This file is now the source.",
+  "_comment": "Conformance cases for the gateway role: one held bundle, one call, and what the caller and Rail Center get. Taken from datrail/gateway's gateway-core/tests/core_support.py, ENFORCEMENT_CASES, at d6ae488 (master), dumped losslessly: `bundle` is the object the case hands to validate_bundle, null where none is held; `key_set` the JWKS signed tickets are checked against, null where the gateway holds none; `request` the call as the Apigee servicer's table test sends it, `x_rail` and `x_rail_status` each header's values as sent and `headers` every other header as (name, value) pairs. `expect.status` is the refusal's, null where the call is forwarded, with its body in `refusal_body`; `expect.report` is the denial report less `denied_at`, null where none is sent; `expect.python_logged` holds parts of one line the Python gateway logs, for reference: this gateway's log text differs. `not_for` names the Python interfaces a case is skipped for, and why. Tickets are judged at any time from 1700000000 (their `nbf`) to before 4102444800 (their `exp`). Removed: 3 with a 1.x bundle (`v1, no ticket, the chain's rule decides`, `v1, a flat claim`, `v1, a v2 condition is uninterpretable`), since only 2.0 and later is read; 1 whose bundle has no `ticket_fallback` (`no usable ticket, the fallback is block when the bundle names none`), which Rail Center always publishes and this reader refuses with the bundle. A case marked `retargeted` has its input moved, as the field says; one marked `differs` is answered otherwise by the gateway, and its expectation is this reader's. Checked when dumped, before the changes above: the Python Apigee servicer passed all 89 cases from the file alone. Added since: `unrecognised repeated key, endpoint rule`. This file is now the source.",
   "cases": [
     {
       "name": "denied",
@@ -1247,6 +1247,57 @@
         "method": "POST",
         "path": "/mcp",
         "body": "not json at all",
+        "x_rail": [
+          "eyJhZ2VudF9pZCI6ICI1YzhmMWU0Mi0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMGE5ZTciLCAiZXhwIjogNDEwMjQ0NDgwMH0"
+        ],
+        "x_rail_status": [],
+        "headers": []
+      },
+      "expect": {
+        "status": 403,
+        "refusal_body": "{\"error\": \"denied by policy\"}",
+        "report": {
+          "policy_id": "5c8f1e42-0000-4000-8000-0000000000d2",
+          "endpoint_key": null,
+          "metadata": {
+            "endpoint_resolution": "unrecognised",
+            "x-rail-status": "valid"
+          }
+        }
+      }
+    },
+    {
+      "name": "unrecognised repeated key, endpoint rule",
+      "bundle": {
+        "schema_version": "2.0",
+        "content_hash": "v-enforce",
+        "policies": [
+          {
+            "id": "5c8f1e42-0000-4000-8000-0000000000d2",
+            "name": "policy d2",
+            "priority": 1,
+            "condition": {
+              "path": "request.endpoint_key",
+              "op": "not_existing"
+            },
+            "action": "block",
+            "enabled": true
+          }
+        ],
+        "bindings": [],
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "binding_fallback": "pass",
+        "ticket_fallback": "pass",
+        "ticket_issuer": "https://rail-center.example/tenants/00000000-0000-4000-8000-0000000000aa",
+        "ticket_audience": "00000000-0000-4000-8000-0000000000aa"
+      },
+      "key_set": null,
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "body": "{\"method\": \"tools/call\", \"params\": {\"name\": \"track_package\", \"Name\": \"cancel_order\"}}",
         "x_rail": [
           "eyJhZ2VudF9pZCI6ICI1YzhmMWU0Mi0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMGE5ZTciLCAiZXhwIjogNDEwMjQ0NDgwMH0"
         ],
