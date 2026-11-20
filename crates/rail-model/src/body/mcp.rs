@@ -46,17 +46,23 @@ impl McpReading {
             return Self::Unreadable;
         }
         let method = root.get("method");
+        if method.is_ambiguous() {
+            return Self::Unreadable;
+        }
         let params = root.get("params");
+        if params.is_ambiguous() {
+            return Self::Unreadable;
+        }
         let in_params = |key| {
             params
                 .found()
                 .map_or(Member::Absent, |params| params.get(key))
         };
-        let (name, arguments) = (in_params("name"), in_params("arguments"));
-        if [method, params, name, arguments]
-            .iter()
-            .any(Member::is_ambiguous)
-        {
+        let name = in_params("name");
+        if name.is_ambiguous() {
+            return Self::Unreadable;
+        }
+        if in_params("arguments").is_ambiguous() {
             return Self::Unreadable;
         }
         let text = |member: Member<'_>| member.found()?.text().map(Cow::into_owned);
