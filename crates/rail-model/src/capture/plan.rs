@@ -98,8 +98,7 @@ pub enum ContextKey {
     Named {
         name: String,
         path: Path,
-        /// Copied into each record, never interpreted.
-        field_type: String,
+        // `field_type` goes here: what the value is, copied into each record, which none is yet.
     },
 }
 
@@ -309,17 +308,9 @@ fn read_context_key(fields: &mut Map<String, Value>) -> Result<ContextKey, Strin
         "host" | "path_prefix" | "operation" => Err(format!("{at}: the catch-all's alone")),
         _ => {
             let path = take(fields, "path", &at)?;
-            let field_type = take(fields, "field_type", &at)?;
-            let Value::String(field_type) = field_type else {
-                return Err(format!("{at}: its field_type isn't a string"));
-            };
-            if !is_name(&field_type) {
-                return Err(format!("{at}: its field_type {NOT_A_NAME}"));
-            }
             Ok(ContextKey::Named {
                 path: read_record_path(&path).map_err(|why| format!("{at}: {why}"))?,
                 name,
-                field_type,
             })
         }
     }
