@@ -1,9 +1,9 @@
 # rail-model
 
 DatRail's rules language. Rail Center publishes the rules as a policy bundle: which calls to which MCP tools are
-allowed, judged on what an agent's ticket says about it. This crate reads bundles and tickets, reads which endpoint and
-host a call names, judges the call against the rules, and reads a call's request line, redacted, for capture. See the
-[main README](../../README.md) for the system around it.
+allowed, judged on what an agent's ticket says about it. This crate reads bundles, tickets and capture plans, reads
+which endpoint and host a call names, judges the call against the rules, and reads a call's request line, redacted, for
+capture. See the [main README](../../README.md) for the system around it.
 
 It's one crate, used everywhere a rule is read, so a rule means the same thing where it's written and where it's
 enforced. The conformance cases in [`vectors/`](../../vectors) define its behaviour.
@@ -25,15 +25,15 @@ By module:
   keys.
 - **`condition`:** **`check_condition`** reports every problem with one condition, and whether every reader refuses it
   or only Rail Center; **`compile_condition`** and **`evaluate_condition`** evaluate one, as the judge does. A
-  **`Path`** is spelled as the bundle's dotted string or as a list; it's compiled for a **`ConditionUse`** (a policy, a
-  plan's match, a plan's context key or measure), which decides the paths it reads, and evaluated in the
-  **`Environment`** that use fills (`for_judging`, or `for_capture`, from a **`RequestLine`** and the body). A body
-  value that can't be told, or isn't read, is a verdict of its own (`Ambiguous`, `BodyUnread`), never false; a refusal
-  keeps its cause.
+  **`Path`** is spelled as the bundle's dotted string or as a list; it's read for a **`ConditionUse`** (a policy, a
+  plan's match, a plan's context key or measure), which decides the paths it reads; a condition is compiled for one and
+  evaluated in the **`Environment`** that use fills (`for_judging`, or `for_capture`, from a **`RequestLine`** and the
+  body). A body value that can't be told, or isn't read, is a verdict of its own (`Ambiguous`, `BodyUnread`), never
+  false; a refusal keeps its cause.
 - **`endpoint`:** **`Endpoint`** and **`ResolvedKey`**, the endpoint a call asks for, keyed as a bundle binds it, and
   **`Resolution`**, whether a message is judged at all.
-- **`agent`:** **`AgentId`**, which agent a host serves, as Rail Center names it: its tickets and its capture plan are
-  fetched for it.
+- **`agent`:** **`AgentId`**, which agent a host serves, as Rail Center names it: its tickets are fetched for it, and a
+  capture plan names it.
 - **`authority`:** **`split_authority`** reads a host and port from an `:authority`, spelled one way wherever a host is
   compared.
 - **`body`:** **`BodyBuffer`** keeps a body as it arrives, up to a cap and within a **`ByteBudget`** every kept body
@@ -43,8 +43,8 @@ By module:
   message names, from its method and tool; **`McpReading::read`** reads one from bytes a host holds itself.
 - **`capture`:** **`parse_plan`** reads a capture plan, refusing one that breaks the field reference with why
   (**`InvalidPlan`**). A **`Plan`**'s entries keep their conditions as written, checked when compiled; its values are as
-  Rail Center writes them. Its `schema_version`'s major, its agent and its `redaction_version` are the caller's to
-  compare.
+  Rail Center writes them. It checks the proxy's ceilings too. Its `content_hash`'s form, its `schema_version`'s major,
+  its agent and its `redaction_version` are the caller's to check.
 - **`schema_version`:** **`SchemaVersion`**, a document's `MAJOR.MINOR`, a bundle's or a plan's.
 - **`request_line`:** **`RequestLine::read`** reads a call's `:authority`, `:method` and `:path` once, as conditions
   read them under `request`: the host as `split_authority` spells it, or `[unparseable]`; the path up to its query or

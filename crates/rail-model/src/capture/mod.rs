@@ -3,6 +3,6 @@
 mod plan;
 
 pub use plan::{
-    Budget, CatchAll, CatchAllKey, CatchAllRecord, Combine, ContextKey, Entry, Function,
-    InvalidPlan, Measure, OnMaxGroups, Plan, Record, parse_plan,
+    CatchAll, CatchAllKey, CatchAllRecord, Combine, ContextKey, Entry, Function, InvalidPlan,
+    Measure, OnMaxGroups, Plan, PlanBudget, Record, parse_plan,
 };

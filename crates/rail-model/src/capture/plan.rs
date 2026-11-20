@@ -5,15 +5,13 @@ use std::collections::HashSet;
 use std::fmt;
 use std::ops::RangeInclusive;
 
-use serde::de::Error as _;
+use serde::de::{Error as _, IgnoredAny};
 use serde::{Deserialize, Deserializer};
 use serde_json::value::RawValue;
 use serde_json::{Map, Value, json};
 
 use crate::agent::AgentId;
-use crate::condition::{
-    BodyStep, Condition, ConditionUse, Path, RequestPath, Spelling, read_condition,
-};
+use crate::condition::{BodyStep, Condition, ConditionUse, Path, RequestPath};
 use crate::sanitize::sanitize;
 use crate::schema_version::SchemaVersion;
 
@@ -35,15 +33,16 @@ pub struct Plan {
     pub schema_version: SchemaVersion,
     /// Changes with every field but itself and `generated_at`. It orders nothing.
     pub content_hash: String,
-    /// RFC 3339 in UTC, with a `Z`.
-    pub generated_at: String,
+    // Read past: nothing reads it yet, and it needs a date type.
+    #[serde(default, rename = "generated_at")]
+    _generated_at: IgnoredAny,
     #[serde(deserialize_with = "read_agent")]
     pub agent: AgentId,
     pub plan_version: u64,
     /// The `REDACTION_VERSION` its paths were redacted with.
     pub redaction_version: u64,
     pub window_seconds: u32,
-    pub budget: Budget,
+    pub budget: PlanBudget,
     /// Tried in this order.
     pub entries: Vec<Entry>,
     pub catch_all: CatchAll,
@@ -51,7 +50,7 @@ pub struct Plan {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct Budget {
+pub struct PlanBudget {
     pub max_groups_per_window: u32,
     /// Present: the order of calls is recorded too, up to this many steps.
     #[serde(default, deserialize_with = "present")]
@@ -70,10 +69,11 @@ pub enum OnMaxGroups {
 #[serde(deny_unknown_fields)]
 pub struct Entry {
     pub id: String,
-    /// Rail Center's id for the endpoint, never read.
+    /// Rail Center's id for the endpoint, checked, never acted on.
     #[serde(default, deserialize_with = "present")]
     pub endpoint_id: Option<String>,
-    /// Read as written; checked when compiled, so one that fails refuses its entry, not the plan.
+    /// Read as written, checked when compiled, so one that fails refuses its entry; one that isn't
+    /// an object refuses the plan.
     #[serde(rename = "match", deserialize_with = "read_conditions")]
     pub conditions: Vec<Condition>,
     pub record: Record,
@@ -111,7 +111,7 @@ pub enum ContextKey {
     Named {
         name: String,
         path: Path,
-        /// Copied into each record, never read.
+        /// Copied into each record, never interpreted.
         field_type: String,
     },
 }
@@ -152,6 +152,37 @@ pub enum Function {
     Size,
 }
 
+impl ContextKey {
+    fn name(&self) -> &str {
+        match self {
+            Self::Method => "method",
+            Self::Named { name, .. } => name,
+        }
+    }
+}
+
+impl CatchAllKey {
+    fn name(&self) -> &str {
+        match self {
+            Self::Host => "host",
+            Self::PathPrefix { .. } => "path_prefix",
+            Self::Method => "method",
+            Self::Operation => "operation",
+        }
+    }
+}
+
+impl Measure {
+    fn name(&self) -> &str {
+        match self {
+            Self::CallCount => "call_count",
+            Self::ErrorCount => "error_count",
+            Self::RequestBytes => "request_bytes",
+            Self::Named { name, .. } => name,
+        }
+    }
+}
+
 /// Why a plan can't be used. It is refused whole.
 #[derive(Debug)]
 pub struct InvalidPlan(String);
@@ -164,8 +195,9 @@ impl fmt::Display for InvalidPlan {
 
 impl std::error::Error for InvalidPlan {}
 
-/// Reads a plan and checks it against the field reference. Its `schema_version`'s major, its
-/// agent and its `redaction_version` are the caller's to compare.
+/// Reads a plan and checks it against the field reference and the proxy's ceilings. Its
+/// `content_hash`'s form, its `schema_version`'s major, its agent and its `redaction_version` are
+/// the caller's to check.
 pub fn parse_plan(json: &str) -> Result<Plan, InvalidPlan> {
     let refuse = |why: &str| InvalidPlan(sanitize(why).to_string());
     let plan: Plan = serde_json::from_str(json).map_err(|error| refuse(&error.to_string()))?;
@@ -174,9 +206,6 @@ pub fn parse_plan(json: &str) -> Result<Plan, InvalidPlan> {
 }
 
 fn check_plan(plan: &Plan) -> Result<(), String> {
-    if !is_utc_time(&plan.generated_at) {
-        return Err("generated_at isn't an RFC 3339 time in UTC, with a Z".to_owned());
-    }
     if plan.plan_version == 0 || plan.redaction_version == 0 {
         return Err("plan_version and redaction_version are from 1".to_owned());
     }
@@ -188,17 +217,14 @@ fn check_plan(plan: &Plan) -> Result<(), String> {
         ));
     }
     check_budget(&plan.budget)?;
-    let mut ids = HashSet::new();
+    unique("entry", plan.entries.iter().map(|entry| entry.id.as_str()))?;
     for entry in &plan.entries {
-        if !ids.insert(entry.id.as_str()) {
-            return Err(format!("entry {} appears twice", entry.id));
-        }
         check_entry(entry).map_err(|why| format!("entry {}: {why}", entry.id))?;
     }
     check_catch_all(&plan.catch_all).map_err(|why| format!("catch_all: {why}"))
 }
 
-fn check_budget(budget: &Budget) -> Result<(), String> {
+fn check_budget(budget: &PlanBudget) -> Result<(), String> {
     let groups = budget.max_groups_per_window;
     if !(1..=MAX_GROUPS_PER_WINDOW).contains(&groups) {
         return Err(format!(
@@ -232,11 +258,10 @@ fn check_entry(entry: &Entry) -> Result<(), String> {
     if entry.conditions.is_empty() {
         return Err("its match is empty".to_owned());
     }
-    let keys = entry.record.context_keys.iter().map(|key| match key {
-        ContextKey::Method => "method",
-        ContextKey::Named { name, .. } => name,
-    });
-    unique("context key", keys)?;
+    unique(
+        "context key",
+        entry.record.context_keys.iter().map(ContextKey::name),
+    )?;
     check_measures(&entry.record.measures)
 }
 
@@ -245,42 +270,30 @@ fn check_catch_all(catch_all: &CatchAll) -> Result<(), String> {
         return Err(format!("its id isn't {CATCH_ALL}"));
     }
     let keys = &catch_all.record.context_keys;
-    let names = keys.iter().map(|key| match key {
-        CatchAllKey::Host => "host",
-        CatchAllKey::PathPrefix { .. } => "path_prefix",
-        CatchAllKey::Method => "method",
-        CatchAllKey::Operation => "operation",
-    });
-    unique("context key", names)?;
+    unique("context key", keys.iter().map(CatchAllKey::name))?;
     if !keys.contains(&CatchAllKey::Host) {
         return Err("no host context key".to_owned());
     }
     let measures = &catch_all.record.measures;
-    if let Some(Measure::Named { name, .. }) = measures
+    if let Some(named) = measures
         .iter()
         .find(|measure| matches!(measure, Measure::Named { .. }))
     {
-        return Err(format!("measure {name}: only the built-in ones"));
+        return Err(format!("measure {}: only the built-in ones", named.name()));
     }
     check_measures(measures)
 }
 
 // A set by name, holding the three every record does.
 fn check_measures(measures: &[Measure]) -> Result<(), String> {
-    let names = measures.iter().map(|measure| match measure {
-        Measure::CallCount => "call_count",
-        Measure::ErrorCount => "error_count",
-        Measure::RequestBytes => "request_bytes",
-        Measure::Named { name, .. } => name,
-    });
-    unique("measure", names)?;
-    for (built_in, name) in [
-        (Measure::CallCount, "call_count"),
-        (Measure::ErrorCount, "error_count"),
-        (Measure::RequestBytes, "request_bytes"),
+    unique("measure", measures.iter().map(Measure::name))?;
+    for built_in in [
+        Measure::CallCount,
+        Measure::ErrorCount,
+        Measure::RequestBytes,
     ] {
         if !measures.contains(&built_in) {
-            return Err(format!("no {name} measure"));
+            return Err(format!("no {} measure", built_in.name()));
         }
     }
     Ok(())
@@ -296,25 +309,6 @@ fn unique<'a>(what: &str, names: impl Iterator<Item = &'a str>) -> Result<(), St
     Ok(())
 }
 
-// `YYYY-MM-DDTHH:MM:SS`, fractional seconds or none, then `Z`.
-fn is_utc_time(text: &str) -> bool {
-    let Some(text) = text.strip_suffix('Z') else {
-        return false;
-    };
-    let (whole, fraction) = text.split_once('.').unwrap_or((text, "0"));
-    let shape = b"dddd-dd-ddTdd:dd:dd";
-    whole.len() == shape.len()
-        && whole
-            .bytes()
-            .zip(shape)
-            .all(|(byte, expected)| match expected {
-                b'd' => byte.is_ascii_digit(),
-                other => byte == *other,
-            })
-        && !fraction.is_empty()
-        && fraction.bytes().all(|byte| byte.is_ascii_digit())
-}
-
 // An optional field is left out, never `null`.
 fn present<'de, D: Deserializer<'de>, T: Deserialize<'de>>(
     deserializer: D,
@@ -322,7 +316,7 @@ fn present<'de, D: Deserializer<'de>, T: Deserialize<'de>>(
     T::deserialize(deserializer).map(Some)
 }
 
-// The agent and its `agent_key`, which a plan may carry before the proxy has one to compare.
+// `agent_key` checked and dropped: 1.0 lets Rail Center send it, and the proxy has none to compare.
 fn read_agent<'de, D: Deserializer<'de>>(deserializer: D) -> Result<AgentId, D::Error> {
     #[derive(Deserialize)]
     #[serde(deny_unknown_fields)]
@@ -348,11 +342,22 @@ fn read_conditions<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Con
     conditions
         .iter()
         .map(|raw| {
-            // A raw value holds no whitespace around it.
-            if !raw.get().starts_with('{') {
+            let Ok(fields) = serde_json::from_str::<Map<String, Value>>(raw.get()) else {
+                // An object past what serde_json holds fails only the condition; a raw value holds
+                // no whitespace around it.
+                if raw.get().starts_with('{') {
+                    return Ok(Condition::Invalid(raw.get().to_string()));
+                }
                 return Err(D::Error::custom("a condition isn't an object"));
+            };
+            // Closed, unlike a bundle's.
+            if !fields
+                .keys()
+                .all(|key| matches!(key.as_str(), "path" | "op" | "value"))
+            {
+                return Ok(Condition::Invalid(raw.get().to_string()));
             }
-            Ok(read_condition(raw, Spelling::Plan))
+            serde_json::from_str(raw.get()).map_err(D::Error::custom)
         })
         .collect()
 }
@@ -476,21 +481,12 @@ fn read_measure(fields: &mut Map<String, Value>) -> Result<Measure, String> {
     })
 }
 
-// A built-in name, or one synthesis names.
+// A built-in name, or one Rail Center gives: every one a name.
 fn take_name(fields: &mut Map<String, Value>, what: &str) -> Result<String, String> {
     let Some(Value::String(name)) = fields.remove("name") else {
         return Err(format!("a {what} with no name that's a string"));
     };
-    let built_in = [
-        "host",
-        "path_prefix",
-        "method",
-        "operation",
-        "call_count",
-        "error_count",
-        "request_bytes",
-    ];
-    if built_in.contains(&name.as_str()) || is_name(&name) {
+    if is_name(&name) {
         Ok(name)
     } else {
         Err(format!("{what} {name}: its name {NOT_A_NAME}"))
@@ -520,13 +516,13 @@ fn is_name(text: &str) -> bool {
         && bytes.all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_')
 }
 
-// A context key's or a measure's: into the body, the query or the redacted path's segments.
+// A context key's or a measure's: into the body, the query or the path's segments.
 fn read_record_path(steps: &Value) -> Result<Path, String> {
     let path = steps
         .as_array()
         .and_then(|steps| Path::from_steps(steps))
         .filter(|path| ConditionUse::PlanRecord.reads(path))
-        .ok_or("a path not into the body, the query or a redacted path segment")?;
+        .ok_or("a path not into the body, the query or a path segment")?;
     if let Path::Request(RequestPath::Body(body)) = &path
         && body
             .0

@@ -324,13 +324,15 @@ fn resolve_request<'a>(
         },
         RequestPath::Host => line(RequestLine::host)?,
         RequestPath::Method => line(RequestLine::method)?,
-        RequestPath::Path => line(RequestLine::path)?,
-        RequestPath::RedactedPath => line(RequestLine::redacted_path)?,
+        RequestPath::Path(None) => line(RequestLine::path)?,
+        RequestPath::RedactedPath(None) => line(RequestLine::redacted_path)?,
         RequestPath::McpMethod => read_mcp(environment, McpReading::method)?,
         RequestPath::McpTool => read_mcp(environment, McpReading::tool)?,
         RequestPath::Body(path) => resolve_body(path, environment, budget)?,
-        // A plan record's, which no condition's use reads.
-        RequestPath::RedactedPathSegment(_) | RequestPath::Query { .. } => {
+        // A plan record's paths, which no environment fills.
+        RequestPath::Path(Some(_))
+        | RequestPath::RedactedPath(Some(_))
+        | RequestPath::Query { .. } => {
             return Err(Refusal::NotForUse);
         }
     })

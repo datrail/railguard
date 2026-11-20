@@ -188,3 +188,10 @@ fn test_reads_a_condition_past_what_a_double_holds_as_invalid() {
         Condition::Invalid(_)
     ));
 }
+
+#[test]
+fn test_says_what_it_refuses() {
+    let why = parse_plan("{}").unwrap_err().to_string();
+
+    assert!(why.starts_with("invalid capture plan: "), "{why}");
+}
