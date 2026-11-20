@@ -93,8 +93,17 @@ pub struct Plan {
     pub budget: Budget,
     /// Tried in this order.
     pub entries: Vec<Entry>,
-    /// The catch-all's context keys; its measures are the three every record holds.
-    pub catch_all: Vec<CatchAllKey>,
+    pub catch_all: CatchAll,
+}
+
+/// How every call no entry takes is counted.
+#[derive(Debug)]
+pub struct CatchAll {
+    /// Always `catch_all`.
+    pub id: String,
+    pub context_keys: Vec<CatchAllKey>,
+    /// The three every record holds, and no other.
+    pub measures: Vec<Measure>,
 }
 
 #[derive(Debug)]
@@ -565,14 +574,14 @@ fn read_measure(at: &str, measure: &WireMeasure, entry: bool) -> Result<Measure,
     }
 }
 
-fn read_catch_all(catch_all: WireCatchAll) -> Result<Vec<CatchAllKey>, String> {
+fn read_catch_all(catch_all: WireCatchAll) -> Result<CatchAll, String> {
     if catch_all.id != CATCH_ALL {
         return Err(format!("catch_all.id: not {CATCH_ALL}"));
     }
     let at = "catch_all.record.context_keys";
     let wire = &catch_all.record.context_keys;
     unique_names(wire.iter().map(|key| &key.name), at)?;
-    let keys = wire
+    let context_keys = wire
         .iter()
         .enumerate()
         .map(|(index, key)| {
@@ -596,11 +605,15 @@ fn read_catch_all(catch_all: WireCatchAll) -> Result<Vec<CatchAllKey>, String> {
             }
         })
         .collect::<Result<Vec<_>, _>>()?;
-    if !keys.contains(&CatchAllKey::Host) {
+    if !context_keys.contains(&CatchAllKey::Host) {
         return Err(format!("{at}: no host"));
     }
-    read_measures("catch_all.record.measure", &catch_all.record.measure, false)?;
-    Ok(keys)
+    let measures = read_measures("catch_all.record.measure", &catch_all.record.measure, false)?;
+    Ok(CatchAll {
+        id: catch_all.id,
+        context_keys,
+        measures,
+    })
 }
 
 fn only_name(at: &str, holds_only_its_name: bool) -> Result<(), String> {
