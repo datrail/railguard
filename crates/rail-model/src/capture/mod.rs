@@ -1,7 +1,6 @@
-//! How capture reads a call: its request line, its path redacted as a plan's paths are.
+//! How capture reads a call: whether its request line can match an entry, and what a record
+//! reports of it.
 
-mod call_line;
-mod redaction;
+mod request_line;
 
-pub use call_line::{CallLine, HostReading, ReportedMethod, Unmatchable};
-pub use redaction::REDACTION_VERSION;
+pub use request_line::{ReportedMethod, Unmatchable, path_prefix, reported_method, unmatchable};

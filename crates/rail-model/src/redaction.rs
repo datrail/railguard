@@ -1,6 +1,6 @@
 //! RailMon's redaction rule for a URL's path, `asp_redaction`'s `redact_path_segment`, ported.
-//! Rail Center writes a plan's paths redacted by it, so a call's path is redacted the same way
-//! before the two are compared. Kept in step by `vectors/capture/redaction.json`.
+//! Rail Center writes a capture plan's paths redacted by it, so a call's path is redacted the same
+//! way before the two are compared. Kept in step by `vectors/redaction_conformance_cases.json`.
 
 use std::borrow::Cow;
 

@@ -1,5 +1,5 @@
 {
-  "_comment": "Conformance cases for capture's port of RailMon's redaction rule (asp_redaction, REDACTION_VERSION 1): a request path, and its redacted path. Taken from RailMon's python/asp_spelling/tests/test_asp_redaction.py at 3a4e390 (master), written as paths; a change to the rule updates both. Shapes whose shortest key is 20 characters or more are redacted by length here whatever their shape. Cases marked `added` are this reader's own.",
+  "_comment": "Conformance cases for the port of RailMon's redaction rule (asp_redaction, REDACTION_VERSION 1): a request path, and its redacted path. Taken from RailMon's python/asp_spelling/tests/test_asp_redaction.py at 3a4e390 (master), written as paths; a change to the rule updates both. Shapes whose shortest key is 20 characters or more are redacted by length here whatever their shape. Cases marked `added` are this reader's own.",
   "cases": [
     {
       "name": "a key-shaped segment",

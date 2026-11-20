@@ -38,9 +38,12 @@ By module:
   value, nothing, or one that can't be told) and an MCP reading (**`mcp`**, or why it names nothing). **`BodyRead`** is
   a call's body as a reader has it: kept whole, or unread and why. **`mcp::read_endpoint`** reads the endpoint an MCP
   message names, from its method and tool; **`McpReading::read`** reads one from bytes a host holds itself.
-- **`capture`:** **`CallLine`** reads a call's `:authority`, `:method` and `:path` once: the `RequestLine` a plan's
-  conditions compare, its path redacted by RailMon's rule at **`REDACTION_VERSION`** as Rail Center writes a plan's
-  paths; the host or `[unparseable]`, the method a record reports, why a path can match no entry, and its `path_prefix`.
+- **`capture`:** whether a call's request line can match a plan's entry (**`unmatchable`**, and why not), and what a
+  record reports of it (**`reported_method`**, **`path_prefix`**).
+- **`request_line`:** **`RequestLine::read`** reads a call's `:authority`, `:method` and `:path` once, as conditions
+  read them under `request`: the host as `split_authority` spells it, or `[unparseable]`; the path up to its query, as
+  received and redacted.
+- **`redaction`:** RailMon's rule for a path, at **`REDACTION_VERSION`**, as Rail Center writes a capture plan's paths.
 - **`sanitize`:** **`sanitize`**, **`sanitize_quoted`**, **`sanitize_unquoted`** and **`sanitize_for_json`** make text
   from a call safe to log.
 

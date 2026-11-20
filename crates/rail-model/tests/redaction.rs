@@ -1,7 +1,7 @@
-use rail_model::capture::CallLine;
+use rail_model::request_line::RequestLine;
 use serde::Deserialize;
 
-const VECTORS: &str = include_str!("../../../../vectors/capture/redaction.json");
+const VECTORS: &str = include_str!("../../../vectors/redaction_conformance_cases.json");
 
 #[derive(Deserialize)]
 struct Vectors {
@@ -22,8 +22,8 @@ fn cases() -> Vec<Case> {
 }
 
 fn redact(path: &str) -> String {
-    let line = CallLine::read(b"mcp.example.com", b"POST", path.as_bytes());
-    line.request_line().redacted_path.clone()
+    let line = RequestLine::read(b"mcp.example.com", b"POST", path.as_bytes());
+    line.redacted_path().to_owned()
 }
 
 #[test]
