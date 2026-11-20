@@ -4,21 +4,14 @@ use super::tree::{Kind, Member, Node};
 use super::{Unparsed, json};
 use crate::endpoint::{Resolution, resolve_endpoint};
 
-/// What a body names as an MCP message.
+/// What a body names as an MCP message. Each case but `Read` names nothing, for its own reason.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum McpReading {
-    /// What it names can't be told.
-    Unreadable(Unreadable),
     /// An empty body, or a JSON value: `method` and `tool` are absent where it doesn't name them.
     Read {
         method: Option<String>,
         tool: Option<String>,
     },
-}
-
-/// Why what a body names as an MCP message can't be told.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Unreadable {
     /// Not read as a tree: not JSON, or past the budget.
     Unparsed(Unparsed),
     /// A JSON-RPC batch, which names one message per item.
@@ -50,34 +43,34 @@ impl McpReading {
         }
         let root = match root {
             Ok(root) => root,
-            Err(why) => return Self::Unreadable(Unreadable::Unparsed(why)),
+            Err(why) => return Self::Unparsed(why),
         };
         if root.kind() == Kind::Array {
-            return Self::Unreadable(Unreadable::Batch);
+            return Self::Batch;
         }
         let method = root.get("method");
         if method.is_ambiguous() {
-            return Self::Unreadable(Unreadable::Ambiguous);
+            return Self::Ambiguous;
         }
         let params = root.get("params");
         if params.is_ambiguous() {
-            return Self::Unreadable(Unreadable::Ambiguous);
+            return Self::Ambiguous;
         }
         let name = params.get("name");
         if name.is_ambiguous() {
-            return Self::Unreadable(Unreadable::Ambiguous);
+            return Self::Ambiguous;
         }
         if params.get("arguments").is_ambiguous() {
-            return Self::Unreadable(Unreadable::Ambiguous);
+            return Self::Ambiguous;
         }
         let method = match read_text(method) {
             Ok(method) => method,
-            Err(why) => return Self::Unreadable(why),
+            Err(reading) => return reading,
         };
         let tool = match method.as_deref() {
             Some("tools/call") => match read_text(name) {
                 Ok(tool) => tool,
-                Err(why) => return Self::Unreadable(why),
+                Err(reading) => return reading,
             },
             _ => None,
         };
@@ -88,7 +81,7 @@ impl McpReading {
     pub fn method(&self) -> Option<&str> {
         match self {
             Self::Read { method, .. } => method.as_deref(),
-            Self::Unreadable(_) => None,
+            _ => None,
         }
     }
 
@@ -96,19 +89,19 @@ impl McpReading {
     pub fn tool(&self) -> Option<&str> {
         match self {
             Self::Read { tool, .. } => tool.as_deref(),
-            Self::Unreadable(_) => None,
+            _ => None,
         }
     }
 }
 
 // A string's text, `None` for any other value; ambiguous for one that doesn't decode, which
 // readers differ on.
-fn read_text(member: Member<'_>) -> Result<Option<String>, Unreadable> {
+fn read_text(member: Member<'_>) -> Result<Option<String>, McpReading> {
     match member.found() {
         Some(node) if node.kind() == Kind::String => node
             .text()
             .map(|text| Some(text.into_owned()))
-            .ok_or(Unreadable::Ambiguous),
+            .ok_or(McpReading::Ambiguous),
         _ => Ok(None),
     }
 }

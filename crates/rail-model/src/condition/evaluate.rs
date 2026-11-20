@@ -9,7 +9,7 @@ use super::environment::{Environment, RequestLine};
 use super::grammar::{
     BodyPath, BodyStep, Condition, ConditionUse, Path, Predicate, RequestPath, Scalar, TicketPath,
 };
-use crate::body::mcp::{McpReading, Unreadable};
+use crate::body::mcp::McpReading;
 use crate::body::tree::{self, Kind, Member, Step};
 use crate::body::{BodyRead, RequestBody, Unparsed, Unread};
 use crate::endpoint::Endpoint;
@@ -355,11 +355,9 @@ fn read_mcp<'a>(
         Err(otherwise) => return otherwise,
     };
     Ok(match body.mcp() {
-        McpReading::Unreadable(Unreadable::Unparsed(why)) => {
-            Lookup::BodyUnread(BodyUnread::Unparsed(*why))
-        }
-        McpReading::Unreadable(Unreadable::Batch) => Lookup::BodyUnread(BodyUnread::Batch),
-        McpReading::Unreadable(Unreadable::Ambiguous) => Lookup::Ambiguous,
+        McpReading::Unparsed(why) => Lookup::BodyUnread(BodyUnread::Unparsed(*why)),
+        McpReading::Batch => Lookup::BodyUnread(BodyUnread::Batch),
+        McpReading::Ambiguous => Lookup::Ambiguous,
         reading @ McpReading::Read { .. } => {
             read(reading).map_or(Lookup::Absent, |text| Lookup::String(Cow::Borrowed(text)))
         }

@@ -4,7 +4,7 @@ mod tree;
 
 use std::sync::Arc;
 
-use rail_model::body::mcp::{McpReading, Unreadable};
+use rail_model::body::mcp::McpReading;
 use rail_model::body::{BodyBuffer, ByteBudget, RequestBody, Unkept, Unparsed};
 
 // A body kept whole, with no cap or budget to meet.
@@ -64,10 +64,7 @@ fn test_charges_a_bodys_tree_to_the_budget_too() {
     let body = b"[0, 0, 0]";
     let unparsed = keep_within(&ByteBudget::new(body.len()), body).unwrap();
     assert_eq!(unparsed.json().err(), Some(Unparsed::PastBudget));
-    assert_eq!(
-        unparsed.mcp(),
-        &McpReading::Unreadable(Unreadable::Unparsed(Unparsed::PastBudget))
-    );
+    assert_eq!(unparsed.mcp(), &McpReading::Unparsed(Unparsed::PastBudget));
 
     let roomy = ByteBudget::new(1 << 20);
     let parsed = keep_within(&roomy, body).unwrap();

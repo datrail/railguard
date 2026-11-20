@@ -1,5 +1,5 @@
 use rail_model::body::Unparsed;
-use rail_model::body::mcp::{McpReading, Unreadable, read_endpoint};
+use rail_model::body::mcp::{McpReading, read_endpoint};
 use rail_model::endpoint::{Endpoint, Resolution};
 use serde_json::{Value, json};
 
@@ -11,11 +11,6 @@ fn build_reading(method: Option<&str>, tool: Option<&str>) -> McpReading {
         tool: tool.map(str::to_string),
     }
 }
-
-const UNREADABLE_BATCH: McpReading = McpReading::Unreadable(Unreadable::Batch);
-const UNREADABLE_NOT_JSON: McpReading =
-    McpReading::Unreadable(Unreadable::Unparsed(Unparsed::Malformed));
-const UNREADABLE_AMBIGUOUS: McpReading = McpReading::Unreadable(Unreadable::Ambiguous);
 
 #[test]
 fn test_reads_the_method_and_tool_a_body_names() {
@@ -48,37 +43,37 @@ fn test_reads_the_method_and_tool_a_body_names() {
         // What these name can't be told.
         (
             r#"[{"method": "tools/call", "params": {"name": "a"}}]"#,
-            UNREADABLE_BATCH,
+            McpReading::Batch,
         ),
-        ("not json", UNREADABLE_NOT_JSON),
-        (" ", UNREADABLE_NOT_JSON),
+        ("not json", McpReading::Unparsed(Unparsed::Malformed)),
+        (" ", McpReading::Unparsed(Unparsed::Malformed)),
         // Repeated, letter case ignored: readers differ on which they keep.
         (
             r#"{"Method": "ping", "method": "tools/call", "params": {"name": "a"}}"#,
-            UNREADABLE_AMBIGUOUS,
+            McpReading::Ambiguous,
         ),
         (
             r#"{"method": "tools/call", "params": {"name": "c"}, "params": {"name": "a"}}"#,
-            UNREADABLE_AMBIGUOUS,
+            McpReading::Ambiguous,
         ),
         (
             r#"{"method": "tools/call", "params": {"name": "c", "NAME": "a"}}"#,
-            UNREADABLE_AMBIGUOUS,
+            McpReading::Ambiguous,
         ),
         (
             r#"{"method": "resources/read", "params": {"arguments": {}, "Arguments": {}}}"#,
-            UNREADABLE_AMBIGUOUS,
+            McpReading::Ambiguous,
         ),
         // Beside a key outside JSON, which a lenient reader may read as `method`.
         (
             r#"{"method": "tools/list", "\method": "tools/call", "params": {"name": "a"}}"#,
-            UNREADABLE_AMBIGUOUS,
+            McpReading::Ambiguous,
         ),
         // A string that doesn't decode: readers differ on what it spells.
-        (r#"{"method": "\ud800"}"#, UNREADABLE_AMBIGUOUS),
+        (r#"{"method": "\ud800"}"#, McpReading::Ambiguous),
         (
             r#"{"method": "tools/call", "params": {"name": "\ud800"}}"#,
-            UNREADABLE_AMBIGUOUS,
+            McpReading::Ambiguous,
         ),
         // On another method, the name isn't read.
         (
