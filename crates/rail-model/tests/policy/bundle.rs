@@ -87,10 +87,6 @@ fn test_reads_every_field_rail_center_publishes() {
     let version = SchemaVersion { major: 2, minor: 1 };
     assert_eq!(bundle.schema_version, version);
     assert_eq!(bundle.content_hash, "a3f1c09e7b2d4485");
-    assert_eq!(
-        bundle.generated_at.as_deref(),
-        Some("2026-07-28T20:41:07.512247Z")
-    );
     assert_eq!(bundle.enforcement.mode, EnforcementMode::Observe);
     assert_eq!(bundle.binding_fallback, Fallback::Block);
     assert_eq!(bundle.ticket_fallback, Fallback::Pass);

@@ -17,8 +17,7 @@ pub struct Bundle {
     pub schema_version: SchemaVersion,
     /// Changes with every field but itself and `generated_at`. It orders nothing.
     pub content_hash: String,
-    /// When Rail Center built it, as it writes it.
-    pub generated_at: Option<String>,
+    // `generated_at` goes here: nothing reads it yet, and it needs a date type.
     pub enforcement: Enforcement,
     /// In evaluation order, as `parse_bundle` leaves it, including the disabled ones Rail Center
     /// publishes.

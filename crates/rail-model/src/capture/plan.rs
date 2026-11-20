@@ -1,5 +1,5 @@
-//! A capture plan as Rail Center serves it: its shape, every object closed, then what the field
-//! reference adds to it. Its values are as Rail Center writes them.
+//! A capture plan as Rail Center serves it, read as a policy bundle is: its shape, then what the
+//! field reference adds to it. Its values are as Rail Center writes them.
 
 use std::collections::HashSet;
 use std::fmt;
@@ -7,7 +7,6 @@ use std::ops::RangeInclusive;
 
 use serde::de::Error as _;
 use serde::{Deserialize, Deserializer};
-use serde_json::value::RawValue;
 use serde_json::{Map, Value, json};
 
 use crate::agent::AgentId;
@@ -28,15 +27,11 @@ const MAX_NAME_CHARS: usize = 32;
 
 /// The body of Rail Center's `GET /v1/capture-plan`.
 #[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct Plan {
     pub schema_version: SchemaVersion,
     /// Changes with every field but itself and `generated_at`. It orders nothing.
     pub content_hash: String,
-    /// When Rail Center built it, as it writes it.
-    #[serde(default, deserialize_with = "present")]
-    pub generated_at: Option<String>,
-    #[serde(deserialize_with = "read_agent")]
+    // `generated_at` goes here: nothing reads it yet, and it needs a date type.
     pub agent: AgentId,
     pub plan_version: u64,
     /// The `REDACTION_VERSION` its paths were redacted with.
@@ -49,11 +44,9 @@ pub struct Plan {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct PlanBudget {
     pub max_groups_per_window: u32,
     /// Present: the order of calls is recorded too, up to this many steps.
-    #[serde(default, deserialize_with = "present")]
     pub max_steps_per_window: Option<u32>,
     pub on_max_groups: OnMaxGroups,
     pub max_unsent_windows: u32,
@@ -66,21 +59,17 @@ pub enum OnMaxGroups {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct Entry {
     pub id: String,
     /// Rail Center's id for the endpoint, checked, never acted on.
-    #[serde(default, deserialize_with = "present")]
     pub endpoint_id: Option<String>,
-    /// Read as written, checked when compiled, so one that fails refuses its entry; one that isn't
-    /// an object refuses the plan.
-    #[serde(rename = "match", deserialize_with = "read_conditions")]
+    /// Read as written, checked when compiled, so one that fails refuses its entry, not the plan.
+    #[serde(rename = "match")]
     pub conditions: Vec<Condition>,
     pub record: Record,
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct Record {
     pub context_keys: Vec<ContextKey>,
     #[serde(rename = "measure")]
@@ -89,7 +78,6 @@ pub struct Record {
 
 /// How every call no entry takes is counted.
 #[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct CatchAll {
     /// Always `catch_all`.
     pub id: String,
@@ -97,7 +85,6 @@ pub struct CatchAll {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct CatchAllRecord {
     pub context_keys: Vec<CatchAllKey>,
     /// The three every record holds, and no other.
@@ -309,59 +296,6 @@ fn unique<'a>(what: &str, names: impl Iterator<Item = &'a str>) -> Result<(), St
     Ok(())
 }
 
-// An optional field is left out, never `null`.
-fn present<'de, D: Deserializer<'de>, T: Deserialize<'de>>(
-    deserializer: D,
-) -> Result<Option<T>, D::Error> {
-    T::deserialize(deserializer).map(Some)
-}
-
-// `agent_key` checked and dropped: 1.0 lets Rail Center send it, and the proxy has none to compare.
-fn read_agent<'de, D: Deserializer<'de>>(deserializer: D) -> Result<AgentId, D::Error> {
-    #[derive(Deserialize)]
-    #[serde(deny_unknown_fields)]
-    struct Agent {
-        host_id: String,
-        sandbox_name: String,
-        #[serde(default, deserialize_with = "present")]
-        agent_key: Option<String>,
-    }
-    let agent = Agent::deserialize(deserializer)?;
-    if agent.agent_key.is_some_and(|key| key.is_empty()) {
-        return Err(D::Error::custom("agent_key is empty"));
-    }
-    Ok(AgentId {
-        host_id: agent.host_id,
-        sandbox_name: agent.sandbox_name,
-    })
-}
-
-// Raw, so what serde_json can't hold fails a condition, not the plan.
-fn read_conditions<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Condition>, D::Error> {
-    let conditions = Vec::<Box<RawValue>>::deserialize(deserializer)?;
-    conditions
-        .iter()
-        .map(|raw| {
-            let Ok(fields) = serde_json::from_str::<Map<String, Value>>(raw.get()) else {
-                // An object past what serde_json holds fails only the condition; a raw value holds
-                // no whitespace around it.
-                if raw.get().starts_with('{') {
-                    return Ok(Condition::Invalid(raw.get().to_string()));
-                }
-                return Err(D::Error::custom("a condition isn't an object"));
-            };
-            // Closed, unlike a bundle's.
-            if !fields
-                .keys()
-                .all(|key| matches!(key.as_str(), "path" | "op" | "value"))
-            {
-                return Ok(Condition::Invalid(raw.get().to_string()));
-            }
-            serde_json::from_str(raw.get()).map_err(D::Error::custom)
-        })
-        .collect()
-}
-
 impl<'de> Deserialize<'de> for ContextKey {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let mut fields = Map::deserialize(deserializer)?;
@@ -374,15 +308,11 @@ fn read_context_key(fields: &mut Map<String, Value>) -> Result<ContextKey, Strin
     let name = take_name(fields, "context key")?;
     let at = format!("context key {name}");
     match name.as_str() {
-        "method" => {
-            only_its_own(fields, &at)?;
-            Ok(ContextKey::Method)
-        }
+        "method" => Ok(ContextKey::Method),
         "host" | "path_prefix" | "operation" => Err(format!("{at}: the catch-all's alone")),
         _ => {
             let path = take(fields, "path", &at)?;
             let field_type = take(fields, "field_type", &at)?;
-            only_its_own(fields, &at)?;
             let Value::String(field_type) = field_type else {
                 return Err(format!("{at}: its field_type isn't a string"));
             };
@@ -408,7 +338,7 @@ impl<'de> Deserialize<'de> for CatchAllKey {
 fn read_catch_all_key(fields: &mut Map<String, Value>) -> Result<CatchAllKey, String> {
     let name = take_name(fields, "context key")?;
     let at = format!("context key {name}");
-    let key = match name.as_str() {
+    Ok(match name.as_str() {
         "host" => CatchAllKey::Host,
         "method" => CatchAllKey::Method,
         "operation" => CatchAllKey::Operation,
@@ -423,9 +353,7 @@ fn read_catch_all_key(fields: &mut Map<String, Value>) -> Result<CatchAllKey, St
             }
         }
         _ => return Err(format!("{at}: not a built-in one")),
-    };
-    only_its_own(fields, &at)?;
-    Ok(key)
+    })
 }
 
 impl<'de> Deserialize<'de> for Measure {
@@ -445,13 +373,11 @@ fn read_measure(fields: &mut Map<String, Value>) -> Result<Measure, String> {
         _ => None,
     };
     if let Some(built_in) = built_in {
-        only_its_own(fields, &at)?;
         return Ok(built_in);
     }
     let combine = take(fields, "type", &at)?;
     let function = take(fields, "function", &at)?;
     let paths = take(fields, "paths", &at)?;
-    only_its_own(fields, &at)?;
     if name == "request_bytes" {
         let whole_body = json!([["request", "body"]]);
         if (combine, function, paths) != (json!("sum"), json!("size"), whole_body) {
@@ -497,14 +423,6 @@ fn take(fields: &mut Map<String, Value>, field: &str, at: &str) -> Result<Value,
     fields
         .remove(field)
         .ok_or_else(|| format!("{at}: no {field}"))
-}
-
-// What's left once its own fields are taken.
-fn only_its_own(fields: &Map<String, Value>, at: &str) -> Result<(), String> {
-    match fields.keys().next() {
-        Some(field) => Err(format!("{at}: a field {field} it doesn't have")),
-        None => Ok(()),
-    }
 }
 
 const NOT_A_NAME: &str = "isn't lowercase letters, digits and _, from a letter, up to 32";
