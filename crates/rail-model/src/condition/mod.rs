@@ -12,7 +12,7 @@ pub use check::{
 pub use environment::{Environment, Headers, RequestLine};
 pub use evaluate::{
     BodyUnread, Budget, CompiledCondition, DEFAULT_STEP_LIMIT, Evaluation, Items, Lookup, Refusal,
-    Uninterpretable, Verdict, compile_condition, evaluate_condition,
+    Verdict, compile_condition, evaluate_condition,
 };
 pub use grammar::{
     BodyPath, BodyStep, Condition, ConditionUse, Path, Predicate, RequestPath, Scalar, TicketPath,

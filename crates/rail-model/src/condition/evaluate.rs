@@ -63,31 +63,26 @@ impl Default for Budget {
 }
 
 /// Why a judgement couldn't be reached. Never a deny, and never a condition that didn't hold.
-/// Written as its kind alone, `uninterpretable` or `budget_exceeded`.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Refusal {
-    Uninterpretable(Uninterpretable),
-    BudgetExceeded,
-}
-
-impl Serialize for Refusal {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(match self {
-            Self::Uninterpretable(_) => "uninterpretable",
-            Self::BudgetExceeded => "budget_exceeded",
-        })
-    }
-}
-
-/// Why a condition can't be interpreted.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Uninterpretable {
+pub enum Refusal {
     /// An op this reader doesn't know, which a newer Rail Center can publish.
     UnknownOp,
     /// Not a condition in this reader's grammar.
     Invalid,
     /// A path its use doesn't read, or that an environment for another use doesn't fill.
     NotForUse,
+    BudgetExceeded,
+}
+
+// Written as the kind Rail Center and the binding know: the condition can't be interpreted, or
+// the budget ran out.
+impl Serialize for Refusal {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(match self {
+            Self::UnknownOp | Self::Invalid | Self::NotForUse => "uninterpretable",
+            Self::BudgetExceeded => "budget_exceeded",
+        })
+    }
 }
 
 /// A condition in the form it is evaluated in.
@@ -96,7 +91,7 @@ pub struct CompiledCondition(Node);
 
 #[derive(Debug)]
 enum Node {
-    Uninterpretable(Uninterpretable),
+    Refused(Refusal),
     Test(Path, Test),
 }
 
@@ -169,14 +164,14 @@ pub enum BodyUnread {
 /// `condition` as `read_for` evaluates it: one whose path that use doesn't read can't be
 /// interpreted.
 pub fn compile_condition(condition: &Condition, read_for: ConditionUse) -> CompiledCondition {
-    let uninterpretable = |why| CompiledCondition(Node::Uninterpretable(why));
+    let refused = |why| CompiledCondition(Node::Refused(why));
     let predicate = match condition {
         Condition::Valid(predicate) => predicate,
-        Condition::Unknown(_) => return uninterpretable(Uninterpretable::UnknownOp),
-        Condition::Invalid(_) => return uninterpretable(Uninterpretable::Invalid),
+        Condition::Unknown(_) => return refused(Refusal::UnknownOp),
+        Condition::Invalid(_) => return refused(Refusal::Invalid),
     };
     if !read_for.reads(predicate.path()) {
-        return uninterpretable(Uninterpretable::NotForUse);
+        return refused(Refusal::NotForUse);
     }
     let (path, test) = match predicate {
         Predicate::Existing { path } => (path, Test::Existing),
@@ -238,7 +233,7 @@ pub fn evaluate_condition<'a>(
         return refuse(refusal);
     }
     let (path, test) = match &condition.0 {
-        Node::Uninterpretable(why) => return refuse(Refusal::Uninterpretable(*why)),
+        Node::Refused(refusal) => return refuse(*refusal),
         Node::Test(path, test) => (path, test),
     };
     let value = match resolve(path, environment, budget) {
@@ -264,7 +259,7 @@ fn read_scalars(items: &[Value]) -> Vec<Scalar> {
 }
 
 // An environment for another use fills only its own sources.
-const NOT_FILLED: Refusal = Refusal::Uninterpretable(Uninterpretable::NotForUse);
+const NOT_FILLED: Refusal = Refusal::NotForUse;
 
 fn resolve<'a>(
     path: &Path,

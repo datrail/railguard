@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use rail_model::body::{BodyBuffer, BodyRead, ByteBudget, Unparsed, Unread};
 use rail_model::condition::{
     BodyUnread, Budget, Condition, ConditionUse, Environment, Headers, Predicate, Refusal,
-    RequestLine, Uninterpretable, Verdict, compile_condition, evaluate_condition,
+    RequestLine, Verdict, compile_condition, evaluate_condition,
 };
 use rail_model::endpoint::Endpoint;
 use serde::Deserialize;
@@ -551,7 +551,7 @@ fn test_charges_an_index_by_the_items_it_passes() {
 
 #[test]
 fn test_refuses_a_path_its_use_doesnt_read() {
-    let not_for_use = Verdict::Refused(Refusal::Uninterpretable(Uninterpretable::NotForUse));
+    let not_for_use = Verdict::Refused(Refusal::NotForUse);
     let headers = Headers::default();
     let judging = Environment::for_judging(None, &Endpoint::Keyless, &headers);
     for path in ["request.host", "request.mcp.tool", "request.body.a"] {
@@ -580,7 +580,7 @@ fn test_refuses_a_path_its_use_doesnt_read() {
 // Compiled for one use, evaluated where another's environment fills other sources.
 #[test]
 fn test_refuses_a_source_its_environment_doesnt_fill() {
-    let not_filled = Verdict::Refused(Refusal::Uninterpretable(Uninterpretable::NotForUse));
+    let not_filled = Verdict::Refused(Refusal::NotForUse);
     let request_line = RequestLine::default();
     let body = keep_body(b"{}");
     let capture = Environment::for_capture(&request_line, &body);
@@ -598,4 +598,21 @@ fn test_refuses_a_source_its_environment_doesnt_fill() {
     let judging = Environment::for_judging(None, &Endpoint::Keyless, &headers);
     let verdict = evaluate_condition(&compiled, &judging, &mut Budget::default()).verdict;
     assert_eq!(verdict, not_filled);
+}
+
+// Each cause is written as the kind the binding's callers know.
+#[test]
+fn test_writes_a_refusal_as_its_kind() {
+    for (refusal, kind) in [
+        (Refusal::UnknownOp, "uninterpretable"),
+        (Refusal::Invalid, "uninterpretable"),
+        (Refusal::NotForUse, "uninterpretable"),
+        (Refusal::BudgetExceeded, "budget_exceeded"),
+    ] {
+        assert_eq!(
+            serde_json::to_value(refusal).unwrap(),
+            json!(kind),
+            "{refusal:?}"
+        );
+    }
 }

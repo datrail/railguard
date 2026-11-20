@@ -5,8 +5,8 @@ use uuid::Uuid;
 
 use super::bundle::{Action, BindingMode, Bundle, EnforcementMode, Fallback};
 use crate::condition::{
-    Budget, CompiledCondition, ConditionUse, Environment, Evaluation, Refusal, Uninterpretable,
-    Verdict, compile_condition, evaluate_condition,
+    Budget, CompiledCondition, ConditionUse, Environment, Evaluation, Refusal, Verdict,
+    compile_condition, evaluate_condition,
 };
 use crate::endpoint::{Endpoint, ResolvedKey};
 
@@ -233,9 +233,7 @@ fn walk<'a>(
             }
             Verdict::Refused(refusal) => refusal,
             // Never for a policy, which reads no body: compiled as not for its use first.
-            Verdict::Ambiguous | Verdict::BodyUnread(_) => {
-                Refusal::Uninterpretable(Uninterpretable::NotForUse)
-            }
+            Verdict::Ambiguous | Verdict::BodyUnread(_) => Refusal::NotForUse,
         };
         // A refused call reports nothing, its alerts included.
         let decision = Decision::Refused {
