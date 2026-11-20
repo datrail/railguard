@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
 
-use rail_model::agent::Agent;
+use rail_model::agent::AgentId;
 use rail_runtime::{Jitter, RailCenterTickets, TicketAnswer, TicketHolder, TicketSettings};
 use tokio::runtime::Handle;
 
@@ -85,7 +85,7 @@ async fn a_hostile_answer_is_logged_escaped_once() {
     let source = RailCenterTickets {
         client: client(&server.url),
         settings: TicketSettings {
-            agent: Agent {
+            agent: AgentId {
                 host_id: "host-1".to_owned(),
                 sandbox_name: "sandbox a".to_owned(),
             },

@@ -8,7 +8,7 @@ use serde::{Deserialize, Deserializer};
 use serde_json::value::RawValue;
 use serde_json::{Value, json};
 
-use crate::agent::Agent;
+use crate::agent::AgentId;
 use crate::condition::{
     BodyStep, Condition, ConditionUse, Path, RequestPath, Spelling, read_condition,
 };
@@ -169,7 +169,7 @@ pub enum Function {
 }
 
 /// Reads a plan Rail Center served to `agent`. `Err` for one that isn't a plan for it.
-pub fn parse_plan(bytes: &[u8], agent: &Agent) -> Result<PlanReading, Refused> {
+pub fn parse_plan(bytes: &[u8], agent: &AgentId) -> Result<PlanReading, Refused> {
     let raw: Box<RawValue> = serde_json::from_slice(bytes).map_err(|_| Refused::NotJson)?;
     let fields: Fields = serde_json::from_str(raw.get()).map_err(|_| Refused::NoContentHash)?;
     let content_hash = peek::<String>(&fields, "content_hash")

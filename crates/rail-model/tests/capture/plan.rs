@@ -1,4 +1,4 @@
-use rail_model::agent::Agent;
+use rail_model::agent::AgentId;
 use rail_model::capture::{
     CatchAllKey, Combine, ContextKey, Function, Measure, OnMaxGroups, PlanReading, PlanState,
     Refused, parse_plan,
@@ -31,8 +31,8 @@ fn vectors() -> Vectors {
     vectors
 }
 
-fn agent(vectors: &Vectors) -> Agent {
-    Agent {
+fn agent(vectors: &Vectors) -> AgentId {
+    AgentId {
         host_id: vectors.agent["host_id"].as_str().unwrap().to_owned(),
         sandbox_name: vectors.agent["sandbox_name"].as_str().unwrap().to_owned(),
     }
