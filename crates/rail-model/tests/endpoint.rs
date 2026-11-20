@@ -1,4 +1,4 @@
-use rail_policy::{Endpoint, Resolution, ResolvedKey, resolve_endpoint};
+use rail_model::{Endpoint, Resolution, ResolvedKey, resolve_endpoint};
 
 const MOUNT: &str = "/mcp";
 

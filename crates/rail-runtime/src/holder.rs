@@ -9,7 +9,7 @@ use std::task::Poll;
 use std::time::Duration;
 
 use arc_swap::ArcSwap;
-use rail_policy::sanitize;
+use rail_model::sanitize;
 use tokio::runtime::Handle;
 use tokio::sync::watch;
 use tokio::task::AbortHandle;

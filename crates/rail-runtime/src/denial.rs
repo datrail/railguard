@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
-use rail_policy::{Decision, Endpoint, FallbackDenial, Outcome, TicketState, sanitize};
+use rail_model::{Decision, Endpoint, FallbackDenial, Outcome, TicketState, sanitize};
 use reqwest::StatusCode;
 use serde::Serialize;
 use time::OffsetDateTime;

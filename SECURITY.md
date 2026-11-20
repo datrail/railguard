@@ -95,7 +95,7 @@ alone. Elsewhere, keep it reachable from Apigee only.
 
 ## Scope
 
-In scope: this repository, its images, and the `datrail-policy` package built from it.
+In scope: this repository, its images, and the `datrail-model` package built from it.
 
 Out of scope:
 

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from datrail_policy import BundleCheck, validate_bundle
+from datrail_model import BundleCheck, validate_bundle
 
 _VECTORS = Path(__file__).parents[3] / "vectors" / "parse_bundle_conformance_cases.json"
 _CASES = json.loads(_VECTORS.read_text())["cases"]

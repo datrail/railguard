@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from datrail_policy import TicketReading, read_ticket
+from datrail_model import TicketReading, read_ticket
 
 _VECTORS = Path(__file__).parents[3] / "vectors"
 _BASE64 = json.loads((_VECTORS / "parse_base64_ticket_conformance_cases.json").read_text())

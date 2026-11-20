@@ -40,8 +40,8 @@ Each host's README has its own flow: [rail-apigee](crates/rail-apigee/README.md#
 
 | Path                                                                   | What it is                                                                                                       |
 | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| [`crates/rail-policy`](crates/rail-policy/README.md)                   | The rules language: reads policy bundles and tickets, and judges a call.                                         |
-| [`crates/rail-policy-py`](crates/rail-policy-py/README.md)             | The language as a Python package, `datrail-policy`, for Rail Center and RailDash.                                |
+| [`crates/rail-model`](crates/rail-model/README.md)                     | The rules language: reads policy bundles and tickets, and judges a call.                                         |
+| [`crates/rail-model-py`](crates/rail-model-py/README.md)               | The language as a Python package, `datrail-model`, for Rail Center and RailDash.                                 |
 | [`crates/rail-runtime`](crates/rail-runtime/README.md)                 | What a running host does around the language: its settings, Rail Center, and the gateway's judging of each call. |
 | [`crates/rail-grpc-host`](crates/rail-grpc-host/README.md)             | The process parts both gRPC hosts share: the command line, health checks and shutdown.                           |
 | [`crates/rail-apigee`](crates/rail-apigee/README.md)                   | The gateway, as an Apigee callout.                                                                               |
@@ -58,7 +58,7 @@ Each host's README has its own flow: [rail-apigee](crates/rail-apigee/README.md#
 ```sh
 make lint      # rustfmt and clippy
 make test      # the Rust tests
-make test-py   # builds the datrail-policy wheel and runs its tests; needs uv
+make test-py   # builds the datrail-model wheel and runs its tests; needs uv
 make check     # all three, plus the Python lint
 make fmt-md    # formats the markdown with Prettier; make lint-md checks it; needs npx
 ```
@@ -70,7 +70,7 @@ The end-to-end stacks need Docker and run separately; see [`e2e`](e2e/README.md)
 - [datrail-project](https://github.com/datrail/datrail-project#readme) is the entry point to DatRail: how its components
   fit together.
 - [RailDash](https://github.com/datrail/raildash) presents captures locally, and is to try a rule on a sample call
-  through `datrail-policy`.
+  through `datrail-model`.
 
 ## Security
 

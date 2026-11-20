@@ -16,7 +16,7 @@ use std::fmt::{self, Write};
 use std::panic::PanicHookInfo;
 use std::sync::OnceLock;
 
-use rail_policy::{sanitize, sanitize_for_json, sanitize_quoted, sanitize_unquoted};
+use rail_model::{sanitize, sanitize_for_json, sanitize_quoted, sanitize_unquoted};
 use tracing::field::{Field, Visit};
 use tracing::{Event, Subscriber};
 use tracing_log::NormalizeEvent;
@@ -60,7 +60,7 @@ const OWN_TARGETS: [&str; 5] = [
     "rail_apigee",
     "rail_envoy",
     "rail_grpc_host",
-    "rail_policy",
+    "rail_model",
     "rail_runtime",
 ];
 

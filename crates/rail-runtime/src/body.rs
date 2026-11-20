@@ -8,7 +8,7 @@
 use std::borrow::Cow;
 use std::fmt;
 
-use rail_policy::{Endpoint, Resolution, resolve_endpoint};
+use rail_model::{Endpoint, Resolution, resolve_endpoint};
 use serde::de::{DeserializeSeed, Deserializer, MapAccess, Visitor};
 use serde_json::value::RawValue;
 

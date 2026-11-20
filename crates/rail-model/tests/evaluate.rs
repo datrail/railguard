@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use rail_policy::{
+use rail_model::{
     Budget, Condition, Endpoint, Environment, Headers, Refusal, Verdict, compile_condition,
     evaluate_condition,
 };

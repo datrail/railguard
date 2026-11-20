@@ -15,7 +15,7 @@ name = "rail-grpc-host"
 path = "tests/main.rs"
 
 [dependencies]
-rail-policy = { path = "../rail-policy" }
+rail-model = { path = "../rail-model" }
 tokio = { version = "1", features = ["macros", "rt", "signal", "sync", "time"] }
 tokio-stream = { version = "0.1", default-features = false }
 tracing = "0.1"

@@ -3,7 +3,7 @@ requires = ["maturin==1.16.0"]
 build-backend = "maturin"
 
 [project]
-name = "datrail-policy"
+name = "datrail-model"
 version = "0.0.0"
 requires-python = ">=3.12"
 
@@ -12,11 +12,11 @@ dev = ["pytest", "ruff"]
 
 [tool.ruff]
 line-length = 100
-# So imports of datrail_policy sort as first-party.
+# So imports of datrail_model sort as first-party.
 src = ["python"]
 
 [tool.maturin]
 # Fails on a stale Cargo.lock, as the cargo steps in CI do.
 locked = true
 python-source = "python"
-module-name = "datrail_policy._native"
+module-name = "datrail_model._native"

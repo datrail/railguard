@@ -1,4 +1,4 @@
-use rail_policy::{sanitize, sanitize_for_json, sanitize_quoted, sanitize_unquoted};
+use rail_model::{sanitize, sanitize_for_json, sanitize_quoted, sanitize_unquoted};
 
 #[test]
 fn test_escapes_controls_formats_and_separators() {

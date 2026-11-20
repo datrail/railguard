@@ -6,11 +6,11 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 from uuid import UUID
 
-from datrail_policy import _native
-from datrail_policy._native import DEFAULT_STEP_LIMIT, CompiledBundle
+from datrail_model import _native
+from datrail_model._native import DEFAULT_STEP_LIMIT, CompiledBundle
 
 _EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
-# Past what `rail-policy` reads (128), and short of `json.dumps`'s recursion limit.
+# Past what `rail-model` reads (128), and short of `json.dumps`'s recursion limit.
 _MAX_WALK_DEPTH = 200
 
 __all__ = [

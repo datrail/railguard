@@ -5,8 +5,8 @@ members = [
     "crates/rail-apigee",
     "crates/rail-envoy",
     "crates/rail-grpc-host",
-    "crates/rail-policy",
-    "crates/rail-policy-py",
+    "crates/rail-model",
+    "crates/rail-model-py",
     "crates/rail-runtime",
     "crates/rail-test-support",
 ]
@@ -16,7 +16,7 @@ default-members = [
     "crates/rail-apigee",
     "crates/rail-envoy",
     "crates/rail-grpc-host",
-    "crates/rail-policy",
+    "crates/rail-model",
     "crates/rail-runtime",
     "crates/rail-test-support",
 ]

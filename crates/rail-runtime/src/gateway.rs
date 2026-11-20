@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use percent_encoding::percent_decode_str;
-use rail_policy::{
+use rail_model::{
     Budget, DEFAULT_STEP_LIMIT, Decision, DecodedTicket, Endpoint, Environment, Headers,
     JudgingMode, Outcome, Resolution, SignedTicketConfig, TicketState, decode_ticket, judge,
 };

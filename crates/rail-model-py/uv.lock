@@ -12,7 +12,7 @@ wheels = [
 ]
 
 [[package]]
-name = "datrail-policy"
+name = "datrail-model"
 version = "0.0.0"
 source = { editable = "." }
 

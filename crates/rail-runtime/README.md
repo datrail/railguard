@@ -24,4 +24,4 @@ behave the same. See the [main README](../../README.md) for the system around it
 
 - **Nothing of Envoy, Apigee or gRPC:** each host's own crate adds them, with
   [`rail-grpc-host`](../rail-grpc-host/README.md) for what both gRPC hosts share.
-- **No judging of its own:** the rules are [`rail-policy`](../rail-policy/README.md)'s.
+- **No judging of its own:** the rules are [`rail-model`](../rail-model/README.md)'s.
