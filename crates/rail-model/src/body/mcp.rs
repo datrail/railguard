@@ -10,8 +10,8 @@ use crate::endpoint::{Resolution, resolve_endpoint};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum McpReading {
     /// Not read as a tree (not JSON, or past the budget), a JSON-RPC batch, or with `method`,
-    /// `params`, `params.name` or `params.arguments` repeated, letter case ignored: what it names
-    /// can't be told.
+    /// `params`, `params.name` or `params.arguments` repeated, letter case ignored, or beside a key
+    /// that isn't JSON, which a lenient reader may read as any: what it names can't be told.
     Unreadable,
     /// An empty body, or a JSON value: `method` and `tool` are absent where it doesn't name them.
     Read {
@@ -45,20 +45,24 @@ impl McpReading {
         if root.kind() == Kind::Array {
             return Self::Unreadable;
         }
-        let params = root.get("params");
-        let repeated = root.repeats("method")
-            || root.repeats("params")
-            || params.is_some_and(|params| params.repeats("name") || params.repeats("arguments"));
-        if repeated {
+        let method = root.get("method");
+        if method.is_ambiguous() {
             return Self::Unreadable;
         }
-        let method = root
-            .get("method")
-            .and_then(|method| method.text().map(Cow::into_owned));
+        let params = root.get("params");
+        if params.is_ambiguous() {
+            return Self::Unreadable;
+        }
+        let name = params.get("name");
+        if name.is_ambiguous() {
+            return Self::Unreadable;
+        }
+        if params.get("arguments").is_ambiguous() {
+            return Self::Unreadable;
+        }
+        let method = method.text().map(Cow::into_owned);
         let tool = match method.as_deref() {
-            Some("tools/call") => params
-                .and_then(|params| params.get("name"))
-                .and_then(|name| name.text().map(Cow::into_owned)),
+            Some("tools/call") => name.text().map(Cow::into_owned),
             _ => None,
         };
         Self::Read { method, tool }
