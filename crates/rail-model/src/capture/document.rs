@@ -1,7 +1,7 @@
 //! The call record document a window becomes, serialize-only, its fields in the field reference's
 //! order.
 
-use std::time::SystemTime;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::ser::{Error, SerializeMap};
 use serde::{Serialize, Serializer};
@@ -221,14 +221,19 @@ impl<T: Serialize> Serialize for Fields<T> {
     }
 }
 
-/// RFC 3339 in UTC, `Z`, whole seconds.
+/// RFC 3339 in UTC, `Z`, whole seconds; a time before 1970 or past 9999 is an error.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Timestamp(pub(crate) SystemTime);
 
 impl Serialize for Timestamp {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let written = OffsetDateTime::from(self.0)
-            .replace_nanosecond(0)
+        // Checked: a clock far off would panic `time`'s `From<SystemTime>`.
+        let seconds = self
+            .0
+            .duration_since(UNIX_EPOCH)
+            .map_err(S::Error::custom)?;
+        let seconds = i64::try_from(seconds.as_secs()).map_err(S::Error::custom)?;
+        let written = OffsetDateTime::from_unix_timestamp(seconds)
             .map_err(S::Error::custom)?
             .format(&Rfc3339)
             .map_err(S::Error::custom)?;

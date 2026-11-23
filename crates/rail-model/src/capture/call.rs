@@ -138,38 +138,14 @@ impl CompiledPlan {
     /// Matches `call`, then reads what the record counting it holds.
     pub fn capture(&self, call: &ObservedCall) -> CapturedCall<'_> {
         let request_line = RequestLine::read(&call.authority, &call.method, &call.path);
-        let environment = Environment::for_capture(&request_line, &call.body);
-        // One per call, matching and reading its record, as one judgement is.
-        let mut budget = Budget::default();
-        let taken = match self.walk(&request_line, &environment, &mut budget) {
-            Ok(entry) => Taken::Entry(entry),
-            Err(why) => Taken::CatchAll(&self.plan().catch_all, why),
-        };
-        let record = read_record(
-            taken.record(),
-            &request_line,
-            &environment,
-            call,
-            &mut budget,
-        );
+        let mut reader = CallReader::new(&request_line, call);
+        let taken = reader.take(self);
+        let record = reader.read(taken.record());
         CapturedCall {
             request_line,
             taken,
             record,
         }
-    }
-
-    /// What the catch-all's record reads of `call`, which an entry took past the group ceiling.
-    pub(crate) fn read_catch_all(
-        &self,
-        call: &ObservedCall,
-        request_line: &RequestLine,
-    ) -> RecordReading {
-        let environment = Environment::for_capture(request_line, &call.body);
-        // Its keys and measures read no path a budget charges.
-        let mut budget = Budget::default();
-        let record = &self.plan().catch_all.record;
-        read_record(record, request_line, &environment, call, &mut budget)
     }
 
     // The first entry taking the call, unless the walk stops first.
@@ -198,6 +174,45 @@ impl CompiledPlan {
     }
 }
 
+/// One call as it's read: its request line, the environment its conditions and records read, and
+/// its step budget, spent by matching it and reading its record alike.
+pub(crate) struct CallReader<'c> {
+    request_line: &'c RequestLine,
+    environment: Environment<'c>,
+    budget: Budget,
+    body_bytes: u64,
+}
+
+impl<'c> CallReader<'c> {
+    pub(crate) fn new(request_line: &'c RequestLine, call: &'c ObservedCall) -> Self {
+        Self {
+            request_line,
+            environment: Environment::for_capture(request_line, &call.body),
+            budget: Budget::default(),
+            body_bytes: call.body_bytes,
+        }
+    }
+
+    /// Which of `plan`'s records counts the call.
+    pub(crate) fn take<'p>(&mut self, plan: &'p CompiledPlan) -> Taken<'p> {
+        match plan.walk(self.request_line, &self.environment, &mut self.budget) {
+            Ok(entry) => Taken::Entry(entry),
+            Err(why) => Taken::CatchAll(&plan.plan().catch_all, why),
+        }
+    }
+
+    /// What `record` reads of the call.
+    pub(crate) fn read(&mut self, record: &Record) -> RecordReading {
+        read_record(
+            record,
+            self.request_line,
+            &self.environment,
+            self.body_bytes,
+            &mut self.budget,
+        )
+    }
+}
+
 // The entry's "and": a condition that doesn't hold, or a refusal, decides it; else the first that
 // can't be told.
 fn answer(entry: &CompiledEntry, environment: &Environment, budget: &mut Budget) -> Verdict {
@@ -220,10 +235,9 @@ fn read_record(
     record: &Record,
     request_line: &RequestLine,
     environment: &Environment,
-    call: &ObservedCall,
+    body_bytes: u64,
     budget: &mut Budget,
 ) -> RecordReading {
-    let body_bytes = call.body_bytes;
     let context_keys = record
         .context_keys
         .iter()

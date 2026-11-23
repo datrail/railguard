@@ -284,3 +284,43 @@ fn test_writes_a_window_that_captured_nothing() {
         );
     }
 }
+
+// A wall clock stepped back writes no step before the one received earlier, nor a window ending
+// before its last call.
+#[test]
+fn test_keeps_times_in_order_when_the_clock_steps_back() {
+    let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
+    let compiled = Arc::new(compile_plan(parse_plan(&vectors.plan.to_string()).unwrap()));
+    let mut window = Window::open(Arc::clone(&compiled), time(100));
+    let call = || ObservedCall {
+        authority: b"api.github.com".to_vec(),
+        method: b"GET".to_vec(),
+        path: b"/".to_vec(),
+        body: keep_body(b""),
+        body_bytes: 0,
+    };
+    for at in [50, 120, 110] {
+        window.record(&call(), time(at));
+    }
+    let envelope = Envelope {
+        document_id: Uuid::nil(),
+        generated_at: time(130),
+        windows_dropped: 0,
+    };
+    let document = serde_json::to_value(window.close(time(20)).into_document(envelope)).unwrap();
+    let at: Vec<&Value> = document["sequence"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|step| &step["at"])
+        .collect();
+    let written = |seconds| {
+        json!(format!(
+            "1970-01-01T00:0{}:{:02}Z",
+            seconds / 60,
+            seconds % 60
+        ))
+    };
+    assert_eq!(at, [&written(100), &written(120), &written(120)]);
+    assert_eq!(document["window"]["end"], written(120));
+}

@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use super::call::{
-    CapturedCall, KeptValue, KeyReading, MeasureReading, ObservedCall, PathReading, RecordReading,
+    CallReader, KeptValue, KeyReading, MeasureReading, ObservedCall, PathReading, RecordReading,
     Taken, Untaken,
 };
 use super::compile::CompiledPlan;
@@ -26,7 +26,7 @@ const AMBIGUOUS: &str = "[ambiguous]";
 // coarsened there.
 const OVERFLOW: &str = "[overflow]";
 
-/// Why a call an entry could have taken went to the catch-all with its body unread.
+/// Why a call an entry could have taken went to the catch-all with its body's values not told.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BodyUnreadReason {
     PastCap,
@@ -39,22 +39,6 @@ pub enum BodyUnreadReason {
     Ambiguous,
     /// The walk spent the step budget on it.
     StepBudget,
-}
-
-impl BodyUnreadReason {
-    /// Its snake-case name, as a log writes it.
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::PastCap => "past_cap",
-            Self::PastBudget => "past_budget",
-            Self::NotSent => "not_sent",
-            Self::CutShort => "cut_short",
-            Self::NotJson => "not_json",
-            Self::Batch => "batch",
-            Self::Ambiguous => "ambiguous",
-            Self::StepBudget => "step_budget",
-        }
-    }
 }
 
 /// The calls captured since a window opened, under one plan.
@@ -70,15 +54,19 @@ pub struct Window {
     /// In the order first seen.
     hosts: Vec<HostTotal>,
     host_index: HashMap<String, usize>,
-    /// With the plan's `max_steps_per_window`: when each call was received, and its record.
-    steps: Option<Vec<(SystemTime, usize)>>,
+    /// With the plan's `max_steps_per_window`, that many: when each call was received, and its
+    /// record.
+    steps: Option<(usize, Vec<(SystemTime, usize)>)>,
+    /// The latest time a call was received, from the window's start: a clock stepped back
+    /// mustn't write steps out of order.
+    latest: SystemTime,
     truncated: Truncated,
 }
 
-// The entry, by its place in the plan, or the catch-all; and its context keys' values.
+// The record's id, an entry's or the catch-all's, unique in the plan, and its context keys' values.
 #[derive(Debug, PartialEq, Eq, Hash)]
 struct GroupKey {
-    entry: Option<usize>,
+    record_id: String,
     values: Vec<Option<String>>,
 }
 
@@ -93,7 +81,11 @@ struct Written {
 
 impl Window {
     pub fn open(plan: Arc<CompiledPlan>, start: SystemTime) -> Self {
-        let steps = plan.plan().budget.max_steps_per_window.map(|_| Vec::new());
+        let steps = plan
+            .plan()
+            .budget
+            .max_steps_per_window
+            .map(|max| (max as usize, Vec::new()));
         let truncated = Truncated {
             entries_skipped: plan.entries_skipped() as u64,
             steps_dropped: steps.as_ref().map(|_| 0),
@@ -108,43 +100,43 @@ impl Window {
             hosts: Vec::new(),
             host_index: HashMap::new(),
             steps,
+            latest: start,
             truncated,
         }
     }
 
-    /// Counts `call`, received at `at`; why its body went unread, if an entry could have taken it.
+    /// Counts `call`, received at `at`; why its body's values weren't told, if an entry could have
+    /// taken it.
     pub fn record(&mut self, call: &ObservedCall, at: SystemTime) -> Option<BodyUnreadReason> {
         let plan = Arc::clone(&self.plan);
-        let CapturedCall {
-            request_line,
-            taken,
-            record,
-        } = plan.capture(call);
+        let request_line = RequestLine::read(&call.authority, &call.method, &call.path);
+        let mut reader = CallReader::new(&request_line, call);
+        let taken = reader.take(&plan);
         let reason = body_unread_reason(&taken);
         self.truncated.body_unread += u64::from(reason.is_some());
-        let mut entry = match &taken {
-            Taken::Entry(taken) => plan
-                .plan()
-                .entries
-                .iter()
-                .position(|entry| std::ptr::eq(entry, *taken)),
-            Taken::CatchAll(..) => None,
+        let catch_all = &plan.plan().catch_all;
+        let (record_id, mut spec) = match &taken {
+            Taken::Entry(entry) => (&entry.id, &entry.record),
+            Taken::CatchAll(catch_all, _) => (&catch_all.id, &catch_all.record),
         };
-        let mut spec = taken.record();
-        let (mut values, mut written) = write(spec, &record, &request_line);
+        let (values, mut written) = write(spec, &reader.read(spec), &request_line);
+        let mut key = GroupKey {
+            record_id: record_id.clone(),
+            values,
+        };
         let at_ceiling = self.records.len() >= plan.plan().budget.max_groups_per_window as usize;
-        let open = self.groups.contains_key(&key(entry, &values));
         // Past the ceiling, an entry's call is the catch-all's, and a new catch-all group the
         // overflow's.
-        let coarsened = at_ceiling && !open;
-        if coarsened && entry.is_some() {
-            let catch_all = &plan.plan().catch_all;
-            let record = plan.read_catch_all(call, &request_line);
+        let coarsened = at_ceiling && !self.groups.contains_key(&key);
+        if coarsened && matches!(taken, Taken::Entry(_)) {
             spec = &catch_all.record;
-            (values, written) = write(spec, &record, &request_line);
-            entry = None;
+            let values;
+            (values, written) = write(spec, &reader.read(spec), &request_line);
+            key = GroupKey {
+                record_id: catch_all.id.clone(),
+                values,
+            };
         }
-        let key = GroupKey { entry, values };
         let index = match self.groups.get(&key) {
             Some(&index) => index,
             None if !coarsened => self.open_record(key, spec),
@@ -160,9 +152,9 @@ impl Window {
         self.truncated.calls_coarsened += u64::from(coarsened);
         self.count_host(request_line.host(), coarsened);
         self.add(index, written);
-        let max_steps = plan.plan().budget.max_steps_per_window.unwrap_or(0) as usize;
+        self.latest = self.latest.max(at);
         match &mut self.steps {
-            Some(steps) if steps.len() < max_steps => steps.push((at, index)),
+            Some((max, steps)) if steps.len() < *max => steps.push((self.latest, index)),
             Some(_) => *self.truncated.steps_dropped.get_or_insert(0) += 1,
             None => {}
         }
@@ -174,10 +166,12 @@ impl Window {
         self.truncated.calls_dropped = self.truncated.calls_dropped.saturating_add(calls);
     }
 
-    /// The window's document, for the sender to give its envelope.
+    /// The window's document, for the sender to give its envelope; it ends no earlier than its
+    /// last call.
     pub fn close(self, end: SystemTime) -> ClosedWindow {
         let plan = self.plan.plan();
-        let sequence = self.steps.map(|steps| {
+        let end = end.max(self.latest);
+        let sequence = self.steps.map(|(_, steps)| {
             steps
                 .into_iter()
                 .map(|(at, index)| Step {
@@ -217,11 +211,6 @@ impl Window {
     }
 
     fn open_record(&mut self, key: GroupKey, spec: &Record) -> usize {
-        let plan = self.plan.plan();
-        let entry_id = match key.entry {
-            Some(index) => &plan.entries[index].id,
-            None => &plan.catch_all.id,
-        };
         let context_keys = spec
             .context_keys
             .iter()
@@ -238,7 +227,7 @@ impl Window {
                 _ => None,
             })
             .collect();
-        let index = self.push_record(entry_id.clone(), context_keys, field_types, spec);
+        let index = self.push_record(key.record_id.clone(), context_keys, field_types, spec);
         self.groups.insert(key, index);
         index
     }
@@ -301,13 +290,6 @@ impl ClosedWindow {
 
 fn record_id(index: usize) -> String {
     format!("r{}", index + 1)
-}
-
-fn key(entry: Option<usize>, values: &[Option<String>]) -> GroupKey {
-    GroupKey {
-        entry,
-        values: values.to_vec(),
-    }
 }
 
 fn body_unread_reason(taken: &Taken) -> Option<BodyUnreadReason> {

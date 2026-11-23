@@ -40,7 +40,7 @@ Each host's README has its own flow: [rail-apigee](crates/rail-apigee/README.md#
 
 | Path                                                                   | What it is                                                                                                       |
 | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| [`crates/rail-model`](crates/rail-model/README.md)                     | The rules language: reads policy bundles, tickets and capture plans, judges a call, and matches it for capture.  |
+| [`crates/rail-model`](crates/rail-model/README.md)                     | The rules language: reads bundles, tickets and capture plans, judges a call, and writes its call records.        |
 | [`crates/rail-model-py`](crates/rail-model-py/README.md)               | The language as a Python package, `datrail-model`, for Rail Center and RailDash.                                 |
 | [`crates/rail-runtime`](crates/rail-runtime/README.md)                 | What a running host does around the language: its settings, Rail Center, and the gateway's judging of each call. |
 | [`crates/rail-grpc-host`](crates/rail-grpc-host/README.md)             | The process parts both gRPC hosts share: the command line, health checks and shutdown.                           |
