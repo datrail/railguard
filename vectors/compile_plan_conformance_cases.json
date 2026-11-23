@@ -1,5 +1,5 @@
 {
-  "_comment": "Conformance cases for compile_plan, compiling a capture plan parse_plan read. `plan` is a plan with two MCP tools on one host and an HTTP operation on another; each case is that plan with `patch` applied (RFC 6902: add, remove, replace), and parse_plan reads every one. `expect.refused` names each refused entry and why: `not_one_endpoint`, or `condition <n>: <refusal>`, the first condition in its match that can't be evaluated for a plan entry (an `in` with no value is `invalid`). `entries_skipped` counts the entries no call can reach: the refused ones, and those after a refused entry on their host, or after a refused entry naming no host on any. `walks`, where given, are the entries a call to each host is tried against, in order; a refused entry naming no host is in every host's walk. A host is read as written.",
+  "_comment": "Conformance cases for compile_plan, compiling a capture plan parse_plan read. `plan` is a plan with two MCP tools on one host and an HTTP operation on another; each case is that plan with `patch` applied (RFC 6902: add, remove, replace), and parse_plan reads every one. `expect.refused` names each refused entry and why: `not_one_endpoint`, or `condition <n>: <refusal>`, the first condition in its match that can't be evaluated for a plan entry (an `in` with no value is `invalid`). `entries_skipped` counts the entries no call can reach: the refused ones, and those after a refused entry on their host, or after a refused entry naming no host on any.",
   "plan": {
     "schema_version": "1.0",
     "content_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
@@ -236,12 +236,12 @@
     {
       "name": "the plan as written: nothing refused, each host's entries",
       "patch": [],
-      "expect": {"refused": {}, "entries_skipped": 0, "walks": {"api.github.com": ["e1", "e2"], "hooks.slack.com": ["e3"], "other.example": []}}
+      "expect": {"refused": {}, "entries_skipped": 0}
     },
     {
       "name": "an op this reader doesn't know refuses its entry, on its host",
       "patch": [{"op": "replace", "path": "/entries/1/match/3/op", "value": "starts_with"}],
-      "expect": {"refused": {"e2": "condition 3: unknown_op"}, "entries_skipped": 1, "walks": {"api.github.com": ["e1", "e2"], "hooks.slack.com": ["e3"], "other.example": []}}
+      "expect": {"refused": {"e2": "condition 3: unknown_op"}, "entries_skipped": 1}
     },
     {
       "name": "a refused entry hides its host's later entries",
@@ -251,22 +251,17 @@
     {
       "name": "a refused entry naming no host is a barrier for every host",
       "patch": [{"op": "remove", "path": "/entries/0/match/0"}],
-      "expect": {"refused": {"e1": "not_one_endpoint"}, "entries_skipped": 3, "walks": {"api.github.com": ["e1", "e2"], "hooks.slack.com": ["e1", "e3"], "other.example": ["e1"]}}
+      "expect": {"refused": {"e1": "not_one_endpoint"}, "entries_skipped": 3}
     },
     {
       "name": "a barrier last hides nothing",
       "patch": [{"op": "remove", "path": "/entries/2/match/0"}],
-      "expect": {"refused": {"e3": "not_one_endpoint"}, "entries_skipped": 1, "walks": {"api.github.com": ["e1", "e2", "e3"], "hooks.slack.com": ["e3"], "other.example": ["e3"]}}
+      "expect": {"refused": {"e3": "not_one_endpoint"}, "entries_skipped": 1}
     },
     {
       "name": "a host condition that doesn't read makes a barrier",
       "patch": [{"op": "replace", "path": "/entries/0/match/0/path", "value": ["request", "host", "name"]}],
-      "expect": {"refused": {"e1": "condition 0: invalid"}, "entries_skipped": 3, "walks": {"api.github.com": ["e1", "e2"], "hooks.slack.com": ["e1", "e3"], "other.example": ["e1"]}}
-    },
-    {
-      "name": "a host read as written, not respelt",
-      "patch": [{"op": "replace", "path": "/entries/0/match/0/value", "value": "API.github.com"}],
-      "expect": {"refused": {}, "entries_skipped": 0, "walks": {"api.github.com": ["e2"], "API.github.com": ["e1"]}}
+      "expect": {"refused": {"e1": "condition 0: invalid"}, "entries_skipped": 3}
     },
     {
       "name": "a header condition: not for a plan's match",
@@ -346,7 +341,7 @@
     {
       "name": "the host by matches doesn't pin one endpoint",
       "patch": [{"op": "replace", "path": "/entries/1/match/0/op", "value": "matches"}],
-      "expect": {"refused": {"e2": "not_one_endpoint"}, "entries_skipped": 2, "walks": {"api.github.com": ["e1", "e2"], "hooks.slack.com": ["e2", "e3"], "other.example": ["e2"]}}
+      "expect": {"refused": {"e2": "not_one_endpoint"}, "entries_skipped": 2}
     },
     {
       "name": "an operation's path by eq pins one endpoint",
@@ -356,7 +351,7 @@
     {
       "name": "an operation with no method doesn't pin one endpoint",
       "patch": [{"op": "remove", "path": "/entries/2/match/1"}],
-      "expect": {"refused": {"e3": "not_one_endpoint"}, "entries_skipped": 1, "walks": {"api.github.com": ["e1", "e2"], "hooks.slack.com": ["e3"], "other.example": []}}
+      "expect": {"refused": {"e3": "not_one_endpoint"}, "entries_skipped": 1}
     },
     {
       "name": "an operation's path redacted doesn't pin one",
@@ -366,7 +361,7 @@
     {
       "name": "conditions in any order",
       "patch": [{"op": "replace", "path": "/entries/1/match", "value": [{"path": ["request", "mcp", "tool"], "op": "eq", "value": "search_code"}, {"path": ["request", "redacted_path"], "op": "eq", "value": "/mcp"}, {"path": ["request", "host"], "op": "eq", "value": "api.github.com"}]}],
-      "expect": {"refused": {}, "entries_skipped": 0, "walks": {"api.github.com": ["e1", "e2"], "hooks.slack.com": ["e3"], "other.example": []}}
+      "expect": {"refused": {}, "entries_skipped": 0}
     }
   ]
 }

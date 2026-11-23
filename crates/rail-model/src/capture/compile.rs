@@ -72,7 +72,8 @@ impl CompiledPlan {
     }
 
     /// The entries a call to `host` is tried against, in plan order: its host's, and the barriers.
-    pub fn entries_for<'a>(&'a self, host: &str) -> impl Iterator<Item = &'a CompiledEntry> {
+    #[expect(dead_code, reason = "read by matching a call, still to come")]
+    pub(crate) fn entries_for<'a>(&'a self, host: &str) -> impl Iterator<Item = &'a CompiledEntry> {
         let own = self.hosts.get(host).map_or(&[][..], Vec::as_slice);
         Merged {
             own: own.iter().peekable(),

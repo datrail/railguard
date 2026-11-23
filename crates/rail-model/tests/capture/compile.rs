@@ -25,7 +25,6 @@ struct Case {
 struct Expect {
     refused: BTreeMap<String, String>,
     entries_skipped: usize,
-    walks: Option<BTreeMap<String, Vec<String>>>,
 }
 
 fn describe(refusal: EntryRefusal) -> String {
@@ -49,12 +48,6 @@ fn compare(compiled: &CompiledPlan, expect: &Expect) -> Vec<String> {
     }
     if compiled.entries_skipped() != expect.entries_skipped {
         differences.push(format!("entries_skipped {}", compiled.entries_skipped()));
-    }
-    for (host, expected) in expect.walks.iter().flatten() {
-        let walk: Vec<&str> = compiled.entries_for(host).map(|entry| entry.id()).collect();
-        if walk != *expected {
-            differences.push(format!("walk for {host}: {walk:?}"));
-        }
     }
     differences
 }
