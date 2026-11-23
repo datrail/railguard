@@ -43,7 +43,6 @@ pub struct Plan {
 #[derive(Debug, Deserialize)]
 pub struct PlanBudget {
     pub max_groups_per_window: u32,
-    /// The calls whose order is recorded, as steps; 0 for none.
     pub max_steps_per_window: u32,
     pub on_max_groups: OnMaxGroups,
     pub max_unsent_windows: u32,
