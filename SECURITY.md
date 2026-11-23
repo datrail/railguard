@@ -38,9 +38,9 @@ Anything that gets a call past rail-apigee that its rules refuse:
 - **a parser disagreement:** the gateway reading a ticket, a bundle or a call differently from Rail Center, or from the
   MCP server behind it, so what's judged isn't what's sent (Apigee splits a header on commas, so a ticket holding one
   reads as undecodable; a call repeating `method`, `params`, `params.name` or `params.arguments`, letter case ignored,
-  or holding beside them a key that isn't JSON, like `"\method"`, or one holding a NUL, which a lenient reader may read
-  as any, names nothing, so the binding fallback decides it, as does a `method` or tool name holding a NUL, which a
-  reader cutting strings there reads short);
+  or holding beside them a key that isn't JSON, like `"\method"`, which a lenient reader may read as any, names nothing,
+  so the binding fallback decides it; so does one holding a NUL in a key, its `method` or its tool name, which a reader
+  cutting strings there reads short, while a NUL in any other value is compared as written);
 - **a hostile call or bundle** that crashes the gateway, or holds it past its deadline or its step budget (a judgement
   past 100,000 steps is refused, 503, at `enforce`);
 - **a call forwarded unjudged** other than in the cases below;

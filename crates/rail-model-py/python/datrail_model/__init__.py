@@ -80,11 +80,11 @@ class UnusableBundle:
 
 @dataclass(frozen=True)
 class ResolvedValue:
-    # `ambiguous` and `body_unread` read a body, which a sample never has.
+    # `ambiguous` and `body_unread` only come from a body, which a sample never has.
     kind: Literal[
         "absent", "string", "number", "bool", "list", "object", "ambiguous", "body_unread"
     ]
-    # The value as JSON; `None` for `absent` and `object`.
+    # The value as JSON; `None` for `absent`, `object`, `ambiguous` and `body_unread`.
     value: Any = None
 
 

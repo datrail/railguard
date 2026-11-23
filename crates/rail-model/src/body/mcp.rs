@@ -17,8 +17,9 @@ pub enum McpReading {
     /// A JSON-RPC batch, which names one message per item.
     Batch,
     /// `method`, `params`, `params.name` or `params.arguments` repeated, letter case ignored, or
-    /// beside a key that isn't JSON or holds a NUL, which a lenient reader may read as any; or
-    /// `method`, or a `tools/call`'s `params.name`, a string that doesn't decode or holds a NUL.
+    /// beside a key that isn't JSON, which a lenient reader may read as any, or that holds a NUL,
+    /// which a reader cutting strings there reads short; or `method`, or a `tools/call`'s
+    /// `params.name`, a string that doesn't decode or holds a NUL.
     Ambiguous,
 }
 

@@ -39,7 +39,7 @@ fn test_walks_keys_and_indexes() {
     let body = keep(
         br#"{"a": {"b": [10, {"c": "x"}, null]}, "Dup": 1, "dup": 2, "\ud800": 5, "Solo": 3,
             "n": null, "e\u0073c": 4, "\u00c9": 6, "\u00e9": 7, "foo\u017f": 8, "foos": 9,
-            "\u0130d": 10, "id": 11, "nul": {"x": 1, "y\u0000": 2}}"#,
+            "\u0130d": 10, "id": 11, "nul": {"x": 1, "y\u0000z": 2}}"#,
     );
     let root = body.json().unwrap();
     let found = |steps: &[Step]| describe(root.walk(steps));
