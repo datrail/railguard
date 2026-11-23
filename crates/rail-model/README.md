@@ -2,8 +2,9 @@
 
 DatRail's rules language. Rail Center publishes the rules as a policy bundle: which calls to which MCP tools are
 allowed, judged on what an agent's ticket says about it. This crate reads bundles, tickets and capture plans, compiles a
-plan and matches calls against it, reads which endpoint and host a call names, judges the call against the rules, and
-reads a call's request line, redacted, for capture. See the [main README](../../README.md) for the system around it.
+plan and matches calls against it, counts them in windows closed into call record documents, reads which endpoint and
+host a call names, judges the call against the rules, and reads a call's request line, redacted, for capture. See the
+[main README](../../README.md) for the system around it.
 
 It's one crate, used everywhere a rule is read, so a rule means the same thing where it's written and where it's
 enforced. The conformance cases in [`vectors/`](../../vectors) define its behaviour.

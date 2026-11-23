@@ -35,7 +35,7 @@ pub struct Document {
     sequence: Option<Vec<Step>>,
 }
 
-/// What the sender gives a document when it queues it: neither depends on the window.
+/// What the sender gives a document when it queues it: none of it depends on the window.
 #[derive(Clone, Copy, Debug)]
 pub struct Envelope {
     /// Kept when the document is sent again.
@@ -81,37 +81,37 @@ impl Document {
             NotCapturing::PlanInvalid(plan) => (Status::PlanInvalid, Some(plan)),
             NotCapturing::RedactionMismatch(plan) => (Status::RedactionMismatch, Some(plan)),
         };
-        Self {
-            schema_version: SCHEMA_VERSION,
-            generated_at: Timestamp(envelope.generated_at),
-            document_id: envelope.document_id,
+        let captured = Captured {
             agent,
-            status,
             plan_version: plan.as_ref().and_then(|plan| plan.plan_version),
             plan_hash: plan.map(|plan| plan.plan_hash),
-            redaction_version: REDACTION_VERSION,
-            window: Span::new(start, end),
-            truncated: Truncated {
-                windows_dropped: envelope.windows_dropped,
-                ..Truncated::default()
-            },
+            start,
+            end,
+            truncated: Truncated::default(),
             hosts: Vec::new(),
             records: Vec::new(),
             sequence: None,
-        }
+        };
+        Self::new(status, captured, envelope)
     }
 
     pub(crate) fn capturing(captured: Captured, envelope: Envelope) -> Self {
-        let mut truncated = captured.truncated;
-        truncated.windows_dropped = envelope.windows_dropped;
+        Self::new(Status::Capturing, captured, envelope)
+    }
+
+    fn new(status: Status, captured: Captured, envelope: Envelope) -> Self {
+        let truncated = Truncated {
+            windows_dropped: envelope.windows_dropped,
+            ..captured.truncated
+        };
         Self {
             schema_version: SCHEMA_VERSION,
             generated_at: Timestamp(envelope.generated_at),
             document_id: envelope.document_id,
             agent: captured.agent,
-            status: Status::Capturing,
-            plan_version: Some(captured.plan_version),
-            plan_hash: Some(captured.plan_hash),
+            status,
+            plan_version: captured.plan_version,
+            plan_hash: captured.plan_hash,
             redaction_version: REDACTION_VERSION,
             window: Span::new(captured.start, captured.end),
             truncated,
@@ -122,12 +122,12 @@ impl Document {
     }
 }
 
-/// What a capturing window's document holds but its envelope.
+/// What a window's document holds but its envelope and status.
 #[derive(Debug)]
 pub(crate) struct Captured {
     pub(crate) agent: AgentId,
-    pub(crate) plan_version: u64,
-    pub(crate) plan_hash: String,
+    pub(crate) plan_version: Option<u64>,
+    pub(crate) plan_hash: Option<String>,
     pub(crate) start: SystemTime,
     pub(crate) end: SystemTime,
     pub(crate) truncated: Truncated,

@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use rail_model::agent::AgentId;
@@ -46,7 +47,6 @@ struct Call {
     method: String,
     path: String,
     body: Value,
-    body_bytes: Option<u64>,
 }
 
 #[derive(Deserialize)]
@@ -97,7 +97,7 @@ fn observe(call: &Call) -> ObservedCall {
         method: call.method.clone().into_bytes(),
         path: call.path.clone().into_bytes(),
         body,
-        body_bytes: call.body_bytes.unwrap_or(body_bytes),
+        body_bytes,
     }
 }
 
@@ -119,8 +119,8 @@ fn test_vectors() {
         case.patch
             .iter()
             .for_each(|operation| patch(&mut plan, operation));
-        let compiled = compile_plan(parse_plan(&plan.to_string()).unwrap());
-        let mut window = Window::open(&compiled, time(case.start));
+        let compiled = Arc::new(compile_plan(parse_plan(&plan.to_string()).unwrap()));
+        let mut window = Window::open(Arc::clone(&compiled), time(case.start));
         window.count_dropped(case.calls_dropped);
         for received in &case.calls {
             window.record(&observe(&received.call), time(received.at));
@@ -136,13 +136,14 @@ fn test_vectors() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-// The order a document's fields are written in is the field reference's, which a reader may rely on.
+// A document's fields are written in the field reference's order, a record's keys and measures in
+// the plan's, which a reader may rely on and a comparison of values can't see.
 #[test]
-fn test_writes_the_fields_in_the_field_references_order() {
+fn test_writes_the_fields_in_their_order() {
     let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
     let case = &vectors.cases[0];
-    let compiled = compile_plan(parse_plan(&vectors.plan.to_string()).unwrap());
-    let mut window = Window::open(&compiled, time(case.start));
+    let compiled = Arc::new(compile_plan(parse_plan(&vectors.plan.to_string()).unwrap()));
+    let mut window = Window::open(Arc::clone(&compiled), time(case.start));
     for received in &case.calls {
         window.record(&observe(&received.call), time(received.at));
     }
@@ -150,33 +151,60 @@ fn test_writes_the_fields_in_the_field_references_order() {
         .close(time(case.end))
         .into_document(envelope(&case.envelope));
     let written = serde_json::to_string(&document).unwrap();
-    let order = [
-        "\"schema_version\"",
-        "\"generated_at\"",
-        "\"document_id\"",
-        "\"agent\"",
-        "\"status\"",
-        "\"plan_version\"",
-        "\"plan_hash\"",
-        "\"redaction_version\"",
-        "\"window\"",
-        "\"truncated\"",
-        "\"hosts\"",
-        "\"records\"",
-        "\"sequence\"",
+    let in_order = |fields: &[&str], from: &str| {
+        let from = written.find(from).unwrap();
+        let at: Vec<usize> = fields
+            .iter()
+            .map(|field| from + written[from..].find(&format!("\"{field}\"")).unwrap())
+            .collect();
+        assert!(at.is_sorted(), "{fields:?} in {written}");
+    };
+    let document = [
+        "schema_version",
+        "generated_at",
+        "document_id",
+        "agent",
+        "status",
+        "plan_version",
+        "plan_hash",
+        "redaction_version",
+        "window",
+        "truncated",
+        "hosts",
+        "records",
+        "sequence",
     ];
-    let at: Vec<usize> = order
-        .iter()
-        .map(|field| written.find(field).unwrap())
-        .collect();
-    assert!(at.is_sorted(), "{written}");
+    in_order(&document, "{");
+    let truncated = [
+        "calls_coarsened",
+        "calls_dropped",
+        "entries_skipped",
+        "body_unread",
+        "windows_dropped",
+        "path_unresolved",
+        "values_replaced",
+        "values_ambiguous",
+        "steps_dropped",
+    ];
+    in_order(&truncated, "\"truncated\"");
+    let record = [
+        "record_id",
+        "entry_id",
+        "context_keys",
+        "field_types",
+        "measures",
+    ];
+    in_order(&record, "\"records\"");
+    let catch_all = "\"entry_id\":\"catch_all\"";
+    in_order(&["host", "path_prefix", "method", "operation"], catch_all);
+    in_order(&["call_count", "error_count", "request_bytes"], catch_all);
 }
 
 #[test]
 fn test_tells_why_a_body_went_unread() {
     let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
-    let compiled = compile_plan(parse_plan(&vectors.plan.to_string()).unwrap());
-    let mut window = Window::open(&compiled, time(0));
+    let compiled = Arc::new(compile_plan(parse_plan(&vectors.plan.to_string()).unwrap()));
+    let mut window = Window::open(Arc::clone(&compiled), time(0));
     let call = |body: BodyRead| ObservedCall {
         authority: b"api.github.com".to_vec(),
         method: b"POST".to_vec(),
@@ -184,6 +212,7 @@ fn test_tells_why_a_body_went_unread() {
         body,
         body_bytes: 0,
     };
+    let ambiguous = br#"{"method": "tools/call", "params": {"name": "a", "Name": "b"}}"#;
     let cases = [
         (
             BodyRead::Unread(Unread::PastCap),
@@ -191,6 +220,7 @@ fn test_tells_why_a_body_went_unread() {
         ),
         (keep_body(b"[]"), Some(BodyUnreadReason::Batch)),
         (keep_body(b"{"), Some(BodyUnreadReason::NotJson)),
+        (keep_body(ambiguous), Some(BodyUnreadReason::Ambiguous)),
         (keep_body(b"{}"), None),
     ];
     for (body, reason) in cases {
@@ -204,40 +234,53 @@ fn test_writes_a_window_that_captured_nothing() {
         host_id: "host-7f3c".into(),
         sandbox_name: "agent-finretail".into(),
     };
+    // Sub-second times are written to the second.
     let envelope = Envelope {
         document_id: Uuid::nil(),
-        generated_at: time(900),
+        generated_at: time(900) + Duration::from_millis(999),
         windows_dropped: 1,
     };
-    let plan = PlanNamed {
+    let plan = |plan_version| PlanNamed {
         plan_hash: "sha256:ab".into(),
-        plan_version: None,
+        plan_version,
     };
     let write = |why| {
-        let document = Document::not_capturing(why, agent.clone(), time(0), time(900), envelope);
+        let start = time(0) + Duration::from_millis(500);
+        let document = Document::not_capturing(why, agent.clone(), start, time(900), envelope);
         serde_json::to_value(document).unwrap()
     };
     let truncated = json!({"calls_coarsened": 0, "calls_dropped": 0, "entries_skipped": 0,
         "body_unread": 0, "windows_dropped": 1, "path_unresolved": 0, "values_replaced": 0,
         "values_ambiguous": 0});
-    let expect = |status: &str| {
-        json!({"schema_version": "1.0", "generated_at": "1970-01-01T00:15:00Z",
-            "document_id": "00000000-0000-0000-0000-000000000000",
-            "agent": {"host_id": "host-7f3c", "sandbox_name": "agent-finretail"},
-            "status": status, "redaction_version": 1,
-            "window": {"start": "1970-01-01T00:00:00Z", "end": "1970-01-01T00:15:00Z"},
-            "truncated": truncated, "hosts": [], "records": []})
+    let no_plan = json!({"schema_version": "1.0", "generated_at": "1970-01-01T00:15:00Z",
+        "document_id": "00000000-0000-0000-0000-000000000000",
+        "agent": {"host_id": "host-7f3c", "sandbox_name": "agent-finretail"},
+        "status": "no_plan", "redaction_version": 1,
+        "window": {"start": "1970-01-01T00:00:00Z", "end": "1970-01-01T00:15:00Z"},
+        "truncated": truncated, "hosts": [], "records": []});
+    assert_eq!(write(NotCapturing::NoPlan), no_plan);
+    // A plan held is named, its version where the peek read one.
+    let named = |document: Value| {
+        let field = |name: &str| document.get(name).cloned();
+        (field("status"), field("plan_hash"), field("plan_version"))
     };
-    assert_eq!(write(NotCapturing::NoPlan), expect("no_plan"));
-    let mut invalid = expect("plan_invalid");
-    invalid["plan_hash"] = json!("sha256:ab");
-    assert_eq!(write(NotCapturing::PlanInvalid(plan.clone())), invalid);
-    let mut unknown = expect("plan_unknown");
-    unknown["plan_hash"] = json!("sha256:ab");
-    unknown["plan_version"] = json!(4);
-    let named = PlanNamed {
-        plan_version: Some(4),
-        ..plan
-    };
-    assert_eq!(write(NotCapturing::PlanUnknown(named)), unknown);
+    let hash = Some(json!("sha256:ab"));
+    for (why, status, version) in [
+        (
+            NotCapturing::PlanUnknown(plan(Some(4))),
+            "plan_unknown",
+            Some(json!(4)),
+        ),
+        (NotCapturing::PlanInvalid(plan(None)), "plan_invalid", None),
+        (
+            NotCapturing::RedactionMismatch(plan(Some(4))),
+            "redaction_mismatch",
+            Some(json!(4)),
+        ),
+    ] {
+        assert_eq!(
+            named(write(why)),
+            (Some(json!(status)), hash.clone(), version)
+        );
+    }
 }

@@ -43,6 +43,16 @@ pub enum Taken<'p> {
     CatchAll(&'p CatchAll, Untaken<'p>),
 }
 
+impl Taken<'_> {
+    /// The plan's record counting the call.
+    pub(crate) fn record(&self) -> &Record {
+        match self {
+            Self::Entry(entry) => &entry.record,
+            Self::CatchAll(catch_all, _) => &catch_all.record,
+        }
+    }
+}
+
 /// Why the catch-all counts a call: the entry named is where its walk stopped.
 #[derive(Debug)]
 pub enum Untaken<'p> {
@@ -131,16 +141,15 @@ impl CompiledPlan {
         let environment = Environment::for_capture(&request_line, &call.body);
         // One per call, matching and reading its record, as one judgement is.
         let mut budget = Budget::default();
-        let catch_all = &self.plan().catch_all;
-        let (taken, record) = match self.walk(&request_line, &environment, &mut budget) {
-            Ok(entry) => (Taken::Entry(entry), &entry.record),
-            Err(why) => (Taken::CatchAll(catch_all, why), &catch_all.record),
+        let taken = match self.walk(&request_line, &environment, &mut budget) {
+            Ok(entry) => Taken::Entry(entry),
+            Err(why) => Taken::CatchAll(&self.plan().catch_all, why),
         };
         let record = read_record(
-            record,
+            taken.record(),
             &request_line,
             &environment,
-            call.body_bytes,
+            call,
             &mut budget,
         );
         CapturedCall {
@@ -160,13 +169,7 @@ impl CompiledPlan {
         // Its keys and measures read no path a budget charges.
         let mut budget = Budget::default();
         let record = &self.plan().catch_all.record;
-        read_record(
-            record,
-            request_line,
-            &environment,
-            call.body_bytes,
-            &mut budget,
-        )
+        read_record(record, request_line, &environment, call, &mut budget)
     }
 
     // The first entry taking the call, unless the walk stops first.
@@ -217,9 +220,10 @@ fn read_record(
     record: &Record,
     request_line: &RequestLine,
     environment: &Environment,
-    body_bytes: u64,
+    call: &ObservedCall,
     budget: &mut Budget,
 ) -> RecordReading {
+    let body_bytes = call.body_bytes;
     let context_keys = record
         .context_keys
         .iter()

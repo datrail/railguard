@@ -28,7 +28,7 @@ pub struct Plan {
     pub schema_version: SchemaVersion,
     /// Changes with every field but itself and `generated_at`. It orders nothing.
     pub content_hash: String,
-    // `generated_at` goes here: nothing reads it yet, and it needs a date type.
+    // `generated_at` goes here: nothing reads it yet.
     pub agent: AgentId,
     pub plan_version: u64,
     /// The `REDACTION_VERSION` its paths were redacted with.
@@ -96,7 +96,7 @@ pub enum ContextKey {
     Named {
         name: String,
         path: Path,
-        /// What the value is, copied into each record's `field_types`, never read.
+        /// What the value is, copied into its entry's records' `field_types`, never interpreted.
         field_type: String,
     },
 }
