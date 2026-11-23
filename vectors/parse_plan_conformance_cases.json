@@ -218,17 +218,17 @@
     },
     {
       "name": "max_groups_per_window 0",
-      "patch": [{"op": "replace", "path": "/budget/max_groups_per_window", "value": 0}, {"op": "remove", "path": "/budget/max_steps_per_window"}],
+      "patch": [{"op": "replace", "path": "/budget/max_groups_per_window", "value": 0}, {"op": "replace", "path": "/budget/max_steps_per_window", "value": 0}],
       "expect": {"valid": false}
     },
     {
       "name": "max_groups_per_window 100000",
-      "patch": [{"op": "replace", "path": "/budget/max_groups_per_window", "value": 100000}, {"op": "remove", "path": "/budget/max_steps_per_window"}],
+      "patch": [{"op": "replace", "path": "/budget/max_groups_per_window", "value": 100000}, {"op": "replace", "path": "/budget/max_steps_per_window", "value": 0}],
       "expect": {"valid": true}
     },
     {
       "name": "max_groups_per_window 100001",
-      "patch": [{"op": "replace", "path": "/budget/max_groups_per_window", "value": 100001}, {"op": "remove", "path": "/budget/max_steps_per_window"}],
+      "patch": [{"op": "replace", "path": "/budget/max_groups_per_window", "value": 100001}, {"op": "replace", "path": "/budget/max_steps_per_window", "value": 0}],
       "expect": {"valid": false}
     },
     {
@@ -252,19 +252,19 @@
       "expect": {"valid": false}
     },
     {
-      "name": "max_steps_per_window 0, no steps, as when absent",
+      "name": "max_steps_per_window 0, no steps",
       "patch": [{"op": "replace", "path": "/budget/max_steps_per_window", "value": 0}],
       "expect": {"valid": true}
     },
     {
       "name": "no max_steps_per_window",
       "patch": [{"op": "remove", "path": "/budget/max_steps_per_window"}],
-      "expect": {"valid": true}
+      "expect": {"valid": false}
     },
     {
-      "name": "max_steps_per_window null, absent",
+      "name": "max_steps_per_window null",
       "patch": [{"op": "replace", "path": "/budget/max_steps_per_window", "value": null}],
-      "expect": {"valid": true}
+      "expect": {"valid": false}
     },
     {
       "name": "endpoint_id null, absent",

@@ -43,8 +43,7 @@ pub struct Plan {
 #[derive(Debug, Deserialize)]
 pub struct PlanBudget {
     pub max_groups_per_window: u32,
-    /// The calls whose order is recorded, as steps: absent or `null`, 0, none.
-    #[serde(default, deserialize_with = "read_null_as_default")]
+    /// The calls whose order is recorded, as steps; 0 for none.
     pub max_steps_per_window: u32,
     pub on_max_groups: OnMaxGroups,
     pub max_unsent_windows: u32,
@@ -387,15 +386,6 @@ impl TryFrom<Fields> for Measure {
             paths,
         })
     }
-}
-
-// A plan is open, so `null` in an optional field is absent.
-fn read_null_as_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
-where
-    D: serde::Deserializer<'de>,
-    T: Deserialize<'de> + Default,
-{
-    Ok(Option::<T>::deserialize(deserializer)?.unwrap_or_default())
 }
 
 // A built-in name, or one Rail Center gives: every one a name.
