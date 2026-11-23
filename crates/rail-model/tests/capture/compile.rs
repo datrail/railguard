@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use rail_model::capture::{CompiledPlan, EntryRefusal, compile_plan, parse_plan};
 use rail_model::condition::{
-    ConditionUse, ProblemCode, ProblemScope, TicketClaimsSchema, check_condition,
+    ConditionUse, LocationSegment, ProblemCode, ProblemScope, TicketClaimsSchema, check_condition,
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -30,9 +30,12 @@ struct Expect {
     entries_skipped: usize,
 }
 
-fn describe(refusal: EntryRefusal) -> String {
+fn describe(refusal: &EntryRefusal) -> String {
+    let [LocationSegment::Index(position)] = refusal.location.as_slice() else {
+        panic!("{refusal:?}");
+    };
     let why = serde_json::to_value(refusal.refusal).unwrap();
-    format!("condition {}: {}", refusal.position, why.as_str().unwrap())
+    format!("condition {position}: {}", why.as_str().unwrap())
 }
 
 fn compare(compiled: &CompiledPlan, expect: &Expect) -> Vec<String> {
@@ -107,12 +110,13 @@ fn test_refuses_the_conditions_check_condition_says_every_reader_refuses() {
                 .refused()
                 .find(|refused| refused.id() == entry.id)
                 .and_then(|refused| refused.refusal())
-                .map(|refusal| refusal.position);
+                .map(|refusal| refusal.location.clone());
             let first = written["match"]
                 .as_array()
                 .unwrap()
                 .iter()
-                .position(refused_by_readers);
+                .position(refused_by_readers)
+                .map(|position| vec![LocationSegment::Index(position)]);
             if first != refused {
                 failures.push(format!("{}: {}: {first:?}", case.name, entry.id));
             }

@@ -244,9 +244,14 @@
       "expect": {"refused": {"e1": "condition 3: unknown_op"}, "entries_skipped": 2}
     },
     {
-      "name": "a refused entry hides only its own host's entries",
-      "patch": [{"op": "replace", "path": "/entries/1/match/3/op", "value": "starts_with"}],
-      "expect": {"refused": {"e2": "condition 3: unknown_op"}, "entries_skipped": 1}
+      "name": "refusals on two other hosts hide nothing on a third",
+      "patch": [{"op": "replace", "path": "/entries/0/match/0/value", "value": "example.com"}, {"op": "replace", "path": "/entries/0/match/3/op", "value": "starts_with"}, {"op": "replace", "path": "/entries/1/match/3/op", "value": "starts_with"}],
+      "expect": {"refused": {"e1": "condition 3: unknown_op", "e2": "condition 3: unknown_op"}, "entries_skipped": 2}
+    },
+    {
+      "name": "no entry implying a host, every entry is reached",
+      "patch": [{"op": "remove", "path": "/entries/0/match/0"}, {"op": "remove", "path": "/entries/1/match/0"}, {"op": "remove", "path": "/entries/2/match/0"}],
+      "expect": {"refused": {}, "entries_skipped": 0}
     },
     {
       "name": "a refused entry implying no host hides every later entry",
@@ -274,9 +279,9 @@
       "expect": {"refused": {}, "entries_skipped": 0}
     },
     {
-      "name": "the host by matches implies none, and is matched as written",
-      "patch": [{"op": "replace", "path": "/entries/1/match/0/op", "value": "matches"}],
-      "expect": {"refused": {}, "entries_skipped": 0}
+      "name": "the host by matches implies none: an entry past a refusal on that host is reached",
+      "patch": [{"op": "replace", "path": "/entries/0/match/3/op", "value": "starts_with"}, {"op": "replace", "path": "/entries/1/match/0/op", "value": "matches"}],
+      "expect": {"refused": {"e1": "condition 3: unknown_op"}, "entries_skipped": 1}
     },
     {
       "name": "an entry for several tools is matched as written",
@@ -291,11 +296,6 @@
     {
       "name": "an op that can't hold for its path is only Rail Center's to refuse",
       "patch": [{"op": "add", "path": "/entries/2/match/-", "value": {"path": ["request", "method"], "op": "lt", "value": 1}}],
-      "expect": {"refused": {}, "entries_skipped": 0}
-    },
-    {
-      "name": "a body condition narrows an entry",
-      "patch": [{"op": "add", "path": "/entries/1/match/-", "value": {"path": ["request", "body", "params", "arguments", "repo"], "op": "eq", "value": "docs"}}],
       "expect": {"refused": {}, "entries_skipped": 0}
     },
     {

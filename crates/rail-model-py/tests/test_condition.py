@@ -163,4 +163,4 @@ def test_checks_a_condition_as_a_capture_plan_reads_it():
 
 def test_refuses_a_use_it_doesnt_check():
     with pytest.raises(ValueError, match="use_case"):
-        check_condition({"path": "ticket.a", "op": "existing"}, use_case="plan_record")  # type: ignore[arg-type]
+        check_condition({"path": "ticket.a", "op": "existing"}, use_case="capture_plan_record")  # type: ignore[arg-type]

@@ -90,6 +90,21 @@ impl CompiledCondition {
             Node::Test(..) => None,
         }
     }
+
+    /// Whether it reads the body, which a reader may hold only once the request is whole.
+    pub(crate) fn reads_the_body(&self) -> bool {
+        matches!(&self.0, Node::Test(Path::Request(path), _) if path.reads_the_body())
+    }
+
+    /// The host every call it holds for is to, where it requires one: an `eq` on a string.
+    pub(crate) fn implied_host(&self) -> Option<&str> {
+        match &self.0 {
+            Node::Test(Path::Request(RequestPath::Host), Test::Eq(Scalar::String(host))) => {
+                Some(host)
+            }
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug)]

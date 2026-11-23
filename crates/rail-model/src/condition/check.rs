@@ -66,7 +66,7 @@ pub enum ProblemCode {
     Unreadable,
 }
 
-/// `Enforcement`: every reader refuses it, reading the condition as `Invalid`.
+/// `Enforcement`: every reader refuses it, reading the condition as `Invalid` or compiling it so.
 /// `Authoring`: only the writer does, since a reader may be on another version.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -159,7 +159,7 @@ fn read_node(value: &Value) -> Result<SchemaNode, String> {
 
 /// Every problem with a condition given as JSON text, for its `use_case`, in the order found:
 /// first as every reader parses it, then as only Rail Center checks it. None means every reader
-/// reads it, and Rail Center would publish it. Only a policy reads `ticket_claims_schema`.
+/// reads it, and Rail Center would publish it. Only a gateway policy reads `ticket_claims_schema`.
 pub fn check_condition(
     text: &str,
     use_case: ConditionUse,
@@ -191,7 +191,13 @@ pub fn check_condition(
     };
     let mut problems = Vec::new();
     let parsed = check_grammar(fields, use_case, &mut problems);
-    check_authoring(&condition, parsed, ticket_claims_schema, &mut problems);
+    check_authoring(
+        &condition,
+        parsed,
+        use_case,
+        ticket_claims_schema,
+        &mut problems,
+    );
     problems
 }
 
@@ -203,7 +209,7 @@ struct Parsed<'a> {
     path: Option<(String, Path)>,
 }
 
-/// As a reader parses a condition: the op, then the path and the operand.
+/// As a reader parses and compiles a condition: the op, then the path and the operand.
 fn check_grammar<'a>(
     fields: &'a Map<String, Value>,
     use_case: ConditionUse,
@@ -249,24 +255,6 @@ fn check_grammar<'a>(
                 ProblemCode::OperandShape,
                 ProblemScope::Enforcement,
                 format!("{op} takes a {}", format_shape(expected)),
-            )
-        });
-    }
-    // An empty list holds for nothing: Rail Center's to refuse, though a reader evaluates it.
-    if known_op == Some("in")
-        && use_case == ConditionUse::CapturePlan
-        && fields
-            .get("value")
-            .and_then(Value::as_array)
-            .is_some_and(Vec::is_empty)
-    {
-        problems.push(ConditionProblem {
-            expected_shape: Some(OperandShape::List),
-            ..build_problem(
-                loc!["value"],
-                ProblemCode::OperandShape,
-                ProblemScope::Authoring,
-                "in takes at least one value in a plan's match".to_string(),
             )
         });
     }
@@ -333,10 +321,11 @@ fn check_path(
 }
 
 /// What only Rail Center refuses: a path its schema doesn't hold, an op that can't hold for the
-/// path, and deep nesting.
+/// path, an empty `in` in a capture plan, and deep nesting.
 fn check_authoring(
     condition: &Value,
     parsed: Parsed,
+    use_case: ConditionUse,
     ticket_claims_schema: &TicketClaimsSchema,
     problems: &mut Vec<ConditionProblem>,
 ) {
@@ -361,6 +350,21 @@ fn check_authoring(
                 message,
             )),
         }
+    }
+    // An empty list holds for nothing: a reader evaluates it, but Rail Center never writes one.
+    if parsed.op == Some("in")
+        && use_case == ConditionUse::CapturePlan
+        && condition["value"].as_array().is_some_and(Vec::is_empty)
+    {
+        problems.push(ConditionProblem {
+            expected_shape: Some(OperandShape::List),
+            ..build_problem(
+                loc!["value"],
+                ProblemCode::OperandShape,
+                ProblemScope::Authoring,
+                "in takes at least one value in a plan's match".to_string(),
+            )
+        });
     }
     if get_depth(condition) > MAX_AUTHORING_DEPTH {
         let message = format!("nested deeper than {MAX_AUTHORING_DEPTH} levels");

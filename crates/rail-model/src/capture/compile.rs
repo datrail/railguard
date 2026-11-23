@@ -2,12 +2,11 @@
 //! whose condition can't be evaluated refused, and the entries a call to a host is tried against
 //! indexed by that host.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{HashMap, HashSet};
 
 use super::plan::{Entry, Plan};
 use crate::condition::{
-    CompiledCondition, Condition, ConditionUse, Path, Predicate, Refusal, RequestPath, Scalar,
-    compile_condition,
+    CompiledCondition, ConditionUse, LocationSegment, Refusal, compile_condition,
 };
 
 /// A plan compiled for matching: built once per plan, then used for every call.
@@ -16,11 +15,10 @@ pub struct CompiledPlan {
     plan: Plan,
     /// In plan order, one per entry.
     entries: Vec<CompiledEntry>,
-    /// For each host an entry's conditions imply, as written, the indexes of the entries a call to
-    /// it is tried against, ending at the first refused one.
-    walks: HashMap<String, Vec<usize>>,
-    /// The walk of a call to any other host: the entries implying no host.
-    other_hosts: Vec<usize>,
+    /// For each host an entry's conditions imply, as written, the indexes of those entries.
+    hosts: HashMap<String, Vec<usize>>,
+    /// The indexes of the entries implying no host, tried for every host.
+    any_host: Vec<usize>,
     entries_skipped: usize,
 }
 
@@ -29,6 +27,8 @@ pub struct CompiledPlan {
 pub struct CompiledEntry {
     id: String,
     refusal: Option<EntryRefusal>,
+    /// The host its conditions require, if they do.
+    host: Option<String>,
     #[expect(dead_code, reason = "read by matching a call, still to come")]
     request_line: Vec<CompiledCondition>,
     #[expect(dead_code, reason = "read by matching a call, still to come")]
@@ -38,10 +38,10 @@ pub struct CompiledEntry {
 /// Why an entry takes no call: a condition in its `match` can't be evaluated. A call whose walk
 /// reaches it stops there, for the catch-all, so a later, broader entry never takes a call meant
 /// for it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct EntryRefusal {
-    /// The first such condition's, in its `match`.
-    pub position: usize,
+    /// Where the first such condition is, from its `match`: `[3]` for its fourth.
+    pub location: Vec<LocationSegment>,
     pub refusal: Refusal,
 }
 
@@ -51,8 +51,8 @@ impl CompiledEntry {
     }
 
     /// Why it takes no call, if it can't.
-    pub fn refusal(&self) -> Option<EntryRefusal> {
-        self.refusal
+    pub fn refusal(&self) -> Option<&EntryRefusal> {
+        self.refusal.as_ref()
     }
 }
 
@@ -75,52 +75,65 @@ impl CompiledPlan {
     /// The entries a call to `host` is tried against, in plan order, the last refused if one is.
     #[expect(dead_code, reason = "read by matching a call, still to come")]
     pub(crate) fn entries_for<'a>(&'a self, host: &str) -> impl Iterator<Item = &'a CompiledEntry> {
-        let walk = self.walks.get(host).unwrap_or(&self.other_hosts);
-        walk.iter().map(|&index| &self.entries[index])
+        let own = self.hosts.get(host).map_or(&[][..], Vec::as_slice);
+        let (mut own, mut any) = (own.iter().peekable(), self.any_host.iter().peekable());
+        // The two lists merged in plan order, each index in one of them only.
+        let merged = std::iter::from_fn(move || match (own.peek(), any.peek()) {
+            (Some(a), Some(b)) if a < b => own.next(),
+            (Some(_), None) => own.next(),
+            _ => any.next(),
+        });
+        let mut ended = false;
+        merged
+            .map(|&index| &self.entries[index])
+            .take_while(move |entry| !std::mem::replace(&mut ended, entry.refusal.is_some()))
     }
 }
 
 /// Compiles every entry of `plan`, which [`parse_plan`](super::parse_plan) has read.
 pub fn compile_plan(plan: Plan) -> CompiledPlan {
     let entries: Vec<CompiledEntry> = plan.entries.iter().map(compile_entry).collect();
-    let hosts: Vec<Option<&str>> = plan.entries.iter().map(implied_host).collect();
-    // A call to `host` is tried against the entries implying it or none, cut at the first refused.
-    let walk = |host: Option<&str>| {
-        let mut walk = Vec::new();
-        for (index, entry) in entries.iter().enumerate() {
-            if hosts[index].is_none() || hosts[index] == host {
-                walk.push(index);
-                if entry.refusal.is_some() {
-                    break;
+    let mut hosts: HashMap<String, Vec<usize>> = HashMap::new();
+    let mut any_host = Vec::new();
+    // An entry is reached unless a refused one before it, implying its host or none, ends its walk.
+    let mut refused_hosts = HashSet::new();
+    let mut refused_any = false;
+    let mut entries_skipped = 0;
+    for (index, entry) in entries.iter().enumerate() {
+        let hidden = refused_any
+            || entry
+                .host
+                .as_ref()
+                .is_some_and(|host| refused_hosts.contains(host));
+        let refused = entry.refusal.is_some();
+        if hidden || refused {
+            entries_skipped += 1;
+        }
+        match &entry.host {
+            Some(host) => {
+                hosts.entry(host.clone()).or_default().push(index);
+                if refused {
+                    refused_hosts.insert(host.clone());
                 }
             }
+            None => {
+                any_host.push(index);
+                refused_any |= refused;
+            }
         }
-        walk
-    };
-    let named: BTreeSet<&str> = hosts.iter().flatten().copied().collect();
-    let walks: HashMap<String, Vec<usize>> = named
-        .into_iter()
-        .map(|host| (host.to_string(), walk(Some(host))))
-        .collect();
-    let other_hosts = walk(None);
-    let reachable: BTreeSet<usize> = walks
-        .values()
-        .chain([&other_hosts])
-        .flatten()
-        .copied()
-        .filter(|&index| entries[index].refusal.is_none())
-        .collect();
+    }
     CompiledPlan {
-        entries_skipped: entries.len() - reachable.len(),
-        entries,
-        walks,
-        other_hosts,
         plan,
+        entries,
+        hosts,
+        any_host,
+        entries_skipped,
     }
 }
 
 fn compile_entry(entry: &Entry) -> CompiledEntry {
     let mut refusal = None;
+    let mut host = None;
     let mut request_line = Vec::new();
     let mut body = Vec::new();
     for (position, condition) in entry.conditions.iter().enumerate() {
@@ -129,11 +142,15 @@ fn compile_entry(entry: &Entry) -> CompiledEntry {
             && let Some(why) = compiled.refusal()
         {
             refusal = Some(EntryRefusal {
-                position,
+                location: vec![LocationSegment::Index(position)],
                 refusal: why,
             });
         }
-        if reads_the_body(condition) {
+        // The first, as every condition of the entry's "and" holds for a call it takes.
+        if host.is_none() {
+            host = compiled.implied_host().map(str::to_string);
+        }
+        if compiled.reads_the_body() {
             body.push(compiled);
         } else {
             request_line.push(compiled);
@@ -142,28 +159,8 @@ fn compile_entry(entry: &Entry) -> CompiledEntry {
     CompiledEntry {
         id: entry.id.clone(),
         refusal,
+        host,
         request_line,
         body,
     }
-}
-
-fn reads_the_body(condition: &Condition) -> bool {
-    let Condition::Valid(predicate) = condition else {
-        return false;
-    };
-    matches!(predicate.path(), Path::Request(path) if path.reads_the_body())
-}
-
-// The host every call the entry takes is to: one its "and" requires, by an `eq` on a string.
-fn implied_host(entry: &Entry) -> Option<&str> {
-    entry
-        .conditions
-        .iter()
-        .find_map(|condition| match condition {
-            Condition::Valid(Predicate::Eq {
-                path: Path::Request(RequestPath::Host),
-                value: Scalar::String(host),
-            }) => Some(host.as_str()),
-            _ => None,
-        })
 }
