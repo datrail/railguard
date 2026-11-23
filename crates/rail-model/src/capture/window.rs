@@ -1,10 +1,10 @@
 //! A window: the calls captured between two times, grouped into call records, with their hosts'
 //! totals and their order, closed into a document.
 
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::SystemTime;
 
+use indexmap::IndexMap;
 use uuid::Uuid;
 
 use super::call::{
@@ -12,7 +12,7 @@ use super::call::{
     Taken, Untaken,
 };
 use super::compile::CompiledPlan;
-use super::document::{CallRecord, Captured, Document, Fields, HostTotal, Sent, Step, Truncated};
+use super::document::{CallRecord, Captured, Document, HostTotal, Sent, Step, Truncated};
 use super::plan::{ContextKey, Record};
 use crate::body::{Unparsed, Unread};
 use crate::condition::BodyUnread;
@@ -47,14 +47,10 @@ pub enum BodyUnreadReason {
 pub struct Window {
     plan: Arc<CompiledPlan>,
     start: SystemTime,
-    /// In the order opened.
-    records: Vec<CallRecord>,
-    /// Each record's index, by what tells it apart.
-    groups: HashMap<GroupKey, usize>,
-    overflow: Option<usize>,
-    /// In the order first seen.
-    hosts: Vec<HostTotal>,
-    host_index: HashMap<String, usize>,
+    /// By what tells each apart, in the order opened, the overflow record among them.
+    records: IndexMap<GroupKey, CallRecord>,
+    /// Each host's calls, in the order first seen.
+    hosts: IndexMap<String, u64>,
     /// With the plan's `max_steps_per_window`, that many: when each call was received, and its
     /// record.
     steps: Option<(usize, Vec<(SystemTime, usize)>)>,
@@ -64,7 +60,8 @@ pub struct Window {
     truncated: Truncated,
 }
 
-// The record's id, an entry's or the catch-all's, unique in the plan, and its context keys' values.
+// The record's id, an entry's or the catch-all's, unique in the plan, and its context keys' values:
+// the overflow record's the catch-all's, its one value the marker, which no catch-all group has.
 #[derive(Debug, PartialEq, Eq, Hash)]
 struct GroupKey {
     record_id: String,
@@ -95,11 +92,8 @@ impl Window {
         Self {
             plan,
             start,
-            records: Vec::new(),
-            groups: HashMap::new(),
-            overflow: None,
-            hosts: Vec::new(),
-            host_index: HashMap::new(),
+            records: IndexMap::new(),
+            hosts: IndexMap::new(),
             steps,
             latest: start,
             truncated,
@@ -128,7 +122,7 @@ impl Window {
         let at_ceiling = self.records.len() >= plan.plan().budget.max_groups_per_window as usize;
         // Past the ceiling, an entry's call is the catch-all's, and a new catch-all group the
         // overflow's.
-        let coarsened = at_ceiling && !self.groups.contains_key(&key);
+        let coarsened = at_ceiling && !self.records.contains_key(&key);
         if coarsened && matches!(taken, Taken::Entry(_)) {
             spec = &catch_all.record;
             let values;
@@ -138,8 +132,8 @@ impl Window {
                 values,
             };
         }
-        let index = match self.groups.get(&key) {
-            Some(&index) => index,
+        let index = match self.records.get_index_of(&key) {
+            Some(index) => index,
             None if !coarsened => self.open_record(key, spec),
             None => {
                 // Its keys aren't written, so neither is what they lost.
@@ -188,27 +182,27 @@ impl Window {
             start: self.start,
             end,
             truncated: self.truncated,
-            hosts: self.hosts,
-            records: self.records,
+            hosts: self
+                .hosts
+                .into_iter()
+                .map(|(host, count)| HostTotal {
+                    host,
+                    count,
+                    error_count: 0,
+                })
+                .collect(),
+            records: self.records.into_values().collect(),
             sequence,
         })
     }
 
     // A host first seen in a coarsened call is totalled under the overflow marker.
     fn count_host(&mut self, host: &str, coarsened: bool) {
-        let host = match self.host_index.get(host) {
-            None if coarsened => OVERFLOW,
+        let host = match self.hosts.contains_key(host) {
+            false if coarsened => OVERFLOW,
             _ => host,
         };
-        let index = *self.host_index.entry(host.to_owned()).or_insert_with(|| {
-            self.hosts.push(HostTotal {
-                host: host.to_owned(),
-                count: 0,
-                error_count: 0,
-            });
-            self.hosts.len() - 1
-        });
-        self.hosts[index].count += 1;
+        *self.hosts.entry(host.to_owned()).or_default() += 1;
     }
 
     fn open_record(&mut self, key: GroupKey, spec: &Record) -> usize {
@@ -228,29 +222,29 @@ impl Window {
                 _ => None,
             })
             .collect();
-        let index = self.push_record(key.record_id.clone(), context_keys, field_types, spec);
-        self.groups.insert(key, index);
-        index
+        self.push_record(key, context_keys, field_types, spec)
     }
 
     // The catch-all's one record past the ceiling, keeping only the host, as the overflow marker.
     fn overflow(&mut self) -> usize {
-        if let Some(index) = self.overflow {
-            return index;
-        }
         let plan = Arc::clone(&self.plan);
         let catch_all = &plan.plan().catch_all;
-        let host = vec![("host".to_owned(), Some(OVERFLOW.to_owned()))];
-        let index = self.push_record(catch_all.id.clone(), host, Vec::new(), &catch_all.record);
-        self.overflow = Some(index);
-        index
+        let key = GroupKey {
+            record_id: catch_all.id.clone(),
+            values: vec![Some(OVERFLOW.to_owned())],
+        };
+        if let Some(index) = self.records.get_index_of(&key) {
+            return index;
+        }
+        let host = IndexMap::from([("host".to_owned(), Some(OVERFLOW.to_owned()))]);
+        self.push_record(key, host, IndexMap::new(), &catch_all.record)
     }
 
     fn push_record(
         &mut self,
-        entry_id: String,
-        context_keys: Vec<(String, Option<String>)>,
-        field_types: Vec<(String, String)>,
+        key: GroupKey,
+        context_keys: IndexMap<String, Option<String>>,
+        field_types: IndexMap<String, String>,
         spec: &Record,
     ) -> usize {
         let measures = spec
@@ -258,19 +252,19 @@ impl Window {
             .iter()
             .map(|measure| (measure.name().to_owned(), 0))
             .collect();
-        self.records.push(CallRecord {
+        let record = CallRecord {
             record_id: record_id(self.records.len()),
-            entry_id,
-            context_keys: Fields(context_keys),
-            field_types: Fields(field_types),
-            measures: Fields(measures),
-        });
-        self.records.len() - 1
+            entry_id: key.record_id.clone(),
+            context_keys,
+            field_types,
+            measures,
+        };
+        self.records.insert_full(key, record).0
     }
 
     fn add(&mut self, index: usize, written: Written) {
-        let measures = &mut self.records[index].measures.0;
-        for ((_, total), bytes) in measures.iter_mut().zip(written.measures) {
+        let measures = &mut self.records[index].measures;
+        for (total, bytes) in measures.values_mut().zip(written.measures) {
             *total = total.saturating_add(bytes);
         }
         self.truncated.path_unresolved += u64::from(written.path_unresolved);

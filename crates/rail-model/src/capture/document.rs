@@ -3,8 +3,8 @@
 
 use std::time::SystemTime;
 
-use serde::ser::SerializeMap;
-use serde::{Serialize, Serializer};
+use indexmap::IndexMap;
+use serde::Serialize;
 use uuid::Uuid;
 
 use crate::agent::AgentId;
@@ -195,34 +195,15 @@ pub(crate) struct HostTotal {
 pub(crate) struct CallRecord {
     pub(crate) record_id: String,
     pub(crate) entry_id: String,
-    pub(crate) context_keys: Fields<Option<String>>,
-    #[serde(skip_serializing_if = "Fields::is_empty")]
-    pub(crate) field_types: Fields<String>,
-    pub(crate) measures: Fields<u64>,
+    /// Each in the plan's order.
+    pub(crate) context_keys: IndexMap<String, Option<String>>,
+    #[serde(skip_serializing_if = "IndexMap::is_empty")]
+    pub(crate) field_types: IndexMap<String, String>,
+    pub(crate) measures: IndexMap<String, u64>,
 }
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Step {
     pub(crate) at: Timestamp,
     pub(crate) record_id: String,
-}
-
-/// An object's fields in the plan's order.
-#[derive(Debug, Default)]
-pub(crate) struct Fields<T>(pub(crate) Vec<(String, T)>);
-
-impl<T> Fields<T> {
-    fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-}
-
-impl<T: Serialize> Serialize for Fields<T> {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut map = serializer.serialize_map(Some(self.0.len()))?;
-        for (name, value) in &self.0 {
-            map.serialize_entry(name, value)?;
-        }
-        map.end()
-    }
 }
