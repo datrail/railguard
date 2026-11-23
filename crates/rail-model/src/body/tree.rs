@@ -248,6 +248,10 @@ impl<'a> Node<'a> {
                 }
                 continue;
             };
+            // A reader cutting strings at a NUL reads `"method\u0000"` as `method`.
+            if name.contains('\0') {
+                return Member::Ambiguous;
+            }
             if !same_but_case(&name, key) {
                 continue;
             }
@@ -263,7 +267,8 @@ impl<'a> Node<'a> {
     }
 
     /// The value at `steps` from this one: a key, ambiguous if repeated with letter case ignored,
-    /// or if its object holds a key outside its format's grammar; or an index into an array.
+    /// or if its object holds a key outside its format's grammar or holding a NUL; or an index
+    /// into an array.
     /// Absent where a step finds nothing, or the value found is `null`.
     pub fn walk(&self, steps: &[Step<'_>]) -> Member<'a> {
         let mut member = Member::Found(*self);
@@ -310,8 +315,8 @@ pub enum Member<'a> {
     Found(Node<'a>),
     Absent,
     /// Can't be told: the key is there more than once, letter case ignored, and readers differ on
-    /// which they keep; or the object holds a key outside its format's grammar, which readers
-    /// differ on.
+    /// which they keep; or the object holds a key outside its format's grammar, or one holding a
+    /// NUL, which readers differ on.
     Ambiguous,
 }
 

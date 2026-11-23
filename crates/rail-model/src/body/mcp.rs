@@ -17,8 +17,8 @@ pub enum McpReading {
     /// A JSON-RPC batch, which names one message per item.
     Batch,
     /// `method`, `params`, `params.name` or `params.arguments` repeated, letter case ignored, or
-    /// beside a key that isn't JSON, which a lenient reader may read as any; or `method`, or a
-    /// `tools/call`'s `params.name`, a string that doesn't decode.
+    /// beside a key that isn't JSON or holds a NUL, which a lenient reader may read as any; or
+    /// `method`, or a `tools/call`'s `params.name`, a string that doesn't decode or holds a NUL.
     Ambiguous,
 }
 
@@ -94,12 +94,13 @@ impl McpReading {
     }
 }
 
-// A string's text, `None` for any other value; ambiguous for one that doesn't decode, which
-// readers differ on.
+// A string's text, `None` for any other value; ambiguous for one that doesn't decode, or holds a
+// NUL, which a reader cutting strings there reads short (`"tools/call\u0000"` as `tools/call`).
 fn read_text(member: Member<'_>) -> Result<Option<String>, McpReading> {
     match member.found() {
         Some(node) if node.kind() == Kind::String => node
             .text()
+            .filter(|text| !text.contains('\0'))
             .map(|text| Some(text.into_owned()))
             .ok_or(McpReading::Ambiguous),
         _ => Ok(None),

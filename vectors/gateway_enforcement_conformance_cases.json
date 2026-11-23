@@ -1370,6 +1370,108 @@
       }
     },
     {
+      "name": "unrecognised key holding a nul, endpoint rule",
+      "bundle": {
+        "schema_version": "2.0",
+        "content_hash": "v-enforce",
+        "policies": [
+          {
+            "id": "5c8f1e42-0000-4000-8000-0000000000d2",
+            "name": "policy d2",
+            "priority": 1,
+            "condition": {
+              "path": "request.endpoint_key",
+              "op": "not_existing"
+            },
+            "action": "block",
+            "enabled": true
+          }
+        ],
+        "bindings": [],
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "binding_fallback": "pass",
+        "ticket_fallback": "pass",
+        "ticket_issuer": "https://rail-center.example/tenants/00000000-0000-4000-8000-0000000000aa",
+        "ticket_audience": "00000000-0000-4000-8000-0000000000aa"
+      },
+      "key_set": null,
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "body": "{\"method\": \"tools/list\", \"method\\u0000\": \"tools/call\", \"params\": {\"name\": \"track_package\"}}",
+        "x_rail": [
+          "eyJhZ2VudF9pZCI6ICI1YzhmMWU0Mi0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMGE5ZTciLCAiZXhwIjogNDEwMjQ0NDgwMH0"
+        ],
+        "x_rail_status": [],
+        "headers": []
+      },
+      "expect": {
+        "status": 403,
+        "refusal_body": "{\"error\": \"denied by policy\"}",
+        "report": {
+          "policy_id": "5c8f1e42-0000-4000-8000-0000000000d2",
+          "endpoint_key": null,
+          "metadata": {
+            "endpoint_resolution": "unrecognised",
+            "x-rail-status": "valid"
+          }
+        }
+      }
+    },
+    {
+      "name": "unrecognised method holding a nul, endpoint rule",
+      "bundle": {
+        "schema_version": "2.0",
+        "content_hash": "v-enforce",
+        "policies": [
+          {
+            "id": "5c8f1e42-0000-4000-8000-0000000000d2",
+            "name": "policy d2",
+            "priority": 1,
+            "condition": {
+              "path": "request.endpoint_key",
+              "op": "not_existing"
+            },
+            "action": "block",
+            "enabled": true
+          }
+        ],
+        "bindings": [],
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "binding_fallback": "pass",
+        "ticket_fallback": "pass",
+        "ticket_issuer": "https://rail-center.example/tenants/00000000-0000-4000-8000-0000000000aa",
+        "ticket_audience": "00000000-0000-4000-8000-0000000000aa"
+      },
+      "key_set": null,
+      "request": {
+        "method": "POST",
+        "path": "/mcp",
+        "body": "{\"method\": \"tools/call\\u0000\", \"params\": {\"name\": \"track_package\"}}",
+        "x_rail": [
+          "eyJhZ2VudF9pZCI6ICI1YzhmMWU0Mi0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMGE5ZTciLCAiZXhwIjogNDEwMjQ0NDgwMH0"
+        ],
+        "x_rail_status": [],
+        "headers": []
+      },
+      "expect": {
+        "status": 403,
+        "refusal_body": "{\"error\": \"denied by policy\"}",
+        "report": {
+          "policy_id": "5c8f1e42-0000-4000-8000-0000000000d2",
+          "endpoint_key": null,
+          "metadata": {
+            "endpoint_resolution": "unrecognised",
+            "x-rail-status": "valid"
+          }
+        }
+      }
+    },
+    {
       "name": "x-rail repeated",
       "bundle": {
         "schema_version": "2.0",
