@@ -9,10 +9,9 @@ use std::time::Duration;
 use rail_model::endpoint::Endpoint;
 use rail_model::policy::{Decision, FallbackDenial, Outcome, TicketState};
 use rail_model::sanitize::sanitize;
+use rail_model::timestamp::Timestamp;
 use reqwest::StatusCode;
 use serde::Serialize;
-use time::OffsetDateTime;
-use time::format_description::well_known::Rfc3339;
 use tokio::runtime::Handle;
 use tokio::sync::Semaphore;
 use uuid::Uuid;
@@ -96,7 +95,7 @@ struct Report<'a> {
     policy_id: Option<Uuid>,
     // Without its slug, per the contract; null where the call named no endpoint.
     endpoint_key: Option<&'a str>,
-    denied_at: String,
+    denied_at: Timestamp,
     // Rail Center finds the agent and its score from the ticket it stored under this id.
     #[serde(skip_serializing_if = "Option::is_none")]
     ticket_id: Option<Uuid>,
@@ -209,9 +208,6 @@ impl DenialReporter {
 }
 
 fn build_report(denial: &Denial, now: std::time::SystemTime) -> Vec<u8> {
-    let denied_at = OffsetDateTime::from(now)
-        .format(&Rfc3339)
-        .expect("a wall clock within years 0 to 9999");
     let (policy_id, fallback) = match denial.denied_by {
         DeniedBy::Policy(policy) => (Some(policy), None),
         DeniedBy::Fallback(fallback) => (None, Some(fallback)),
@@ -219,7 +215,7 @@ fn build_report(denial: &Denial, now: std::time::SystemTime) -> Vec<u8> {
     let report = Report {
         policy_id,
         endpoint_key: endpoint_key(denial.endpoint),
-        denied_at,
+        denied_at: Timestamp(now),
         ticket_id: ticket_id(denial.ticket),
         metadata: Metadata {
             endpoint_resolution: denial.endpoint.kind(),
@@ -231,7 +227,8 @@ fn build_report(denial: &Denial, now: std::time::SystemTime) -> Vec<u8> {
             fallback,
         },
     };
-    serde_json::to_vec(&report).expect("a report has only string keys")
+    serde_json::to_vec(&report)
+        .expect("a report has only string keys, and a clock within years 0 to 9999")
 }
 
 fn endpoint_key(endpoint: &Endpoint) -> Option<&str> {
