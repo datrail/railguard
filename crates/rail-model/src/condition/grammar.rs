@@ -181,16 +181,14 @@ impl Path {
     }
 }
 
-/// What a path is read for, which decides the paths it may read: for a condition, those its
-/// environment fills.
+/// What a condition is read for, which decides the paths it may read: those its environment
+/// fills.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ConditionUse {
     /// A bundle's policy, judged in [`Environment::for_judging`](super::Environment::for_judging).
     GatewayPolicy,
     /// A capture plan entry's match, in [`Environment::for_capture`](super::Environment::for_capture).
     CapturePlan,
-    /// A capture plan's context key or measure: a call's body, query or path segments.
-    CapturePlanRecord,
 }
 
 impl ConditionUse {
@@ -216,15 +214,6 @@ impl ConditionUse {
                         | RequestPath::RedactedPath(None)
                         | RequestPath::McpMethod
                         | RequestPath::McpTool
-                )
-            ),
-            Self::CapturePlanRecord => matches!(
-                path,
-                Path::Request(
-                    RequestPath::Body(_)
-                        | RequestPath::Path(Some(_))
-                        | RequestPath::RedactedPath(Some(_))
-                        | RequestPath::Query { .. }
                 )
             ),
         }

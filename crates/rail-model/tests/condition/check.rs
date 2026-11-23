@@ -440,15 +440,4 @@ fn test_checks_a_condition_as_a_capture_plan_reads_it() {
     // A policy's `in` may be empty.
     let empty_in = json!({"path": "ticket.skills", "op": "in", "value": []});
     assert_eq!(check_for(ConditionUse::GatewayPolicy, empty_in), []);
-    // A record's paths, each of a kind.
-    for condition in [
-        json!({"path": ["request", "query", "q"], "op": "contains", "value": "a"}),
-        json!({"path": ["request", "path", 1], "op": "eq", "value": "a"}),
-    ] {
-        assert_eq!(
-            check_for(ConditionUse::CapturePlanRecord, condition.clone()),
-            [],
-            "{condition}"
-        );
-    }
 }

@@ -26,10 +26,10 @@ By module:
 - **`condition`:** **`check_condition`** reports every problem with one condition, read for its use, and whether every
   reader refuses it or only Rail Center; **`compile_condition`** and **`evaluate_condition`** evaluate one, as the judge
   does. A **`Path`** is spelled as a dotted string or as a list, in a bundle or a plan; it's read for a
-  **`ConditionUse`** (a gateway policy, a capture plan's match, its context key or measure), which decides the paths it
-  reads; a condition is compiled for one and evaluated in the **`Environment`** that use fills (`for_judging`, or
-  `for_capture`, from a **`RequestLine`** and the body). A body value that can't be told, or isn't read, is a verdict of
-  its own (`Ambiguous`, `BodyUnread`), never false; a refusal keeps its cause.
+  **`ConditionUse`** (a gateway policy, a capture plan entry's match), which decides the paths it reads; a condition is
+  compiled for one and evaluated in the **`Environment`** that use fills (`for_judging`, or `for_capture`, from a
+  **`RequestLine`** and the body). A body value that can't be told, or isn't read, is a verdict of its own (`Ambiguous`,
+  `BodyUnread`), never false; a refusal keeps its cause.
 - **`endpoint`:** **`Endpoint`** and **`ResolvedKey`**, the endpoint a call asks for, keyed as a bundle binds it, and
   **`Resolution`**, whether a message is judged at all.
 - **`agent`:** **`AgentId`**, which agent a host serves, as Rail Center names it: its tickets are fetched for it, and a

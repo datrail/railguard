@@ -292,7 +292,7 @@ fn check_path(
     };
     let sources: &[&str] = match use_case {
         ConditionUse::GatewayPolicy => &["ticket", "request"],
-        ConditionUse::CapturePlan | ConditionUse::CapturePlanRecord => &["request"],
+        ConditionUse::CapturePlan => &["request"],
     };
     let under_a_source = source.is_some_and(|source| sources.contains(&source));
     if under_a_source && let Some(path) = read.filter(|path| use_case.reads(path)) {
@@ -304,7 +304,6 @@ fn check_path(
         let reads = match use_case {
             ConditionUse::GatewayPolicy => "a request carries",
             ConditionUse::CapturePlan => "a plan's match reads",
-            ConditionUse::CapturePlanRecord => "a plan's record reads",
         };
         (
             ProblemCode::UnknownPath,
@@ -401,15 +400,19 @@ fn get_path_kind(
             RequestPath::EndpointKey
             | RequestPath::Host
             | RequestPath::Method
-            | RequestPath::Path(_)
-            | RequestPath::RedactedPath(_)
-            | RequestPath::Query { index: Some(_), .. }
+            | RequestPath::Path(None)
+            | RequestPath::RedactedPath(None)
             | RequestPath::McpMethod
             | RequestPath::McpTool,
         ) => Ok(Kind::String),
-        Path::Request(RequestPath::Query { index: None, .. }) => Ok(Kind::List),
         Path::Request(RequestPath::Header(_)) => Ok(Kind::Header),
         Path::Request(RequestPath::Body(_)) => Ok(Kind::Any),
+        // Never reached: `check_path` keeps only the paths a condition's use case reads.
+        Path::Request(
+            RequestPath::Path(Some(_))
+            | RequestPath::RedactedPath(Some(_))
+            | RequestPath::Query { .. },
+        ) => Err(format!("\"{shown}\": names nothing a request carries")),
     }
 }
 
