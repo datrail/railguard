@@ -77,7 +77,7 @@ pub struct Record {
 /// How every call no entry takes is counted.
 #[derive(Debug, Deserialize)]
 pub struct CatchAll {
-    /// `catch_all`, as Rail Center writes it.
+    /// Rail Center's id for the record, unique among the plan's records.
     pub id: String,
     pub record: Record,
 }
@@ -187,8 +187,12 @@ fn check_plan(plan: &Plan) -> Result<(), String> {
     }
     check_budget(&plan.budget)?;
     // The catch-all's id among them, so a record's id names one record whatever it's written as.
-    let ids = plan.entries.iter().map(|entry| entry.id.as_str());
-    unique("record", ids.chain([plan.catch_all.id.as_str()]))?;
+    let entries = plan.entries.iter().map(|entry| entry.id.as_str());
+    let ids: Vec<&str> = entries.chain([plan.catch_all.id.as_str()]).collect();
+    if ids.contains(&"") {
+        return Err("a record's id is empty".to_owned());
+    }
+    unique("record", ids.into_iter())?;
     for entry in &plan.entries {
         check_entry(entry).map_err(|why| format!("entry {}: {why}", entry.id))?;
     }
@@ -216,9 +220,6 @@ fn check_budget(budget: &PlanBudget) -> Result<(), String> {
 }
 
 fn check_entry(entry: &Entry) -> Result<(), String> {
-    if entry.id.is_empty() {
-        return Err("its id is empty".to_owned());
-    }
     if let Some(endpoint_id) = &entry.endpoint_id
         && !(1..=MAX_ENDPOINT_ID_CHARS).contains(&endpoint_id.chars().count())
     {

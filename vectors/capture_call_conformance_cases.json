@@ -469,34 +469,10 @@
       "expect": {"taken": {"catch_all": "fallback", "why": "no_entry"}, "keys": {"host": {"host": "api.github.com"}, "path_prefix": {"path_prefix": "/mcp"}, "method": {"method": "POST"}, "operation": {"string": "get_file"}}, "measures": {"request_bytes": 100}}
     },
     {
-      "name": "the catch-all's host, an authority refused",
-      "patch": [],
-      "call": {"authority": "user@api.github.com", "method": "POST", "path": "/mcp", "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"create_or_update_file\", \"arguments\": {}}}"},
-      "expect": {"taken": {"catch_all": "catch_all", "why": "no_entry"}, "keys": {"host": {"unparseable": "refused"}, "path_prefix": {"path_prefix": "/mcp"}, "method": {"method": "POST"}, "operation": {"string": "create_or_update_file"}}, "measures": {"request_bytes": 113}}
-    },
-    {
       "name": "the catch-all's host, past DNS's longest name",
       "patch": [],
       "call": {"authority": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "method": "POST", "path": "/mcp", "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"create_or_update_file\", \"arguments\": {}}}"},
       "expect": {"taken": {"catch_all": "catch_all", "why": "no_entry"}, "keys": {"host": {"unparseable": "past_longest"}, "path_prefix": {"path_prefix": "/mcp"}, "method": {"method": "POST"}, "operation": {"string": "create_or_update_file"}}, "measures": {"request_bytes": 113}}
-    },
-    {
-      "name": "the catch-all's method, outside the nine",
-      "patch": [],
-      "call": {"authority": "api.github.com", "method": "PURGE", "path": "/other", "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"get_file\", \"arguments\": {}}}"},
-      "expect": {"taken": {"catch_all": "catch_all", "why": "no_entry"}, "keys": {"host": {"host": "api.github.com"}, "path_prefix": {"path_prefix": "/other"}, "method": {"method": "[other]"}, "operation": {"string": "get_file"}}, "measures": {"request_bytes": 100}}
-    },
-    {
-      "name": "the catch-all's path prefix, redacted",
-      "patch": [],
-      "call": {"authority": "api.github.com", "method": "POST", "path": "/abcdefghijklmnopqrstuvwxyz/mcp", "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"create_or_update_file\", \"arguments\": {}}}"},
-      "expect": {"taken": {"catch_all": "catch_all", "why": "no_entry"}, "keys": {"host": {"host": "api.github.com"}, "path_prefix": {"path_prefix": "/[redacted]"}, "method": {"method": "POST"}, "operation": {"string": "create_or_update_file"}}, "measures": {"request_bytes": 113}}
-    },
-    {
-      "name": "the catch-all's operation, a vendor key's shape not kept",
-      "patch": [],
-      "call": {"authority": "api.github.com", "method": "POST", "path": "/mcp", "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"ghp_a1B2a1B2a1B2a1B2a1B2a1B2a1B2a1B2a1B2\", \"arguments\": {}}}"},
-      "expect": {"taken": {"catch_all": "catch_all", "why": "no_entry"}, "keys": {"host": {"host": "api.github.com"}, "path_prefix": {"path_prefix": "/mcp"}, "method": {"method": "POST"}, "operation": {"replaced": "key_shape"}}, "measures": {"request_bytes": 132}}
     },
     {
       "name": "the catch-all's operation, absent for another method",

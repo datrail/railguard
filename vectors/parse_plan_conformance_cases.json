@@ -292,11 +292,6 @@
       "expect": {"valid": true}
     },
     {
-      "name": "an entry with the catch-all's id",
-      "patch": [{"op": "replace", "path": "/entries/0/id", "value": "catch_all"}],
-      "expect": {"valid": false}
-    },
-    {
       "name": "an entry with an empty id",
       "patch": [{"op": "replace", "path": "/entries/0/id", "value": ""}],
       "expect": {"valid": false}
@@ -487,6 +482,11 @@
       "expect": {"valid": false}
     },
     {
+      "name": "an entry's path_prefix key, its fields the catch-all's",
+      "patch": [{"op": "add", "path": "/entries/0/record/context_keys/-", "value": {"name": "path_prefix", "segments": 1}}],
+      "expect": {"valid": false}
+    },
+    {
       "name": "an entry's operation key, its fields a named key's",
       "patch": [{"op": "add", "path": "/entries/0/record/context_keys/-", "value": {"path": ["request", "body", "params", "arguments", "repo"], "field_type": "repository", "name": "operation"}}],
       "expect": {"valid": false}
@@ -630,6 +630,16 @@
       "name": "a catch-all with only host",
       "patch": [{"op": "replace", "path": "/catch_all/record/context_keys", "value": [{"name": "host"}]}],
       "expect": {"valid": true}
+    },
+    {
+      "name": "a catch-all's named key, its fields whole",
+      "patch": [{"op": "add", "path": "/catch_all/record/context_keys/-", "value": {"name": "destination", "path": ["request", "body", "params", "arguments", "repo"], "field_type": "repository"}}],
+      "expect": {"valid": false}
+    },
+    {
+      "name": "a catch-all with an empty id",
+      "patch": [{"op": "replace", "path": "/catch_all/id", "value": ""}],
+      "expect": {"valid": false}
     },
     {
       "name": "a catch-all key it doesn't know",

@@ -75,8 +75,9 @@ pub enum KeyReading {
     Host(HostReading),
     /// The redacted path's first segments.
     PathPrefix(String),
-    /// The tool a `tools/call` names: absent for any other message.
+    /// The tool a `tools/call` names, read as a path to it is.
     Operation(PathReading<KeptValue>),
+    /// A named key's path.
     Path(PathReading<KeptValue>),
 }
 

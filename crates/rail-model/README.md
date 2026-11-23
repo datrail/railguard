@@ -60,7 +60,7 @@ By module:
   read them under `request`: the host as `split_authority` spells it, or `[unparseable]`; the path up to its query or
   fragment (`/` for a `CONNECT`), as received and redacted, its segments, and its query, read as a form's. It also tells
   why a path can match no capture plan entry (**`unmatchable`**), and what a call record reports of the call
-  (**`reported_method`**, **`path_prefix`**).
+  (**`host_reading`**, **`reported_method`**, **`path_prefix`**).
 - **`redaction`:** RailMon's rule for a path, at **`REDACTION_VERSION`**, as Rail Center writes a capture plan's paths.
 - **`sanitize`:** **`sanitize`**, **`sanitize_quoted`**, **`sanitize_unquoted`** and **`sanitize_for_json`** make text
   from a call safe to log.
