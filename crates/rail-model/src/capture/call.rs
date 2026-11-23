@@ -88,7 +88,7 @@ pub enum MeasureReading {
     /// The body's bytes as sent, read or not.
     RequestBytes(u64),
     /// What each of its paths adds.
-    Size(Vec<PathReading<u64>>),
+    SizeInBytes(Vec<PathReading<u64>>),
 }
 
 /// What a record's path found.
@@ -225,13 +225,13 @@ fn read_record(
             Measure::ErrorCount => MeasureReading::ErrorCount,
             Measure::RequestBytes => MeasureReading::RequestBytes(body_bytes),
             Measure::Named {
-                function: Function::Size,
+                function: Function::SizeInBytes,
                 paths,
                 ..
-            } => MeasureReading::Size(
+            } => MeasureReading::SizeInBytes(
                 paths
                     .iter()
-                    .map(|path| read_size(path, environment, body_bytes, budget))
+                    .map(|path| read_size_in_bytes(path, environment, body_bytes, budget))
                     .collect(),
             ),
         })
@@ -274,8 +274,9 @@ fn keep(text: &str) -> KeptValue {
     }
 }
 
-// A string's UTF-8 length once escapes are undone, any other value's JSON without whitespace.
-fn read_size(
+// A body value as the body writes it, a string's quotes and escapes included; a query value or a
+// segment as the request line holds it.
+fn read_size_in_bytes(
     path: &Path,
     environment: &Environment,
     body_bytes: u64,
@@ -291,41 +292,20 @@ fn read_size(
         Ok(found) => found,
         Err(refusal) => return PathReading::Refused(refusal),
     };
-    let bytes = match lookup {
-        Lookup::String(text) => text.len(),
+    let bytes = match (lookup, node) {
+        (Lookup::Absent, _) => return PathReading::Absent,
+        (Lookup::BodyUnread(why), _) => return PathReading::BodyUnread(why),
+        // Read from the body: its bytes whether or not they decode.
+        (_, Some(node)) => node.raw().len(),
+        (Lookup::Ambiguous, None) => return PathReading::Ambiguous,
+        (Lookup::String(text), None) => text.len(),
         // A query parameter's values, each a string.
-        Lookup::List(Items::Values(values)) => values
+        (Lookup::List(Items::Values(values)), None) => values
             .iter()
             .map(|value| value.as_str().map_or(0, str::len))
             .sum(),
-        // Only the body's values are read from a node; a record reads no other.
-        Lookup::Number(_) | Lookup::Bool(_) | Lookup::List(Items::Body(_)) | Lookup::Object => {
-            node.map_or(0, |node| json_without_whitespace(node.raw()))
-        }
-        Lookup::Absent => return PathReading::Absent,
-        Lookup::Ambiguous => return PathReading::Ambiguous,
-        Lookup::BodyUnread(why) => return PathReading::BodyUnread(why),
+        // Only the body's values are other than strings; a record reads no other.
+        (_, None) => 0,
     };
     PathReading::Found(bytes as u64)
-}
-
-// The length of JSON text without the whitespace between its tokens.
-fn json_without_whitespace(raw: &[u8]) -> usize {
-    let (mut length, mut in_string, mut escaped) = (0, false, false);
-    for &byte in raw {
-        if in_string {
-            match (escaped, byte) {
-                (true, _) => escaped = false,
-                (false, b'\\') => escaped = true,
-                (false, b'"') => in_string = false,
-                _ => {}
-            }
-        } else if matches!(byte, b' ' | b'\t' | b'\n' | b'\r') {
-            continue;
-        } else if byte == b'"' {
-            in_string = true;
-        }
-        length += 1;
-    }
-    length
 }

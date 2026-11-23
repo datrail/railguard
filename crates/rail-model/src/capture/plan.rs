@@ -126,7 +126,9 @@ pub enum Combine {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Function {
-    Size,
+    /// The bytes the values take, as the call sends them.
+    #[serde(rename = "size")]
+    SizeInBytes,
 }
 
 impl ContextKey {

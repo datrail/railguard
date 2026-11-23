@@ -133,7 +133,7 @@ fn test_reads_the_worked_example_as_written() {
             Measure::Named {
                 name: "argument_bytes".into(),
                 combine: Combine::Sum,
-                function: Function::Size,
+                function: Function::SizeInBytes,
                 paths: vec![body(&["params", "arguments", "content"])],
             },
         ]

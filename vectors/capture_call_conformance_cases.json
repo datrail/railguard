@@ -448,7 +448,7 @@
       "name": "a refused entry implying no host stops no walk before it",
       "patch": [{"op": "remove", "path": "/entries/2/match/0"}, {"op": "replace", "path": "/entries/2/match/0/op", "value": "starts_with"}],
       "call": {"authority": "api.github.com", "method": "POST", "path": "/mcp", "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"search_code\", \"arguments\": {\"repo\": \"docs\"}}}"},
-      "expect": {"taken": {"entry": "e2"}, "keys": {"repo": {"string": "docs"}}, "measures": {"request_bytes": 117, "arguments_bytes": [{"found": 15}]}}
+      "expect": {"taken": {"entry": "e2"}, "keys": {"repo": {"string": "docs"}}, "measures": {"request_bytes": 117, "arguments_bytes": [{"found": 16}]}}
     },
     {
       "name": "a path that never matches, before any refused entry",
@@ -496,7 +496,7 @@
       "name": "a condition that doesn't hold decides the entry over one that can't be told",
       "patch": [{"op": "add", "path": "/entries/0/match/2", "value": {"path": ["request", "body", "params", "arguments", "repo"], "op": "eq", "value": "docs"}}],
       "call": {"authority": "api.github.com", "method": "POST", "path": "/mcp", "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"search_code\", \"arguments\": {\"repo\": \"docs\", \"Repo\": \"payroll\"}}}"},
-      "expect": {"taken": {"entry": "e2"}, "keys": {"repo": "ambiguous"}, "measures": {"request_bytes": 136, "arguments_bytes": [{"found": 32}]}}
+      "expect": {"taken": {"entry": "e2"}, "keys": {"repo": "ambiguous"}, "measures": {"request_bytes": 136, "arguments_bytes": [{"found": 35}]}}
     },
     {
       "name": "a condition that doesn't hold decides the entry over a body unread",
@@ -520,13 +520,13 @@
       "name": "a record's paths, each found",
       "patch": [],
       "call": {"authority": "api.github.com", "method": "POST", "path": "/mcp", "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"search_code\", \"arguments\": {\"repo\": \"docs\", \"query\": \"x\"}}}"},
-      "expect": {"taken": {"entry": "e2"}, "keys": {"repo": {"string": "docs"}}, "measures": {"request_bytes": 131, "arguments_bytes": [{"found": 27}]}}
+      "expect": {"taken": {"entry": "e2"}, "keys": {"repo": {"string": "docs"}}, "measures": {"request_bytes": 131, "arguments_bytes": [{"found": 30}]}}
     },
     {
       "name": "a record's paths: segments, the query, the body",
       "patch": [],
       "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx?channel=%23general&page=1&page=2", "body": "{\"text\": \"hi \\u00e9\", \"blocks\": [ {\"a\": 1} , 2 ], \"user\": \"U1\"}"},
-      "expect": {"taken": {"entry": "e3"}, "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": {"string": "#general"}, "page": {"string": "2"}, "user": {"string": "U1"}}, "measures": {"request_bytes": 63, "text_bytes": [{"found": 5}], "blocks_bytes": [{"found": 11}], "channel_bytes": [{"found": 8}], "body_bytes": [{"found": 63}], "both_bytes": [{"found": 5}, {"found": 8}]}}
+      "expect": {"taken": {"entry": "e3"}, "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": {"string": "#general"}, "page": {"string": "2"}, "user": {"string": "U1"}}, "measures": {"request_bytes": 63, "text_bytes": [{"found": 11}], "blocks_bytes": [{"found": 16}], "channel_bytes": [{"found": 8}], "body_bytes": [{"found": 63}], "both_bytes": [{"found": 11}, {"found": 8}]}}
     },
     {
       "name": "a record's paths, none found",
@@ -589,7 +589,7 @@
       "expect": {"taken": {"entry": "e3"}, "keys": {"method": {"method": "POST"}, "team": {"string": "abcdefghijklmnopqrstuvwx"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": "absent"}, "measures": {"request_bytes": 2, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": ["absent"], "body_bytes": [{"found": 2}], "both_bytes": ["absent", "absent"]}}
     },
     {
-      "name": "a value that isn't a string: kept as no value, its size its JSON",
+      "name": "a value that isn't a string: kept as no value, its size as written",
       "patch": [],
       "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx", "body": "{\"user\": {\"id\": 1}, \"text\": 12.50, \"blocks\": true}"},
       "expect": {"taken": {"entry": "e3"}, "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": {"not_a_string": null}}, "measures": {"request_bytes": 50, "text_bytes": [{"found": 5}], "blocks_bytes": [{"found": 4}], "channel_bytes": ["absent"], "body_bytes": [{"found": 50}], "both_bytes": [{"found": 5}, "absent"]}}
@@ -601,10 +601,10 @@
       "expect": {"taken": {"entry": "e3"}, "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": {"not_a_string": null}}, "measures": {"request_bytes": 15, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": ["absent"], "body_bytes": [{"found": 15}], "both_bytes": ["absent", "absent"]}}
     },
     {
-      "name": "a value's size without whitespace, an escaped quote inside a string kept",
+      "name": "a value's size as written, its whitespace and escapes included",
       "patch": [],
       "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx", "body": "{\"blocks\": [\t\"a\\\" b\",\r\n1 ]}"},
-      "expect": {"taken": {"entry": "e3"}, "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": "absent"}, "measures": {"request_bytes": 27, "text_bytes": ["absent"], "blocks_bytes": [{"found": 11}], "channel_bytes": ["absent"], "body_bytes": [{"found": 27}], "both_bytes": ["absent", "absent"]}}
+      "expect": {"taken": {"entry": "e3"}, "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": "absent"}, "measures": {"request_bytes": 27, "text_bytes": ["absent"], "blocks_bytes": [{"found": 15}], "channel_bytes": ["absent"], "body_bytes": [{"found": 27}], "both_bytes": ["absent", "absent"]}}
     },
     {
       "name": "a JSON null found nothing",
@@ -619,10 +619,16 @@
       "expect": {"taken": {"entry": "e3"}, "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": {"body_unread": "past_cap"}}, "measures": {"request_bytes": 2000000, "text_bytes": [{"body_unread": "past_cap"}], "blocks_bytes": [{"body_unread": "past_cap"}], "channel_bytes": ["absent"], "body_bytes": [{"found": 2000000}], "both_bytes": [{"body_unread": "past_cap"}, "absent"]}}
     },
     {
-      "name": "a string inside a value sized as the body writes it",
+      "name": "a string's size as written, its quotes and escapes included",
       "patch": [],
-      "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx", "body": "{\"blocks\": [\"a b\", \"\\u00e9\"]}"},
-      "expect": {"taken": {"entry": "e3"}, "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": "absent"}, "measures": {"request_bytes": 29, "text_bytes": ["absent"], "blocks_bytes": [{"found": 16}], "channel_bytes": ["absent"], "body_bytes": [{"found": 29}], "both_bytes": ["absent", "absent"]}}
+      "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx", "body": "{\"blocks\": \"a\\u00e9\"}"},
+      "expect": {"taken": {"entry": "e3"}, "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": "absent"}, "measures": {"request_bytes": 21, "text_bytes": ["absent"], "blocks_bytes": [{"found": 9}], "channel_bytes": ["absent"], "body_bytes": [{"found": 21}], "both_bytes": ["absent", "absent"]}}
+    },
+    {
+      "name": "a string that doesn't decode, sized as written",
+      "patch": [],
+      "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx", "body": "{\"blocks\": \"\\uZZZZ\"}"},
+      "expect": {"taken": {"entry": "e3"}, "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": "absent"}, "measures": {"request_bytes": 20, "text_bytes": ["absent"], "blocks_bytes": [{"found": 8}], "channel_bytes": ["absent"], "body_bytes": [{"found": 20}], "both_bytes": ["absent", "absent"]}}
     },
     {
       "name": "a vendor key's shape not kept",

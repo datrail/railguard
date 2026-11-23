@@ -163,7 +163,7 @@ fn describe(compiled: &CompiledPlan, call: &ObservedCall) -> Value {
         match reading {
             MeasureReading::CallCount | MeasureReading::ErrorCount => {}
             MeasureReading::RequestBytes(bytes) => drop(measures.insert(name.into(), json!(bytes))),
-            MeasureReading::Size(paths) => {
+            MeasureReading::SizeInBytes(paths) => {
                 let paths = paths
                     .iter()
                     .map(|path| describe_reading(path, |bytes| json!({"found": bytes})))
