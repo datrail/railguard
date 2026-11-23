@@ -222,11 +222,7 @@ fn build_report(denial: &Denial, now: std::time::SystemTime) -> Vec<u8> {
         denied_at,
         ticket_id: ticket_id(denial.ticket),
         metadata: Metadata {
-            endpoint_resolution: match denial.endpoint {
-                Endpoint::Keyless => "keyless",
-                Endpoint::Unrecognised => "unrecognised",
-                Endpoint::Resolved(_) => "resolved",
-            },
+            endpoint_resolution: denial.endpoint.kind(),
             ticket_state: ticket_state(denial.ticket),
             claimed_status: denial
                 .claimed_status

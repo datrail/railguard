@@ -2,8 +2,8 @@
 
 DatRail's rules language. Rail Center publishes the rules as a policy bundle: which calls to which MCP tools are
 allowed, judged on what an agent's ticket says about it. This crate reads bundles and tickets, reads which endpoint and
-host a call names, and judges the call against the rules. See the [main README](../../README.md) for the system around
-it.
+host a call names, judges the call against the rules, and reads a call's request line, redacted, for capture. See the
+[main README](../../README.md) for the system around it.
 
 It's one crate, used everywhere a rule is read, so a rule means the same thing where it's written and where it's
 enforced. The conformance cases in [`vectors/`](../../vectors) define its behaviour.
@@ -38,6 +38,11 @@ By module:
   value, nothing, or one that can't be told) and an MCP reading (**`mcp`**, or why it names nothing). **`BodyRead`** is
   a call's body as a reader has it: kept whole, or unread and why. **`mcp::read_endpoint`** reads the endpoint an MCP
   message names, from its method and tool; **`McpReading::read`** reads one from bytes a host holds itself.
+- **`request_line`:** **`RequestLine::read`** reads a call's `:authority`, `:method` and `:path` once, as conditions
+  read them under `request`: the host as `split_authority` spells it, or `[unparseable]`; the path up to its query or
+  fragment (`/` for a `CONNECT`), as received and redacted. It also tells why a path can match no capture plan entry
+  (**`unmatchable`**), and what a call record reports of the call (**`reported_method`**, **`path_prefix`**).
+- **`redaction`:** RailMon's rule for a path, at **`REDACTION_VERSION`**, as Rail Center writes a capture plan's paths.
 - **`sanitize`:** **`sanitize`**, **`sanitize_quoted`**, **`sanitize_unquoted`** and **`sanitize_for_json`** make text
   from a call safe to log.
 

@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
-use std::fmt;
 
 use serde_json::{Map, Value};
 
 use crate::body::BodyRead;
 use crate::endpoint::Endpoint;
+use crate::request_line::RequestLine;
 
 /// What a condition reads about one call. Each use fills its own sources; a condition compiled
 /// for that use reads no other.
@@ -54,28 +54,6 @@ pub(crate) enum TicketClaims<'a> {
     /// The call has no ticket, or none that verifies.
     Unusable,
     Usable(&'a Map<String, Value>),
-}
-
-/// A call's request line, as the caller spells each part.
-#[derive(Clone, Default, PartialEq)]
-pub struct RequestLine {
-    pub host: String,
-    pub method: String,
-    /// Up to its first `?` or `#`, as received.
-    pub path: String,
-    pub redacted_path: String,
-}
-
-// The path as received can hold a secret.
-impl fmt::Debug for RequestLine {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("RequestLine")
-            .field("host", &self.host)
-            .field("method", &self.method)
-            .field("redacted_path", &self.redacted_path)
-            .finish_non_exhaustive()
-    }
 }
 
 /// A call's headers as conditions read them: names lowercased, every value split on commas.
