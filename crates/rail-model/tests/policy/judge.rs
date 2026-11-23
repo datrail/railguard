@@ -152,7 +152,10 @@ struct Recorder(Vec<(String, Option<String>, Verdict)>);
 impl Tracer for Recorder {
     fn record(&mut self, policy: Uuid, evaluation: &Evaluation) {
         let id = policy.to_string();
-        let resolved = evaluation.resolved.map(|lookup| format!("{lookup:?}"));
+        let resolved = evaluation
+            .resolved
+            .as_ref()
+            .map(|lookup| format!("{lookup:?}"));
         self.0
             .push((id[id.len() - 2..].to_string(), resolved, evaluation.verdict));
     }
@@ -235,7 +238,7 @@ fn test_traces_each_policy_evaluated_until_one_decides() {
             ("02".into(), Some("Absent".into()), Verdict::DoesNotHold),
             (
                 "03".into(),
-                Some(r#"List([String("b"), String("c")])"#.into()),
+                Some(r#"List(Values([String("b"), String("c")]))"#.into()),
                 Verdict::Holds
             ),
         ]
@@ -267,12 +270,23 @@ fn test_traces_a_refusal_with_nothing_resolved() {
         recorder.0,
         [
             ("01".into(), Some("Number(10.0)".into()), Verdict::Holds),
-            (
-                "02".into(),
-                None,
-                Verdict::Refused(Refusal::Uninterpretable)
-            ),
+            ("02".into(), None, Verdict::Refused(Refusal::Invalid)),
         ]
+    );
+
+    // A path a policy doesn't read refuses the call, as any refusal does.
+    let host = json!([traced_policy(
+        1,
+        json!({"path": "request.host", "op": "existing"}),
+        "alert"
+    )]);
+    let (outcome, _) = trace_bundle(host, json!([]), 100);
+    assert_eq!(
+        outcome.chain.unwrap().decision,
+        Decision::Refused {
+            policy: "5c8f1e42-0000-4000-8000-000000000001".parse().unwrap(),
+            refusal: Refusal::NotForUse
+        }
     );
 
     // The first step is past the limit, so no path is resolved.

@@ -1,4 +1,6 @@
-use rail_model::condition::{Condition, Path, Predicate, Scalar, TicketPath};
+use rail_model::condition::{
+    BodyPath, BodyStep, Condition, Path, Predicate, RequestPath, Scalar, TicketPath,
+};
 use serde_json::{Value, json};
 
 fn read(condition: Value) -> Condition {
@@ -143,11 +145,56 @@ fn test_reads_anything_else_as_invalid() {
         json!({"path": "ticket.sandbox_type", "op": "eq", "value": null}),
         json!({"path": "ticket.sandbox_type", "op": "in", "value": "a"}),
         json!({"path": "ticket.sandbox_type", "op": "matches", "value": 1}),
+        // A bundle spells its paths as strings.
+        json!({"path": ["request", "endpoint_key"], "op": "existing"}),
     ];
     for condition in cases {
         assert_eq!(
             read(condition.clone()),
             Condition::Invalid(condition.to_string())
         );
+    }
+}
+
+#[test]
+fn test_reads_a_path_from_either_spelling() {
+    let from_list = |steps: Value| Path::from_steps(steps.as_array().unwrap());
+    let from_dots = |text: &str| Path::try_from(text.to_string()).ok();
+    let host = Some(Path::Request(RequestPath::Host));
+    assert_eq!(from_list(json!(["request", "host"])), host);
+    assert_eq!(from_dots("request.host"), host);
+    assert_eq!(
+        from_list(json!(["request", "mcp", "tool"])),
+        Some(Path::Request(RequestPath::McpTool))
+    );
+    // A number step is an index; from dots, every step is a key.
+    let items = |last: BodyStep| {
+        let steps = vec![BodyStep::Key("items".into()), last];
+        Some(Path::Request(RequestPath::Body(BodyPath(steps))))
+    };
+    assert_eq!(
+        from_list(json!(["request", "body", "items", 0])),
+        items(BodyStep::Index(0))
+    );
+    assert_eq!(
+        from_dots("request.body.items.0"),
+        items(BodyStep::Key("0".into()))
+    );
+    assert_eq!(
+        from_list(json!(["request", "body"])),
+        Some(Path::Request(RequestPath::Body(BodyPath(vec![]))))
+    );
+    for steps in [
+        json!([]),
+        json!(["elsewhere"]),
+        json!(["body", "a"]),
+        json!(["request", "nothing"]),
+        json!(["request", "mcp"]),
+        json!(["ticket", 0]),
+        json!(["request", "body", -1]),
+        json!(["request", "body", 1.5]),
+        json!(["request", "body", {}]),
+    ] {
+        assert_eq!(from_list(steps.clone()), None, "{steps}");
     }
 }

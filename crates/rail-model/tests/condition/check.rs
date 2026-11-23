@@ -124,10 +124,13 @@ fn test_reports_what_every_reader_refuses() {
         check(json!({"path": "body.x", "op": "existing"})),
         [(loc!["path"], UnknownSource, Enforcement)]
     );
-    assert_eq!(
-        check(json!({"path": "request.method", "op": "existing"})),
-        [(loc!["path"], UnknownPath, Enforcement)]
-    );
+    for path in ["request.method", "request.body.x"] {
+        assert_eq!(
+            check(json!({"path": path, "op": "existing"})),
+            [(loc!["path"], UnknownPath, Enforcement)],
+            "{path}"
+        );
+    }
     assert_eq!(
         check(json!({"path": "ticket.agent_id"})),
         [(loc!["op"], UnknownOp, Enforcement)]

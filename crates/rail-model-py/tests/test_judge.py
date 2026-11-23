@@ -203,16 +203,29 @@ def test_traces_a_refusal_with_nothing_resolved():
     judgement = judge_sample(compiled, endpoint_key="keyless", claims={"score": 10})
 
     assert judgement.chain == ChainOutcome(
-        decision="refused", policy=_get_policy_id(1), refusal="uninterpretable", alerts=()
+        decision="refused", policy=_get_policy_id(1), refusal="invalid", alerts=()
     )
     assert judgement.trace == (
         TraceStep(
             policy=_get_policy_id(1),
             resolved=None,
             verdict="refused",
-            refusal="uninterpretable",
+            refusal="invalid",
         ),
     )
+
+
+@pytest.mark.parametrize(
+    ("condition", "refusal"),
+    [
+        ({"path": "ticket.score", "op": "newer_op", "value": 1}, "unknown_op"),
+        ({"path": "request.host", "op": "existing"}, "not_for_use"),
+    ],
+)
+def test_refuses_with_each_cause(condition, refusal):
+    compiled = _compile_bundle([_build_policy(1, condition)])
+    judgement = judge_sample(compiled, endpoint_key="keyless", claims={"score": 10})
+    assert judgement.chain.refusal == refusal
 
 
 def test_refuses_past_the_step_limit():
