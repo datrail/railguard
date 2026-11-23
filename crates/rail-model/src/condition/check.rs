@@ -66,7 +66,7 @@ pub enum ProblemCode {
     Unreadable,
 }
 
-/// `Enforcement`: every reader refuses it, reading the condition as `Invalid` or compiling it so.
+/// `Enforcement`: every reader refuses it, reading the condition as `Invalid`.
 /// `Authoring`: only the writer does, since a reader may be on another version.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -203,7 +203,7 @@ struct Parsed<'a> {
     path: Option<(String, Path)>,
 }
 
-/// As a reader parses and compiles a condition: the op, then the path and the operand.
+/// As a reader parses a condition: the op, then the path and the operand.
 fn check_grammar<'a>(
     fields: &'a Map<String, Value>,
     use_case: ConditionUse,
@@ -252,7 +252,7 @@ fn check_grammar<'a>(
             )
         });
     }
-    // As `compile_condition` refuses it.
+    // An empty list holds for nothing: Rail Center's to refuse, though a reader evaluates it.
     if known_op == Some("in")
         && use_case == ConditionUse::CapturePlan
         && fields
@@ -265,7 +265,7 @@ fn check_grammar<'a>(
             ..build_problem(
                 loc!["value"],
                 ProblemCode::OperandShape,
-                ProblemScope::Enforcement,
+                ProblemScope::Authoring,
                 "in takes at least one value in a plan's match".to_string(),
             )
         });

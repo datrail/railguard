@@ -1,5 +1,5 @@
 {
-  "_comment": "Conformance cases for compile_plan, compiling a capture plan parse_plan read. `plan` is a plan with two MCP tools on one host and an HTTP operation on another; each case is that plan with `patch` applied (RFC 6902: add, remove, replace), and parse_plan reads every one. `expect.refused` names each refused entry and why: `not_one_endpoint`, or `condition <n>: <refusal>`, the first condition in its match that can't be evaluated for a plan entry (an `in` with no value is `invalid`). `entries_skipped` counts the entries no call can reach: the refused ones, and those after a refused entry on their host, or after a refused entry naming no host on any.",
+  "_comment": "Conformance cases for compile_plan, compiling a capture plan parse_plan read. `plan` is a plan with two MCP tools on one host and an HTTP operation on another; each case is that plan with `patch` applied (RFC 6902: add, remove, replace), and parse_plan reads every one. `expect.refused` names each refused entry and why, `condition <n>: <refusal>`: the first condition in its match the proxy can't evaluate for a plan; nothing else refuses an entry, so an entry for several tools, implying no host or with an `in` of no value is matched as written. An entry is tried only for the host an `eq` on request.host among its conditions implies, or for every host if none does. `entries_skipped` counts the entries no call can reach: the refused ones, and those after a refused entry in every walk they're in.",
   "plan": {
     "schema_version": "1.0",
     "content_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
@@ -234,7 +234,7 @@
   },
   "cases": [
     {
-      "name": "the plan as written: nothing refused, each host's entries",
+      "name": "the plan as written: nothing refused",
       "patch": [],
       "expect": {"refused": {}, "entries_skipped": 0}
     },
@@ -244,19 +244,59 @@
       "expect": {"refused": {"e1": "condition 3: unknown_op"}, "entries_skipped": 2}
     },
     {
-      "name": "a refused entry naming no host is a barrier for every host",
-      "patch": [{"op": "remove", "path": "/entries/0/match/0"}],
-      "expect": {"refused": {"e1": "not_one_endpoint"}, "entries_skipped": 3}
+      "name": "a refused entry hides only its own host's entries",
+      "patch": [{"op": "replace", "path": "/entries/1/match/3/op", "value": "starts_with"}],
+      "expect": {"refused": {"e2": "condition 3: unknown_op"}, "entries_skipped": 1}
     },
     {
-      "name": "a barrier last hides nothing",
-      "patch": [{"op": "remove", "path": "/entries/2/match/0"}],
-      "expect": {"refused": {"e3": "not_one_endpoint"}, "entries_skipped": 1}
+      "name": "a refused entry implying no host hides every later entry",
+      "patch": [{"op": "remove", "path": "/entries/0/match/0"}, {"op": "replace", "path": "/entries/0/match/2/op", "value": "starts_with"}],
+      "expect": {"refused": {"e1": "condition 2: unknown_op"}, "entries_skipped": 3}
     },
     {
-      "name": "a host condition that doesn't read makes a barrier",
+      "name": "a refused entry implying no host, last, hides nothing",
+      "patch": [{"op": "remove", "path": "/entries/2/match/0"}, {"op": "replace", "path": "/entries/2/match/0/op", "value": "starts_with"}],
+      "expect": {"refused": {"e3": "condition 0: unknown_op"}, "entries_skipped": 1}
+    },
+    {
+      "name": "a host condition that doesn't read refuses its entry, implying no host",
       "patch": [{"op": "replace", "path": "/entries/0/match/0/path", "value": ["request", "host", "name"]}],
       "expect": {"refused": {"e1": "condition 0: invalid"}, "entries_skipped": 3}
+    },
+    {
+      "name": "an entry implying no host is reached past a refusal on another host",
+      "patch": [{"op": "replace", "path": "/entries/0/match/3/op", "value": "starts_with"}, {"op": "remove", "path": "/entries/1/match/0"}],
+      "expect": {"refused": {"e1": "condition 3: unknown_op"}, "entries_skipped": 1}
+    },
+    {
+      "name": "an entry implying no host is matched as written",
+      "patch": [{"op": "remove", "path": "/entries/0/match/0"}],
+      "expect": {"refused": {}, "entries_skipped": 0}
+    },
+    {
+      "name": "the host by matches implies none, and is matched as written",
+      "patch": [{"op": "replace", "path": "/entries/1/match/0/op", "value": "matches"}],
+      "expect": {"refused": {}, "entries_skipped": 0}
+    },
+    {
+      "name": "an entry for several tools is matched as written",
+      "patch": [{"op": "replace", "path": "/entries/1/match/3", "value": {"path": ["request", "mcp", "tool"], "op": "in", "value": ["search_code", "get_file"]}}],
+      "expect": {"refused": {}, "entries_skipped": 0}
+    },
+    {
+      "name": "an in with no value holds for nothing, and is matched as written",
+      "patch": [{"op": "add", "path": "/entries/1/match/-", "value": {"path": ["request", "body", "params", "arguments", "repo"], "op": "in", "value": []}}],
+      "expect": {"refused": {}, "entries_skipped": 0}
+    },
+    {
+      "name": "an op that can't hold for its path is only Rail Center's to refuse",
+      "patch": [{"op": "add", "path": "/entries/2/match/-", "value": {"path": ["request", "method"], "op": "lt", "value": 1}}],
+      "expect": {"refused": {}, "entries_skipped": 0}
+    },
+    {
+      "name": "a body condition narrows an entry",
+      "patch": [{"op": "add", "path": "/entries/1/match/-", "value": {"path": ["request", "body", "params", "arguments", "repo"], "op": "eq", "value": "docs"}}],
+      "expect": {"refused": {}, "entries_skipped": 0}
     },
     {
       "name": "a header condition: not for a plan's match",
@@ -289,79 +329,9 @@
       "expect": {"refused": {"e2": "condition 4: invalid"}, "entries_skipped": 1}
     },
     {
-      "name": "an in with no value refuses its entry",
-      "patch": [{"op": "add", "path": "/entries/1/match/-", "value": {"path": ["request", "body", "params", "arguments", "repo"], "op": "in", "value": []}}],
-      "expect": {"refused": {"e2": "condition 4: invalid"}, "entries_skipped": 1}
-    },
-    {
       "name": "the first refused condition is the entry's refusal",
       "patch": [{"op": "replace", "path": "/entries/1/match/2/op", "value": "starts_with"}, {"op": "add", "path": "/entries/1/match/-", "value": {"path": ["ticket", "team"], "op": "eq", "value": "a"}}],
       "expect": {"refused": {"e2": "condition 2: unknown_op"}, "entries_skipped": 1}
-    },
-    {
-      "name": "a body condition narrows an entry",
-      "patch": [{"op": "add", "path": "/entries/1/match/-", "value": {"path": ["request", "body", "params", "arguments", "repo"], "op": "eq", "value": "docs"}}],
-      "expect": {"refused": {}, "entries_skipped": 0}
-    },
-    {
-      "name": "a tool by in doesn't pin one endpoint",
-      "patch": [{"op": "replace", "path": "/entries/1/match/3", "value": {"path": ["request", "mcp", "tool"], "op": "in", "value": ["search_code", "get_file"]}}],
-      "expect": {"refused": {"e2": "not_one_endpoint"}, "entries_skipped": 1}
-    },
-    {
-      "name": "a tool by matches doesn't pin one endpoint",
-      "patch": [{"op": "replace", "path": "/entries/1/match/3", "value": {"path": ["request", "mcp", "tool"], "op": "matches", "value": "search_*"}}],
-      "expect": {"refused": {"e2": "not_one_endpoint"}, "entries_skipped": 1}
-    },
-    {
-      "name": "no tool doesn't pin one endpoint",
-      "patch": [{"op": "remove", "path": "/entries/1/match/3"}],
-      "expect": {"refused": {"e2": "not_one_endpoint"}, "entries_skipped": 1}
-    },
-    {
-      "name": "a tool as a number doesn't pin one",
-      "patch": [{"op": "replace", "path": "/entries/1/match/3/value", "value": 7}],
-      "expect": {"refused": {"e2": "not_one_endpoint"}, "entries_skipped": 1}
-    },
-    {
-      "name": "a redacted path by matches doesn't pin one endpoint",
-      "patch": [{"op": "replace", "path": "/entries/1/match/1/op", "value": "matches"}],
-      "expect": {"refused": {"e2": "not_one_endpoint"}, "entries_skipped": 1}
-    },
-    {
-      "name": "the path as received doesn't pin an MCP tool",
-      "patch": [{"op": "replace", "path": "/entries/1/match/1/path", "value": ["request", "path"]}],
-      "expect": {"refused": {"e2": "not_one_endpoint"}, "entries_skipped": 1}
-    },
-    {
-      "name": "the host by matches doesn't pin one endpoint",
-      "patch": [{"op": "replace", "path": "/entries/1/match/0/op", "value": "matches"}],
-      "expect": {"refused": {"e2": "not_one_endpoint"}, "entries_skipped": 2}
-    },
-    {
-      "name": "an op that can't hold for its path is only Rail Center's to refuse",
-      "patch": [{"op": "add", "path": "/entries/2/match/-", "value": {"path": ["request", "method"], "op": "lt", "value": 1}}],
-      "expect": {"refused": {}, "entries_skipped": 0}
-    },
-    {
-      "name": "an operation's path by eq pins one endpoint",
-      "patch": [{"op": "replace", "path": "/entries/2/match/2/op", "value": "eq"}],
-      "expect": {"refused": {}, "entries_skipped": 0}
-    },
-    {
-      "name": "an operation with no method doesn't pin one endpoint",
-      "patch": [{"op": "remove", "path": "/entries/2/match/1"}],
-      "expect": {"refused": {"e3": "not_one_endpoint"}, "entries_skipped": 1}
-    },
-    {
-      "name": "an operation's path redacted doesn't pin one",
-      "patch": [{"op": "replace", "path": "/entries/2/match/2/path", "value": ["request", "redacted_path"]}],
-      "expect": {"refused": {"e3": "not_one_endpoint"}, "entries_skipped": 1}
-    },
-    {
-      "name": "an MCP tool with no mcp.method condition, in any order",
-      "patch": [{"op": "replace", "path": "/entries/1/match", "value": [{"path": ["request", "mcp", "tool"], "op": "eq", "value": "search_code"}, {"path": ["request", "redacted_path"], "op": "eq", "value": "/mcp"}, {"path": ["request", "host"], "op": "eq", "value": "api.github.com"}]}],
-      "expect": {"refused": {}, "entries_skipped": 0}
     }
   ]
 }

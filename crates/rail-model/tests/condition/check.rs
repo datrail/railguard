@@ -422,7 +422,7 @@ fn test_checks_a_condition_as_a_capture_plan_reads_it() {
         [ConditionProblem {
             location: loc!["value"],
             code: OperandShape,
-            scope: Enforcement,
+            scope: Authoring,
             expected_shape: Some(rail_model::condition::OperandShape::List),
             message: "in takes at least one value in a plan's match".to_string(),
         }]

@@ -31,13 +31,8 @@ struct Expect {
 }
 
 fn describe(refusal: EntryRefusal) -> String {
-    match refusal {
-        EntryRefusal::Condition { position, refusal } => {
-            let refusal = serde_json::to_value(refusal).unwrap();
-            format!("condition {position}: {}", refusal.as_str().unwrap())
-        }
-        EntryRefusal::NotOneEndpoint => "not_one_endpoint".to_string(),
-    }
+    let why = serde_json::to_value(refusal.refusal).unwrap();
+    format!("condition {}: {}", refusal.position, why.as_str().unwrap())
 }
 
 fn compare(compiled: &CompiledPlan, expect: &Expect) -> Vec<String> {
@@ -111,10 +106,8 @@ fn test_refuses_the_conditions_check_condition_says_every_reader_refuses() {
             let refused = compiled
                 .refused()
                 .find(|refused| refused.id() == entry.id)
-                .and_then(|refused| match refused.refusal() {
-                    Some(EntryRefusal::Condition { position, .. }) => Some(position),
-                    _ => None,
-                });
+                .and_then(|refused| refused.refusal())
+                .map(|refusal| refusal.position);
             let first = written["match"]
                 .as_array()
                 .unwrap()
