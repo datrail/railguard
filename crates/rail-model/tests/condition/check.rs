@@ -61,14 +61,14 @@ fn get_schema() -> TicketClaimsSchema {
 }
 
 fn check(condition: Value) -> Vec<(Vec<LocationSegment>, ProblemCode, ProblemScope)> {
-    check_for(ConditionUse::Policy, condition)
+    check_for(ConditionUse::GatewayPolicy, condition)
 }
 
 fn check_for(
-    read_for: ConditionUse,
+    use_case: ConditionUse,
     condition: Value,
 ) -> Vec<(Vec<LocationSegment>, ProblemCode, ProblemScope)> {
-    check_condition(&condition.to_string(), read_for, &get_schema())
+    check_condition(&condition.to_string(), use_case, &get_schema())
         .into_iter()
         .map(|problem| (problem.location, problem.code, problem.scope))
         .collect()
@@ -82,7 +82,7 @@ fn test_scopes_match_how_the_parser_reads_each_vector_condition() {
     let schema = TicketClaimsSchema::from_value(&json!({})).unwrap();
 
     for text in conditions {
-        let problems = check_condition(&text, ConditionUse::Policy, &schema);
+        let problems = check_condition(&text, ConditionUse::GatewayPolicy, &schema);
         let refused = problems
             .iter()
             .any(|p| p.scope == ProblemScope::Enforcement);
@@ -221,7 +221,7 @@ fn test_reports_what_only_the_writer_refuses() {
 fn test_says_which_operand_shape_an_op_takes() {
     let problems = check_condition(
         &json!({"path": "ticket.skills", "op": "in", "value": "x"}).to_string(),
-        ConditionUse::Policy,
+        ConditionUse::GatewayPolicy,
         &get_schema(),
     );
     assert_eq!(
@@ -239,7 +239,7 @@ fn test_says_which_operand_shape_an_op_takes() {
 #[test]
 fn test_reports_json_this_reader_cannot_hold() {
     let text = r#"{"path": "ticket.posture.overall.score", "op": "lt", "value": 1e400}"#;
-    let problems = check_condition(text, ConditionUse::Policy, &get_schema());
+    let problems = check_condition(text, ConditionUse::GatewayPolicy, &get_schema());
     assert_eq!(problems.len(), 1);
     assert_eq!(
         (problems[0].code, problems[0].scope),
@@ -251,7 +251,7 @@ fn test_reports_json_this_reader_cannot_hold() {
 fn test_quotes_input_safely() {
     let problems = check_condition(
         &json!({"path": "ticket.a\nb", "op": "existing"}).to_string(),
-        ConditionUse::Policy,
+        ConditionUse::GatewayPolicy,
         &get_schema(),
     );
     assert_eq!(
@@ -387,10 +387,10 @@ fn test_builds_a_location_from_keys_and_indexes() {
 }
 
 #[test]
-fn test_checks_a_condition_as_a_plan_match_reads_it() {
+fn test_checks_a_condition_as_a_capture_plan_reads_it() {
     use ProblemCode::{OpNotForPath, OperandShape, UnknownPath, UnknownSource};
     use ProblemScope::{Authoring, Enforcement};
-    let check = |condition| check_for(ConditionUse::PlanMatch, condition);
+    let check = |condition| check_for(ConditionUse::CapturePlan, condition);
     for condition in [
         json!({"path": ["request", "host"], "op": "eq", "value": "api.github.com"}),
         // A body's value may be any kind, so any op can hold.
@@ -413,7 +413,7 @@ fn test_checks_a_condition_as_a_plan_match_reads_it() {
     let problems = |condition: Value| {
         check_condition(
             &condition.to_string(),
-            ConditionUse::PlanMatch,
+            ConditionUse::CapturePlan,
             &get_schema(),
         )
     };
@@ -439,14 +439,14 @@ fn test_checks_a_condition_as_a_plan_match_reads_it() {
     );
     // A policy's `in` may be empty.
     let empty_in = json!({"path": "ticket.skills", "op": "in", "value": []});
-    assert_eq!(check_for(ConditionUse::Policy, empty_in), []);
+    assert_eq!(check_for(ConditionUse::GatewayPolicy, empty_in), []);
     // A record's paths, each of a kind.
     for condition in [
         json!({"path": ["request", "query", "q"], "op": "contains", "value": "a"}),
         json!({"path": ["request", "path", 1], "op": "eq", "value": "a"}),
     ] {
         assert_eq!(
-            check_for(ConditionUse::PlanRecord, condition.clone()),
+            check_for(ConditionUse::CapturePlanRecord, condition.clone()),
             [],
             "{condition}"
         );

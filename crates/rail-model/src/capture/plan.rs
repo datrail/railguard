@@ -425,7 +425,7 @@ fn read_record_path(steps: &Value) -> Result<Path, String> {
     let path = steps
         .as_array()
         .and_then(|steps| Path::from_steps(steps))
-        .filter(|path| ConditionUse::PlanRecord.reads(path))
+        .filter(|path| ConditionUse::CapturePlanRecord.reads(path))
         .ok_or("a path not into the body, the query or a path segment")?;
     if let Path::Request(RequestPath::Body(body)) = &path
         && body

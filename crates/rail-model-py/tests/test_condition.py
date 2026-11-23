@@ -154,13 +154,13 @@ def test_raises_on_a_key_that_is_not_a_str():
         check_condition({"path": "ticket.a", "op": "existing", True: math.nan})
 
 
-def test_checks_a_condition_as_a_plan_match_reads_it():
+def test_checks_a_condition_as_a_capture_plan_reads_it():
     host = {"path": ["request", "host"], "op": "eq", "value": "api.github.com"}
 
-    assert check_condition(host, read_for="plan_match").problems == ()
+    assert check_condition(host, use_case="capture_plan").problems == ()
     assert _get_codes(check_condition(host)) == [(("path",), "unknown_path", "enforcement")]
 
 
 def test_refuses_a_use_it_doesnt_check():
-    with pytest.raises(ValueError, match="read_for"):
-        check_condition({"path": "ticket.a", "op": "existing"}, read_for="plan_record")  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="use_case"):
+        check_condition({"path": "ticket.a", "op": "existing"}, use_case="plan_record")  # type: ignore[arg-type]

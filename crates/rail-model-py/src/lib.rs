@@ -151,22 +151,22 @@ mod _native {
         Ok(write_json(&TicketReading { state, claims }))
     }
 
-    /// Every problem with the condition, read for `read_for` (`policy` or `plan_match`), as JSON
-    /// text. The schema and the use are the caller's, so a malformed one raises.
+    /// Every problem with the condition, for its `use_case` (`gateway_policy` or `capture_plan`),
+    /// as JSON text. The schema and the use case are the caller's, so a malformed one raises.
     #[pyfunction]
-    #[pyo3(signature = (condition, *, read_for, ticket_claims_schema))]
+    #[pyo3(signature = (condition, *, use_case, ticket_claims_schema))]
     fn check_condition(
         condition: &str,
-        read_for: &str,
+        use_case: &str,
         ticket_claims_schema: &str,
     ) -> PyResult<String> {
-        let read_for = match read_for {
-            "policy" => ConditionUse::Policy,
-            "plan_match" => ConditionUse::PlanMatch,
+        let use_case = match use_case {
+            "gateway_policy" => ConditionUse::GatewayPolicy,
+            "capture_plan" => ConditionUse::CapturePlan,
             other => {
                 let other = sanitize(other);
                 return Err(PyValueError::new_err(format!(
-                    "read_for \"{other}\": not policy or plan_match"
+                    "use_case \"{other}\": not gateway_policy or capture_plan"
                 )));
             }
         };
@@ -175,7 +175,7 @@ mod _native {
             .and_then(|schema| TicketClaimsSchema::from_value(&schema))
             .map_err(|problem| PyValueError::new_err(format!("ticket claims schema: {problem}")))?;
         Ok(write_json(&rail_model::condition::check_condition(
-            condition, read_for, &schema,
+            condition, use_case, &schema,
         )))
     }
 

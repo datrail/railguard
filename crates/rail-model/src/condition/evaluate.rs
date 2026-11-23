@@ -164,20 +164,20 @@ pub enum BodyUnread {
     Batch,
 }
 
-/// `condition` as `read_for` evaluates it: one this reader can't evaluate, or whose path that use
-/// doesn't read, is refused with its cause.
-pub fn compile_condition(condition: &Condition, read_for: ConditionUse) -> CompiledCondition {
+/// `condition` as its `use_case` evaluates it: one this reader can't evaluate, or whose path
+/// that use case doesn't read, is refused with its cause.
+pub fn compile_condition(condition: &Condition, use_case: ConditionUse) -> CompiledCondition {
     let refused = |why| CompiledCondition(Node::Refused(why));
     let predicate = match condition {
         Condition::Valid(predicate) => predicate,
         Condition::Unknown(_) => return refused(Refusal::UnknownOp),
         Condition::Invalid(_) => return refused(Refusal::Invalid),
     };
-    if !read_for.reads(predicate.path()) {
+    if !use_case.reads(predicate.path()) {
         return refused(Refusal::NotForUse);
     }
     // An empty list holds for nothing, so in a plan, which pins what it records, it's a mistake.
-    if read_for == ConditionUse::PlanMatch
+    if use_case == ConditionUse::CapturePlan
         && matches!(predicate, Predicate::In { value, .. } if value.is_empty())
     {
         return refused(Refusal::Invalid);

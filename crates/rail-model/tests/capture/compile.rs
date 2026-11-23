@@ -85,7 +85,7 @@ fn test_refuses_the_conditions_check_condition_says_every_reader_refuses() {
     let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
     let schema = TicketClaimsSchema::from_value(&json!({})).unwrap();
     let refused_by_readers = |condition: &Value| {
-        check_condition(&condition.to_string(), ConditionUse::PlanMatch, &schema)
+        check_condition(&condition.to_string(), ConditionUse::CapturePlan, &schema)
             .iter()
             .any(|problem| {
                 problem.scope == ProblemScope::Enforcement || problem.code == ProblemCode::UnknownOp

@@ -186,17 +186,17 @@ impl Path {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ConditionUse {
     /// A bundle's policy, judged in [`Environment::for_judging`](super::Environment::for_judging).
-    Policy,
+    GatewayPolicy,
     /// A capture plan entry's match, in [`Environment::for_capture`](super::Environment::for_capture).
-    PlanMatch,
+    CapturePlan,
     /// A capture plan's context key or measure: a call's body, query or path segments.
-    PlanRecord,
+    CapturePlanRecord,
 }
 
 impl ConditionUse {
     pub fn reads(self, path: &Path) -> bool {
         match self {
-            Self::Policy => matches!(
+            Self::GatewayPolicy => matches!(
                 path,
                 Path::Ticket(_)
                     | Path::Request(
@@ -206,7 +206,7 @@ impl ConditionUse {
                             | RequestPath::Header(_)
                     )
             ),
-            Self::PlanMatch => matches!(
+            Self::CapturePlan => matches!(
                 path,
                 Path::Request(
                     RequestPath::Body(_)
@@ -218,7 +218,7 @@ impl ConditionUse {
                         | RequestPath::McpTool
                 )
             ),
-            Self::PlanRecord => matches!(
+            Self::CapturePlanRecord => matches!(
                 path,
                 Path::Request(
                     RequestPath::Body(_)

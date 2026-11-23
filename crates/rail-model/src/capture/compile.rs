@@ -129,7 +129,7 @@ fn compile_entry(entry: &Entry, names_a_host: bool) -> CompiledEntry {
     let mut request_line = Vec::new();
     let mut body = Vec::new();
     for (position, condition) in entry.conditions.iter().enumerate() {
-        let compiled = compile_condition(condition, ConditionUse::PlanMatch);
+        let compiled = compile_condition(condition, ConditionUse::CapturePlan);
         if refusal.is_none()
             && let Some(why) = compiled.refusal()
         {

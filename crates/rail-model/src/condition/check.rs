@@ -66,8 +66,8 @@ pub enum ProblemCode {
     Unreadable,
 }
 
-/// `Enforcement`: every reader refuses it, reading the condition as `Invalid` or compiling it so. `Authoring`:
-/// only the writer does, since a reader may be on another version.
+/// `Enforcement`: every reader refuses it, reading the condition as `Invalid` or compiling it so.
+/// `Authoring`: only the writer does, since a reader may be on another version.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProblemScope {
@@ -157,12 +157,12 @@ fn read_node(value: &Value) -> Result<SchemaNode, String> {
     }
 }
 
-/// Every problem with a condition given as JSON text, read for `read_for`, in the order found:
+/// Every problem with a condition given as JSON text, for its `use_case`, in the order found:
 /// first as every reader parses it, then as only Rail Center checks it. None means every reader
 /// reads it, and Rail Center would publish it. Only a policy reads `ticket_claims_schema`.
 pub fn check_condition(
     text: &str,
-    read_for: ConditionUse,
+    use_case: ConditionUse,
     ticket_claims_schema: &TicketClaimsSchema,
 ) -> Vec<ConditionProblem> {
     let condition: Value = match serde_json::from_str(text) {
@@ -190,7 +190,7 @@ pub fn check_condition(
         )];
     };
     let mut problems = Vec::new();
-    let parsed = check_grammar(fields, read_for, &mut problems);
+    let parsed = check_grammar(fields, use_case, &mut problems);
     check_authoring(&condition, parsed, ticket_claims_schema, &mut problems);
     problems
 }
@@ -206,7 +206,7 @@ struct Parsed<'a> {
 /// As a reader parses and compiles a condition: the op, then the path and the operand.
 fn check_grammar<'a>(
     fields: &'a Map<String, Value>,
-    read_for: ConditionUse,
+    use_case: ConditionUse,
     problems: &mut Vec<ConditionProblem>,
 ) -> Parsed<'a> {
     let op = fields.get("op").and_then(Value::as_str);
@@ -237,7 +237,7 @@ fn check_grammar<'a>(
     } else {
         ProblemScope::Enforcement
     };
-    let path = check_path(fields.get("path"), read_for, scope, problems);
+    let path = check_path(fields.get("path"), use_case, scope, problems);
     if let Some(op) = known_op
         && let Some(expected) = get_operand_shape(op)
         && !is_shaped(fields.get("value"), expected)
@@ -254,7 +254,7 @@ fn check_grammar<'a>(
     }
     // As `compile_condition` refuses it.
     if known_op == Some("in")
-        && read_for == ConditionUse::PlanMatch
+        && use_case == ConditionUse::CapturePlan
         && fields
             .get("value")
             .and_then(Value::as_array)
@@ -276,7 +276,7 @@ fn check_grammar<'a>(
 // As a reader reads it: a dotted string, or a list.
 fn check_path(
     path: Option<&Value>,
-    read_for: ConditionUse,
+    use_case: ConditionUse,
     scope: ProblemScope,
     problems: &mut Vec<ConditionProblem>,
 ) -> Option<(String, Path)> {
@@ -302,21 +302,21 @@ fn check_path(
             return None;
         }
     };
-    let sources: &[&str] = match read_for {
-        ConditionUse::Policy => &["ticket", "request"],
-        ConditionUse::PlanMatch | ConditionUse::PlanRecord => &["request"],
+    let sources: &[&str] = match use_case {
+        ConditionUse::GatewayPolicy => &["ticket", "request"],
+        ConditionUse::CapturePlan | ConditionUse::CapturePlanRecord => &["request"],
     };
     let under_a_source = source.is_some_and(|source| sources.contains(&source));
-    if under_a_source && let Some(path) = read.filter(|path| read_for.reads(path)) {
+    if under_a_source && let Some(path) = read.filter(|path| use_case.reads(path)) {
         return Some((text, path));
     }
     let shown = sanitize(&text);
     let (code, message) = if under_a_source {
         // Only a `request` path can fail: any `ticket` path is a policy's.
-        let reads = match read_for {
-            ConditionUse::Policy => "a request carries",
-            ConditionUse::PlanMatch => "a plan's match reads",
-            ConditionUse::PlanRecord => "a plan's record reads",
+        let reads = match use_case {
+            ConditionUse::GatewayPolicy => "a request carries",
+            ConditionUse::CapturePlan => "a plan's match reads",
+            ConditionUse::CapturePlanRecord => "a plan's record reads",
         };
         (
             ProblemCode::UnknownPath,
