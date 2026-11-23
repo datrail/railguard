@@ -96,7 +96,8 @@ pub enum ContextKey {
     Named {
         name: String,
         path: Path,
-        // `field_type` goes here: what the value is, read past until a record carries it.
+        /// What the value is, copied into each record's `field_types`, never read.
+        field_type: String,
     },
 }
 
@@ -132,7 +133,7 @@ pub enum Function {
 }
 
 impl ContextKey {
-    fn name(&self) -> &str {
+    pub(crate) fn name(&self) -> &str {
         match self {
             Self::Method => "method",
             Self::Host => "host",
@@ -144,7 +145,7 @@ impl ContextKey {
 }
 
 impl Measure {
-    fn name(&self) -> &str {
+    pub(crate) fn name(&self) -> &str {
         match self {
             Self::CallCount => "call_count",
             Self::ErrorCount => "error_count",
@@ -297,6 +298,7 @@ fn unique<'a>(what: &str, names: impl Iterator<Item = &'a str>) -> Result<(), St
 struct Fields {
     name: Option<Value>,
     path: Option<Value>,
+    field_type: Option<Value>,
     segments: Option<Value>,
     #[serde(rename = "type")]
     combine: Option<Value>,
@@ -327,9 +329,14 @@ impl TryFrom<Fields> for ContextKey {
             }
             _ => {
                 let path = present(fields.path, "path", &at)?;
+                let field_type = match present(fields.field_type, "field_type", &at)? {
+                    Value::String(field_type) if is_name(&field_type) => field_type,
+                    _ => return Err(format!("{at}: its field_type isn't a name")),
+                };
                 Self::Named {
                     path: read_record_path(&path).map_err(|why| format!("{at}: {why}"))?,
                     name,
+                    field_type,
                 }
             }
         })

@@ -452,9 +452,19 @@
       "expect": {"valid": false}
     },
     {
-      "name": "a field_type that isn't a string, read past",
+      "name": "a field_type that isn't a string",
       "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/field_type", "value": 0}],
-      "expect": {"valid": true}
+      "expect": {"valid": false}
+    },
+    {
+      "name": "a field_type that isn't a name",
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/field_type", "value": "Repository"}],
+      "expect": {"valid": false}
+    },
+    {
+      "name": "a named key with no field_type",
+      "patch": [{"op": "remove", "path": "/entries/0/record/context_keys/0/field_type"}],
+      "expect": {"valid": false}
     },
     {
       "name": "a context key with no path",
