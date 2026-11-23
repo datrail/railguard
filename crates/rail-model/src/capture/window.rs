@@ -167,7 +167,7 @@ impl Window {
         self.truncated.calls_dropped = self.truncated.calls_dropped.saturating_add(calls);
     }
 
-    /// The window's document, for the sender to give its envelope; it ends no earlier than its
+    /// The window's content, for the sender to make its document; it ends no earlier than its
     /// last call.
     pub fn close(self, end: SystemTime) -> ClosedWindow {
         let plan = self.plan.plan();
@@ -279,7 +279,7 @@ impl Window {
     }
 }
 
-/// A closed window, waiting for its envelope.
+/// A closed window, waiting for its sender to make it a document.
 #[derive(Debug)]
 pub struct ClosedWindow(Captured);
 
