@@ -80,7 +80,10 @@ class UnusableBundle:
 
 @dataclass(frozen=True)
 class ResolvedValue:
-    kind: Literal["absent", "string", "number", "bool", "list", "object"]
+    # `ambiguous` and `body_unread` read a body, which a sample never has.
+    kind: Literal[
+        "absent", "string", "number", "bool", "list", "object", "ambiguous", "body_unread"
+    ]
     # The value as JSON; `None` for `absent` and `object`.
     value: Any = None
 
@@ -90,7 +93,8 @@ class TraceStep:
     policy: UUID
     # `None` when no path was resolved: the condition can't be read, or the budget ran out first.
     resolved: ResolvedValue | None
-    verdict: Literal["holds", "does_not_hold", "refused"]
+    # `ambiguous` and `body_unread` as for `ResolvedValue`.
+    verdict: Literal["holds", "does_not_hold", "ambiguous", "body_unread", "refused"]
     # Why the condition refused; `None` unless `refused`.
     refusal: _Refusal | None
 
