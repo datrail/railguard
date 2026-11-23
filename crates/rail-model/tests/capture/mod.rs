@@ -1,5 +1,6 @@
 use serde_json::Value;
 
+mod compile;
 mod plan;
 
 // RFC 6902's add, remove and replace, as the vectors use them.

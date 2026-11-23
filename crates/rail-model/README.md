@@ -45,7 +45,10 @@ By module:
   know, refusing one that breaks the field reference with why (**`InvalidPlan`**). A **`Plan`**'s entries keep their
   conditions as written, checked when compiled; its values are as Rail Center writes them. It checks the proxy's
   ceilings too. Its `content_hash`'s form, its `schema_version`'s major, its agent and its `redaction_version` are the
-  caller's to check.
+  caller's to check. **`compile_plan`** compiles a read plan's entries for matching calls (**`CompiledPlan`**): an entry
+  whose condition can't be evaluated for a plan, or whose conditions don't pin one endpoint, is refused with why
+  (**`EntryRefusal`**), and a call reaching it goes to the catch-all; entries are indexed by the host they name, as
+  written, and a refused entry naming none stops the walk for every host.
 - **`schema_version`:** **`SchemaVersion`**, a document's `MAJOR.MINOR`, a bundle's or a plan's.
 - **`request_line`:** **`RequestLine::read`** reads a call's `:authority`, `:method` and `:path` once, as conditions
   read them under `request`: the host as `split_authority` spells it, or `[unparseable]`; the path up to its query or

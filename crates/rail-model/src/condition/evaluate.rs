@@ -82,6 +82,16 @@ pub enum Refusal {
 #[derive(Debug)]
 pub struct CompiledCondition(Node);
 
+impl CompiledCondition {
+    /// Why it's refused whatever it's evaluated in, if it is.
+    pub(crate) fn refusal(&self) -> Option<Refusal> {
+        match self.0 {
+            Node::Refused(refusal) => Some(refusal),
+            Node::Test(..) => None,
+        }
+    }
+}
+
 #[derive(Debug)]
 enum Node {
     Refused(Refusal),
