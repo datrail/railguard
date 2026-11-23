@@ -1,8 +1,7 @@
 //! A capture plan compiled for matching calls: each entry's conditions compiled once, the entries
 //! a plan can't apply refused, and the entries a call to a host can reach indexed by that host.
 
-use std::collections::HashMap;
-use std::iter::Peekable;
+use std::collections::{HashMap, HashSet};
 
 use super::plan::{Entry, Plan};
 use crate::condition::{
@@ -16,10 +15,11 @@ pub struct CompiledPlan {
     plan: Plan,
     /// In plan order, one per entry.
     entries: Vec<CompiledEntry>,
-    /// For each host an entry's `["request", "host"]` `eq` names, as written, its entries' indexes.
-    hosts: HashMap<String, Vec<usize>>,
-    /// The refused entries naming no host: every call's walk stops at them.
-    barriers: Vec<usize>,
+    /// For each host an entry's `["request", "host"]` `eq` names, as written, the indexes of the
+    /// entries a call to it is tried against, ending at the first refused one it reaches.
+    walks: HashMap<String, Vec<usize>>,
+    /// The walk of a call to any other host: the first refused entry naming no host, if any.
+    other_hosts: Vec<usize>,
     entries_skipped: usize,
 }
 
@@ -71,49 +71,67 @@ impl CompiledPlan {
         self.entries_skipped
     }
 
-    /// The entries a call to `host` is tried against, in plan order: its host's, and the barriers.
+    /// The entries a call to `host` is tried against, in plan order, the last refused if one is.
     #[expect(dead_code, reason = "read by matching a call, still to come")]
     pub(crate) fn entries_for<'a>(&'a self, host: &str) -> impl Iterator<Item = &'a CompiledEntry> {
-        let own = self.hosts.get(host).map_or(&[][..], Vec::as_slice);
-        Merged {
-            own: own.iter().peekable(),
-            barriers: self.barriers.iter().peekable(),
-        }
-        .map(|index| &self.entries[index])
+        let walk = self.walks.get(host).unwrap_or(&self.other_hosts);
+        walk.iter().map(|&index| &self.entries[index])
     }
 }
 
 /// Compiles every entry of `plan`, which [`parse_plan`](super::parse_plan) has read.
 pub fn compile_plan(plan: Plan) -> CompiledPlan {
-    let entries: Vec<CompiledEntry> = plan.entries.iter().map(compile_entry).collect();
-    let mut hosts: HashMap<String, Vec<usize>> = HashMap::new();
-    let mut barriers = Vec::new();
+    let mut entries = Vec::with_capacity(plan.entries.len());
+    let mut walks: HashMap<String, Vec<usize>> = HashMap::new();
+    // The hosts whose walk already ends at a refused entry of their own.
+    let mut ended = HashSet::new();
+    let mut barrier = None;
+    let mut reachable = 0;
     for (index, entry) in plan.entries.iter().enumerate() {
-        match read_host(entry) {
-            Some(host) => hosts.entry(host.to_string()).or_default().push(index),
-            None if entries[index].refusal.is_some() => barriers.push(index),
-            // Never: an entry naming no host doesn't pin one endpoint, so it's refused.
-            None => {}
+        let host = read_host(entry);
+        let compiled = compile_entry(entry, host.is_some());
+        let refused = compiled.refusal.is_some();
+        entries.push(compiled);
+        match host {
+            // Past a barrier, no call reaches it.
+            _ if barrier.is_some() => {}
+            Some(host) if !ended.contains(host) => {
+                walks.entry(host.to_string()).or_default().push(index);
+                if refused {
+                    ended.insert(host);
+                } else {
+                    reachable += 1;
+                }
+            }
+            Some(_) => {}
+            // An entry naming no host doesn't pin one endpoint, so it's refused.
+            None => barrier = Some(index),
         }
     }
-    let entries_skipped = count_skipped(&entries, &hosts, &barriers);
+    if let Some(barrier) = barrier {
+        for (host, walk) in &mut walks {
+            if !ended.contains(host.as_str()) {
+                walk.push(barrier);
+            }
+        }
+    }
     CompiledPlan {
-        plan,
+        entries_skipped: entries.len() - reachable,
         entries,
-        hosts,
-        barriers,
-        entries_skipped,
+        walks,
+        other_hosts: barrier.into_iter().collect(),
+        plan,
     }
 }
 
-fn compile_entry(entry: &Entry) -> CompiledEntry {
+fn compile_entry(entry: &Entry, names_a_host: bool) -> CompiledEntry {
     let mut refusal = None;
     let mut request_line = Vec::new();
     let mut body = Vec::new();
     for (position, condition) in entry.conditions.iter().enumerate() {
         let compiled = compile_condition(condition, ConditionUse::PlanMatch);
         if refusal.is_none()
-            && let Some(why) = refuse(condition, &compiled)
+            && let Some(why) = compiled.refusal()
         {
             refusal = Some(EntryRefusal::Condition {
                 position,
@@ -121,11 +139,13 @@ fn compile_entry(entry: &Entry) -> CompiledEntry {
             });
         }
         match condition {
-            Condition::Valid(predicate) if reads_the_body(predicate.path()) => body.push(compiled),
+            Condition::Valid(predicate) if matches!(predicate.path(), Path::Request(path) if path.reads_the_body()) => {
+                body.push(compiled)
+            }
             _ => request_line.push(compiled),
         }
     }
-    if refusal.is_none() && !pins_one_endpoint(entry) {
+    if refusal.is_none() && !(names_a_host && pins_one_endpoint(entry)) {
         refusal = Some(EntryRefusal::NotOneEndpoint);
     }
     CompiledEntry {
@@ -134,25 +154,6 @@ fn compile_entry(entry: &Entry) -> CompiledEntry {
         request_line,
         body,
     }
-}
-
-// The checker's refusal, or the plan's own: an `in` with no value holds for nothing, so it can only
-// be a mistake.
-fn refuse(condition: &Condition, compiled: &CompiledCondition) -> Option<Refusal> {
-    if let Some(refusal) = compiled.refusal() {
-        return Some(refusal);
-    }
-    match condition {
-        Condition::Valid(Predicate::In { value, .. }) if value.is_empty() => Some(Refusal::Invalid),
-        _ => None,
-    }
-}
-
-fn reads_the_body(path: &Path) -> bool {
-    matches!(
-        path,
-        Path::Request(RequestPath::Body(_) | RequestPath::McpMethod | RequestPath::McpTool)
-    )
 }
 
 // The first `["request", "host"]` `eq` on a string, which the plan's host totals count toward.
@@ -169,8 +170,8 @@ fn read_host(entry: &Entry) -> Option<&str> {
         })
 }
 
-// An MCP tool: `eq` on the host, the redacted path and the tool; an HTTP operation: `eq` on the host
-// and the method, and `eq` or `matches` on the path. Further conditions only narrow it.
+// Beside the host: an MCP tool, `eq` on the redacted path and the tool; an HTTP operation, `eq` on
+// the method, and `eq` or `matches` on the path. Further conditions only narrow it.
 fn pins_one_endpoint(entry: &Entry) -> bool {
     let pins = |field: &RequestPath, glob: bool| {
         entry.conditions.iter().any(|condition| match condition {
@@ -188,50 +189,5 @@ fn pins_one_endpoint(entry: &Entry) -> bool {
     let mcp_tool =
         pins(&RequestPath::RedactedPath(None), false) && pins(&RequestPath::McpTool, false);
     let http_operation = pins(&RequestPath::Method, false) && pins(&RequestPath::Path(None), true);
-    pins(&RequestPath::Host, false) && (mcp_tool || http_operation)
-}
-
-// An entry no call reaches: refused, or after a refused entry on its host, or after a barrier.
-fn count_skipped(
-    entries: &[CompiledEntry],
-    hosts: &HashMap<String, Vec<usize>>,
-    barriers: &[usize],
-) -> usize {
-    let first_barrier = barriers.first().copied().unwrap_or(usize::MAX);
-    let hidden_on_host = |indexes: &Vec<usize>| {
-        let first_refused = indexes
-            .iter()
-            .copied()
-            .find(|&index| entries[index].refusal.is_some())
-            .unwrap_or(usize::MAX);
-        indexes
-            .iter()
-            .filter(|&&index| entries[index].refusal.is_none())
-            .filter(|&&index| index > first_refused.min(first_barrier))
-            .count()
-    };
-    let refused = entries
-        .iter()
-        .filter(|entry| entry.refusal.is_some())
-        .count();
-    refused + hosts.values().map(hidden_on_host).sum::<usize>()
-}
-
-// Two lists of indexes, each in plan order, walked as one.
-struct Merged<'a> {
-    own: Peekable<std::slice::Iter<'a, usize>>,
-    barriers: Peekable<std::slice::Iter<'a, usize>>,
-}
-
-impl Iterator for Merged<'_> {
-    type Item = usize;
-
-    fn next(&mut self) -> Option<usize> {
-        let next = match (self.own.peek(), self.barriers.peek()) {
-            (Some(own), Some(barrier)) if own < barrier => &mut self.own,
-            (Some(_), None) => &mut self.own,
-            _ => &mut self.barriers,
-        };
-        next.next().copied()
-    }
+    mcp_tool || http_operation
 }

@@ -1,9 +1,9 @@
 # rail-model
 
 DatRail's rules language. Rail Center publishes the rules as a policy bundle: which calls to which MCP tools are
-allowed, judged on what an agent's ticket says about it. This crate reads bundles, tickets and capture plans, reads
-which endpoint and host a call names, judges the call against the rules, and reads a call's request line, redacted, for
-capture. See the [main README](../../README.md) for the system around it.
+allowed, judged on what an agent's ticket says about it. This crate reads bundles, tickets and capture plans, compiles a
+plan for matching calls, reads which endpoint and host a call names, judges the call against the rules, and reads a
+call's request line, redacted, for capture. See the [main README](../../README.md) for the system around it.
 
 It's one crate, used everywhere a rule is read, so a rule means the same thing where it's written and where it's
 enforced. The conformance cases in [`vectors/`](../../vectors) define its behaviour.
@@ -11,8 +11,8 @@ enforced. The conformance cases in [`vectors/`](../../vectors) define its behavi
 ## Who uses it
 
 Rail Center and RailDash, outside this workspace, are to use it through the Python package
-[`rail-model-py`](../rail-model-py/README.md): Rail Center to check each rule before publishing it, and RailDash to try
-a rule on a sample call.
+[`rail-model-py`](../rail-model-py/README.md): Rail Center to check each rule, and each capture plan entry's match,
+before publishing it, and RailDash to try a rule on a sample call.
 
 ## Entry points
 

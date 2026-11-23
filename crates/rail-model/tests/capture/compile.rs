@@ -95,12 +95,19 @@ fn test_refuses_the_conditions_check_condition_says_every_reader_refuses() {
     for case in &vectors.cases {
         let plan = patched(&vectors, case);
         let compiled = compile_plan(parse_plan(&plan.to_string()).unwrap());
-        for (entry, written) in compiled
+        let written = plan["entries"].as_array().unwrap();
+        let ids: Vec<&str> = compiled
             .plan()
             .entries
             .iter()
-            .zip(plan["entries"].as_array().unwrap())
-        {
+            .map(|entry| entry.id.as_str())
+            .collect();
+        let written_ids: Vec<&str> = written
+            .iter()
+            .map(|entry| entry["id"].as_str().unwrap())
+            .collect();
+        assert_eq!(ids, written_ids, "{}", case.name);
+        for (entry, written) in compiled.plan().entries.iter().zip(written) {
             let refused = compiled
                 .refused()
                 .find(|refused| refused.id() == entry.id)
@@ -119,17 +126,4 @@ fn test_refuses_the_conditions_check_condition_says_every_reader_refuses() {
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
-}
-
-#[test]
-fn test_keeps_the_plan_it_compiles() {
-    let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
-    let compiled = compile_plan(parse_plan(&vectors.plan.to_string()).unwrap());
-    let ids: Vec<&str> = compiled
-        .plan()
-        .entries
-        .iter()
-        .map(|entry| entry.id.as_str())
-        .collect();
-    assert_eq!(ids, ["e1", "e2", "e3"]);
 }

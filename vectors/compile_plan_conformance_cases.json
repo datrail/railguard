@@ -239,11 +239,6 @@
       "expect": {"refused": {}, "entries_skipped": 0}
     },
     {
-      "name": "an op this reader doesn't know refuses its entry, on its host",
-      "patch": [{"op": "replace", "path": "/entries/1/match/3/op", "value": "starts_with"}],
-      "expect": {"refused": {"e2": "condition 3: unknown_op"}, "entries_skipped": 1}
-    },
-    {
       "name": "a refused entry hides its host's later entries",
       "patch": [{"op": "replace", "path": "/entries/0/match/3/op", "value": "starts_with"}],
       "expect": {"refused": {"e1": "condition 3: unknown_op"}, "entries_skipped": 2}
@@ -344,6 +339,11 @@
       "expect": {"refused": {"e2": "not_one_endpoint"}, "entries_skipped": 2}
     },
     {
+      "name": "an op that can't hold for its path is only Rail Center's to refuse",
+      "patch": [{"op": "add", "path": "/entries/2/match/-", "value": {"path": ["request", "method"], "op": "lt", "value": 1}}],
+      "expect": {"refused": {}, "entries_skipped": 0}
+    },
+    {
       "name": "an operation's path by eq pins one endpoint",
       "patch": [{"op": "replace", "path": "/entries/2/match/2/op", "value": "eq"}],
       "expect": {"refused": {}, "entries_skipped": 0}
@@ -359,7 +359,7 @@
       "expect": {"refused": {"e3": "not_one_endpoint"}, "entries_skipped": 1}
     },
     {
-      "name": "conditions in any order",
+      "name": "an MCP tool with no mcp.method condition, in any order",
       "patch": [{"op": "replace", "path": "/entries/1/match", "value": [{"path": ["request", "mcp", "tool"], "op": "eq", "value": "search_code"}, {"path": ["request", "redacted_path"], "op": "eq", "value": "/mcp"}, {"path": ["request", "host"], "op": "eq", "value": "api.github.com"}]}],
       "expect": {"refused": {}, "entries_skipped": 0}
     }

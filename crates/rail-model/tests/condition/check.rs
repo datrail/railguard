@@ -61,7 +61,14 @@ fn get_schema() -> TicketClaimsSchema {
 }
 
 fn check(condition: Value) -> Vec<(Vec<LocationSegment>, ProblemCode, ProblemScope)> {
-    check_condition(&condition.to_string(), ConditionUse::Policy, &get_schema())
+    check_for(ConditionUse::Policy, condition)
+}
+
+fn check_for(
+    read_for: ConditionUse,
+    condition: Value,
+) -> Vec<(Vec<LocationSegment>, ProblemCode, ProblemScope)> {
+    check_condition(&condition.to_string(), read_for, &get_schema())
         .into_iter()
         .map(|problem| (problem.location, problem.code, problem.scope))
         .collect()
@@ -383,22 +390,11 @@ fn test_builds_a_location_from_keys_and_indexes() {
 fn test_checks_a_condition_as_a_plan_match_reads_it() {
     use ProblemCode::{OpNotForPath, OperandShape, UnknownPath, UnknownSource};
     use ProblemScope::{Authoring, Enforcement};
-    let check = |condition: Value| -> Vec<(Vec<LocationSegment>, ProblemCode, ProblemScope)> {
-        check_condition(
-            &condition.to_string(),
-            ConditionUse::PlanMatch,
-            &get_schema(),
-        )
-        .into_iter()
-        .map(|problem| (problem.location, problem.code, problem.scope))
-        .collect()
-    };
+    let check = |condition| check_for(ConditionUse::PlanMatch, condition);
     for condition in [
         json!({"path": ["request", "host"], "op": "eq", "value": "api.github.com"}),
-        json!({"path": ["request", "mcp", "tool"], "op": "matches", "value": "search_*"}),
         // A body's value may be any kind, so any op can hold.
         json!({"path": ["request", "body", "a", 0], "op": "lt", "value": 1}),
-        json!({"path": "request.redacted_path", "op": "eq", "value": "/mcp"}),
     ] {
         assert_eq!(check(condition.clone()), [], "{condition}");
     }
@@ -411,25 +407,48 @@ fn test_checks_a_condition_as_a_plan_match_reads_it() {
             json!({"path": "request.headers.x-a", "op": "existing"}),
             (loc!["path"], UnknownPath, Enforcement),
         ),
-        (
-            json!({"path": ["request", "path", 1], "op": "existing"}),
-            (loc!["path"], UnknownPath, Enforcement),
-        ),
-        (
-            json!({"path": ["request", "host"], "op": "in", "value": []}),
-            (loc!["value"], OperandShape, Enforcement),
-        ),
-        (
-            json!({"path": ["request", "host"], "op": "lt", "value": 1}),
-            (loc!["op"], OpNotForPath, Authoring),
-        ),
     ] {
         assert_eq!(check(condition.clone()), [problem], "{condition}");
     }
+    let problems = |condition: Value| {
+        check_condition(
+            &condition.to_string(),
+            ConditionUse::PlanMatch,
+            &get_schema(),
+        )
+    };
+    assert_eq!(
+        problems(json!({"path": ["request", "host"], "op": "in", "value": []})),
+        [ConditionProblem {
+            location: loc!["value"],
+            code: OperandShape,
+            scope: Enforcement,
+            expected_shape: Some(rail_model::condition::OperandShape::List),
+            message: "in takes at least one value in a plan's match".to_string(),
+        }]
+    );
+    assert_eq!(
+        problems(json!({"path": ["request", "host"], "op": "lt", "value": 1})),
+        [ConditionProblem {
+            location: loc!["op"],
+            code: OpNotForPath,
+            scope: Authoring,
+            expected_shape: None,
+            message: "lt can't hold for a string".to_string(),
+        }]
+    );
     // A policy's `in` may be empty.
     let empty_in = json!({"path": "ticket.skills", "op": "in", "value": []});
-    assert_eq!(
-        check_condition(&empty_in.to_string(), ConditionUse::Policy, &get_schema()),
-        []
-    );
+    assert_eq!(check_for(ConditionUse::Policy, empty_in), []);
+    // A record's paths, each of a kind.
+    for condition in [
+        json!({"path": ["request", "query", "q"], "op": "contains", "value": "a"}),
+        json!({"path": ["request", "path", 1], "op": "eq", "value": "a"}),
+    ] {
+        assert_eq!(
+            check_for(ConditionUse::PlanRecord, condition.clone()),
+            [],
+            "{condition}"
+        );
+    }
 }

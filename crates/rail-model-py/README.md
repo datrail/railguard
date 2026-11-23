@@ -1,8 +1,9 @@
 # rail-model-py
 
-The rules language as a Python package, `datrail-model`, for Rail Center, to check each rule before publishing it, and
-for RailDash, to try a rule on a sample call. Both then run the very code the gateways enforce rules with, instead of a
-Python copy that could drift from it. See the [main README](../../README.md) for the system around it.
+The rules language as a Python package, `datrail-model`, for Rail Center, to check each rule, and each capture plan
+entry's match, before publishing it, and for RailDash, to try a rule on a sample call. Both then run the very code the
+gateways enforce rules with, instead of a Python copy that could drift from it. See the [main README](../../README.md)
+for the system around it.
 
 It's the Python binding of [`rail-model`](../rail-model/README.md), built with maturin into the `datrail-model` wheel,
 for CPython 3.12 or later.

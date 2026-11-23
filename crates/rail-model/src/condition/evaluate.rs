@@ -176,6 +176,12 @@ pub fn compile_condition(condition: &Condition, read_for: ConditionUse) -> Compi
     if !read_for.reads(predicate.path()) {
         return refused(Refusal::NotForUse);
     }
+    // An empty list holds for nothing, so in a plan, which pins what it records, it's a mistake.
+    if read_for == ConditionUse::PlanMatch
+        && matches!(predicate, Predicate::In { value, .. } if value.is_empty())
+    {
+        return refused(Refusal::Invalid);
+    }
     let (path, test) = match predicate {
         Predicate::Existing { path } => (path, Test::Existing),
         Predicate::NotExisting { path } => (path, Test::NotExisting),

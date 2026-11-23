@@ -156,13 +156,9 @@ def test_raises_on_a_key_that_is_not_a_str():
 
 def test_checks_a_condition_as_a_plan_match_reads_it():
     host = {"path": ["request", "host"], "op": "eq", "value": "api.github.com"}
-    ticket = {"path": "ticket.agent_id", "op": "existing"}
 
     assert check_condition(host, read_for="plan_match").problems == ()
     assert _get_codes(check_condition(host)) == [(("path",), "unknown_path", "enforcement")]
-    assert _get_codes(check_condition(ticket, read_for="plan_match")) == [
-        (("path",), "unknown_source", "enforcement")
-    ]
 
 
 def test_refuses_a_use_it_doesnt_check():

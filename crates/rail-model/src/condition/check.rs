@@ -66,7 +66,7 @@ pub enum ProblemCode {
     Unreadable,
 }
 
-/// `Enforcement`: every reader refuses it, reading the condition as `Invalid`. `Authoring`:
+/// `Enforcement`: every reader refuses it, reading the condition as `Invalid` or compiling it so. `Authoring`:
 /// only the writer does, since a reader may be on another version.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -203,7 +203,7 @@ struct Parsed<'a> {
     path: Option<(String, Path)>,
 }
 
-/// As a reader parses a condition: the op, then the path and the operand.
+/// As a reader parses and compiles a condition: the op, then the path and the operand.
 fn check_grammar<'a>(
     fields: &'a Map<String, Value>,
     read_for: ConditionUse,
@@ -252,7 +252,7 @@ fn check_grammar<'a>(
             )
         });
     }
-    // An empty list holds for nothing, so in a plan, which pins what it records, it's a mistake.
+    // As `compile_condition` refuses it.
     if known_op == Some("in")
         && read_for == ConditionUse::PlanMatch
         && fields
@@ -393,19 +393,19 @@ fn get_path_kind(
             ))
         }
         Path::Request(RequestPath::Whole | RequestPath::Headers) => Ok(Kind::Object),
-        Path::Request(RequestPath::EndpointKey) => Ok(Kind::String),
-        Path::Request(RequestPath::Header(_)) => Ok(Kind::Header),
         Path::Request(
-            RequestPath::Host
+            RequestPath::EndpointKey
+            | RequestPath::Host
             | RequestPath::Method
-            | RequestPath::Path(None)
-            | RequestPath::RedactedPath(None)
+            | RequestPath::Path(_)
+            | RequestPath::RedactedPath(_)
+            | RequestPath::Query { index: Some(_), .. }
             | RequestPath::McpMethod
             | RequestPath::McpTool,
         ) => Ok(Kind::String),
+        Path::Request(RequestPath::Query { index: None, .. }) => Ok(Kind::List),
+        Path::Request(RequestPath::Header(_)) => Ok(Kind::Header),
         Path::Request(RequestPath::Body(_)) => Ok(Kind::Any),
-        // Never reached: `check_path` keeps only the paths a condition's use reads.
-        Path::Request(_) => Err(format!("\"{shown}\": names nothing a request carries")),
     }
 }
 

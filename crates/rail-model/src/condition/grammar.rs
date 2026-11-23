@@ -264,6 +264,11 @@ pub enum RequestPath {
 }
 
 impl RequestPath {
+    /// Whether it's read from the body, which a reader may hold only once the request is whole.
+    pub(crate) fn reads_the_body(&self) -> bool {
+        matches!(self, Self::Body(_) | Self::McpMethod | Self::McpTool)
+    }
+
     /// From the steps past `request`; `None` for any field or step this reader doesn't know.
     fn parse(steps: &[Value]) -> Option<Self> {
         match steps {
