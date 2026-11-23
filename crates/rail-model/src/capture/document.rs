@@ -37,7 +37,7 @@ pub struct Document {
 }
 
 /// Why a window captured nothing.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum NotCapturing {
     /// Rail Center said there's no plan.
     NoPlan,
@@ -50,7 +50,7 @@ pub enum NotCapturing {
 }
 
 /// The plan held, as its peek names it.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct PlanId {
     pub plan_hash: String,
     /// Where the peek could read one.
@@ -86,27 +86,34 @@ impl Document {
             records: Vec::new(),
             sequence: None,
         };
-        let sent = Sent {
-            document_id,
-            generated_at,
-            windows_dropped,
-        };
-        Self::new(status, captured, sent)
+        Self::new(status, captured, document_id, generated_at, windows_dropped)
     }
 
-    pub(crate) fn capturing(captured: Captured, sent: Sent) -> Self {
-        Self::new(Status::Capturing, captured, sent)
+    pub(crate) fn capturing(
+        captured: Captured,
+        document_id: Uuid,
+        generated_at: SystemTime,
+        windows_dropped: u64,
+    ) -> Self {
+        let status = Status::Capturing;
+        Self::new(status, captured, document_id, generated_at, windows_dropped)
     }
 
-    fn new(status: Status, captured: Captured, sent: Sent) -> Self {
+    fn new(
+        status: Status,
+        captured: Captured,
+        document_id: Uuid,
+        generated_at: SystemTime,
+        windows_dropped: u64,
+    ) -> Self {
         let truncated = Truncated {
-            windows_dropped: sent.windows_dropped,
+            windows_dropped,
             ..captured.truncated
         };
         Self {
             schema_version: SCHEMA_VERSION,
-            generated_at: Timestamp(sent.generated_at),
-            document_id: sent.document_id,
+            generated_at: Timestamp(generated_at),
+            document_id,
             agent: captured.agent,
             status,
             plan_version: captured.plan_version,
@@ -119,15 +126,6 @@ impl Document {
             sequence: captured.sequence,
         }
     }
-}
-
-/// What the sender gives a document: its id, kept when it's sent again; when it was built; the
-/// windows dropped since the last one sent.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct Sent {
-    pub(crate) document_id: Uuid,
-    pub(crate) generated_at: SystemTime,
-    pub(crate) windows_dropped: u64,
 }
 
 /// What a window's document holds but what its sender gives and its status.
@@ -175,7 +173,7 @@ pub(crate) struct Truncated {
     pub(crate) calls_coarsened: u64,
     pub(crate) calls_dropped: u64,
     pub(crate) entries_skipped: u64,
-    pub(crate) body_unread: u64,
+    pub(crate) body_unread: BodyUnreadCounts,
     pub(crate) windows_dropped: u64,
     pub(crate) path_unresolved: u64,
     pub(crate) values_replaced: u64,
@@ -183,6 +181,19 @@ pub(crate) struct Truncated {
     /// Present exactly when the document has a sequence.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) steps_dropped: Option<u64>,
+}
+
+/// The calls an entry could have taken whose body's values weren't told, by why.
+#[derive(Debug, Default, Serialize)]
+pub(crate) struct BodyUnreadCounts {
+    pub(crate) past_cap: u64,
+    pub(crate) past_budget: u64,
+    pub(crate) not_sent: u64,
+    pub(crate) cut_short: u64,
+    pub(crate) not_json: u64,
+    pub(crate) batch: u64,
+    pub(crate) ambiguous: u64,
+    pub(crate) step_budget: u64,
 }
 
 #[derive(Debug, Serialize)]

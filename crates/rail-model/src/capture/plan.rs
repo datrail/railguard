@@ -28,7 +28,7 @@ pub struct Plan {
     pub schema_version: SchemaVersion,
     /// Changes with every field but itself and `generated_at`. It orders nothing.
     pub content_hash: String,
-    // `generated_at` goes here: nothing reads it yet.
+    // `generated_at` goes here: nothing reads it yet, and it needs a date type.
     pub agent: AgentId,
     pub plan_version: u64,
     /// The `REDACTION_VERSION` its paths were redacted with.
@@ -214,7 +214,7 @@ fn check_budget(budget: &PlanBudget) -> Result<(), String> {
     let steps = budget.max_steps_per_window;
     if steps != 0 && !(groups..=MAX_STEPS_PER_WINDOW).contains(&steps) {
         return Err(format!(
-            "max_steps_per_window is outside 0, and max_groups_per_window to {MAX_STEPS_PER_WINDOW}"
+            "max_steps_per_window is neither 0 nor max_groups_per_window to {MAX_STEPS_PER_WINDOW}"
         ));
     }
     if budget.max_unsent_windows > MAX_UNSENT_WINDOWS {

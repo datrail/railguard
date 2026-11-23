@@ -12,8 +12,10 @@ use super::call::{
     Taken, Untaken,
 };
 use super::compile::CompiledPlan;
-use super::document::{CallRecord, Captured, Document, HostTotal, Sent, Step, Truncated};
-use super::plan::{ContextKey, Record};
+use super::document::{
+    BodyUnreadCounts, CallRecord, Captured, Document, HostTotal, Step, Truncated,
+};
+use super::plan::{CatchAll, ContextKey, Record};
 use crate::body::{Unparsed, Unread};
 use crate::condition::BodyUnread;
 use crate::redaction::REDACTED;
@@ -51,9 +53,9 @@ pub struct Window {
     records: IndexMap<GroupKey, CallRecord>,
     /// Each host's calls, in the order first seen.
     hosts: IndexMap<String, u64>,
-    /// Up to the plan's `max_steps_per_window`: when each call was received, and its record.
+    /// Up to the plan's `max_steps_per_window`: the latest time a call was received by each, and
+    /// its record.
     steps: Vec<(SystemTime, usize)>,
-    max_steps: usize,
     /// The calls past it.
     steps_dropped: u64,
     /// The latest time a call was received, from the window's start: a clock stepped back
@@ -81,7 +83,6 @@ struct Written {
 
 impl Window {
     pub fn open(plan: Arc<CompiledPlan>, start: SystemTime) -> Self {
-        let max_steps = plan.plan().budget.max_steps_per_window as usize;
         let truncated = Truncated {
             entries_skipped: plan.entries_skipped() as u64,
             ..Truncated::default()
@@ -92,7 +93,6 @@ impl Window {
             records: IndexMap::new(),
             hosts: IndexMap::new(),
             steps: Vec::new(),
-            max_steps,
             steps_dropped: 0,
             latest: start,
             truncated,
@@ -107,15 +107,14 @@ impl Window {
         let mut reader = CallReader::new(&request_line, call);
         let taken = reader.take(&plan);
         let reason = body_unread_reason(&taken);
-        self.truncated.body_unread += u64::from(reason.is_some());
+        if let Some(reason) = reason {
+            count_body_unread(&mut self.truncated.body_unread, reason);
+        }
         let catch_all = &plan.plan().catch_all;
-        let (record_id, mut spec) = match &taken {
-            Taken::Entry(entry) => (&entry.id, &entry.record),
-            Taken::CatchAll(catch_all, _) => (&catch_all.id, &catch_all.record),
-        };
+        let (record_id, mut spec) = taken.record();
         let (values, mut written) = write(spec, &reader.read(spec), &request_line);
         let mut key = GroupKey {
-            record_id: record_id.clone(),
+            record_id: record_id.to_owned(),
             values,
         };
         let at_ceiling = self.records.len() >= plan.plan().budget.max_groups_per_window as usize;
@@ -140,14 +139,14 @@ impl Window {
                     measures: written.measures,
                     ..Written::default()
                 };
-                self.overflow()
+                self.overflow(catch_all)
             }
         };
         self.truncated.calls_coarsened += u64::from(coarsened);
         self.count_host(request_line.host(), coarsened);
         self.add(index, written);
         self.latest = self.latest.max(at);
-        if self.steps.len() < self.max_steps {
+        if self.steps.len() < plan.plan().budget.max_steps_per_window as usize {
             self.steps.push((self.latest, index));
         } else {
             self.steps_dropped += 1;
@@ -200,9 +199,10 @@ impl Window {
 
     // A host first seen in a coarsened call is totalled under the overflow marker.
     fn count_host(&mut self, host: &str, coarsened: bool) {
-        let host = match self.hosts.contains_key(host) {
-            false if coarsened => OVERFLOW,
-            _ => host,
+        let host = if coarsened && !self.hosts.contains_key(host) {
+            OVERFLOW
+        } else {
+            host
         };
         *self.hosts.entry(host.to_owned()).or_default() += 1;
     }
@@ -228,9 +228,7 @@ impl Window {
     }
 
     // The catch-all's one record past the ceiling, keeping only the host, as the overflow marker.
-    fn overflow(&mut self) -> usize {
-        let plan = Arc::clone(&self.plan);
-        let catch_all = &plan.plan().catch_all;
+    fn overflow(&mut self, catch_all: &CatchAll) -> usize {
         let key = GroupKey {
             record_id: catch_all.id.clone(),
             values: vec![Some(OVERFLOW.to_owned())],
@@ -288,17 +286,26 @@ impl ClosedWindow {
         generated_at: SystemTime,
         windows_dropped: u64,
     ) -> Document {
-        let sent = Sent {
-            document_id,
-            generated_at,
-            windows_dropped,
-        };
-        Document::capturing(self.0, sent)
+        Document::capturing(self.0, document_id, generated_at, windows_dropped)
     }
 }
 
 fn record_id(index: usize) -> String {
     format!("r{}", index + 1)
+}
+
+fn count_body_unread(counts: &mut BodyUnreadCounts, reason: BodyUnreadReason) {
+    let count = match reason {
+        BodyUnreadReason::PastCap => &mut counts.past_cap,
+        BodyUnreadReason::PastBudget => &mut counts.past_budget,
+        BodyUnreadReason::NotSent => &mut counts.not_sent,
+        BodyUnreadReason::CutShort => &mut counts.cut_short,
+        BodyUnreadReason::NotJson => &mut counts.not_json,
+        BodyUnreadReason::Batch => &mut counts.batch,
+        BodyUnreadReason::Ambiguous => &mut counts.ambiguous,
+        BodyUnreadReason::StepBudget => &mut counts.step_budget,
+    };
+    *count += 1;
 }
 
 fn body_unread_reason(taken: &Taken) -> Option<BodyUnreadReason> {

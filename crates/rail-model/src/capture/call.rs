@@ -44,11 +44,11 @@ pub enum Taken<'p> {
 }
 
 impl Taken<'_> {
-    /// The plan's record counting the call.
-    pub(crate) fn record(&self) -> &Record {
+    /// The plan's record counting the call, and its id.
+    pub(crate) fn record(&self) -> (&str, &Record) {
         match self {
-            Self::Entry(entry) => &entry.record,
-            Self::CatchAll(catch_all, _) => &catch_all.record,
+            Self::Entry(entry) => (&entry.id, &entry.record),
+            Self::CatchAll(catch_all, _) => (&catch_all.id, &catch_all.record),
         }
     }
 }
@@ -140,7 +140,7 @@ impl CompiledPlan {
         let request_line = RequestLine::read(&call.authority, &call.method, &call.path);
         let mut reader = CallReader::new(&request_line, call);
         let taken = reader.take(self);
-        let record = reader.read(taken.record());
+        let record = reader.read(taken.record().1);
         CapturedCall {
             request_line,
             taken,

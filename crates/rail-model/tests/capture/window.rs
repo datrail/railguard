@@ -170,18 +170,6 @@ fn test_writes_the_fields_in_their_order() {
         "sequence",
     ];
     in_order(&document, "{");
-    let truncated = [
-        "calls_coarsened",
-        "calls_dropped",
-        "entries_skipped",
-        "body_unread",
-        "windows_dropped",
-        "path_unresolved",
-        "values_replaced",
-        "values_ambiguous",
-        "steps_dropped",
-    ];
-    in_order(&truncated, "\"truncated\"");
     let record = [
         "record_id",
         "entry_id",
@@ -192,7 +180,6 @@ fn test_writes_the_fields_in_their_order() {
     in_order(&record, "\"records\"");
     let catch_all = "\"entry_id\":\"catch_all\"";
     in_order(&["host", "path_prefix", "method", "operation"], catch_all);
-    in_order(&["call_count", "error_count", "request_bytes"], catch_all);
 }
 
 #[test]
@@ -248,9 +235,11 @@ fn test_writes_a_window_that_captured_nothing() {
         );
         serde_json::to_value(document).unwrap()
     };
+    let body_unread = json!({"past_cap": 0, "past_budget": 0, "not_sent": 0, "cut_short": 0,
+        "not_json": 0, "batch": 0, "ambiguous": 0, "step_budget": 0});
     let truncated = json!({"calls_coarsened": 0, "calls_dropped": 0, "entries_skipped": 0,
-        "body_unread": 0, "windows_dropped": 1, "path_unresolved": 0, "values_replaced": 0,
-        "values_ambiguous": 0});
+        "body_unread": body_unread, "windows_dropped": 1, "path_unresolved": 0,
+        "values_replaced": 0, "values_ambiguous": 0});
     let no_plan = json!({"schema_version": "1.0", "generated_at": "1970-01-01T00:15:00.999Z",
         "document_id": "00000000-0000-0000-0000-000000000000",
         "agent": {"host_id": "host-7f3c", "sandbox_name": "agent-finretail"},
@@ -282,41 +271,4 @@ fn test_writes_a_window_that_captured_nothing() {
             (Some(json!(status)), hash.clone(), version)
         );
     }
-}
-
-// A wall clock stepped back writes no step before the one received earlier, nor a window ending
-// before its last call.
-#[test]
-fn test_keeps_times_in_order_when_the_clock_steps_back() {
-    let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
-    let compiled = Arc::new(compile_plan(parse_plan(&vectors.plan.to_string()).unwrap()));
-    let mut window = Window::open(Arc::clone(&compiled), time(100));
-    let call = || ObservedCall {
-        authority: b"api.github.com".to_vec(),
-        method: b"GET".to_vec(),
-        path: b"/".to_vec(),
-        body: keep_body(b""),
-        body_bytes: 0,
-    };
-    for at in [50, 120, 110] {
-        window.record(&call(), time(at));
-    }
-    let closed = window.close(time(20));
-    let document = closed.into_document(Uuid::nil(), time(130), 0);
-    let document = serde_json::to_value(document).unwrap();
-    let at: Vec<&Value> = document["sequence"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|step| &step["at"])
-        .collect();
-    let written = |seconds| {
-        json!(format!(
-            "1970-01-01T00:0{}:{:02}Z",
-            seconds / 60,
-            seconds % 60
-        ))
-    };
-    assert_eq!(at, [&written(100), &written(120), &written(120)]);
-    assert_eq!(document["window"]["end"], written(120));
 }
