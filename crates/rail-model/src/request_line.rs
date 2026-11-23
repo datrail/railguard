@@ -223,43 +223,11 @@ fn segment(path: &str, index: usize) -> Option<&str> {
 // As the URL standard parses `application/x-www-form-urlencoded`, which a query is read as.
 fn read_query(query: &[u8]) -> BTreeMap<String, Vec<Value>> {
     let mut parameters: BTreeMap<String, Vec<Value>> = BTreeMap::new();
-    for pair in query
-        .split(|&byte| byte == b'&')
-        .filter(|pair| !pair.is_empty())
-    {
-        let (name, value) = match pair.iter().position(|&byte| byte == b'=') {
-            Some(at) => (&pair[..at], &pair[at + 1..]),
-            None => (pair, &[][..]),
-        };
-        let value = Value::String(decode_form(value));
-        parameters.entry(decode_form(name)).or_default().push(value);
+    for (name, value) in form_urlencoded::parse(query) {
+        let value = Value::String(value.into_owned());
+        parameters.entry(name.into_owned()).or_default().push(value);
     }
     parameters
-}
-
-// A `%` not followed by two hex digits is kept as it is.
-fn decode_form(encoded: &[u8]) -> String {
-    let mut decoded = Vec::with_capacity(encoded.len());
-    let mut at = 0;
-    while at < encoded.len() {
-        let byte = match encoded[at] {
-            b'+' => b' ',
-            b'%' if let Some(byte) = encoded.get(at + 1..at + 3).and_then(decode_hex) => {
-                at += 2;
-                byte
-            }
-            byte => byte,
-        };
-        decoded.push(byte);
-        at += 1;
-    }
-    String::from_utf8_lossy(&decoded).into_owned()
-}
-
-fn decode_hex(digits: &[u8]) -> Option<u8> {
-    let [high, low] = digits else { return None };
-    let digit = |byte: u8| char::from(byte).to_digit(16);
-    u8::try_from(digit(*high)? * 16 + digit(*low)?).ok()
 }
 
 fn read_host(authority: &[u8]) -> HostReading {
