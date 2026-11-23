@@ -11,8 +11,8 @@ mod _native {
     use pyo3::types::{PyBytes, PyBytesMethods};
     use pyo3::{Bound, IntoPyObject, PyResult, pyclass, pyfunction};
     use rail_model::condition::{
-        Budget, Environment, Evaluation, Headers, Items, Lookup, Refusal, TicketClaimsSchema,
-        Verdict,
+        Budget, ConditionUse, Environment, Evaluation, Headers, Items, Lookup, Refusal,
+        TicketClaimsSchema, Verdict,
     };
     use rail_model::endpoint::Endpoint;
     use rail_model::policy::{
@@ -151,17 +151,31 @@ mod _native {
         Ok(write_json(&TicketReading { state, claims }))
     }
 
-    /// Every problem with the condition, as JSON text. The schema is the caller's, so a malformed
-    /// one raises.
+    /// Every problem with the condition, read for `read_for` (`policy` or `plan_match`), as JSON
+    /// text. The schema and the use are the caller's, so a malformed one raises.
     #[pyfunction]
-    #[pyo3(signature = (condition, *, ticket_claims_schema))]
-    fn check_condition(condition: &str, ticket_claims_schema: &str) -> PyResult<String> {
+    #[pyo3(signature = (condition, *, read_for, ticket_claims_schema))]
+    fn check_condition(
+        condition: &str,
+        read_for: &str,
+        ticket_claims_schema: &str,
+    ) -> PyResult<String> {
+        let read_for = match read_for {
+            "policy" => ConditionUse::Policy,
+            "plan_match" => ConditionUse::PlanMatch,
+            other => {
+                let other = sanitize(other);
+                return Err(PyValueError::new_err(format!(
+                    "read_for \"{other}\": not policy or plan_match"
+                )));
+            }
+        };
         let schema = serde_json::from_str(ticket_claims_schema)
             .map_err(|e| e.to_string())
             .and_then(|schema| TicketClaimsSchema::from_value(&schema))
             .map_err(|problem| PyValueError::new_err(format!("ticket claims schema: {problem}")))?;
         Ok(write_json(&rail_model::condition::check_condition(
-            condition, &schema,
+            condition, read_for, &schema,
         )))
     }
 

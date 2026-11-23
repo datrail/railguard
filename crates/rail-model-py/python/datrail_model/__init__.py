@@ -182,12 +182,16 @@ def compile_bundle(json: str) -> CompiledBundle | UnusableBundle:
 
 
 def check_condition(
-    condition: Any, *, ticket_claims_schema: Mapping[str, Any] | None = None
+    condition: Any,
+    *,
+    read_for: Literal["policy", "plan_match"] = "policy",
+    ticket_claims_schema: Mapping[str, Any] | None = None,
 ) -> ConditionCheck:
-    """Every problem with a condition, as found: first as a reader parses it, then as Rail Center
-    alone checks it.
+    """Every problem with a condition, read for a policy or a capture plan entry's match, as found:
+    first as a reader parses it, then as Rail Center alone checks it.
 
-    `ticket_claims_schema` defaults to `TICKET_CLAIMS_SCHEMA`. A malformed one raises `ValueError`.
+    `ticket_claims_schema` defaults to `TICKET_CLAIMS_SCHEMA`, and only a policy reads it. A malformed
+    one, or another `read_for`, raises `ValueError`.
     """
     schema_text = _write_schema(
         TICKET_CLAIMS_SCHEMA if ticket_claims_schema is None else ticket_claims_schema
@@ -201,7 +205,7 @@ def check_condition(
     except ValueError as error:
         # Such as an int past Python's digit limit.
         return ConditionCheck(problems=(_build_unreadable(str(error)),))
-    native = _native.check_condition(text, ticket_claims_schema=schema_text)
+    native = _native.check_condition(text, read_for=read_for, ticket_claims_schema=schema_text)
     problems = [
         ConditionProblem(**{**problem, "location": tuple(problem["location"])})
         for problem in json.loads(native)

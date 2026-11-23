@@ -95,6 +95,8 @@ enum Kind {
     /// A string, or a list of strings for a header sent with several values.
     Header,
     Object,
+    /// A body's value, which can be any.
+    Any,
 }
 
 /// The claims a ticket carries, which rules read: nested objects whose leaves are kinds.
@@ -155,11 +157,12 @@ fn read_node(value: &Value) -> Result<SchemaNode, String> {
     }
 }
 
-/// Every problem with a condition given as JSON text, in the order found: first as every reader
-/// parses it, then as only Rail Center checks it. None means every reader reads it, and Rail
-/// Center would publish it.
+/// Every problem with a condition given as JSON text, read for `read_for`, in the order found:
+/// first as every reader parses it, then as only Rail Center checks it. None means every reader
+/// reads it, and Rail Center would publish it. Only a policy reads `ticket_claims_schema`.
 pub fn check_condition(
     text: &str,
+    read_for: ConditionUse,
     ticket_claims_schema: &TicketClaimsSchema,
 ) -> Vec<ConditionProblem> {
     let condition: Value = match serde_json::from_str(text) {
@@ -187,7 +190,7 @@ pub fn check_condition(
         )];
     };
     let mut problems = Vec::new();
-    let parsed = check_grammar(fields, &mut problems);
+    let parsed = check_grammar(fields, read_for, &mut problems);
     check_authoring(&condition, parsed, ticket_claims_schema, &mut problems);
     problems
 }
@@ -203,6 +206,7 @@ struct Parsed<'a> {
 /// As a reader parses a condition: the op, then the path and the operand.
 fn check_grammar<'a>(
     fields: &'a Map<String, Value>,
+    read_for: ConditionUse,
     problems: &mut Vec<ConditionProblem>,
 ) -> Parsed<'a> {
     let op = fields.get("op").and_then(Value::as_str);
@@ -233,7 +237,7 @@ fn check_grammar<'a>(
     } else {
         ProblemScope::Enforcement
     };
-    let path = check_path(fields.get("path"), scope, problems);
+    let path = check_path(fields.get("path"), read_for, scope, problems);
     if let Some(op) = known_op
         && let Some(expected) = get_operand_shape(op)
         && !is_shaped(fields.get("value"), expected)
@@ -248,12 +252,31 @@ fn check_grammar<'a>(
             )
         });
     }
+    // An empty list holds for nothing, so in a plan, which pins what it records, it's a mistake.
+    if known_op == Some("in")
+        && read_for == ConditionUse::PlanMatch
+        && fields
+            .get("value")
+            .and_then(Value::as_array)
+            .is_some_and(Vec::is_empty)
+    {
+        problems.push(ConditionProblem {
+            expected_shape: Some(OperandShape::List),
+            ..build_problem(
+                loc!["value"],
+                ProblemCode::OperandShape,
+                ProblemScope::Enforcement,
+                "in takes at least one value in a plan's match".to_string(),
+            )
+        });
+    }
     Parsed { op: known_op, path }
 }
 
 // As a reader reads it: a dotted string, or a list.
 fn check_path(
     path: Option<&Value>,
+    read_for: ConditionUse,
     scope: ProblemScope,
     problems: &mut Vec<ConditionProblem>,
 ) -> Option<(String, Path)> {
@@ -279,21 +302,30 @@ fn check_path(
             return None;
         }
     };
-    let under_a_source = matches!(source, Some("ticket" | "request"));
-    if under_a_source && let Some(path) = read.filter(|path| ConditionUse::Policy.reads(path)) {
+    let sources: &[&str] = match read_for {
+        ConditionUse::Policy => &["ticket", "request"],
+        ConditionUse::PlanMatch | ConditionUse::PlanRecord => &["request"],
+    };
+    let under_a_source = source.is_some_and(|source| sources.contains(&source));
+    if under_a_source && let Some(path) = read.filter(|path| read_for.reads(path)) {
         return Some((text, path));
     }
     let shown = sanitize(&text);
     let (code, message) = if under_a_source {
         // Only a `request` path can fail: any `ticket` path is a policy's.
+        let reads = match read_for {
+            ConditionUse::Policy => "a request carries",
+            ConditionUse::PlanMatch => "a plan's match reads",
+            ConditionUse::PlanRecord => "a plan's record reads",
+        };
         (
             ProblemCode::UnknownPath,
-            format!("\"{shown}\": names nothing a request carries"),
+            format!("\"{shown}\": names nothing {reads}"),
         )
     } else {
         (
             ProblemCode::UnknownSource,
-            format!("\"{shown}\": not under ticket or request"),
+            format!("\"{shown}\": not under {}", sources.join(" or ")),
         )
     };
     problems.push(build_problem(loc!["path"], code, scope, message));
@@ -363,7 +395,16 @@ fn get_path_kind(
         Path::Request(RequestPath::Whole | RequestPath::Headers) => Ok(Kind::Object),
         Path::Request(RequestPath::EndpointKey) => Ok(Kind::String),
         Path::Request(RequestPath::Header(_)) => Ok(Kind::Header),
-        // Never reached: `check_path` keeps only a policy's paths.
+        Path::Request(
+            RequestPath::Host
+            | RequestPath::Method
+            | RequestPath::Path(None)
+            | RequestPath::RedactedPath(None)
+            | RequestPath::McpMethod
+            | RequestPath::McpTool,
+        ) => Ok(Kind::String),
+        Path::Request(RequestPath::Body(_)) => Ok(Kind::Any),
+        // Never reached: `check_path` keeps only the paths a condition's use reads.
         Path::Request(_) => Err(format!("\"{shown}\": names nothing a request carries")),
     }
 }
@@ -414,6 +455,7 @@ fn is_op_for(kind: Kind, op: &str) -> bool {
         Kind::String => &["eq", "ne", "in", "matches"],
         Kind::Number => &["eq", "ne", "lt", "lte", "gt", "gte", "in"],
         Kind::List | Kind::Header => &["eq", "ne", "in", "matches", "contains", "not_contains"],
+        Kind::Any => return true,
     };
     EXISTENCE_OPS.contains(&op) || ops.contains(&op)
 }
@@ -435,6 +477,8 @@ fn format_kind(kind: Kind) -> &'static str {
         Kind::List => "a list",
         Kind::Header => "a header",
         Kind::Object => "an object",
+        // Never: any op can hold for it.
+        Kind::Any => "any value",
     }
 }
 

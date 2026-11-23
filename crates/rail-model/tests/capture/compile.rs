@@ -1,8 +1,11 @@
 use std::collections::BTreeMap;
 
 use rail_model::capture::{CompiledPlan, EntryRefusal, compile_plan, parse_plan};
+use rail_model::condition::{
+    ConditionUse, ProblemCode, ProblemScope, TicketClaimsSchema, check_condition,
+};
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use super::patch;
 
@@ -58,13 +61,61 @@ fn test_vectors() {
     assert!(!vectors.cases.is_empty());
     let mut failures = Vec::new();
     for case in &vectors.cases {
-        let mut plan = vectors.plan.clone();
-        case.patch
-            .iter()
-            .for_each(|operation| patch(&mut plan, operation));
+        let plan = patched(&vectors, case);
         let compiled = compile_plan(parse_plan(&plan.to_string()).unwrap());
         for difference in compare(&compiled, &case.expect) {
             failures.push(format!("{}: {difference}", case.name));
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+fn patched(vectors: &Vectors, case: &Case) -> Value {
+    let mut plan = vectors.plan.clone();
+    case.patch
+        .iter()
+        .for_each(|operation| patch(&mut plan, operation));
+    plan
+}
+
+// Rail Center checks a condition as the proxy compiles it: the first an entry refuses is the first
+// every reader refuses, or whose op this one doesn't know.
+#[test]
+fn test_refuses_the_conditions_check_condition_says_every_reader_refuses() {
+    let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
+    let schema = TicketClaimsSchema::from_value(&json!({})).unwrap();
+    let refused_by_readers = |condition: &Value| {
+        check_condition(&condition.to_string(), ConditionUse::PlanMatch, &schema)
+            .iter()
+            .any(|problem| {
+                problem.scope == ProblemScope::Enforcement || problem.code == ProblemCode::UnknownOp
+            })
+    };
+    let mut failures = Vec::new();
+    for case in &vectors.cases {
+        let plan = patched(&vectors, case);
+        let compiled = compile_plan(parse_plan(&plan.to_string()).unwrap());
+        for (entry, written) in compiled
+            .plan()
+            .entries
+            .iter()
+            .zip(plan["entries"].as_array().unwrap())
+        {
+            let refused = compiled
+                .refused()
+                .find(|refused| refused.id() == entry.id)
+                .and_then(|refused| match refused.refusal() {
+                    Some(EntryRefusal::Condition { position, .. }) => Some(position),
+                    _ => None,
+                });
+            let first = written["match"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .position(refused_by_readers);
+            if first != refused {
+                failures.push(format!("{}: {}: {first:?}", case.name, entry.id));
+            }
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));

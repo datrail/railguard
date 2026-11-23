@@ -10,7 +10,8 @@ for CPython 3.12 or later.
 ## Entry points
 
 - **`validate_bundle`** says whether a policy bundle is usable;
-- **`check_condition`** reports every problem with a condition, and whether every reader refuses it or only Rail Center;
+- **`check_condition`** reports every problem with a condition, read for a policy or, with `read_for="plan_match"`, a
+  capture plan entry's match, and whether every reader refuses it or only Rail Center;
 - **`compile_bundle`** and **`judge_sample`** judge a sample call against a bundle and trace the policies evaluated; a
   refusal names its cause: `unknown_op`, `invalid`, `not_for_use` (a path a policy doesn't read) or `budget_exceeded`;
 - **`read_ticket`** reads an `x-rail` value into the claims `judge_sample` takes.
