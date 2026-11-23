@@ -30,10 +30,8 @@ pub struct Document {
     truncated: Truncated,
     hosts: Vec<HostTotal>,
     records: Vec<CallRecord>,
-    /// A capturing window's, empty under a plan asking for no steps; none for one that captured
-    /// nothing.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    sequence: Option<Vec<Step>>,
+    /// Empty for a window that captured nothing, or under a plan asking for no steps.
+    sequence: Vec<Step>,
 }
 
 /// Why a window captured nothing.
@@ -84,7 +82,7 @@ impl Document {
             truncated: Truncated::default(),
             hosts: Vec::new(),
             records: Vec::new(),
-            sequence: None,
+            sequence: Vec::new(),
         };
         Self::new(status, captured, document_id, generated_at, windows_dropped)
     }
@@ -139,7 +137,7 @@ pub(crate) struct Captured {
     pub(crate) truncated: Truncated,
     pub(crate) hosts: Vec<HostTotal>,
     pub(crate) records: Vec<CallRecord>,
-    pub(crate) sequence: Option<Vec<Step>>,
+    pub(crate) sequence: Vec<Step>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -178,9 +176,7 @@ pub(crate) struct Truncated {
     pub(crate) path_unresolved: u64,
     pub(crate) values_replaced: u64,
     pub(crate) values_ambiguous: u64,
-    /// Present exactly when the document has a sequence.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) steps_dropped: Option<u64>,
+    pub(crate) steps_dropped: u64,
 }
 
 /// The calls an entry could have taken whose body's values weren't told, by why.

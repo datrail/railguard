@@ -56,8 +56,6 @@ pub struct Window {
     /// Up to the plan's `max_steps_per_window`: the latest time a call was received by each, and
     /// its record.
     steps: Vec<(SystemTime, usize)>,
-    /// The calls past it.
-    steps_dropped: u64,
     /// The latest time a call was received, from the window's start: a clock stepped back
     /// mustn't write steps out of order.
     latest: SystemTime,
@@ -93,7 +91,6 @@ impl Window {
             records: IndexMap::new(),
             hosts: IndexMap::new(),
             steps: Vec::new(),
-            steps_dropped: 0,
             latest: start,
             truncated,
         }
@@ -149,7 +146,7 @@ impl Window {
         if self.steps.len() < plan.plan().budget.max_steps_per_window as usize {
             self.steps.push((self.latest, index));
         } else {
-            self.steps_dropped += 1;
+            self.truncated.steps_dropped += 1;
         }
         reason
     }
@@ -172,17 +169,13 @@ impl Window {
                 record_id: record_id(index),
             })
             .collect();
-        let truncated = Truncated {
-            steps_dropped: Some(self.steps_dropped),
-            ..self.truncated
-        };
         ClosedWindow(Captured {
             agent: plan.agent.clone(),
             plan_version: Some(plan.plan_version),
             plan_hash: Some(plan.content_hash.clone()),
             start: self.start,
             end,
-            truncated,
+            truncated: self.truncated,
             hosts: self
                 .hosts
                 .into_iter()
@@ -193,7 +186,7 @@ impl Window {
                 })
                 .collect(),
             records: self.records.into_values().collect(),
-            sequence: Some(sequence),
+            sequence,
         })
     }
 

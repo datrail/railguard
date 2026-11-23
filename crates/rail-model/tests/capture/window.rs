@@ -190,13 +190,13 @@ fn test_writes_a_window_that_captured_nothing() {
         "not_json": 0, "batch": 0, "ambiguous": 0, "step_budget": 0});
     let truncated = json!({"calls_coarsened": 0, "calls_dropped": 0, "entries_skipped": 0,
         "body_unread": body_unread, "windows_dropped": 1, "path_unresolved": 0,
-        "values_replaced": 0, "values_ambiguous": 0});
+        "values_replaced": 0, "values_ambiguous": 0, "steps_dropped": 0});
     let no_plan = json!({"schema_version": "1.0", "generated_at": "1970-01-01T00:15:00.999Z",
         "document_id": "00000000-0000-0000-0000-000000000000",
         "agent": {"host_id": "host-7f3c", "sandbox_name": "agent-finretail"},
         "status": "no_plan", "redaction_version": 1,
         "window": {"start": "1970-01-01T00:00:00.5Z", "end": "1970-01-01T00:15:00Z"},
-        "truncated": truncated, "hosts": [], "records": []});
+        "truncated": truncated, "hosts": [], "records": [], "sequence": []});
     assert_eq!(write(NotCapturing::NoPlan), no_plan);
     // A plan held is named, its version where the peek read one.
     let named = |document: Value| {
