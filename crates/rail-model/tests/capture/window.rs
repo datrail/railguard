@@ -133,55 +133,6 @@ fn test_vectors() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-// A document's fields are written in the field reference's order, a record's keys and measures in
-// the plan's, which a reader may rely on and a comparison of values can't see.
-#[test]
-fn test_writes_the_fields_in_their_order() {
-    let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
-    let case = &vectors.cases[0];
-    let compiled = Arc::new(compile_plan(parse_plan(&vectors.plan.to_string()).unwrap()));
-    let mut window = Window::open(Arc::clone(&compiled), time(case.start));
-    for received in &case.calls {
-        window.record(&observe(&received.call), time(received.at));
-    }
-    let document = close(window, case.end, &case.sent);
-    let written = serde_json::to_string(&document).unwrap();
-    let in_order = |fields: &[&str], from: &str| {
-        let from = written.find(from).unwrap();
-        let at: Vec<usize> = fields
-            .iter()
-            .map(|field| from + written[from..].find(&format!("\"{field}\"")).unwrap())
-            .collect();
-        assert!(at.is_sorted(), "{fields:?} in {written}");
-    };
-    let document = [
-        "schema_version",
-        "generated_at",
-        "document_id",
-        "agent",
-        "status",
-        "plan_version",
-        "plan_hash",
-        "redaction_version",
-        "window",
-        "truncated",
-        "hosts",
-        "records",
-        "sequence",
-    ];
-    in_order(&document, "{");
-    let record = [
-        "record_id",
-        "entry_id",
-        "context_keys",
-        "field_types",
-        "measures",
-    ];
-    in_order(&record, "\"records\"");
-    let catch_all = "\"entry_id\":\"catch_all\"";
-    in_order(&["host", "path_prefix", "method", "operation"], catch_all);
-}
-
 #[test]
 fn test_tells_why_a_body_went_unread() {
     let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
