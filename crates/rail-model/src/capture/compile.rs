@@ -22,17 +22,17 @@ pub struct CompiledPlan {
     entries_skipped: usize,
 }
 
-/// An entry compiled for matching, its conditions split so the request line is read first.
+/// An entry compiled for matching.
 #[derive(Debug)]
 pub struct CompiledEntry {
     id: String,
     refusal: Option<EntryRefusal>,
     /// The host its conditions require, if they do.
     host: Option<String>,
+    /// Its "and", the request line's before the body's, each in plan order: the body is read only
+    /// for an entry the request line fits.
     #[expect(dead_code, reason = "read by matching a call, still to come")]
-    request_line: Vec<CompiledCondition>,
-    #[expect(dead_code, reason = "read by matching a call, still to come")]
-    body: Vec<CompiledCondition>,
+    conditions: Vec<CompiledCondition>,
 }
 
 /// Why an entry takes no call: a condition in its `match` can't be evaluated. A call whose walk
@@ -134,8 +134,7 @@ pub fn compile_plan(plan: Plan) -> CompiledPlan {
 fn compile_entry(entry: &Entry) -> CompiledEntry {
     let mut refusal = None;
     let mut host = None;
-    let mut request_line = Vec::new();
-    let mut body = Vec::new();
+    let mut conditions = Vec::with_capacity(entry.conditions.len());
     for (position, condition) in entry.conditions.iter().enumerate() {
         let compiled = compile_condition(condition, ConditionUse::CapturePlan);
         if refusal.is_none()
@@ -150,17 +149,14 @@ fn compile_entry(entry: &Entry) -> CompiledEntry {
         if host.is_none() {
             host = compiled.implied_host().map(str::to_string);
         }
-        if compiled.reads_the_body() {
-            body.push(compiled);
-        } else {
-            request_line.push(compiled);
-        }
+        conditions.push(compiled);
     }
+    // Stable, so a group keeps plan order; the refusal's location is already taken from it.
+    conditions.sort_by_key(CompiledCondition::reads_the_body);
     CompiledEntry {
         id: entry.id.clone(),
         refusal,
         host,
-        request_line,
-        body,
+        conditions,
     }
 }
