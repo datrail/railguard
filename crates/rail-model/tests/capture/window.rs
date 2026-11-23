@@ -4,8 +4,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use rail_model::agent::AgentId;
 use rail_model::body::{BodyRead, Unread};
 use rail_model::capture::{
-    BodyUnreadReason, Document, Envelope, NotCapturing, ObservedCall, PlanNamed, Window,
-    compile_plan, parse_plan,
+    BodyUnreadReason, Document, NotCapturing, ObservedCall, PlanId, Window, compile_plan,
+    parse_plan,
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -31,7 +31,7 @@ struct Case {
     calls: Vec<Received>,
     #[serde(default)]
     calls_dropped: u64,
-    envelope: Sent,
+    sent: Sent,
     expect: Value,
 }
 
@@ -101,12 +101,11 @@ fn observe(call: &Call) -> ObservedCall {
     }
 }
 
-fn envelope(sent: &Sent) -> Envelope {
-    Envelope {
-        document_id: sent.document_id,
-        generated_at: time(sent.generated_at),
-        windows_dropped: sent.windows_dropped,
-    }
+// What the sender gives a document.
+fn close(window: Window, end: u64, sent: &Sent) -> Document {
+    let generated_at = time(sent.generated_at);
+    let closed = window.close(time(end));
+    closed.into_document(sent.document_id, generated_at, sent.windows_dropped)
 }
 
 #[test]
@@ -125,9 +124,7 @@ fn test_vectors() {
         for received in &case.calls {
             window.record(&observe(&received.call), time(received.at));
         }
-        let document = window
-            .close(time(case.end))
-            .into_document(envelope(&case.envelope));
+        let document = close(window, case.end, &case.sent);
         let written = serde_json::to_value(&document).unwrap();
         if written != case.expect {
             failures.push(format!("{}: {written}", case.name));
@@ -147,9 +144,7 @@ fn test_writes_the_fields_in_their_order() {
     for received in &case.calls {
         window.record(&observe(&received.call), time(received.at));
     }
-    let document = window
-        .close(time(case.end))
-        .into_document(envelope(&case.envelope));
+    let document = close(window, case.end, &case.sent);
     let written = serde_json::to_string(&document).unwrap();
     let in_order = |fields: &[&str], from: &str| {
         let from = written.find(from).unwrap();
@@ -234,29 +229,33 @@ fn test_writes_a_window_that_captured_nothing() {
         host_id: "host-7f3c".into(),
         sandbox_name: "agent-finretail".into(),
     };
-    // Sub-second times are written to the second.
-    let envelope = Envelope {
-        document_id: Uuid::nil(),
-        generated_at: time(900) + Duration::from_millis(999),
-        windows_dropped: 1,
-    };
-    let plan = |plan_version| PlanNamed {
+    // A time is written to the nanosecond the clock gives.
+    let generated_at = time(900) + Duration::from_millis(999);
+    let plan = |plan_version| PlanId {
         plan_hash: "sha256:ab".into(),
         plan_version,
     };
     let write = |why| {
         let start = time(0) + Duration::from_millis(500);
-        let document = Document::not_capturing(why, agent.clone(), start, time(900), envelope);
+        let document = Document::not_capturing(
+            why,
+            agent.clone(),
+            start,
+            time(900),
+            Uuid::nil(),
+            generated_at,
+            1,
+        );
         serde_json::to_value(document).unwrap()
     };
     let truncated = json!({"calls_coarsened": 0, "calls_dropped": 0, "entries_skipped": 0,
         "body_unread": 0, "windows_dropped": 1, "path_unresolved": 0, "values_replaced": 0,
         "values_ambiguous": 0});
-    let no_plan = json!({"schema_version": "1.0", "generated_at": "1970-01-01T00:15:00Z",
+    let no_plan = json!({"schema_version": "1.0", "generated_at": "1970-01-01T00:15:00.999Z",
         "document_id": "00000000-0000-0000-0000-000000000000",
         "agent": {"host_id": "host-7f3c", "sandbox_name": "agent-finretail"},
         "status": "no_plan", "redaction_version": 1,
-        "window": {"start": "1970-01-01T00:00:00Z", "end": "1970-01-01T00:15:00Z"},
+        "window": {"start": "1970-01-01T00:00:00.5Z", "end": "1970-01-01T00:15:00Z"},
         "truncated": truncated, "hosts": [], "records": []});
     assert_eq!(write(NotCapturing::NoPlan), no_plan);
     // A plan held is named, its version where the peek read one.
@@ -302,12 +301,9 @@ fn test_keeps_times_in_order_when_the_clock_steps_back() {
     for at in [50, 120, 110] {
         window.record(&call(), time(at));
     }
-    let envelope = Envelope {
-        document_id: Uuid::nil(),
-        generated_at: time(130),
-        windows_dropped: 0,
-    };
-    let document = serde_json::to_value(window.close(time(20)).into_document(envelope)).unwrap();
+    let closed = window.close(time(20));
+    let document = closed.into_document(Uuid::nil(), time(130), 0);
+    let document = serde_json::to_value(document).unwrap();
     let at: Vec<&Value> = document["sequence"]
         .as_array()
         .unwrap()

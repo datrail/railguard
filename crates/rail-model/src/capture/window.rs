@@ -5,19 +5,20 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::SystemTime;
 
+use uuid::Uuid;
+
 use super::call::{
     CallReader, KeptValue, KeyReading, MeasureReading, ObservedCall, PathReading, RecordReading,
     Taken, Untaken,
 };
 use super::compile::CompiledPlan;
-use super::document::{
-    CallRecord, Captured, Document, Envelope, Fields, HostTotal, Step, Timestamp, Truncated,
-};
+use super::document::{CallRecord, Captured, Document, Fields, HostTotal, Sent, Step, Truncated};
 use super::plan::{ContextKey, Record};
 use crate::body::{Unparsed, Unread};
 use crate::condition::BodyUnread;
 use crate::redaction::REDACTED;
 use crate::request_line::{HostReading, ReportedMethod, RequestLine};
+use crate::timestamp::Timestamp;
 
 // What a value that can't be told is written as.
 const AMBIGUOUS: &str = "[ambiguous]";
@@ -283,8 +284,20 @@ impl Window {
 pub struct ClosedWindow(Captured);
 
 impl ClosedWindow {
-    pub fn into_document(self, envelope: Envelope) -> Document {
-        Document::capturing(self.0, envelope)
+    /// Given its id, kept when it's sent again; when it was built; and the windows dropped since
+    /// the last one sent.
+    pub fn into_document(
+        self,
+        document_id: Uuid,
+        generated_at: SystemTime,
+        windows_dropped: u64,
+    ) -> Document {
+        let sent = Sent {
+            document_id,
+            generated_at,
+            windows_dropped,
+        };
+        Document::capturing(self.0, sent)
     }
 }
 

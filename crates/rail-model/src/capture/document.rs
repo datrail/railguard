@@ -1,16 +1,15 @@
 //! The call record document a window becomes, serialize-only, its fields in the field reference's
 //! order.
 
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::SystemTime;
 
-use serde::ser::{Error, SerializeMap};
+use serde::ser::SerializeMap;
 use serde::{Serialize, Serializer};
-use time::OffsetDateTime;
-use time::format_description::well_known::Rfc3339;
 use uuid::Uuid;
 
 use crate::agent::AgentId;
 use crate::redaction::REDACTION_VERSION;
+use crate::timestamp::Timestamp;
 
 const SCHEMA_VERSION: &str = "1.0";
 
@@ -35,45 +34,38 @@ pub struct Document {
     sequence: Option<Vec<Step>>,
 }
 
-/// What the sender gives a document when it queues it: none of it depends on the window.
-#[derive(Clone, Copy, Debug)]
-pub struct Envelope {
-    /// Kept when the document is sent again.
-    pub document_id: Uuid,
-    pub generated_at: SystemTime,
-    /// Whole windows dropped since the last one sent.
-    pub windows_dropped: u64,
-}
-
 /// Why a window captured nothing.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NotCapturing {
     /// Rail Center said there's no plan.
     NoPlan,
     /// A plan of a `schema_version` this reader doesn't know.
-    PlanUnknown(PlanNamed),
+    PlanUnknown(PlanId),
     /// A plan this reader refuses.
-    PlanInvalid(PlanNamed),
+    PlanInvalid(PlanId),
     /// A plan redacted by another version of the redaction rule.
-    RedactionMismatch(PlanNamed),
+    RedactionMismatch(PlanId),
 }
 
 /// The plan held, as its peek names it.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PlanNamed {
+pub struct PlanId {
     pub plan_hash: String,
     /// Where the peek could read one.
     pub plan_version: Option<u64>,
 }
 
 impl Document {
-    /// A window that captured nothing, and why.
+    /// A window that captured nothing, and why; given what a capturing window's document is given
+    /// in [`ClosedWindow::into_document`](super::ClosedWindow::into_document).
     pub fn not_capturing(
         why: NotCapturing,
         agent: AgentId,
         start: SystemTime,
         end: SystemTime,
-        envelope: Envelope,
+        document_id: Uuid,
+        generated_at: SystemTime,
+        windows_dropped: u64,
     ) -> Self {
         let (status, plan) = match why {
             NotCapturing::NoPlan => (Status::NoPlan, None),
@@ -92,22 +84,27 @@ impl Document {
             records: Vec::new(),
             sequence: None,
         };
-        Self::new(status, captured, envelope)
+        let sent = Sent {
+            document_id,
+            generated_at,
+            windows_dropped,
+        };
+        Self::new(status, captured, sent)
     }
 
-    pub(crate) fn capturing(captured: Captured, envelope: Envelope) -> Self {
-        Self::new(Status::Capturing, captured, envelope)
+    pub(crate) fn capturing(captured: Captured, sent: Sent) -> Self {
+        Self::new(Status::Capturing, captured, sent)
     }
 
-    fn new(status: Status, captured: Captured, envelope: Envelope) -> Self {
+    fn new(status: Status, captured: Captured, sent: Sent) -> Self {
         let truncated = Truncated {
-            windows_dropped: envelope.windows_dropped,
+            windows_dropped: sent.windows_dropped,
             ..captured.truncated
         };
         Self {
             schema_version: SCHEMA_VERSION,
-            generated_at: Timestamp(envelope.generated_at),
-            document_id: envelope.document_id,
+            generated_at: Timestamp(sent.generated_at),
+            document_id: sent.document_id,
             agent: captured.agent,
             status,
             plan_version: captured.plan_version,
@@ -122,7 +119,16 @@ impl Document {
     }
 }
 
-/// What a window's document holds but its envelope and status.
+/// What the sender gives a document: its id, kept when it's sent again; when it was built; the
+/// windows dropped since the last one sent.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Sent {
+    pub(crate) document_id: Uuid,
+    pub(crate) generated_at: SystemTime,
+    pub(crate) windows_dropped: u64,
+}
+
+/// What a window's document holds but what its sender gives and its status.
 #[derive(Debug)]
 pub(crate) struct Captured {
     pub(crate) agent: AgentId,
@@ -218,25 +224,5 @@ impl<T: Serialize> Serialize for Fields<T> {
             map.serialize_entry(name, value)?;
         }
         map.end()
-    }
-}
-
-/// RFC 3339 in UTC, `Z`, whole seconds; a time before 1970 or past 9999 is an error.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct Timestamp(pub(crate) SystemTime);
-
-impl Serialize for Timestamp {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        // Checked: a clock far off would panic `time`'s `From<SystemTime>`.
-        let seconds = self
-            .0
-            .duration_since(UNIX_EPOCH)
-            .map_err(S::Error::custom)?;
-        let seconds = i64::try_from(seconds.as_secs()).map_err(S::Error::custom)?;
-        let written = OffsetDateTime::from_unix_timestamp(seconds)
-            .map_err(S::Error::custom)?
-            .format(&Rfc3339)
-            .map_err(S::Error::custom)?;
-        serializer.serialize_str(&written)
     }
 }

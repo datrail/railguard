@@ -59,9 +59,11 @@ By module:
   calls captured between two times: grouped into call records by their record and its context keys' values, up to the
   plan's group ceiling (past it, an entry's new group in the catch-all, a catch-all's in its `[overflow]` record), with
   each host's total and, where the plan asks for it, the calls' order. **`close`** gives a **`ClosedWindow`**, which the
-  sender's **`Envelope`** (the document's id, when it was built, the windows dropped before it) makes the call record
-  **`Document`**; **`Document::not_capturing`** writes a window that captured nothing, and why (**`NotCapturing`**).
+  sender makes the call record **`Document`**, given its id, when it was built and the windows dropped before it;
+  **`Document::not_capturing`** writes a window that captured nothing, and why (**`NotCapturing`**).
 - **`schema_version`:** **`SchemaVersion`**, a document's `MAJOR.MINOR`, a bundle's or a plan's.
+- **`timestamp`:** **`Timestamp`**, a moment as Rail Center's documents write one: RFC 3339 in UTC, `Z`, to the
+  nanosecond the clock gives.
 - **`request_line`:** **`RequestLine::read`** reads a call's `:authority`, `:method` and `:path` once, as conditions
   read them under `request`: the host as `split_authority` spells it, or `[unparseable]`; the path up to its query or
   fragment (`/` for a `CONNECT`), as received and redacted, its segments, and its query, read as a form's. It also tells
