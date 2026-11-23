@@ -11,6 +11,7 @@ pub use check::{
 };
 pub(crate) use environment::TicketClaims;
 pub use environment::{Environment, Headers};
+pub(crate) use evaluate::resolve_path;
 pub use evaluate::{
     BodyUnread, Budget, CompiledCondition, DEFAULT_STEP_LIMIT, Evaluation, Items, Lookup, Refusal,
     Verdict, compile_condition, evaluate_condition,

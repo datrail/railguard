@@ -31,7 +31,6 @@ pub struct CompiledEntry {
     host: Option<String>,
     /// Its "and", the request line's before the body's, each in plan order: the body is read only
     /// for an entry the request line fits.
-    #[expect(dead_code, reason = "read by matching a call, still to come")]
     conditions: Vec<CompiledCondition>,
 }
 
@@ -54,6 +53,10 @@ impl CompiledEntry {
     pub fn refusal(&self) -> Option<&EntryRefusal> {
         self.refusal.as_ref()
     }
+
+    pub(crate) fn conditions(&self) -> &[CompiledCondition] {
+        &self.conditions
+    }
 }
 
 impl CompiledPlan {
@@ -73,8 +76,10 @@ impl CompiledPlan {
     }
 
     /// The entries a call to `host` is tried against, in plan order, the last refused if one is.
-    #[expect(dead_code, reason = "read by matching a call, still to come")]
-    pub(crate) fn entries_for<'a>(&'a self, host: &str) -> impl Iterator<Item = &'a CompiledEntry> {
+    pub(crate) fn entries_for<'a>(
+        &'a self,
+        host: &str,
+    ) -> impl Iterator<Item = (&'a Entry, &'a CompiledEntry)> {
         let own = self.hosts.get(host).map_or(&[][..], Vec::as_slice);
         let (mut own, mut any) = (own.iter().peekable(), self.any_host.iter().peekable());
         // The two lists merged in plan order, each index in one of them only.
@@ -84,8 +89,8 @@ impl CompiledPlan {
         });
         let mut ended = false;
         merged
-            .map(|&index| &self.entries[index])
-            .take_while(move |entry| !std::mem::replace(&mut ended, entry.refusal.is_some()))
+            .map(|&index| (&self.plan.entries[index], &self.entries[index]))
+            .take_while(move |(_, entry)| !std::mem::replace(&mut ended, entry.refusal.is_some()))
     }
 }
 

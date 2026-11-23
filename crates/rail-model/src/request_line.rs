@@ -2,7 +2,10 @@
 //! and what a call record reports of it.
 
 use std::borrow::Cow;
+use std::collections::BTreeMap;
 use std::fmt;
+
+use serde_json::Value;
 
 use crate::authority::split_authority;
 use crate::redaction::redact_path;
@@ -27,6 +30,8 @@ pub struct RequestLine {
     path: String,
     path_lossy: bool,
     redacted_path: String,
+    /// Each parameter's values by its name, both decoded, in the order sent.
+    query: BTreeMap<String, Vec<Value>>,
 }
 
 /// How a call's host was read.
@@ -75,15 +80,22 @@ impl ReportedMethod {
 
 impl RequestLine {
     /// From a call's `:authority`, `:method` and `:path` as sent: the path up to its first `?` or
-    /// `#`, and `/` for a `CONNECT`.
+    /// `#`, the query between them, and `/` with no query for a `CONNECT`.
     pub fn read(authority: &[u8], method: &[u8], path: &[u8]) -> Self {
         let host = read_host(authority);
         let method = String::from_utf8_lossy(method).into_owned();
-        let path = if method == "CONNECT" { b"/" } else { path };
-        let path = path
-            .split(|byte| matches!(byte, b'?' | b'#'))
-            .next()
-            .unwrap_or_default();
+        let target = if method == "CONNECT" { b"/" } else { path };
+        let end = target
+            .iter()
+            .position(|byte| matches!(byte, b'?' | b'#'))
+            .unwrap_or(target.len());
+        let (path, rest) = target.split_at(end);
+        let query = match rest.split_first() {
+            Some((b'?', rest)) => {
+                read_query(rest.split(|&byte| byte == b'#').next().unwrap_or_default())
+            }
+            _ => BTreeMap::new(),
+        };
         let path = String::from_utf8_lossy(path);
         // Borrowed exactly when the bytes are UTF-8.
         let path_lossy = matches!(path, Cow::Owned(_));
@@ -94,6 +106,7 @@ impl RequestLine {
             redacted_path: redact_path(&path),
             path,
             path_lossy,
+            query,
         }
     }
 
@@ -123,6 +136,25 @@ impl RequestLine {
     /// The path by RailMon's redaction rule, as Rail Center writes a plan's paths.
     pub fn redacted_path(&self) -> &str {
         &self.redacted_path
+    }
+
+    /// The path's segment at `index`, from 0, empty segments skipped as the redaction rule skips
+    /// them, so it's the redacted path's segment at the same index.
+    pub fn path_segment(&self, index: usize) -> Option<&str> {
+        segment(&self.path, index)
+    }
+
+    /// The redacted path's segment at `index`, from 0: `[redacted]` for one that looked like a
+    /// secret.
+    pub fn redacted_path_segment(&self, index: usize) -> Option<&str> {
+        segment(&self.redacted_path, index)
+    }
+
+    /// A query parameter's values, as strings, in the order sent: none if it isn't sent. Names
+    /// and values decoded as a form's are (`+` a space, then percent-decoded), bytes that aren't
+    /// UTF-8 replaced.
+    pub fn query_values(&self, name: &str) -> &[Value] {
+        self.query.get(name).map_or(&[], Vec::as_slice)
     }
 
     /// Why the path matches no plan entry, if it can't. On the path as received, before redaction.
@@ -181,6 +213,56 @@ impl fmt::Debug for RequestLine {
             .field("redacted_path", &self.redacted_path)
             .finish_non_exhaustive()
     }
+}
+
+fn segment(path: &str, index: usize) -> Option<&str> {
+    path.split('/')
+        .filter(|segment| !segment.is_empty())
+        .nth(index)
+}
+
+// As the URL standard parses `application/x-www-form-urlencoded`, which a query is read as.
+fn read_query(query: &[u8]) -> BTreeMap<String, Vec<Value>> {
+    let mut parameters: BTreeMap<String, Vec<Value>> = BTreeMap::new();
+    for pair in query
+        .split(|&byte| byte == b'&')
+        .filter(|pair| !pair.is_empty())
+    {
+        let (name, value) = match pair.iter().position(|&byte| byte == b'=') {
+            Some(at) => (&pair[..at], &pair[at + 1..]),
+            None => (pair, &[][..]),
+        };
+        let value = Value::String(decode_form(value));
+        parameters.entry(decode_form(name)).or_default().push(value);
+    }
+    parameters
+}
+
+// A `%` not followed by two hex digits is kept as it is.
+fn decode_form(encoded: &[u8]) -> String {
+    let mut decoded = Vec::with_capacity(encoded.len());
+    let mut at = 0;
+    while at < encoded.len() {
+        let byte = match encoded[at] {
+            b'+' => b' ',
+            b'%' if let Some(byte) = encoded.get(at + 1..at + 3).and_then(decode_hex) => {
+                at += 2;
+                byte
+            }
+            byte => byte,
+        };
+        decoded.push(byte);
+        at += 1;
+    }
+    String::from_utf8_lossy(&decoded).into_owned()
+}
+
+fn decode_hex(digits: &[u8]) -> Option<u8> {
+    let text = std::str::from_utf8(digits).ok()?;
+    if !text.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return None;
+    }
+    u8::from_str_radix(text, 16).ok()
 }
 
 fn read_host(authority: &[u8]) -> HostReading {

@@ -53,7 +53,7 @@ fn looks_like_secret_segment(segment: &str) -> bool {
 }
 
 // Whether the whole value is a credential in a shape some vendor issues.
-fn is_secret_token(value: &str) -> bool {
+pub(crate) fn is_secret_token(value: &str) -> bool {
     SECRET_SHAPES.iter().any(|shape| shape.matches(value))
 }
 
