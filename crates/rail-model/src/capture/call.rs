@@ -150,6 +150,25 @@ impl CompiledPlan {
         }
     }
 
+    /// What the catch-all's record reads of `call`, which an entry took past the group ceiling.
+    pub(crate) fn read_catch_all(
+        &self,
+        call: &ObservedCall,
+        request_line: &RequestLine,
+    ) -> RecordReading {
+        let environment = Environment::for_capture(request_line, &call.body);
+        // Its keys and measures read no path a budget charges.
+        let mut budget = Budget::default();
+        let record = &self.plan().catch_all.record;
+        read_record(
+            record,
+            request_line,
+            &environment,
+            call.body_bytes,
+            &mut budget,
+        )
+    }
+
     // The first entry taking the call, unless the walk stops first.
     fn walk(
         &self,

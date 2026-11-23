@@ -54,7 +54,12 @@ By module:
   it, its path can't match one, or its walk stopped at an entry refused, one whose conditions read a body value that
   can't be told or a body unread, or one that spent the step budget); and what that record, the entry's or the
   catch-all's, reads of the call (**`RecordReading`**, each key and measure the plan lists, each path's finding kept
-  apart: a value, nothing, one that can't be told, a body unread, the step budget spent).
+  apart: a value, nothing, one that can't be told, a body unread, the step budget spent). A **`Window`** counts the
+  calls captured between two times: grouped into call records by their record and its context keys' values, up to the
+  plan's group ceiling (past it, an entry's new group in the catch-all, a catch-all's in its `[overflow]` record), with
+  each host's total and the calls' order. **`close`** gives a **`ClosedWindow`**, which the sender's **`Envelope`** (the
+  document's id, when it was built, the windows dropped before it) makes the call record **`Document`**;
+  **`Document::not_capturing`** writes a window that captured nothing, and why (**`NotCapturing`**).
 - **`schema_version`:** **`SchemaVersion`**, a document's `MAJOR.MINOR`, a bundle's or a plan's.
 - **`request_line`:** **`RequestLine::read`** reads a call's `:authority`, `:method` and `:path` once, as conditions
   read them under `request`: the host as `split_authority` spells it, or `[unparseable]`; the path up to its query or

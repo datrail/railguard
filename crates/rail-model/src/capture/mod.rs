@@ -2,7 +2,9 @@
 
 mod call;
 mod compile;
+mod document;
 mod plan;
+mod window;
 
 pub use call::{
     CapturedCall, KeptValue, KeyReading, MeasureReading, ObservedCall, PathReading, RecordReading,
@@ -10,7 +12,9 @@ pub use call::{
 };
 pub use compile::{CompiledEntry, CompiledPlan, EntryRefusal, compile_plan};
 
+pub use document::{Document, Envelope, NotCapturing, PlanNamed};
 pub use plan::{
     CatchAll, Combine, ContextKey, Entry, Function, InvalidPlan, Measure, OnMaxGroups, Plan,
     PlanBudget, Record, parse_plan,
 };
+pub use window::{BodyUnreadReason, ClosedWindow, Window};
