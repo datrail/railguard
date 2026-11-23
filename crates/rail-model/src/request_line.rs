@@ -1,5 +1,6 @@
 //! A call's request line, read once, its host and path spelled one way wherever they're compared,
-//! and what a call record reports of it.
+//! its path's segments and its query read as a record reads them, and what a call record reports
+//! of it.
 
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -8,7 +9,7 @@ use std::fmt;
 use serde_json::Value;
 
 use crate::authority::split_authority;
-use crate::redaction::redact_path;
+use crate::redaction::{redact_path, segments};
 
 // What a host that can't be read reads as, compared and reported.
 const UNPARSEABLE: &str = "[unparseable]";
@@ -23,7 +24,7 @@ const STANDARD_METHODS: [&str; 9] = [
     "GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH",
 ];
 
-/// A call's host, method and path, as conditions read them under `request`.
+/// A call's host, method, path and query, as conditions and records read them under `request`.
 pub struct RequestLine {
     host: HostReading,
     method: String,
@@ -140,20 +141,20 @@ impl RequestLine {
 
     /// The path's segment at `index`, from 0, empty segments skipped as the redaction rule skips
     /// them, so it's the redacted path's segment at the same index.
-    pub fn path_segment(&self, index: usize) -> Option<&str> {
+    pub(crate) fn path_segment(&self, index: usize) -> Option<&str> {
         segment(&self.path, index)
     }
 
     /// The redacted path's segment at `index`, from 0: `[redacted]` for one that looked like a
     /// secret.
-    pub fn redacted_path_segment(&self, index: usize) -> Option<&str> {
+    pub(crate) fn redacted_path_segment(&self, index: usize) -> Option<&str> {
         segment(&self.redacted_path, index)
     }
 
     /// A query parameter's values, as strings, in the order sent: none if it isn't sent. Names
     /// and values decoded as a form's are (`+` a space, then percent-decoded), bytes that aren't
     /// UTF-8 replaced.
-    pub fn query_values(&self, name: &str) -> &[Value] {
+    pub(crate) fn query_values(&self, name: &str) -> &[Value] {
         self.query.get(name).map_or(&[], Vec::as_slice)
     }
 
@@ -216,9 +217,7 @@ impl fmt::Debug for RequestLine {
 }
 
 fn segment(path: &str, index: usize) -> Option<&str> {
-    path.split('/')
-        .filter(|segment| !segment.is_empty())
-        .nth(index)
+    segments(path).nth(index)
 }
 
 // As the URL standard parses `application/x-www-form-urlencoded`, which a query is read as.
@@ -258,11 +257,9 @@ fn decode_form(encoded: &[u8]) -> String {
 }
 
 fn decode_hex(digits: &[u8]) -> Option<u8> {
-    let text = std::str::from_utf8(digits).ok()?;
-    if !text.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        return None;
-    }
-    u8::from_str_radix(text, 16).ok()
+    let [high, low] = digits else { return None };
+    let digit = |byte: u8| char::from(byte).to_digit(16);
+    u8::try_from(digit(*high)? * 16 + digit(*low)?).ok()
 }
 
 fn read_host(authority: &[u8]) -> HostReading {

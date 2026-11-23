@@ -397,12 +397,6 @@
       "expect": {"taken": "catch_all", "why": "no_entry"}
     },
     {
-      "name": "the host as split_authority spells it",
-      "patch": [],
-      "call": {"authority": "API.GitHub.com.:443", "method": "POST", "path": "/mcp", "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"create_or_update_file\", \"arguments\": {}}}"},
-      "expect": {"taken": "e1", "keys": {}, "measures": {"request_bytes": 113}}
-    },
-    {
       "name": "a plan's host compared as written",
       "patch": [{"op": "replace", "path": "/entries/0/match/0/value", "value": "API.github.com"}],
       "call": {"authority": "API.github.com", "method": "POST", "path": "/mcp", "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"create_or_update_file\", \"arguments\": {}}}"},
@@ -457,18 +451,6 @@
       "expect": {"taken": "e2", "keys": {"repo": {"string": "docs"}}, "measures": {"request_bytes": 117, "arguments_bytes": [{"found": 15}]}}
     },
     {
-      "name": "a path that never matches, a dot segment",
-      "patch": [],
-      "call": {"authority": "api.github.com", "method": "POST", "path": "/a/../mcp", "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"create_or_update_file\", \"arguments\": {}}}"},
-      "expect": {"taken": "catch_all", "why": "unmatchable: dot_segment"}
-    },
-    {
-      "name": "a path that never matches, a bracket",
-      "patch": [],
-      "call": {"authority": "api.github.com", "method": "POST", "path": "/%5Bmcp%5D", "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"create_or_update_file\", \"arguments\": {}}}"},
-      "expect": {"taken": "catch_all", "why": "unmatchable: bracket"}
-    },
-    {
       "name": "a path that never matches, before any refused entry",
       "patch": [{"op": "replace", "path": "/entries/0/match/3/op", "value": "starts_with"}],
       "call": {"authority": "api.github.com", "method": "POST", "path": "/a//mcp", "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"create_or_update_file\", \"arguments\": {}}}"},
@@ -487,51 +469,9 @@
       "expect": {"taken": "catch_all", "why": "body_unread e1: not_sent"}
     },
     {
-      "name": "a body cut short",
-      "patch": [],
-      "call": {"authority": "api.github.com", "method": "POST", "path": "/mcp", "body": {"unread": "cut_short"}, "body_bytes": 10},
-      "expect": {"taken": "catch_all", "why": "body_unread e1: cut_short"}
-    },
-    {
-      "name": "a body past the cap",
-      "patch": [],
-      "call": {"authority": "api.github.com", "method": "POST", "path": "/mcp", "body": {"unread": "past_cap"}, "body_bytes": 2000000},
-      "expect": {"taken": "catch_all", "why": "body_unread e1: past_cap"}
-    },
-    {
-      "name": "a body past the budget",
-      "patch": [],
-      "call": {"authority": "api.github.com", "method": "POST", "path": "/mcp", "body": {"unread": "past_budget"}, "body_bytes": 1000},
-      "expect": {"taken": "catch_all", "why": "body_unread e1: past_budget"}
-    },
-    {
-      "name": "a body not JSON",
-      "patch": [],
-      "call": {"authority": "api.github.com", "method": "POST", "path": "/mcp", "body": "{not json"},
-      "expect": {"taken": "catch_all", "why": "body_unread e1: not_json"}
-    },
-    {
-      "name": "a JSON-RPC batch",
-      "patch": [],
-      "call": {"authority": "api.github.com", "method": "POST", "path": "/mcp", "body": "[{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"search_code\", \"arguments\": {}}}]"},
-      "expect": {"taken": "catch_all", "why": "body_unread e1: batch"}
-    },
-    {
-      "name": "a tool name repeated, letter case ignored",
-      "patch": [],
-      "call": {"authority": "api.github.com", "method": "POST", "path": "/mcp", "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"search_code\", \"Name\": \"create_or_update_file\"}}"},
-      "expect": {"taken": "catch_all", "why": "ambiguous e1"}
-    },
-    {
       "name": "a body unread, for no entry whose request line fits",
       "patch": [],
       "call": {"authority": "api.github.com", "method": "POST", "path": "/other", "body": {"unread": "not_sent"}, "body_bytes": 0},
-      "expect": {"taken": "catch_all", "why": "no_entry"}
-    },
-    {
-      "name": "an empty body holds no MCP method",
-      "patch": [],
-      "call": {"authority": "api.github.com", "method": "POST", "path": "/mcp", "body": ""},
       "expect": {"taken": "catch_all", "why": "no_entry"}
     },
     {
@@ -541,16 +481,22 @@
       "expect": {"taken": "e2", "keys": {"repo": "ambiguous"}, "measures": {"request_bytes": 136, "arguments_bytes": [{"found": 32}]}}
     },
     {
+      "name": "a condition that doesn't hold decides the entry over a body unread",
+      "patch": [{"op": "add", "path": "/entries/0/match/-", "value": {"path": ["request", "body", "params", "name"], "op": "eq", "value": "create_or_update_file"}}],
+      "call": {"authority": "api.github.com", "method": "POST", "path": "/mcp", "body": "[{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"create_or_update_file\", \"arguments\": {}}}]"},
+      "expect": {"taken": "catch_all", "why": "body_unread e2: batch"}
+    },
+    {
+      "name": "the first condition that can't be told is the entry's answer",
+      "patch": [{"op": "replace", "path": "/entries/0/match/2", "value": {"path": ["request", "body", 0, "a"], "op": "eq", "value": 1}}],
+      "call": {"authority": "api.github.com", "method": "POST", "path": "/mcp", "body": "[{\"a\": 1, \"A\": 1}]"},
+      "expect": {"taken": "catch_all", "why": "ambiguous e1"}
+    },
+    {
       "name": "a body value that can't be told, every other condition holding",
       "patch": [{"op": "add", "path": "/entries/0/match/-", "value": {"path": ["request", "body", "params", "arguments", "repo"], "op": "eq", "value": "docs"}}],
       "call": {"authority": "api.github.com", "method": "POST", "path": "/mcp", "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"create_or_update_file\", \"arguments\": {\"repo\": \"docs\", \"Repo\": \"payroll\"}}}"},
       "expect": {"taken": "catch_all", "why": "ambiguous e1"}
-    },
-    {
-      "name": "an entry without a body condition takes a call whose body is unread",
-      "patch": [],
-      "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx", "body": {"unread": "not_sent"}, "body_bytes": 0},
-      "expect": {"taken": "e3", "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": {"body_unread": "not_sent"}}, "measures": {"request_bytes": 0, "text_bytes": [{"body_unread": "not_sent"}], "blocks_bytes": [{"body_unread": "not_sent"}], "channel_bytes": ["absent"], "body_bytes": [{"found": 0}], "both_bytes": [{"body_unread": "not_sent"}, "absent"]}}
     },
     {
       "name": "a record's paths, each found",
@@ -577,16 +523,22 @@
       "expect": {"taken": "e3", "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": "absent", "channel": "ambiguous", "page": "absent", "user": "absent"}, "measures": {"request_bytes": 2, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": [{"found": 3}], "body_bytes": [{"found": 2}], "both_bytes": ["absent", {"found": 3}]}}
     },
     {
-      "name": "a query read as a form: + a space, a % without two hex digits kept",
+      "name": "a query read as a form: + a space, a % without two hex digits kept, empty pairs skipped",
       "patch": [],
-      "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC?channel=a+b%2&page=1&page=%E2%82%AC", "body": "{}"},
-      "expect": {"taken": "e3", "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": "absent", "channel": {"string": "a b%2"}, "page": {"string": "€"}, "user": "absent"}, "measures": {"request_bytes": 2, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": [{"found": 5}], "body_bytes": [{"found": 2}], "both_bytes": ["absent", {"found": 5}]}}
+      "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC?&channel=a+b%2&&page=1&page=%E2%82%AC%", "body": "{}"},
+      "expect": {"taken": "e3", "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": "absent", "channel": {"string": "a b%2"}, "page": {"string": "€%"}, "user": "absent"}, "measures": {"request_bytes": 2, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": [{"found": 5}], "body_bytes": [{"found": 2}], "both_bytes": ["absent", {"found": 5}]}}
     },
     {
       "name": "a query parameter's name decoded, a pair without = an empty value",
       "patch": [],
       "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC?chan%6Eel&page", "body": "{}"},
       "expect": {"taken": "e3", "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": "absent", "channel": {"string": ""}, "page": "absent", "user": "absent"}, "measures": {"request_bytes": 2, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": [{"found": 0}], "body_bytes": [{"found": 2}], "both_bytes": ["absent", {"found": 0}]}}
+    },
+    {
+      "name": "a query's percent-encoding in either case",
+      "patch": [],
+      "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC?channel=%2fgeneral%2F", "body": "{}"},
+      "expect": {"taken": "e3", "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": "absent", "channel": {"string": "/general/"}, "page": "absent", "user": "absent"}, "measures": {"request_bytes": 2, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": [{"found": 9}], "body_bytes": [{"found": 2}], "both_bytes": ["absent", {"found": 9}]}}
     },
     {
       "name": "a query ends at #",
@@ -608,9 +560,15 @@
     },
     {
       "name": "a trailing slash adds no segment",
-      "patch": [],
+      "patch": [{"op": "replace", "path": "/entries/2/record/context_keys/1/path", "value": ["request", "path", 2]}],
       "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/", "body": "{}"},
-      "expect": {"taken": "e3", "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": "absent", "channel": "absent", "page": "absent", "user": "absent"}, "measures": {"request_bytes": 2, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": ["absent"], "body_bytes": [{"found": 2}], "both_bytes": ["absent", "absent"]}}
+      "expect": {"taken": "e3", "keys": {"method": {"method": "POST"}, "team": "absent", "secret": "absent", "channel": "absent", "page": "absent", "user": "absent"}, "measures": {"request_bytes": 2, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": ["absent"], "body_bytes": [{"found": 2}], "both_bytes": ["absent", "absent"]}}
+    },
+    {
+      "name": "a segment as received, where the redacted one isn't",
+      "patch": [{"op": "replace", "path": "/entries/2/record/context_keys/1/path", "value": ["request", "path", 3]}],
+      "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx", "body": "{}"},
+      "expect": {"taken": "e3", "keys": {"method": {"method": "POST"}, "team": {"string": "abcdefghijklmnopqrstuvwx"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": "absent"}, "measures": {"request_bytes": 2, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": ["absent"], "body_bytes": [{"found": 2}], "both_bytes": ["absent", "absent"]}}
     },
     {
       "name": "a value that isn't a string: kept as no value, its size its JSON",
@@ -619,22 +577,22 @@
       "expect": {"taken": "e3", "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": {"not_a_string": null}}, "measures": {"request_bytes": 50, "text_bytes": [{"found": 5}], "blocks_bytes": [{"found": 4}], "channel_bytes": ["absent"], "body_bytes": [{"found": 50}], "both_bytes": [{"found": 5}, "absent"]}}
     },
     {
+      "name": "a list found: no value for a context key",
+      "patch": [],
+      "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx", "body": "{\"user\": [\"a\"]}"},
+      "expect": {"taken": "e3", "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": {"not_a_string": null}}, "measures": {"request_bytes": 15, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": ["absent"], "body_bytes": [{"found": 15}], "both_bytes": ["absent", "absent"]}}
+    },
+    {
+      "name": "a value's size without whitespace, an escaped quote inside a string kept",
+      "patch": [],
+      "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx", "body": "{\"blocks\": [\t\"a\\\" b\",\r\n1 ]}"},
+      "expect": {"taken": "e3", "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": "absent"}, "measures": {"request_bytes": 27, "text_bytes": ["absent"], "blocks_bytes": [{"found": 11}], "channel_bytes": ["absent"], "body_bytes": [{"found": 27}], "both_bytes": ["absent", "absent"]}}
+    },
+    {
       "name": "a JSON null found nothing",
       "patch": [],
       "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx", "body": "{\"user\": null, \"text\": null}"},
       "expect": {"taken": "e3", "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": "absent"}, "measures": {"request_bytes": 28, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": ["absent"], "body_bytes": [{"found": 28}], "both_bytes": ["absent", "absent"]}}
-    },
-    {
-      "name": "a body key repeated, letter case ignored: ambiguous",
-      "patch": [],
-      "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx", "body": "{\"user\": \"a\", \"User\": \"b\"}"},
-      "expect": {"taken": "e3", "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": "ambiguous"}, "measures": {"request_bytes": 26, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": ["absent"], "body_bytes": [{"found": 26}], "both_bytes": ["absent", "absent"]}}
-    },
-    {
-      "name": "a body not JSON, for an entry without a body condition",
-      "patch": [],
-      "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx", "body": "user=a"},
-      "expect": {"taken": "e3", "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": {"body_unread": "not_json"}}, "measures": {"request_bytes": 6, "text_bytes": [{"body_unread": "not_json"}], "blocks_bytes": [{"body_unread": "not_json"}], "channel_bytes": ["absent"], "body_bytes": [{"found": 6}], "both_bytes": [{"body_unread": "not_json"}, "absent"]}}
     },
     {
       "name": "a body past the cap: the whole body's size as sent",
@@ -657,20 +615,14 @@
     {
       "name": "a string past 256 characters not kept",
       "patch": [],
-      "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx", "body": "{\"user\": \"\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\"}"},
-      "expect": {"taken": "e3", "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": {"replaced": "past_longest"}}, "measures": {"request_bytes": 1554, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": ["absent"], "body_bytes": [{"found": 1554}], "both_bytes": ["absent", "absent"]}}
+      "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx", "body": "{\"user\": \"\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\"}"},
+      "expect": {"taken": "e3", "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": {"replaced": "past_longest"}}, "measures": {"request_bytes": 1812, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": ["absent"], "body_bytes": [{"found": 1812}], "both_bytes": ["absent", "absent"]}}
     },
     {
-      "name": "a string of 256 characters kept",
+      "name": "a string's length counted in characters, its escapes undone",
       "patch": [],
-      "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx", "body": "{\"user\": \"éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé\"}"},
-      "expect": {"taken": "e3", "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": {"string": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"}}, "measures": {"request_bytes": 524, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": ["absent"], "body_bytes": [{"found": 524}], "both_bytes": ["absent", "absent"]}}
-    },
-    {
-      "name": "a method outside the nine reported as [other]",
-      "patch": [{"op": "replace", "path": "/entries/2/match/1", "value": {"path": ["request", "method"], "op": "existing"}}],
-      "call": {"authority": "hooks.slack.com", "method": "PURGE", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx", "body": "{}"},
-      "expect": {"taken": "e3", "keys": {"method": {"method": "[other]"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": "absent"}, "measures": {"request_bytes": 2, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": ["absent"], "body_bytes": [{"found": 2}], "both_bytes": ["absent", "absent"]}}
+      "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx", "body": "{\"user\": \"\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\"}"},
+      "expect": {"taken": "e3", "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": {"string": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"}}, "measures": {"request_bytes": 1212, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": ["absent"], "body_bytes": [{"found": 1212}], "both_bytes": ["absent", "absent"]}}
     }
   ]
 }

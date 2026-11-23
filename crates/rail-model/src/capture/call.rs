@@ -1,7 +1,7 @@
 //! A call as the callout hands it over, matched against a compiled plan, and what the entry that
 //! takes it records of it.
 
-use super::compile::{CompiledEntry, CompiledPlan};
+use super::compile::{CompiledEntry, CompiledPlan, EntryRefusal};
 use super::plan::{ContextKey, Entry, Function, Measure, Record};
 use crate::body::BodyRead;
 use crate::condition::{
@@ -51,9 +51,10 @@ pub enum Untaken<'p> {
     NoEntry,
     /// Its path matches no entry, whatever their conditions.
     Unmatchable(Unmatchable),
-    /// An entry with a condition that can't be evaluated, or whose evaluation spent the step
-    /// budget.
-    Refused(&'p Entry, Refusal),
+    /// An entry with a condition that can't be evaluated.
+    Refused(&'p Entry, &'p EntryRefusal),
+    /// An entry whose conditions were refused as they were evaluated: the step budget spent.
+    Stopped(&'p Entry, Refusal),
     /// An entry's conditions read a body value that can't be told.
     Ambiguous(&'p Entry),
     /// An entry's conditions read a body that isn't.
@@ -91,7 +92,8 @@ pub enum PathReading<T> {
     Found(T),
     /// Nothing there, or a JSON `null`.
     Absent,
-    /// A value that can't be told: readers differ on it, or a query parameter sent several times.
+    /// A value that can't be told: readers differ on it, or, for a context key, a query parameter
+    /// sent several times.
     Ambiguous,
     BodyUnread(BodyUnread),
     /// The step budget spent.
@@ -102,7 +104,7 @@ pub enum PathReading<T> {
 #[derive(Debug, PartialEq)]
 pub enum KeptValue {
     String(String),
-    /// A string too, not kept: `[redacted]`.
+    /// A string too, not kept.
     Replaced(Replacement),
     /// Anything else, which a context key doesn't keep.
     NotAString,
@@ -155,21 +157,22 @@ impl CompiledPlan {
         }
         for (entry, compiled) in self.entries_for(request_line.host()) {
             if let Some(refused) = compiled.refusal() {
-                return Err(Untaken::Refused(entry, refused.refusal));
+                return Err(Untaken::Refused(entry, refused));
             }
             match answer(compiled, environment, budget) {
                 Verdict::Holds => return Ok(entry),
                 Verdict::DoesNotHold => {}
                 Verdict::Ambiguous => return Err(Untaken::Ambiguous(entry)),
                 Verdict::BodyUnread(why) => return Err(Untaken::BodyUnread(entry, why)),
-                Verdict::Refused(refusal) => return Err(Untaken::Refused(entry, refusal)),
+                Verdict::Refused(refusal) => return Err(Untaken::Stopped(entry, refusal)),
             }
         }
         Err(Untaken::NoEntry)
     }
 }
 
-// The entry's "and": a condition that doesn't hold decides it, else the first that can't be told.
+// The entry's "and": a condition that doesn't hold, or a refusal, decides it; else the first that
+// can't be told.
 fn answer(entry: &CompiledEntry, environment: &Environment, budget: &mut Budget) -> Verdict {
     let mut answer = Verdict::Holds;
     for condition in entry.conditions() {
@@ -282,6 +285,7 @@ fn read_size(
             .iter()
             .map(|value| value.as_str().map_or(0, str::len))
             .sum(),
+        // Only the body's values are read from a node; a record reads no other.
         Lookup::Number(_) | Lookup::Bool(_) | Lookup::List(Items::Body(_)) | Lookup::Object => {
             node.map_or(0, |node| json_without_whitespace(node.raw()))
         }

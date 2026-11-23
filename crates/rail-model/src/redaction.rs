@@ -12,7 +12,7 @@ const REDACTED: &str = "[redacted]";
 // and `/` for none.
 pub(crate) fn redact_path(path: &str) -> String {
     let mut redacted = String::with_capacity(path.len() + 1);
-    for segment in path.split('/').filter(|segment| !segment.is_empty()) {
+    for segment in segments(path) {
         redacted.push('/');
         push_segment(&mut redacted, segment);
     }
@@ -20,6 +20,11 @@ pub(crate) fn redact_path(path: &str) -> String {
         redacted.push('/');
     }
     redacted
+}
+
+// A path's segments as the rule reads them: empty ones dropped.
+pub(crate) fn segments(path: &str) -> impl Iterator<Item = &str> {
+    path.split('/').filter(|segment| !segment.is_empty())
 }
 
 // The key test reads the brackets decoded, so a second pass can't push a segment past 20.

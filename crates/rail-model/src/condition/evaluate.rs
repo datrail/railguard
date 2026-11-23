@@ -13,7 +13,6 @@ use crate::body::mcp::McpReading;
 use crate::body::tree::{self, Kind, Member, Step};
 use crate::body::{BodyRead, RequestBody, Unparsed, Unread};
 use crate::endpoint::Endpoint;
-use crate::request_line::RequestLine;
 
 /// The steps one judgement may take, unless the caller sets its own.
 pub const DEFAULT_STEP_LIMIT: u64 = 100_000;
@@ -141,7 +140,8 @@ pub enum Lookup<'a> {
     Number(f64),
     /// Never compared: `true == 1` in some languages and not in others.
     Bool(bool),
-    /// A header with several values, or a list in the ticket or the body, which may hold anything.
+    /// A header or a query parameter with several values, or a list in the ticket or the body,
+    /// which may hold anything.
     List(Items<'a>),
     Object,
     /// A body value that can't be told: readers differ on it.
@@ -293,10 +293,7 @@ pub(crate) fn resolve_path<'a>(
 ) -> Result<(Lookup<'a>, Option<tree::Node<'a>>), Refusal> {
     match path {
         Path::Ticket(path) => resolve_ticket(path, environment).map(|lookup| (lookup, None)),
-        Path::Request(RequestPath::Body(path)) => resolve_body(path, environment, budget),
-        Path::Request(path) => {
-            resolve_request(path, environment, budget).map(|lookup| (lookup, None))
-        }
+        Path::Request(path) => resolve_request(path, environment, budget),
     }
 }
 
@@ -339,12 +336,12 @@ fn resolve_request<'a>(
     path: &RequestPath,
     environment: &Environment<'a>,
     budget: &mut Budget,
-) -> Result<Lookup<'a>, Refusal> {
-    let line = |read: fn(&RequestLine) -> &str| {
-        let line = environment.request_line.ok_or(Refusal::NotForUse)?;
-        Ok(Lookup::String(Cow::Borrowed(read(line))))
+) -> Result<(Lookup<'a>, Option<tree::Node<'a>>), Refusal> {
+    let request_line = || environment.request_line.ok_or(Refusal::NotForUse);
+    let text = |text: Option<&'a str>| {
+        text.map_or(Lookup::Absent, |text| Lookup::String(Cow::Borrowed(text)))
     };
-    Ok(match path {
+    let lookup = match path {
         RequestPath::Whole => Lookup::Object,
         RequestPath::Headers => {
             environment.headers.ok_or(Refusal::NotForUse)?;
@@ -360,36 +357,25 @@ fn resolve_request<'a>(
             Some([value]) => read_value(value),
             Some(values) => Lookup::List(Items::Values(values)),
         },
-        RequestPath::Host => line(RequestLine::host)?,
-        RequestPath::Method => line(RequestLine::method)?,
-        RequestPath::Path(None) => line(RequestLine::path)?,
-        RequestPath::RedactedPath(None) => line(RequestLine::redacted_path)?,
-        RequestPath::Path(Some(index)) => segment(environment, *index, RequestLine::path_segment)?,
+        RequestPath::Host => text(Some(request_line()?.host())),
+        RequestPath::Method => text(Some(request_line()?.method())),
+        RequestPath::Path(None) => text(Some(request_line()?.path())),
+        RequestPath::RedactedPath(None) => text(Some(request_line()?.redacted_path())),
+        RequestPath::Path(Some(index)) => text(request_line()?.path_segment(*index)),
         RequestPath::RedactedPath(Some(index)) => {
-            segment(environment, *index, RequestLine::redacted_path_segment)?
+            text(request_line()?.redacted_path_segment(*index))
         }
-        RequestPath::Query { name, index } => {
-            let line = environment.request_line.ok_or(Refusal::NotForUse)?;
-            match (line.query_values(name), index) {
-                (values, Some(index)) => values.get(*index).map_or(Lookup::Absent, read_value),
-                ([], None) => Lookup::Absent,
-                ([value], None) => read_value(value),
-                (values, None) => Lookup::List(Items::Values(values)),
-            }
-        }
+        RequestPath::Query { name, index } => match (request_line()?.query_values(name), index) {
+            (values, Some(index)) => values.get(*index).map_or(Lookup::Absent, read_value),
+            ([], None) => Lookup::Absent,
+            ([value], None) => read_value(value),
+            (values, None) => Lookup::List(Items::Values(values)),
+        },
         RequestPath::McpMethod => read_mcp(environment, McpReading::method)?,
         RequestPath::McpTool => read_mcp(environment, McpReading::tool)?,
-        RequestPath::Body(path) => resolve_body(path, environment, budget)?.0,
-    })
-}
-
-fn segment<'a>(
-    environment: &Environment<'a>,
-    index: usize,
-    read: fn(&RequestLine, usize) -> Option<&str>,
-) -> Result<Lookup<'a>, Refusal> {
-    let line = environment.request_line.ok_or(Refusal::NotForUse)?;
-    Ok(read(line, index).map_or(Lookup::Absent, |text| Lookup::String(Cow::Borrowed(text))))
+        RequestPath::Body(path) => return resolve_body(path, environment, budget),
+    };
+    Ok((lookup, None))
 }
 
 // The body kept, or what any path into it resolves to.

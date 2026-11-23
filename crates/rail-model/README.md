@@ -51,15 +51,16 @@ By module:
   the host an `eq` on `request.host` among its conditions names, as written, or for every host if none does.
   **`CompiledPlan::capture`** matches an **`ObservedCall`**, what the callout hands over, as a **`CapturedCall`**: taken
   by the first entry whose conditions all hold, its record's context keys and measures read (**`RecordReading`**, each
-  path's finding kept apart: a value, nothing, one that can't be told, a body unread), or counted by the catch-all and
-  why (**`Untaken`**): no entry took it, its path can't match one, or its walk stopped at an entry refused, or whose
-  conditions read a body value that can't be told or a body unread.
+  path's finding kept apart: a value, nothing, one that can't be told, a body unread, the step budget spent), or counted
+  by the catch-all and why (**`Untaken`**): no entry took it, its path can't match one, or its walk stopped at an entry
+  refused, one whose conditions read a body value that can't be told or a body unread, or one that spent the step
+  budget.
 - **`schema_version`:** **`SchemaVersion`**, a document's `MAJOR.MINOR`, a bundle's or a plan's.
 - **`request_line`:** **`RequestLine::read`** reads a call's `:authority`, `:method` and `:path` once, as conditions
   read them under `request`: the host as `split_authority` spells it, or `[unparseable]`; the path up to its query or
-  fragment (`/` for a `CONNECT`), as received and redacted, and each by its segments; the query's parameters, read as a
-  form's. It also tells why a path can match no capture plan entry (**`unmatchable`**), and what a call record reports
-  of the call (**`reported_method`**, **`path_prefix`**).
+  fragment (`/` for a `CONNECT`), as received and redacted, its segments, and its query, read as a form's. It also tells
+  why a path can match no capture plan entry (**`unmatchable`**), and what a call record reports of the call
+  (**`reported_method`**, **`path_prefix`**).
 - **`redaction`:** RailMon's rule for a path, at **`REDACTION_VERSION`**, as Rail Center writes a capture plan's paths.
 - **`sanitize`:** **`sanitize`**, **`sanitize_quoted`**, **`sanitize_unquoted`** and **`sanitize_for_json`** make text
   from a call safe to log.

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use rail_model::body::{BodyBuffer, BodyRead, ByteBudget, Unparsed, Unread};
+use rail_model::body::{BodyRead, Unparsed, Unread};
 use rail_model::condition::{
     BodyUnread, Budget, Condition, ConditionUse, Environment, Headers, Predicate, Refusal, Verdict,
     compile_condition, evaluate_condition,
@@ -11,6 +11,8 @@ use rail_model::request_line::RequestLine;
 use serde::Deserialize;
 use serde_json::value::RawValue;
 use serde_json::{Map, Value, json};
+
+use crate::keep_body;
 
 const VECTORS: &str = include_str!("../../../../vectors/judge_condition_conformance_cases.json");
 
@@ -326,12 +328,6 @@ fn test_reads_a_list_item_that_is_not_a_scalar_as_matching_nothing() {
     assert!(!read("in", json!(["acme"]), json!([null, true])));
     assert!(!read("matches", json!("*"), json!([true, null, 1])));
     assert!(read("matches", json!("*"), json!([true, "a"])));
-}
-
-fn keep_body(body: &[u8]) -> BodyRead {
-    let mut buffer = BodyBuffer::new(usize::MAX, &ByteBudget::new(usize::MAX));
-    buffer.append(body);
-    BodyRead::Whole(Arc::new(buffer.finish().unwrap()))
 }
 
 // As a plan writes a condition, its path a list.

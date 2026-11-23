@@ -1,6 +1,4 @@
-use std::sync::Arc;
-
-use rail_model::body::{BodyBuffer, BodyRead, ByteBudget, Unparsed, Unread};
+use rail_model::body::{BodyRead, Unparsed, Unread};
 use rail_model::capture::{
     CompiledPlan, ContextKey, KeptValue, KeyReading, Measure, MeasureReading, ObservedCall,
     PathReading, Replacement, Taken, Untaken, compile_plan, parse_plan,
@@ -10,6 +8,7 @@ use serde::Deserialize;
 use serde_json::{Map, Value, json};
 
 use super::patch;
+use crate::keep_body;
 
 const VECTORS: &str = include_str!("../../../../vectors/capture_call_conformance_cases.json");
 
@@ -59,12 +58,6 @@ fn observe(call: &Call) -> ObservedCall {
     }
 }
 
-fn keep_body(body: &[u8]) -> BodyRead {
-    let mut buffer = BodyBuffer::new(usize::MAX, &ByteBudget::new(usize::MAX));
-    buffer.append(body);
-    BodyRead::Whole(Arc::new(buffer.finish().unwrap()))
-}
-
 fn snake_case<T: std::fmt::Debug>(value: T) -> String {
     let mut name = String::new();
     for (at, character) in format!("{value:?}").chars().enumerate() {
@@ -112,8 +105,15 @@ fn describe(compiled: &CompiledPlan, call: &ObservedCall) -> Value {
             let why = match why {
                 Untaken::NoEntry => "no_entry".to_owned(),
                 Untaken::Unmatchable(why) => format!("unmatchable: {}", snake_case(why)),
-                Untaken::Refused(entry, refusal) => {
-                    format!("refused {}: {}", entry.id, json!(refusal).as_str().unwrap())
+                Untaken::Refused(entry, refused) => {
+                    format!(
+                        "refused {}: {}",
+                        entry.id,
+                        json!(refused.refusal).as_str().unwrap()
+                    )
+                }
+                Untaken::Stopped(entry, refusal) => {
+                    format!("stopped {}: {}", entry.id, json!(refusal).as_str().unwrap())
                 }
                 Untaken::Ambiguous(entry) => format!("ambiguous {}", entry.id),
                 Untaken::BodyUnread(entry, why) => {
@@ -221,11 +221,62 @@ fn test_spending_the_step_budget_stops_the_walk() {
     assert!(matches!(taken(within), Taken::CatchAll(Untaken::NoEntry)));
     assert!(matches!(
         taken(past),
-        Taken::CatchAll(Untaken::Refused(entry, Refusal::BudgetExceeded)) if entry.id == "e1"
+        Taken::CatchAll(Untaken::Stopped(entry, Refusal::BudgetExceeded)) if entry.id == "e1"
     ));
     // The next call has a budget of its own.
     assert!(matches!(
         taken(vec![json!("x")]),
         Taken::Entry { entry, .. } if entry.id == "e1"
     ));
+}
+
+// The budget a call's matching leaves is its record's: a key passing many members is read alone,
+// and refused after a condition passing a long list.
+#[test]
+fn test_a_record_reads_within_the_budget_its_matching_left() {
+    let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
+    let mut plan = vectors.plan.clone();
+    let tags = json!({"path": ["request", "body", "tags"], "op": "contains", "value": "x"});
+    patch(
+        &mut plan,
+        &json!({"op": "add", "path": "/entries/2/match/-", "value": tags}),
+    );
+    let compiled = compile_plan(parse_plan(&plan.to_string()).unwrap());
+    // Matching passes the members and the list, then the record the members again.
+    let (members, tags) = (DEFAULT_STEP_LIMIT * 3 / 10, DEFAULT_STEP_LIMIT / 2);
+    let call = |tags: u64, members: u64| {
+        let mut body: Map<String, Value> = (0..members)
+            .map(|at| (format!("k{at}"), json!(at)))
+            .collect();
+        let mut tags = vec![json!("y"); tags as usize];
+        tags.push(json!("x"));
+        body.insert("tags".into(), Value::Array(tags));
+        let body = Value::Object(body).to_string();
+        ObservedCall {
+            authority: b"hooks.slack.com".to_vec(),
+            method: b"POST".to_vec(),
+            path: b"/services/T0ABC".to_vec(),
+            body_bytes: body.len() as u64,
+            body: keep_body(body.as_bytes()),
+        }
+    };
+    let user = |call: &ObservedCall| {
+        let Taken::Entry { entry, record } = compiled.capture(call).taken else {
+            panic!("not taken");
+        };
+        let at = entry
+            .record
+            .context_keys
+            .iter()
+            .position(|key| matches!(key, ContextKey::Named { name, .. } if name == "user"));
+        record.context_keys.into_iter().nth(at.unwrap()).unwrap()
+    };
+    assert_eq!(
+        user(&call(0, members)),
+        KeyReading::Path(PathReading::Absent)
+    );
+    assert_eq!(
+        user(&call(tags, members)),
+        KeyReading::Path(PathReading::Refused(Refusal::BudgetExceeded))
+    );
 }
