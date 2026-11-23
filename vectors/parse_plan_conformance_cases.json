@@ -252,6 +252,11 @@
       "expect": {"valid": false}
     },
     {
+      "name": "max_steps_per_window 0, no steps, as when absent",
+      "patch": [{"op": "replace", "path": "/budget/max_steps_per_window", "value": 0}],
+      "expect": {"valid": true}
+    },
+    {
       "name": "no max_steps_per_window",
       "patch": [{"op": "remove", "path": "/budget/max_steps_per_window"}],
       "expect": {"valid": true}

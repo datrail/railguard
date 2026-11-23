@@ -58,9 +58,10 @@ By module:
   apart: a value, nothing, one that can't be told, a body unread, the step budget spent). A **`Window`** counts the
   calls captured between two times: grouped into call records by their record and its context keys' values, up to the
   plan's group ceiling (past it, an entry's new group in the catch-all, a catch-all's in its `[overflow]` record), with
-  each host's total and, where the plan asks for it, the calls' order. **`close`** gives a **`ClosedWindow`**, which the
-  sender makes the call record **`Document`**, given its id, when it was built and the windows dropped before it;
-  **`Document::not_capturing`** writes a window that captured nothing, and why (**`NotCapturing`**).
+  each host's total and the calls' order, up to the plan's `max_steps_per_window`. **`close`** gives a
+  **`ClosedWindow`**, which the sender makes the call record **`Document`**, given its id, when it was built and the
+  windows dropped before it; **`Document::not_capturing`** writes a window that captured nothing, and why
+  (**`NotCapturing`**).
 - **`schema_version`:** **`SchemaVersion`**, a document's `MAJOR.MINOR`, a bundle's or a plan's.
 - **`timestamp`:** **`Timestamp`**, a moment as Rail Center's documents write one: RFC 3339 in UTC, `Z`, to the
   nanosecond the clock gives.

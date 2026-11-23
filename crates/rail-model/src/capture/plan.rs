@@ -43,8 +43,9 @@ pub struct Plan {
 #[derive(Debug, Deserialize)]
 pub struct PlanBudget {
     pub max_groups_per_window: u32,
-    /// Present: the order of calls is recorded too, up to this many steps.
-    pub max_steps_per_window: Option<u32>,
+    /// The calls whose order is recorded, as steps: absent or `null`, 0, none.
+    #[serde(default, deserialize_with = "read_null_as_default")]
+    pub max_steps_per_window: u32,
     pub on_max_groups: OnMaxGroups,
     pub max_unsent_windows: u32,
 }
@@ -209,11 +210,11 @@ fn check_budget(budget: &PlanBudget) -> Result<(), String> {
             "max_groups_per_window is outside 1 to {MAX_GROUPS_PER_WINDOW}"
         ));
     }
-    if let Some(steps) = budget.max_steps_per_window
-        && !(groups..=MAX_STEPS_PER_WINDOW).contains(&steps)
-    {
+    // Fewer steps than groups would always bind first; none is asking for no order.
+    let steps = budget.max_steps_per_window;
+    if steps != 0 && !(groups..=MAX_STEPS_PER_WINDOW).contains(&steps) {
         return Err(format!(
-            "max_steps_per_window is outside max_groups_per_window to {MAX_STEPS_PER_WINDOW}"
+            "max_steps_per_window is outside 0, and max_groups_per_window to {MAX_STEPS_PER_WINDOW}"
         ));
     }
     if budget.max_unsent_windows > MAX_UNSENT_WINDOWS {
@@ -386,6 +387,15 @@ impl TryFrom<Fields> for Measure {
             paths,
         })
     }
+}
+
+// A plan is open, so `null` in an optional field is absent.
+fn read_null_as_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de> + Default,
+{
+    Ok(Option::<T>::deserialize(deserializer)?.unwrap_or_default())
 }
 
 // A built-in name, or one Rail Center gives: every one a name.

@@ -51,9 +51,11 @@ pub struct Window {
     records: IndexMap<GroupKey, CallRecord>,
     /// Each host's calls, in the order first seen.
     hosts: IndexMap<String, u64>,
-    /// With the plan's `max_steps_per_window`, that many: when each call was received, and its
-    /// record.
-    steps: Option<(usize, Vec<(SystemTime, usize)>)>,
+    /// Up to the plan's `max_steps_per_window`: when each call was received, and its record.
+    steps: Vec<(SystemTime, usize)>,
+    max_steps: usize,
+    /// The calls past it.
+    steps_dropped: u64,
     /// The latest time a call was received, from the window's start: a clock stepped back
     /// mustn't write steps out of order.
     latest: SystemTime,
@@ -79,14 +81,9 @@ struct Written {
 
 impl Window {
     pub fn open(plan: Arc<CompiledPlan>, start: SystemTime) -> Self {
-        let steps = plan
-            .plan()
-            .budget
-            .max_steps_per_window
-            .map(|max| (max as usize, Vec::new()));
+        let max_steps = plan.plan().budget.max_steps_per_window as usize;
         let truncated = Truncated {
             entries_skipped: plan.entries_skipped() as u64,
-            steps_dropped: steps.as_ref().map(|_| 0),
             ..Truncated::default()
         };
         Self {
@@ -94,7 +91,9 @@ impl Window {
             start,
             records: IndexMap::new(),
             hosts: IndexMap::new(),
-            steps,
+            steps: Vec::new(),
+            max_steps,
+            steps_dropped: 0,
             latest: start,
             truncated,
         }
@@ -148,10 +147,10 @@ impl Window {
         self.count_host(request_line.host(), coarsened);
         self.add(index, written);
         self.latest = self.latest.max(at);
-        match &mut self.steps {
-            Some((max, steps)) if steps.len() < *max => steps.push((self.latest, index)),
-            Some(_) => *self.truncated.steps_dropped.get_or_insert(0) += 1,
-            None => {}
+        if self.steps.len() < self.max_steps {
+            self.steps.push((self.latest, index));
+        } else {
+            self.steps_dropped += 1;
         }
         reason
     }
@@ -166,22 +165,25 @@ impl Window {
     pub fn close(self, end: SystemTime) -> ClosedWindow {
         let plan = self.plan.plan();
         let end = end.max(self.latest);
-        let sequence = self.steps.map(|(_, steps)| {
-            steps
-                .into_iter()
-                .map(|(at, index)| Step {
-                    at: Timestamp(at),
-                    record_id: record_id(index),
-                })
-                .collect()
-        });
+        let sequence = self
+            .steps
+            .into_iter()
+            .map(|(at, index)| Step {
+                at: Timestamp(at),
+                record_id: record_id(index),
+            })
+            .collect();
+        let truncated = Truncated {
+            steps_dropped: Some(self.steps_dropped),
+            ..self.truncated
+        };
         ClosedWindow(Captured {
             agent: plan.agent.clone(),
             plan_version: Some(plan.plan_version),
             plan_hash: Some(plan.content_hash.clone()),
             start: self.start,
             end,
-            truncated: self.truncated,
+            truncated,
             hosts: self
                 .hosts
                 .into_iter()
@@ -192,7 +194,7 @@ impl Window {
                 })
                 .collect(),
             records: self.records.into_values().collect(),
-            sequence,
+            sequence: Some(sequence),
         })
     }
 

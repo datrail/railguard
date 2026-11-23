@@ -30,6 +30,8 @@ pub struct Document {
     truncated: Truncated,
     hosts: Vec<HostTotal>,
     records: Vec<CallRecord>,
+    /// A capturing window's, empty under a plan asking for no steps; none for one that captured
+    /// nothing.
     #[serde(skip_serializing_if = "Option::is_none")]
     sequence: Option<Vec<Step>>,
 }
