@@ -11,6 +11,6 @@ pub use call::{
 pub use compile::{CompiledEntry, CompiledPlan, EntryRefusal, compile_plan};
 
 pub use plan::{
-    CatchAll, CatchAllKey, CatchAllRecord, Combine, ContextKey, Entry, Function, InvalidPlan,
-    Measure, OnMaxGroups, Plan, PlanBudget, Record, parse_plan,
+    CatchAll, Combine, ContextKey, Entry, Function, InvalidPlan, Measure, OnMaxGroups, Plan,
+    PlanBudget, Record, parse_plan,
 };

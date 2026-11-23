@@ -612,6 +612,16 @@
       "expect": {"valid": true}
     },
     {
+      "name": "an entry with the catch-all's id, written otherwise",
+      "patch": [{"op": "replace", "path": "/catch_all/id", "value": "other"}, {"op": "replace", "path": "/entries/0/id", "value": "other"}],
+      "expect": {"valid": false}
+    },
+    {
+      "name": "an entry named catch_all beside a catch-all named otherwise",
+      "patch": [{"op": "replace", "path": "/catch_all/id", "value": "other"}, {"op": "replace", "path": "/entries/0/id", "value": "catch_all"}],
+      "expect": {"valid": true}
+    },
+    {
       "name": "a catch-all with no host",
       "patch": [{"op": "remove", "path": "/catch_all/record/context_keys/0"}],
       "expect": {"valid": false}

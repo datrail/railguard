@@ -4,6 +4,7 @@ use rail_model::capture::{
     PathReading, Replacement, Taken, Untaken, compile_plan, parse_plan,
 };
 use rail_model::condition::{BodyUnread, DEFAULT_STEP_LIMIT, Refusal};
+use rail_model::request_line::HostReading;
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 
@@ -97,46 +98,64 @@ fn describe_kept(value: &KeptValue) -> Value {
     }
 }
 
-fn describe(compiled: &CompiledPlan, call: &ObservedCall) -> Value {
-    let captured = compiled.capture(call);
-    let (entry, record) = match captured.taken {
-        Taken::Entry { entry, record } => (entry, record),
-        Taken::CatchAll(why) => {
-            let why = match why {
-                Untaken::NoEntry => "no_entry".to_owned(),
-                Untaken::Unmatchable(why) => format!("unmatchable: {}", snake_case(why)),
-                Untaken::Refused(entry, refused) => {
-                    format!(
-                        "refused {}: {}",
-                        entry.id,
-                        json!(refused.refusal).as_str().unwrap()
-                    )
-                }
-                Untaken::Stopped(entry, refusal) => {
-                    format!("stopped {}: {}", entry.id, json!(refusal).as_str().unwrap())
-                }
-                Untaken::Ambiguous(entry) => format!("ambiguous {}", entry.id),
-                Untaken::BodyUnread(entry, why) => {
-                    format!("body_unread {}: {}", entry.id, describe_body_unread(why))
-                }
-            };
-            return json!({"taken": "catch_all", "why": why});
+fn describe_untaken(why: &Untaken) -> String {
+    match why {
+        Untaken::NoEntry => "no_entry".to_owned(),
+        Untaken::Unmatchable(why) => format!("unmatchable: {}", snake_case(why)),
+        Untaken::Refused(entry, refused) => {
+            let refusal = json!(refused.refusal);
+            format!("refused {}: {}", entry.id, refusal.as_str().unwrap())
+        }
+        Untaken::Stopped(entry, refusal) => {
+            format!("stopped {}: {}", entry.id, json!(refusal).as_str().unwrap())
+        }
+        Untaken::Ambiguous(entry) => format!("ambiguous {}", entry.id),
+        Untaken::BodyUnread(entry, why) => {
+            format!("body_unread {}: {}", entry.id, describe_body_unread(*why))
+        }
+    }
+}
+
+fn describe_key(key: &ContextKey, reading: &KeyReading) -> (String, Value) {
+    let name = match key {
+        ContextKey::Method => "method",
+        ContextKey::Host => "host",
+        ContextKey::PathPrefix { .. } => "path_prefix",
+        ContextKey::Operation => "operation",
+        ContextKey::Named { name, .. } => name,
+    };
+    let reading = match reading {
+        KeyReading::Method(method) => json!({"method": method.as_str()}),
+        KeyReading::Host(HostReading::Read(host)) => json!({"host": host}),
+        KeyReading::Host(unparseable) => json!({"unparseable": snake_case(unparseable)}),
+        KeyReading::PathPrefix(prefix) => json!({"path_prefix": prefix}),
+        KeyReading::Operation(reading) | KeyReading::Path(reading) => {
+            describe_reading(reading, describe_kept)
         }
     };
-    let mut keys = Map::new();
-    for (key, reading) in entry.record.context_keys.iter().zip(&record.context_keys) {
-        let name = match key {
-            ContextKey::Method => "method".to_owned(),
-            ContextKey::Named { name, .. } => name.clone(),
-        };
-        let reading = match reading {
-            KeyReading::Method(method) => json!({"method": method.as_str()}),
-            KeyReading::Path(reading) => describe_reading(reading, describe_kept),
-        };
-        keys.insert(name, reading);
-    }
+    (name.to_owned(), reading)
+}
+
+fn describe(compiled: &CompiledPlan, call: &ObservedCall) -> Value {
+    let captured = compiled.capture(call);
+    let (taken, record) = match &captured.taken {
+        Taken::Entry(entry) => (json!({"entry": entry.id}), &entry.record),
+        Taken::CatchAll(catch_all, why) => (
+            json!({"catch_all": catch_all.id, "why": describe_untaken(why)}),
+            &catch_all.record,
+        ),
+    };
+    let reading = &captured.record;
+    assert_eq!(reading.context_keys.len(), record.context_keys.len());
+    assert_eq!(reading.measures.len(), record.measures.len());
+    let keys: Map<String, Value> = record
+        .context_keys
+        .iter()
+        .zip(&reading.context_keys)
+        .map(|(key, reading)| describe_key(key, reading))
+        .collect();
     let mut measures = Map::new();
-    for (measure, reading) in entry.record.measures.iter().zip(&record.measures) {
+    for (measure, reading) in record.measures.iter().zip(&reading.measures) {
         let name = match measure {
             Measure::Named { name, .. } => name.as_str(),
             _ => "request_bytes",
@@ -153,9 +172,7 @@ fn describe(compiled: &CompiledPlan, call: &ObservedCall) -> Value {
             }
         }
     }
-    assert_eq!(record.context_keys.len(), entry.record.context_keys.len());
-    assert_eq!(record.measures.len(), entry.record.measures.len());
-    json!({"taken": entry.id, "keys": keys, "measures": measures})
+    json!({"taken": taken, "keys": keys, "measures": measures})
 }
 
 fn compile(vectors: &Vectors, case: &Case) -> CompiledPlan {
@@ -218,15 +235,18 @@ fn test_spending_the_step_budget_stops_the_walk() {
     let within = vec![json!("y"); (DEFAULT_STEP_LIMIT / 2) as usize];
     let past = vec![json!("y"); DEFAULT_STEP_LIMIT as usize];
     let taken = |tags: Vec<Value>| compiled.capture(&search_code(&json!({"tags": tags}))).taken;
-    assert!(matches!(taken(within), Taken::CatchAll(Untaken::NoEntry)));
+    assert!(matches!(
+        taken(within),
+        Taken::CatchAll(_, Untaken::NoEntry)
+    ));
     assert!(matches!(
         taken(past),
-        Taken::CatchAll(Untaken::Stopped(entry, Refusal::BudgetExceeded)) if entry.id == "e1"
+        Taken::CatchAll(_, Untaken::Stopped(entry, Refusal::BudgetExceeded)) if entry.id == "e1"
     ));
     // The next call has a budget of its own.
     assert!(matches!(
         taken(vec![json!("x")]),
-        Taken::Entry { entry, .. } if entry.id == "e1"
+        Taken::Entry(entry) if entry.id == "e1"
     ));
 }
 
@@ -261,7 +281,8 @@ fn test_a_record_reads_within_the_budget_its_matching_left() {
         }
     };
     let user = |call: &ObservedCall| {
-        let Taken::Entry { entry, record } = compiled.capture(call).taken else {
+        let captured = compiled.capture(call);
+        let (Taken::Entry(entry), record) = (captured.taken, captured.record) else {
             panic!("not taken");
         };
         let at = entry

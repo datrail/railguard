@@ -36,7 +36,7 @@ pub struct RequestLine {
 }
 
 /// How a call's host was read.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum HostReading {
     /// Spelled as `split_authority` spells it.
     Read(String),

@@ -13,8 +13,6 @@ use crate::condition::{BodyStep, Condition, Path, RequestPath};
 use crate::sanitize::sanitize;
 use crate::schema_version::SchemaVersion;
 
-const CATCH_ALL: &str = "catch_all";
-
 // The proxy's ceilings on what Rail Center may ask it to hold; the schema has only minimums.
 const WINDOW_SECONDS: RangeInclusive<u32> = 60..=86_400;
 const MAX_GROUPS_PER_WINDOW: u32 = 100_000;
@@ -68,6 +66,8 @@ pub struct Entry {
     pub record: Record,
 }
 
+/// What a call's record holds: an entry's, or the catch-all's, whose keys are only the built-in
+/// ones and whose measures only the three every record holds.
 #[derive(Debug, Deserialize)]
 pub struct Record {
     pub context_keys: Vec<ContextKey>,
@@ -79,34 +79,25 @@ pub struct Record {
 pub struct CatchAll {
     /// `catch_all`, as Rail Center writes it.
     pub id: String,
-    pub record: CatchAllRecord,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct CatchAllRecord {
-    pub context_keys: Vec<CatchAllKey>,
-    /// The three every record holds, and no other.
-    pub measures: Vec<Measure>,
+    pub record: Record,
 }
 
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(try_from = "Fields")]
 pub enum ContextKey {
     Method,
+    /// The catch-all's alone, as are `PathPrefix` and `Operation`.
+    Host,
+    PathPrefix {
+        segments: u32,
+    },
+    Operation,
+    /// An entry's alone.
     Named {
         name: String,
         path: Path,
         // `field_type` goes here: what the value is, read past until a record carries it.
     },
-}
-
-#[derive(Debug, PartialEq, Deserialize)]
-#[serde(try_from = "Fields")]
-pub enum CatchAllKey {
-    Host,
-    PathPrefix { segments: u32 },
-    Method,
-    Operation,
 }
 
 #[derive(Debug, PartialEq, Deserialize)]
@@ -142,18 +133,10 @@ impl ContextKey {
     fn name(&self) -> &str {
         match self {
             Self::Method => "method",
-            Self::Named { name, .. } => name,
-        }
-    }
-}
-
-impl CatchAllKey {
-    fn name(&self) -> &str {
-        match self {
             Self::Host => "host",
             Self::PathPrefix { .. } => "path_prefix",
-            Self::Method => "method",
             Self::Operation => "operation",
+            Self::Named { name, .. } => name,
         }
     }
 }
@@ -203,7 +186,9 @@ fn check_plan(plan: &Plan) -> Result<(), String> {
         ));
     }
     check_budget(&plan.budget)?;
-    unique("entry", plan.entries.iter().map(|entry| entry.id.as_str()))?;
+    // The catch-all's id among them, so a record's id names one record whatever it's written as.
+    let ids = plan.entries.iter().map(|entry| entry.id.as_str());
+    unique("record", ids.chain([plan.catch_all.id.as_str()]))?;
     for entry in &plan.entries {
         check_entry(entry).map_err(|why| format!("entry {}: {why}", entry.id))?;
     }
@@ -231,8 +216,8 @@ fn check_budget(budget: &PlanBudget) -> Result<(), String> {
 }
 
 fn check_entry(entry: &Entry) -> Result<(), String> {
-    if entry.id.is_empty() || entry.id == CATCH_ALL {
-        return Err(format!("its id is empty or {CATCH_ALL}"));
+    if entry.id.is_empty() {
+        return Err("its id is empty".to_owned());
     }
     if let Some(endpoint_id) = &entry.endpoint_id
         && !(1..=MAX_ENDPOINT_ID_CHARS).contains(&endpoint_id.chars().count())
@@ -244,17 +229,29 @@ fn check_entry(entry: &Entry) -> Result<(), String> {
     if entry.conditions.is_empty() {
         return Err("its match is empty".to_owned());
     }
-    unique(
-        "context key",
-        entry.record.context_keys.iter().map(ContextKey::name),
-    )?;
+    let keys = &entry.record.context_keys;
+    unique("context key", keys.iter().map(ContextKey::name))?;
+    if let Some(key) = keys.iter().find(|key| {
+        matches!(
+            key,
+            ContextKey::Host | ContextKey::PathPrefix { .. } | ContextKey::Operation
+        )
+    }) {
+        return Err(format!("context key {}: the catch-all's alone", key.name()));
+    }
     check_measures(&entry.record.measures)
 }
 
 fn check_catch_all(catch_all: &CatchAll) -> Result<(), String> {
     let keys = &catch_all.record.context_keys;
-    unique("context key", keys.iter().map(CatchAllKey::name))?;
-    if !keys.contains(&CatchAllKey::Host) {
+    unique("context key", keys.iter().map(ContextKey::name))?;
+    if let Some(named) = keys
+        .iter()
+        .find(|key| matches!(key, ContextKey::Named { .. }))
+    {
+        return Err(format!("context key {}: not a built-in one", named.name()));
+    }
+    if !keys.contains(&ContextKey::Host) {
         return Err("no host context key".to_owned());
     }
     let measures = &catch_all.record.measures;
@@ -304,36 +301,16 @@ struct Fields {
     paths: Option<Value>,
 }
 
-// A key's fields depend on its name.
+// A key's fields depend on its name; which record may hold it is the plan's check.
 impl TryFrom<Fields> for ContextKey {
     type Error = String;
 
     fn try_from(fields: Fields) -> Result<Self, String> {
         let name = read_name(fields.name, "context key")?;
         let at = format!("context key {name}");
-        match name.as_str() {
-            "method" => Ok(Self::Method),
-            "host" | "path_prefix" | "operation" => Err(format!("{at}: the catch-all's alone")),
-            _ => {
-                let path = present(fields.path, "path", &at)?;
-                Ok(Self::Named {
-                    path: read_record_path(&path).map_err(|why| format!("{at}: {why}"))?,
-                    name,
-                })
-            }
-        }
-    }
-}
-
-impl TryFrom<Fields> for CatchAllKey {
-    type Error = String;
-
-    fn try_from(fields: Fields) -> Result<Self, String> {
-        let name = read_name(fields.name, "context key")?;
-        let at = format!("context key {name}");
         Ok(match name.as_str() {
-            "host" => Self::Host,
             "method" => Self::Method,
+            "host" => Self::Host,
             "operation" => Self::Operation,
             "path_prefix" => {
                 let segments = present(fields.segments, "segments", &at)?;
@@ -345,7 +322,13 @@ impl TryFrom<Fields> for CatchAllKey {
                     _ => return Err(format!("{at}: its segments aren't a whole number from 1")),
                 }
             }
-            _ => return Err(format!("{at}: not a built-in one")),
+            _ => {
+                let path = present(fields.path, "path", &at)?;
+                Self::Named {
+                    path: read_record_path(&path).map_err(|why| format!("{at}: {why}"))?,
+                    name,
+                }
+            }
         })
     }
 }

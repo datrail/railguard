@@ -1,15 +1,15 @@
-//! A call as the callout hands it over, matched against a compiled plan, and what the entry that
-//! takes it records of it.
+//! A call as the callout hands it over, matched against a compiled plan, and what the record
+//! counting it, an entry's or the catch-all's, reads of it.
 
 use super::compile::{CompiledEntry, CompiledPlan, EntryRefusal};
-use super::plan::{ContextKey, Entry, Function, Measure, Record};
+use super::plan::{CatchAll, ContextKey, Entry, Function, Measure, Record};
 use crate::body::BodyRead;
 use crate::condition::{
     BodyPath, BodyUnread, Budget, Environment, Items, Lookup, Path, Refusal, RequestPath, Verdict,
     evaluate_condition, resolve_path,
 };
 use crate::redaction::is_secret_token;
-use crate::request_line::{ReportedMethod, RequestLine, Unmatchable};
+use crate::request_line::{HostReading, ReportedMethod, RequestLine, Unmatchable};
 
 // Past this, a kept value could carry data of any length.
 const MAX_KEPT_CHARS: usize = 256;
@@ -27,21 +27,20 @@ pub struct ObservedCall {
     pub body_bytes: u64,
 }
 
-/// A call matched against a plan.
+/// A call matched against a plan, and what the record counting it reads of it.
 #[derive(Debug)]
 pub struct CapturedCall<'p> {
     pub request_line: RequestLine,
     pub taken: Taken<'p>,
+    /// What the record counting it reads: the taking entry's, or the catch-all's.
+    pub record: RecordReading,
 }
 
-/// Which record counts a call.
+/// Which of the plan's records counts a call.
 #[derive(Debug)]
 pub enum Taken<'p> {
-    Entry {
-        entry: &'p Entry,
-        record: RecordReading,
-    },
-    CatchAll(Untaken<'p>),
+    Entry(&'p Entry),
+    CatchAll(&'p CatchAll, Untaken<'p>),
 }
 
 /// Why the catch-all counts a call: the entry named is where its walk stopped.
@@ -61,7 +60,7 @@ pub enum Untaken<'p> {
     BodyUnread(&'p Entry, BodyUnread),
 }
 
-/// What an entry's record reads of the call it takes, in the plan's order.
+/// What a record reads of a call, in the plan's order.
 #[derive(Debug, PartialEq)]
 pub struct RecordReading {
     /// One per context key.
@@ -73,6 +72,11 @@ pub struct RecordReading {
 #[derive(Debug, PartialEq)]
 pub enum KeyReading {
     Method(ReportedMethod),
+    Host(HostReading),
+    /// The redacted path's first segments.
+    PathPrefix(String),
+    /// The tool a `tools/call` names: absent for any other message.
+    Operation(PathReading<KeptValue>),
     Path(PathReading<KeptValue>),
 }
 
@@ -120,28 +124,28 @@ pub enum Replacement {
 }
 
 impl CompiledPlan {
-    /// Matches `call`, then reads what the entry that takes it records.
+    /// Matches `call`, then reads what the record counting it holds.
     pub fn capture(&self, call: &ObservedCall) -> CapturedCall<'_> {
         let request_line = RequestLine::read(&call.authority, &call.method, &call.path);
         let environment = Environment::for_capture(&request_line, &call.body);
         // One per call, matching and reading its record, as one judgement is.
         let mut budget = Budget::default();
-        let taken = match self.walk(&request_line, &environment, &mut budget) {
-            Ok(entry) => {
-                let record = read_record(
-                    &entry.record,
-                    &request_line,
-                    &environment,
-                    call.body_bytes,
-                    &mut budget,
-                );
-                Taken::Entry { entry, record }
-            }
-            Err(why) => Taken::CatchAll(why),
+        let catch_all = &self.plan().catch_all;
+        let (taken, record) = match self.walk(&request_line, &environment, &mut budget) {
+            Ok(entry) => (Taken::Entry(entry), &entry.record),
+            Err(why) => (Taken::CatchAll(catch_all, why), &catch_all.record),
         };
+        let record = read_record(
+            record,
+            &request_line,
+            &environment,
+            call.body_bytes,
+            &mut budget,
+        );
         CapturedCall {
             request_line,
             taken,
+            record,
         }
     }
 
@@ -201,6 +205,14 @@ fn read_record(
         .iter()
         .map(|key| match key {
             ContextKey::Method => KeyReading::Method(request_line.reported_method()),
+            ContextKey::Host => KeyReading::Host(request_line.host_reading().clone()),
+            ContextKey::PathPrefix { segments } => {
+                KeyReading::PathPrefix(request_line.path_prefix(*segments as usize).to_owned())
+            }
+            ContextKey::Operation => {
+                let tool = Path::Request(RequestPath::McpTool);
+                KeyReading::Operation(read_key(&tool, environment, budget))
+            }
             ContextKey::Named { path, .. } => KeyReading::Path(read_key(path, environment, budget)),
         })
         .collect();
