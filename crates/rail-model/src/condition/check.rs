@@ -400,19 +400,15 @@ fn get_path_kind(
             RequestPath::EndpointKey
             | RequestPath::Host
             | RequestPath::Method
-            | RequestPath::Path(None)
-            | RequestPath::RedactedPath(None)
+            | RequestPath::Path(_)
+            | RequestPath::RedactedPath(_)
+            | RequestPath::Query { index: Some(_), .. }
             | RequestPath::McpMethod
             | RequestPath::McpTool,
         ) => Ok(Kind::String),
+        Path::Request(RequestPath::Query { index: None, .. }) => Ok(Kind::List),
         Path::Request(RequestPath::Header(_)) => Ok(Kind::Header),
         Path::Request(RequestPath::Body(_)) => Ok(Kind::Any),
-        // Never reached: `check_path` keeps only the paths a condition's use case reads.
-        Path::Request(
-            RequestPath::Path(Some(_))
-            | RequestPath::RedactedPath(Some(_))
-            | RequestPath::Query { .. },
-        ) => Err(format!("\"{shown}\": names nothing a request carries")),
     }
 }
 

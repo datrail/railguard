@@ -79,8 +79,7 @@ impl CompiledPlan {
         let (mut own, mut any) = (own.iter().peekable(), self.any_host.iter().peekable());
         // The two lists merged in plan order, each index in one of them only.
         let merged = std::iter::from_fn(move || match (own.peek(), any.peek()) {
-            (Some(a), Some(b)) if a < b => own.next(),
-            (Some(_), None) => own.next(),
+            (Some(a), b) if b.is_none_or(|b| a < b) => own.next(),
             _ => any.next(),
         });
         let mut ended = false;

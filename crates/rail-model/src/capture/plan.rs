@@ -420,7 +420,6 @@ fn is_name(text: &str) -> bool {
         && bytes.all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_')
 }
 
-// A context key's or a measure's: into the body, the query or the path's segments.
 // A record keeps what a call carries beyond its endpoint: from its body, its query or a segment.
 fn is_record_path(path: &Path) -> bool {
     matches!(
