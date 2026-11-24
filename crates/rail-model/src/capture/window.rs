@@ -172,8 +172,8 @@ impl Window {
             .collect();
         ClosedWindow(Captured {
             agent: plan.agent.clone(),
-            plan_version: Some(plan.plan_version),
-            plan_hash: Some(plan.content_hash.clone()),
+            plan_version: plan.plan_version,
+            plan_hash: plan.content_hash.clone(),
             start: self.start,
             end,
             truncated: self.truncated,
@@ -283,7 +283,7 @@ impl ClosedWindow {
         generated_at: SystemTime,
         windows_dropped: u64,
     ) -> Document {
-        Document::capturing(self.0, document_id, generated_at, windows_dropped)
+        Document::new(self.0, document_id, generated_at, windows_dropped)
     }
 }
 

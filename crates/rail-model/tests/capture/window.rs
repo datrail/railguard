@@ -1,14 +1,12 @@
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use rail_model::agent::AgentId;
 use rail_model::body::{BodyRead, Unread};
 use rail_model::capture::{
-    BodyUnreadReason, Document, NotCapturing, ObservedCall, PlanId, Window, compile_plan,
-    parse_plan,
+    BodyUnreadReason, Document, ObservedCall, Window, compile_plan, parse_plan,
 };
 use serde::Deserialize;
-use serde_json::{Value, json};
+use serde_json::Value;
 use uuid::Uuid;
 
 use super::patch;
@@ -158,68 +156,5 @@ fn test_tells_why_a_body_went_unread() {
     ];
     for (body, reason) in cases {
         assert_eq!(window.record(&call(body), time(1)), reason);
-    }
-}
-
-#[test]
-fn test_writes_a_window_that_captured_nothing() {
-    let agent = AgentId {
-        host_id: "host-7f3c".into(),
-        sandbox_name: "agent-finretail".into(),
-    };
-    // A time is written to the nanosecond the clock gives.
-    let generated_at = time(900) + Duration::from_millis(999);
-    let plan = |plan_version| PlanId {
-        plan_hash: "sha256:ab".into(),
-        plan_version,
-    };
-    let write = |why| {
-        let start = time(0) + Duration::from_millis(500);
-        let document = Document::not_capturing(
-            why,
-            agent.clone(),
-            start,
-            time(900),
-            Uuid::nil(),
-            generated_at,
-            1,
-        );
-        serde_json::to_value(document).unwrap()
-    };
-    let body_unread = json!({"past_cap": 0, "past_budget": 0, "not_sent": 0, "cut_short": 0,
-        "not_json": 0, "batch": 0, "ambiguous": 0, "step_budget": 0});
-    let truncated = json!({"calls_coarsened": 0, "calls_dropped": 0, "entries_skipped": 0,
-        "body_unread": body_unread, "windows_dropped": 1, "path_unresolved": 0,
-        "values_replaced": 0, "values_ambiguous": 0, "steps_dropped": 0});
-    let no_plan = json!({"schema_version": "1.0", "generated_at": "1970-01-01T00:15:00.999Z",
-        "document_id": "00000000-0000-0000-0000-000000000000",
-        "agent": {"host_id": "host-7f3c", "sandbox_name": "agent-finretail"},
-        "status": "no_plan", "redaction_version": 1,
-        "window": {"start": "1970-01-01T00:00:00.5Z", "end": "1970-01-01T00:15:00Z"},
-        "truncated": truncated, "hosts": [], "records": [], "sequence": []});
-    assert_eq!(write(NotCapturing::NoPlan), no_plan);
-    // A plan held is named, its version where the peek read one.
-    let named = |document: Value| {
-        let field = |name: &str| document.get(name).cloned();
-        (field("status"), field("plan_hash"), field("plan_version"))
-    };
-    let hash = Some(json!("sha256:ab"));
-    for (why, status, version) in [
-        (
-            NotCapturing::PlanUnknown(plan(Some(4))),
-            "plan_unknown",
-            Some(json!(4)),
-        ),
-        (NotCapturing::PlanInvalid(plan(None)), "plan_invalid", None),
-        (
-            NotCapturing::RedactionMismatch(plan(Some(4))),
-            "redaction_mismatch",
-            Some(json!(4)),
-        ),
-    ] {
-        assert_eq!(
-            named(write(why)),
-            (Some(json!(status)), hash.clone(), version)
-        );
     }
 }

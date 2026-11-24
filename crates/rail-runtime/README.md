@@ -11,9 +11,9 @@ behave the same. See the [main README](../../README.md) for the system around it
   [`CONFIGURATION.md`](../../CONFIGURATION.md).
 - **Rail Center:** `RailCenterClient`, the one client every Rail Center call goes through, on the `RailCenterThread`, a
   runtime of its own, so a burst of calls can't delay a refresh and a refresh's work can't stall a call.
-- **The holders:** `BundleHolder`, `KeySetHolder` and `TicketHolder` keep the policy bundle, the signing keys and the
-  ticket through Rail Center failures, refreshed on a jittered period: backing off after a failure that may pass, and,
-  for the keys and the ticket, which lapse, after a refusal too.
+- **The holders:** `BundleHolder`, `KeySetHolder`, `TicketHolder` and `CapturePlanHolder` keep the policy bundle, the
+  signing keys, the ticket and the capture plan through Rail Center failures, refreshed on a jittered period: backing
+  off after a failure that may pass, and, for the keys and the ticket, which lapse, after a refusal too.
 - **The gateway:** `Gateway::handle` judges a call against the bundle held, by its deadline: forward it, deny it (403),
   or refuse it as one the rules can't apply to (503). `DenialReporter` reports each denial without the call waiting.
 - **The proxy:** `XRailHeaders` are the proxy's changes to a request, for a protected host or any other.

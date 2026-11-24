@@ -1,6 +1,9 @@
 mod bundle_holder;
 mod bundle_settings;
 mod bundles;
+mod capture_plan;
+mod capture_plan_holder;
+mod capture_plans;
 mod client;
 mod clock;
 mod common;

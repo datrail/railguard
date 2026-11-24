@@ -13,7 +13,7 @@ pub use call::{
 };
 pub use compile::{CompiledEntry, CompiledPlan, EntryRefusal, compile_plan};
 
-pub use document::{Document, NotCapturing, PlanId};
+pub use document::Document;
 pub use plan::{
     CatchAll, Combine, ContextKey, Entry, Function, InvalidPlan, Measure, OnMaxGroups, Plan,
     PlanBudget, Record, parse_plan,

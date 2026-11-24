@@ -3,7 +3,7 @@ use std::time::{Duration, SystemTime};
 
 use rail_model::agent::AgentId;
 
-use crate::client::{FetchError, Limits, RailCenterClient, Response};
+use crate::client::{FetchError, Limits, RailCenterClient, Response, agent_query};
 use crate::config::{Refused, Secret, Settings};
 use crate::holder::parse_refresh_interval;
 
@@ -104,12 +104,9 @@ pub struct RailCenterTickets {
 
 impl TicketSource for RailCenterTickets {
     async fn fetch(&self) -> Result<Response, FetchError> {
-        let agent = &self.agent;
-        let params = [
-            ("host_id", agent.host_id.as_str()),
-            ("sandbox_name", agent.sandbox_name.as_str()),
-        ];
-        self.client.get(ROUTE, &params, LIMITS).await
+        self.client
+            .get(ROUTE, &agent_query(&self.agent), LIMITS)
+            .await
     }
 
     fn agent(&self) -> &AgentId {
