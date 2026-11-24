@@ -149,11 +149,14 @@ async fn the_backoff_never_exceeds_the_interval_nor_goes_under_5_s() {
     let capped = Script::new(&clock, |_| failed());
     let floored = Script::new(&clock, |_| failed());
 
-    let _capped = start(&clock, &capped, Duration::from_secs(30));
-    let _floored = start(&clock, &floored, Duration::from_secs(1));
+    // Jittered, so the cap is told apart from one applied after the jitter.
+    let jitter = || Jitter::new(|| 1.2);
+    let _capped = start_jittered(&clock, &capped, Duration::from_secs(30), jitter());
+    let _floored = start_jittered(&clock, &floored, Duration::from_secs(1), jitter());
     until(&clock, 130).await;
 
-    assert_eq!(capped.fetched_at(), [0, 5, 15, 35, 65, 95, 125]);
+    // 5, 10, 20 s, then the interval's 30 s, each scaled by 1.2.
+    assert_eq!(capped.fetched_at(), [0, 6, 18, 42, 78, 114]);
     assert_eq!(floored.fetched_at()[..4], [0, 5, 10, 15]);
 }
 
@@ -404,23 +407,6 @@ async fn jitter_scales_every_wait_never_under_5_s() {
     for ((factor, expected), (script, _)) in cases.iter().zip(&scripts) {
         assert_eq!(script.fetched_at()[..4], *expected, "{factor}");
     }
-}
-
-#[tokio::test(start_paused = true)]
-async fn the_backoff_is_capped_by_the_interval_before_the_jitter() {
-    let clock = TestClock::new();
-    let script = Script::new(&clock, |_| failed());
-
-    let _holder = start_jittered(
-        &clock,
-        &script,
-        Duration::from_secs(30),
-        Jitter::new(|| 1.2),
-    );
-    until(&clock, 114).await;
-
-    // 5, 10, 20 s jittered, then the interval's 30 s, jittered to 36.
-    assert_eq!(script.fetched_at()[..6], [0, 6, 18, 42, 78, 114]);
 }
 
 #[tokio::test(start_paused = true)]

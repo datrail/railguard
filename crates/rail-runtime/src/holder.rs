@@ -234,7 +234,8 @@ async fn run<K: Kind>(
             Attempt::Succeeded => false,
         };
         let scheduled = if backs_off {
-            backoff.failed(Some(period))
+            backoff.failed();
+            backoff.wait(Some(period))
         } else {
             backoff.reset();
             // A period runs from the start of the attempt, so a slow fetch doesn't shift the

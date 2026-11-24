@@ -1,5 +1,5 @@
 //! How long a call to Rail Center waits to be made again: after attempts in a row that back off,
-//! 5 s doubling to 320 s; every wait jittered.
+//! 5 s doubling to 320 s, jittered; and a wait as logged.
 
 use std::hash::{BuildHasher, RandomState};
 use std::sync::Arc;
@@ -49,11 +49,15 @@ impl Backoff {
         }
     }
 
-    /// The wait after one more failure in a row: 5 s doubling to 320 s, or `at_most` if shorter,
-    /// jittered.
-    pub(crate) fn failed(&mut self, at_most: Option<Duration>) -> Duration {
+    /// Counts one more attempt in a row that backed off.
+    pub(crate) fn failed(&mut self) {
         self.failures = self.failures.saturating_add(1);
-        let wait = FLOOR * 2_u32.pow((self.failures - 1).min(MAX_DOUBLINGS));
+    }
+
+    /// The wait after the attempts counted: 5 s doubling to 320 s, or `at_most` if shorter,
+    /// jittered.
+    pub(crate) fn wait(&self, at_most: Option<Duration>) -> Duration {
+        let wait = FLOOR * 2_u32.pow(self.failures.saturating_sub(1).min(MAX_DOUBLINGS));
         self.jittered(at_most.map_or(wait, |at_most| wait.min(at_most)))
     }
 

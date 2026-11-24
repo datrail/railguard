@@ -315,8 +315,12 @@ impl Reporter {
         let dropped = match delivery {
             Delivery::Failed(reason) if self.flush.is_none() => {
                 // A failure counts even when hurried: only a document taken ends the run.
-                let wait = self.backoff.failed(None);
-                let wait = if hurry { Duration::ZERO } else { wait };
+                self.backoff.failed();
+                let wait = if hurry {
+                    Duration::ZERO
+                } else {
+                    self.backoff.wait(None)
+                };
                 self.next_attempt = Instant::now() + wait;
                 tracing::warn!(
                     reason,
