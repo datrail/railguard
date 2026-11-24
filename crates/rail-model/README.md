@@ -1,9 +1,9 @@
 # rail-model
 
 DatRail's rules language. Rail Center publishes the rules as a policy bundle: which calls to which MCP tools are
-allowed, judged on what an agent's ticket says about it. This crate reads bundles, tickets and capture plans, reads
-which endpoint and host a call names, judges the call against the rules, and reads a call's request line, redacted, for
-capture. See the [main README](../../README.md) for the system around it.
+allowed, judged on what an agent's ticket says about it. This crate reads bundles, tickets and capture plans, compiles a
+plan for matching calls, reads which endpoint and host a call names, judges the call against the rules, and reads a
+call's request line, redacted, for capture. See the [main README](../../README.md) for the system around it.
 
 It's one crate, used everywhere a rule is read, so a rule means the same thing where it's written and where it's
 enforced. The conformance cases in [`vectors/`](../../vectors) define its behaviour.
@@ -11,8 +11,8 @@ enforced. The conformance cases in [`vectors/`](../../vectors) define its behavi
 ## Who uses it
 
 Rail Center and RailDash, outside this workspace, are to use it through the Python package
-[`rail-model-py`](../rail-model-py/README.md): Rail Center to check each rule before publishing it, and RailDash to try
-a rule on a sample call.
+[`rail-model-py`](../rail-model-py/README.md): Rail Center to check each rule, and each capture plan entry's match,
+before publishing it, and RailDash to try a rule on a sample call.
 
 ## Entry points
 
@@ -23,11 +23,11 @@ By module:
   also hands a `Tracer` each policy evaluated. **`parse_ticket`** reads an `x-rail` value: base64, or a signed JWT
   checked against a `SignedTicketConfig`'s keys, issuer and audience. **`parse_key_set`** reads Rail Center's signing
   keys.
-- **`condition`:** **`check_condition`** reports every problem with one condition, and whether every reader refuses it
-  or only Rail Center; **`compile_condition`** and **`evaluate_condition`** evaluate one, as the judge does. A
-  **`Path`** is spelled as a dotted string or as a list, in a bundle or a plan; it's read for a **`ConditionUse`** (a
-  policy, a plan's match, a plan's context key or measure), which decides the paths it reads; a condition is compiled
-  for one and evaluated in the **`Environment`** that use fills (`for_judging`, or `for_capture`, from a
+- **`condition`:** **`check_condition`** reports every problem with one condition, read for its use, and whether every
+  reader refuses it or only Rail Center; **`compile_condition`** and **`evaluate_condition`** evaluate one, as the judge
+  does. A **`Path`** is spelled as a dotted string or as a list, in a bundle or a plan; it's read for a
+  **`ConditionUse`** (a gateway policy, a capture plan entry's match), which decides the paths it reads; a condition is
+  compiled for one and evaluated in the **`Environment`** that use fills (`for_judging`, or `for_capture`, from a
   **`RequestLine`** and the body). A body value that can't be told, or isn't read, is a verdict of its own (`Ambiguous`,
   `BodyUnread`), never false; a refusal keeps its cause.
 - **`endpoint`:** **`Endpoint`** and **`ResolvedKey`**, the endpoint a call asks for, keyed as a bundle binds it, and
@@ -45,7 +45,10 @@ By module:
   know, refusing one that breaks the field reference with why (**`InvalidPlan`**). A **`Plan`**'s entries keep their
   conditions as written, checked when compiled; its values are as Rail Center writes them. It checks the proxy's
   ceilings too. Its `content_hash`'s form, its `schema_version`'s major, its agent and its `redaction_version` are the
-  caller's to check.
+  caller's to check. **`compile_plan`** compiles a read plan's entries for matching calls (**`CompiledPlan`**): an entry
+  with a condition it can't evaluate for a plan is refused with why (**`EntryRefusal`**), and a call reaching it goes to
+  the catch-all; nothing else is checked, Rail Center's own rules for a plan being its own. An entry is tried only for
+  the host an `eq` on `request.host` among its conditions names, as written, or for every host if none does.
 - **`schema_version`:** **`SchemaVersion`**, a document's `MAJOR.MINOR`, a bundle's or a plan's.
 - **`request_line`:** **`RequestLine::read`** reads a call's `:authority`, `:method` and `:path` once, as conditions
   read them under `request`: the host as `split_authority` spells it, or `[unparseable]`; the path up to its query or

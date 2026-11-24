@@ -66,8 +66,8 @@ pub enum ProblemCode {
     Unreadable,
 }
 
-/// `Enforcement`: every reader refuses it, reading the condition as `Invalid`. `Authoring`:
-/// only the writer does, since a reader may be on another version.
+/// `Enforcement`: every reader refuses it, reading the condition as `Invalid` or compiling it so.
+/// `Authoring`: only the writer does, since a reader may be on another version.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProblemScope {
@@ -95,6 +95,8 @@ enum Kind {
     /// A string, or a list of strings for a header sent with several values.
     Header,
     Object,
+    /// A body's value, which can be any.
+    Any,
 }
 
 /// The claims a ticket carries, which rules read: nested objects whose leaves are kinds.
@@ -155,11 +157,12 @@ fn read_node(value: &Value) -> Result<SchemaNode, String> {
     }
 }
 
-/// Every problem with a condition given as JSON text, in the order found: first as every reader
-/// parses it, then as only Rail Center checks it. None means every reader reads it, and Rail
-/// Center would publish it.
+/// Every problem with a condition given as JSON text, for its `use_case`, in the order found:
+/// first as every reader parses it, then as only Rail Center checks it. None means every reader
+/// reads it, and Rail Center would publish it. Only a gateway policy reads `ticket_claims_schema`.
 pub fn check_condition(
     text: &str,
+    use_case: ConditionUse,
     ticket_claims_schema: &TicketClaimsSchema,
 ) -> Vec<ConditionProblem> {
     let condition: Value = match serde_json::from_str(text) {
@@ -187,8 +190,14 @@ pub fn check_condition(
         )];
     };
     let mut problems = Vec::new();
-    let parsed = check_grammar(fields, &mut problems);
-    check_authoring(&condition, parsed, ticket_claims_schema, &mut problems);
+    let parsed = check_grammar(fields, use_case, &mut problems);
+    check_authoring(
+        &condition,
+        parsed,
+        use_case,
+        ticket_claims_schema,
+        &mut problems,
+    );
     problems
 }
 
@@ -200,9 +209,10 @@ struct Parsed<'a> {
     path: Option<(String, Path)>,
 }
 
-/// As a reader parses a condition: the op, then the path and the operand.
+/// As a reader parses and compiles a condition: the op, then the path and the operand.
 fn check_grammar<'a>(
     fields: &'a Map<String, Value>,
+    use_case: ConditionUse,
     problems: &mut Vec<ConditionProblem>,
 ) -> Parsed<'a> {
     let op = fields.get("op").and_then(Value::as_str);
@@ -233,7 +243,7 @@ fn check_grammar<'a>(
     } else {
         ProblemScope::Enforcement
     };
-    let path = check_path(fields.get("path"), scope, problems);
+    let path = check_path(fields.get("path"), use_case, scope, problems);
     if let Some(op) = known_op
         && let Some(expected) = get_operand_shape(op)
         && !is_shaped(fields.get("value"), expected)
@@ -254,6 +264,7 @@ fn check_grammar<'a>(
 // As a reader reads it: a dotted string, or a list.
 fn check_path(
     path: Option<&Value>,
+    use_case: ConditionUse,
     scope: ProblemScope,
     problems: &mut Vec<ConditionProblem>,
 ) -> Option<(String, Path)> {
@@ -279,21 +290,29 @@ fn check_path(
             return None;
         }
     };
-    let under_a_source = matches!(source, Some("ticket" | "request"));
-    if under_a_source && let Some(path) = read.filter(|path| ConditionUse::Policy.reads(path)) {
+    let sources: &[&str] = match use_case {
+        ConditionUse::GatewayPolicy => &["ticket", "request"],
+        ConditionUse::CapturePlan => &["request"],
+    };
+    let under_a_source = source.is_some_and(|source| sources.contains(&source));
+    if under_a_source && let Some(path) = read.filter(|path| use_case.reads(path)) {
         return Some((text, path));
     }
     let shown = sanitize(&text);
     let (code, message) = if under_a_source {
         // Only a `request` path can fail: any `ticket` path is a policy's.
+        let reads = match use_case {
+            ConditionUse::GatewayPolicy => "a request carries",
+            ConditionUse::CapturePlan => "a plan's match reads",
+        };
         (
             ProblemCode::UnknownPath,
-            format!("\"{shown}\": names nothing a request carries"),
+            format!("\"{shown}\": names nothing {reads}"),
         )
     } else {
         (
             ProblemCode::UnknownSource,
-            format!("\"{shown}\": not under ticket or request"),
+            format!("\"{shown}\": not under {}", sources.join(" or ")),
         )
     };
     problems.push(build_problem(loc!["path"], code, scope, message));
@@ -301,10 +320,11 @@ fn check_path(
 }
 
 /// What only Rail Center refuses: a path its schema doesn't hold, an op that can't hold for the
-/// path, and deep nesting.
+/// path, an empty `in` in a capture plan, and deep nesting.
 fn check_authoring(
     condition: &Value,
     parsed: Parsed,
+    use_case: ConditionUse,
     ticket_claims_schema: &TicketClaimsSchema,
     problems: &mut Vec<ConditionProblem>,
 ) {
@@ -329,6 +349,21 @@ fn check_authoring(
                 message,
             )),
         }
+    }
+    // An empty list holds for nothing: a reader evaluates it, but Rail Center never writes one.
+    if parsed.op == Some("in")
+        && use_case == ConditionUse::CapturePlan
+        && condition["value"].as_array().is_some_and(Vec::is_empty)
+    {
+        problems.push(ConditionProblem {
+            expected_shape: Some(OperandShape::List),
+            ..build_problem(
+                loc!["value"],
+                ProblemCode::OperandShape,
+                ProblemScope::Authoring,
+                "in takes at least one value in a plan's match".to_string(),
+            )
+        });
     }
     if get_depth(condition) > MAX_AUTHORING_DEPTH {
         let message = format!("nested deeper than {MAX_AUTHORING_DEPTH} levels");
@@ -361,10 +396,19 @@ fn get_path_kind(
             ))
         }
         Path::Request(RequestPath::Whole | RequestPath::Headers) => Ok(Kind::Object),
-        Path::Request(RequestPath::EndpointKey) => Ok(Kind::String),
+        Path::Request(
+            RequestPath::EndpointKey
+            | RequestPath::Host
+            | RequestPath::Method
+            | RequestPath::Path(_)
+            | RequestPath::RedactedPath(_)
+            | RequestPath::Query { index: Some(_), .. }
+            | RequestPath::McpMethod
+            | RequestPath::McpTool,
+        ) => Ok(Kind::String),
+        Path::Request(RequestPath::Query { index: None, .. }) => Ok(Kind::List),
         Path::Request(RequestPath::Header(_)) => Ok(Kind::Header),
-        // Never reached: `check_path` keeps only a policy's paths.
-        Path::Request(_) => Err(format!("\"{shown}\": names nothing a request carries")),
+        Path::Request(RequestPath::Body(_)) => Ok(Kind::Any),
     }
 }
 
@@ -414,6 +458,7 @@ fn is_op_for(kind: Kind, op: &str) -> bool {
         Kind::String => &["eq", "ne", "in", "matches"],
         Kind::Number => &["eq", "ne", "lt", "lte", "gt", "gte", "in"],
         Kind::List | Kind::Header => &["eq", "ne", "in", "matches", "contains", "not_contains"],
+        Kind::Any => return true,
     };
     EXISTENCE_OPS.contains(&op) || ops.contains(&op)
 }
@@ -435,6 +480,8 @@ fn format_kind(kind: Kind) -> &'static str {
         Kind::List => "a list",
         Kind::Header => "a header",
         Kind::Object => "an object",
+        // Never: any op can hold for it.
+        Kind::Any => "any value",
     }
 }
 

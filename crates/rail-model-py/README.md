@@ -1,8 +1,9 @@
 # rail-model-py
 
-The rules language as a Python package, `datrail-model`, for Rail Center, to check each rule before publishing it, and
-for RailDash, to try a rule on a sample call. Both then run the very code the gateways enforce rules with, instead of a
-Python copy that could drift from it. See the [main README](../../README.md) for the system around it.
+The rules language as a Python package, `datrail-model`, for Rail Center, to check each rule, and each capture plan
+entry's match, before publishing it, and for RailDash, to try a rule on a sample call. Both then run the very code the
+gateways enforce rules with, instead of a Python copy that could drift from it. See the [main README](../../README.md)
+for the system around it.
 
 It's the Python binding of [`rail-model`](../rail-model/README.md), built with maturin into the `datrail-model` wheel,
 for CPython 3.12 or later.
@@ -10,7 +11,8 @@ for CPython 3.12 or later.
 ## Entry points
 
 - **`validate_bundle`** says whether a policy bundle is usable;
-- **`check_condition`** reports every problem with a condition, and whether every reader refuses it or only Rail Center;
+- **`check_condition`** reports every problem with a condition, read for a gateway policy or, with
+  `use_case="capture_plan"`, a capture plan entry's match, and whether every reader refuses it or only Rail Center;
 - **`compile_bundle`** and **`judge_sample`** judge a sample call against a bundle and trace the policies evaluated; a
   refusal names its cause: `unknown_op`, `invalid`, `not_for_use` (a path a policy doesn't read) or `budget_exceeded`;
 - **`read_ticket`** reads an `x-rail` value into the claims `judge_sample` takes.

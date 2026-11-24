@@ -7,6 +7,8 @@ use rail_model::schema_version::SchemaVersion;
 use serde::Deserialize;
 use serde_json::Value;
 
+use super::patch;
+
 const VECTORS: &str = include_str!("../../../../vectors/parse_plan_conformance_cases.json");
 
 #[derive(Deserialize)]
@@ -34,24 +36,6 @@ fn vectors() -> Vectors {
     let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
     assert!(!vectors.cases.is_empty());
     vectors
-}
-
-// RFC 6902's add, remove and replace, as the vectors use them.
-fn patch(document: &mut Value, operation: &Value) {
-    let pointer = operation["path"].as_str().unwrap();
-    let (parent, last) = pointer.rsplit_once('/').unwrap();
-    let parent = document.pointer_mut(parent).unwrap();
-    let value = operation.get("value").cloned();
-    match (operation["op"].as_str().unwrap(), parent) {
-        ("remove", Value::Object(fields)) => drop(fields.remove(last).unwrap()),
-        ("remove", Value::Array(items)) => drop(items.remove(last.parse().unwrap())),
-        ("add" | "replace", Value::Object(fields)) => {
-            drop(fields.insert(last.into(), value.unwrap()))
-        }
-        ("add", Value::Array(items)) if last == "-" => items.push(value.unwrap()),
-        ("replace", Value::Array(items)) => items[last.parse::<usize>().unwrap()] = value.unwrap(),
-        (op, _) => panic!("{op} at {pointer}"),
-    }
 }
 
 fn condition_kind(condition: &Condition) -> &'static str {

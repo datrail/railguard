@@ -98,7 +98,7 @@ pub fn compile_bundle(bundle: &Bundle) -> CompiledBundle {
         .map(|policy| ChainPolicy {
             id: policy.id,
             action: policy.action,
-            condition: compile_condition(&policy.condition, ConditionUse::Policy),
+            condition: compile_condition(&policy.condition, ConditionUse::GatewayPolicy),
         })
         .collect();
     let positions: HashMap<Uuid, usize> = chain

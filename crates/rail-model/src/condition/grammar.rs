@@ -136,7 +136,8 @@ pub enum Scalar {
 
 /// What a condition, a context key or a measure reads: a source, then steps into it. Spelled as a
 /// dotted string, `<source>.<key>.<key>`, every step a key; or as a list, `["<source>", <step>, ...]`,
-/// a number step an index. Which paths a use reads is checked when compiling.
+/// a number step an index. Which paths a condition reads is checked for its use case when
+/// compiling; a record's, when its plan is read.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Path {
     Ticket(TicketPath),
@@ -181,22 +182,20 @@ impl Path {
     }
 }
 
-/// What a path is read for, which decides the paths it may read: for a condition, those its
-/// environment fills.
+/// What a condition is read for, which decides the paths it may read: those its environment
+/// fills.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ConditionUse {
     /// A bundle's policy, judged in [`Environment::for_judging`](super::Environment::for_judging).
-    Policy,
+    GatewayPolicy,
     /// A capture plan entry's match, in [`Environment::for_capture`](super::Environment::for_capture).
-    PlanMatch,
-    /// A capture plan's context key or measure: a call's body, query or path segments.
-    PlanRecord,
+    CapturePlan,
 }
 
 impl ConditionUse {
-    pub fn reads(self, path: &Path) -> bool {
+    pub(crate) fn reads(self, path: &Path) -> bool {
         match self {
-            Self::Policy => matches!(
+            Self::GatewayPolicy => matches!(
                 path,
                 Path::Ticket(_)
                     | Path::Request(
@@ -206,7 +205,7 @@ impl ConditionUse {
                             | RequestPath::Header(_)
                     )
             ),
-            Self::PlanMatch => matches!(
+            Self::CapturePlan => matches!(
                 path,
                 Path::Request(
                     RequestPath::Body(_)
@@ -216,15 +215,6 @@ impl ConditionUse {
                         | RequestPath::RedactedPath(None)
                         | RequestPath::McpMethod
                         | RequestPath::McpTool
-                )
-            ),
-            Self::PlanRecord => matches!(
-                path,
-                Path::Request(
-                    RequestPath::Body(_)
-                        | RequestPath::Path(Some(_))
-                        | RequestPath::RedactedPath(Some(_))
-                        | RequestPath::Query { .. }
                 )
             ),
         }
@@ -264,6 +254,11 @@ pub enum RequestPath {
 }
 
 impl RequestPath {
+    /// Whether it's read from the body, which a reader may hold only once the request is whole.
+    pub(crate) fn reads_the_body(&self) -> bool {
+        matches!(self, Self::Body(_) | Self::McpMethod | Self::McpTool)
+    }
+
     /// From the steps past `request`; `None` for any field or step this reader doesn't know.
     fn parse(steps: &[Value]) -> Option<Self> {
         match steps {

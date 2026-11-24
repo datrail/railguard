@@ -39,7 +39,7 @@ fn evaluate_case(case: &Case) -> Verdict {
     let headers = Headers::from_lines(case.headers.iter().map(|(n, v)| (n, v)));
     let environment = Environment::for_judging(case.ticket.as_ref(), &endpoint, &headers);
     evaluate_condition(
-        &compile_condition(&condition, ConditionUse::Policy),
+        &compile_condition(&condition, ConditionUse::GatewayPolicy),
         &environment,
         &mut Budget::default(),
     )
@@ -79,7 +79,7 @@ fn evaluate_on_header(condition: Value, value: &str, budget: &mut Budget) -> Ver
     let headers = Headers::from_lines([("x-a", value)]);
     let environment = Environment::for_judging(None, &Endpoint::Keyless, &headers);
     evaluate_condition(
-        &compile_condition(&condition, ConditionUse::Policy),
+        &compile_condition(&condition, ConditionUse::GatewayPolicy),
         &environment,
         budget,
     )
@@ -91,7 +91,7 @@ fn evaluate_on_endpoint(condition: Value, endpoint: &Endpoint) -> Verdict {
     let headers = Headers::from_lines([("x-a", "a")]);
     let environment = Environment::for_judging(None, endpoint, &headers);
     evaluate_condition(
-        &compile_condition(&condition, ConditionUse::Policy),
+        &compile_condition(&condition, ConditionUse::GatewayPolicy),
         &environment,
         &mut Budget::default(),
     )
@@ -253,7 +253,7 @@ fn evaluate_on_claims(condition: Value, claims: Value) -> Verdict {
     let headers = Headers::default();
     let environment = Environment::for_judging(Some(&claims), &Endpoint::Keyless, &headers);
     evaluate_condition(
-        &compile_condition(&condition, ConditionUse::Policy),
+        &compile_condition(&condition, ConditionUse::GatewayPolicy),
         &environment,
         &mut Budget::default(),
     )
@@ -340,7 +340,7 @@ fn evaluate_on_call(condition: Value, body: &BodyRead, budget: &mut Budget) -> V
     let predicate: Predicate = serde_json::from_value(condition).unwrap();
     let environment = Environment::for_capture(&request_line, body);
     evaluate_condition(
-        &compile_condition(&Condition::Valid(predicate), ConditionUse::PlanMatch),
+        &compile_condition(&Condition::Valid(predicate), ConditionUse::CapturePlan),
         &environment,
         budget,
     )
@@ -591,7 +591,7 @@ fn test_refuses_a_condition_with_its_cause() {
         ),
     ] {
         let read: Condition = serde_json::from_value(condition.clone()).unwrap();
-        let compiled = compile_condition(&read, ConditionUse::Policy);
+        let compiled = compile_condition(&read, ConditionUse::GatewayPolicy);
         let verdict = evaluate_condition(&compiled, &capture, &mut Budget::default()).verdict;
         assert_eq!(verdict, Verdict::Refused(refusal), "{condition}");
     }
@@ -628,7 +628,7 @@ fn test_refuses_a_source_its_environment_doesnt_fill() {
     ] {
         let condition: Condition =
             serde_json::from_value(json!({"path": path, "op": "not_existing"})).unwrap();
-        let compiled = compile_condition(&condition, ConditionUse::Policy);
+        let compiled = compile_condition(&condition, ConditionUse::GatewayPolicy);
         let verdict = evaluate_condition(&compiled, &capture, &mut Budget::default()).verdict;
         assert_eq!(verdict, not_filled, "{path}");
     }
@@ -637,7 +637,7 @@ fn test_refuses_a_source_its_environment_doesnt_fill() {
     for path in [json!(["request", "body", "a"]), json!(["request", "host"])] {
         let predicate: Predicate =
             serde_json::from_value(json!({"path": path, "op": "not_existing"})).unwrap();
-        let compiled = compile_condition(&Condition::Valid(predicate), ConditionUse::PlanMatch);
+        let compiled = compile_condition(&Condition::Valid(predicate), ConditionUse::CapturePlan);
         let verdict = evaluate_condition(&compiled, &judging, &mut Budget::default()).verdict;
         assert_eq!(verdict, not_filled, "{path}");
     }

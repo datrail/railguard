@@ -387,6 +387,21 @@
       "expect": {"valid": true}
     },
     {
+      "name": "a context key on a header, which may carry a secret",
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["request", "headers", "authorization"]}],
+      "expect": {"valid": false}
+    },
+    {
+      "name": "a context key on the MCP tool, the match's",
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["request", "mcp", "tool"]}],
+      "expect": {"valid": false}
+    },
+    {
+      "name": "a context key on the ticket, which a plan doesn't read",
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["ticket", "agent_id"]}],
+      "expect": {"valid": false}
+    },
+    {
       "name": "a context key on the whole redacted path",
       "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/path", "value": ["request", "redacted_path"]}],
       "expect": {"valid": false}

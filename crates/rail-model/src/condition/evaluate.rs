@@ -82,6 +82,31 @@ pub enum Refusal {
 #[derive(Debug)]
 pub struct CompiledCondition(Node);
 
+impl CompiledCondition {
+    /// Why it's refused whatever it's evaluated in, if it is.
+    pub(crate) fn refusal(&self) -> Option<Refusal> {
+        match self.0 {
+            Node::Refused(refusal) => Some(refusal),
+            Node::Test(..) => None,
+        }
+    }
+
+    /// Whether it reads the body, which a reader may hold only once the request is whole.
+    pub(crate) fn reads_the_body(&self) -> bool {
+        matches!(&self.0, Node::Test(Path::Request(path), _) if path.reads_the_body())
+    }
+
+    /// The host every call it holds for is to, where it requires one: an `eq` on a string.
+    pub(crate) fn implied_host(&self) -> Option<&str> {
+        match &self.0 {
+            Node::Test(Path::Request(RequestPath::Host), Test::Eq(Scalar::String(host))) => {
+                Some(host)
+            }
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug)]
 enum Node {
     Refused(Refusal),
@@ -154,16 +179,16 @@ pub enum BodyUnread {
     Batch,
 }
 
-/// `condition` as `read_for` evaluates it: one this reader can't evaluate, or whose path that use
-/// doesn't read, is refused with its cause.
-pub fn compile_condition(condition: &Condition, read_for: ConditionUse) -> CompiledCondition {
+/// `condition` as its `use_case` evaluates it: one this reader can't evaluate, or whose path
+/// that use case doesn't read, is refused with its cause.
+pub fn compile_condition(condition: &Condition, use_case: ConditionUse) -> CompiledCondition {
     let refused = |why| CompiledCondition(Node::Refused(why));
     let predicate = match condition {
         Condition::Valid(predicate) => predicate,
         Condition::Unknown(_) => return refused(Refusal::UnknownOp),
         Condition::Invalid(_) => return refused(Refusal::Invalid),
     };
-    if !read_for.reads(predicate.path()) {
+    if !use_case.reads(predicate.path()) {
         return refused(Refusal::NotForUse);
     }
     let (path, test) = match predicate {

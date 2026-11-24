@@ -9,7 +9,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::agent::AgentId;
-use crate::condition::{BodyStep, Condition, ConditionUse, Path, RequestPath};
+use crate::condition::{BodyStep, Condition, Path, RequestPath};
 use crate::sanitize::sanitize;
 use crate::schema_version::SchemaVersion;
 
@@ -420,12 +420,24 @@ fn is_name(text: &str) -> bool {
         && bytes.all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_')
 }
 
-// A context key's or a measure's: into the body, the query or the path's segments.
+// A record keeps what a call carries beyond its endpoint: from its body, its query or a segment.
+fn is_record_path(path: &Path) -> bool {
+    matches!(
+        path,
+        Path::Request(
+            RequestPath::Body(_)
+                | RequestPath::Path(Some(_))
+                | RequestPath::RedactedPath(Some(_))
+                | RequestPath::Query { .. }
+        )
+    )
+}
+
 fn read_record_path(steps: &Value) -> Result<Path, String> {
     let path = steps
         .as_array()
         .and_then(|steps| Path::from_steps(steps))
-        .filter(|path| ConditionUse::PlanRecord.reads(path))
+        .filter(is_record_path)
         .ok_or("a path not into the body, the query or a path segment")?;
     if let Path::Request(RequestPath::Body(body)) = &path
         && body

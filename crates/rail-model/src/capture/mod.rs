@@ -1,6 +1,9 @@
 //! The capture plan: which calls the proxy records, and what of them.
 
+mod compile;
 mod plan;
+
+pub use compile::{CompiledEntry, CompiledPlan, EntryRefusal, compile_plan};
 
 pub use plan::{
     CatchAll, CatchAllKey, CatchAllRecord, Combine, ContextKey, Entry, Function, InvalidPlan,
