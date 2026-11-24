@@ -72,6 +72,8 @@ fn test_reads_every_key_as_ambiguous_in_an_object_holding_a_key_not_json() {
         br#"{"o": {"a": 1, "\u00ez": 2}, "b": 3}"#,
         b"{\"o\": {\"a\": 1, \"\t\": 2}, \"b\": 3}",
         b"{\"o\": {\"a\": 1, \"\xc1\xad\": 2}, \"b\": 3}",
+        // JSON, but a reader cutting strings at the NUL reads `y`.
+        br#"{"o": {"a": 1, "y\u0000\ud800": 2}, "b": 3}"#,
     ] {
         let kept = keep(body);
         let root = kept.json().unwrap();
@@ -83,6 +85,19 @@ fn test_reads_every_key_as_ambiguous_in_an_object_holding_a_key_not_json() {
     // A lone surrogate is JSON, a surrogate or U+FFFD to every reader, whatever escapes are beside it.
     let kept = keep(br#"{"\ud800\"\\\/\b\f\n\r\t\u00e9": 1, "a": 2}"#);
     assert_eq!(describe(kept.json().unwrap().walk(&[Key("a")])), "2");
+    // An escaped backslash before `u0000`, or another control character escaped, is no NUL.
+    for body in [
+        &br#"{"\\u0000\ud800": 1, "a": 2}"#[..],
+        br#"{"\u0001\ud800": 1, "a": 2}"#,
+    ] {
+        let kept = keep(body);
+        let shown = String::from_utf8_lossy(body);
+        assert_eq!(
+            describe(kept.json().unwrap().walk(&[Key("a")])),
+            "2",
+            "{shown}"
+        );
+    }
 }
 
 #[test]

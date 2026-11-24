@@ -25,8 +25,8 @@ use crate::timestamp::Timestamp;
 // What a value that can't be told is written as.
 const AMBIGUOUS: &str = "[ambiguous]";
 
-// The host of the catch-all's record past the group ceiling, and of a host first seen in a call
-// coarsened there.
+// The host of the catch-all's record past the group ceiling, and of a host first seen there or
+// past as many hosts as groups.
 const OVERFLOW: &str = "[overflow]";
 
 /// Why a call an entry could have taken went to the catch-all with its body's values not told.
@@ -51,7 +51,8 @@ pub struct Window {
     start: SystemTime,
     /// By what tells each apart, in the order opened, the overflow record among them.
     records: IndexMap<GroupKey, CallRecord>,
-    /// Each host's calls, in the order first seen.
+    /// Each host's calls, in the order first seen, up to as many hosts as groups and the overflow
+    /// marker.
     hosts: IndexMap<String, u64>,
     /// Up to the plan's `max_steps_per_window`: the latest time a call was received by each, and
     /// its record.
@@ -140,7 +141,7 @@ impl Window {
             }
         };
         self.truncated.calls_coarsened += u64::from(coarsened);
-        self.count_host(request_line.host(), coarsened);
+        self.count_host(request_line.host(), at_ceiling);
         self.add(index, written);
         self.latest = self.latest.max(at);
         if self.steps.len() < plan.plan().budget.max_steps_per_window as usize {
@@ -190,9 +191,12 @@ impl Window {
         })
     }
 
-    // A host first seen in a coarsened call is totalled under the overflow marker.
-    fn count_host(&mut self, host: &str, coarsened: bool) {
-        let host = if coarsened && !self.hosts.contains_key(host) {
+    // A host first seen at the group ceiling, or past as many hosts as groups, is totalled under
+    // the overflow marker: calls joining one group may each bring a new host.
+    fn count_host(&mut self, host: &str, at_ceiling: bool) {
+        let ceiling = self.plan.plan().budget.max_groups_per_window as usize;
+        let full = at_ceiling || self.hosts.len() >= ceiling;
+        let host = if full && !self.hosts.contains_key(host) {
             OVERFLOW
         } else {
             host

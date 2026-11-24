@@ -44,7 +44,8 @@ fn decode_string(raw: &[u8], escaped: bool) -> Option<Cow<'_, str>> {
 // Whether a string `decode_string` refuses, `raw` with its quotes, is still JSON: UTF-8, no
 // control character, each escape one JSON has; so it's refused for a lone surrogate, which every
 // reader keeps or reads as U+FFFD. Outside JSON, readers differ: Jackson decodes overlong UTF-8,
-// JSON5 `\x6d`, others drop an unknown escape's backslash.
+// JSON5 `\x6d`, others drop an unknown escape's backslash. One holding a `\u0000` is refused too,
+// as a reader cutting strings there reads `"method\u0000\ud800"` as `method`.
 fn conforms_string(raw: &[u8]) -> bool {
     let inside = &raw[1..raw.len() - 1];
     if std::str::from_utf8(inside).is_err() || inside.iter().any(|&byte| byte < 0x20) {
@@ -56,6 +57,7 @@ fn conforms_string(raw: &[u8]) -> bool {
         at += offset + 1;
         let escape_bytes = match inside.get(at) {
             Some(b'"' | b'\\' | b'/' | b'b' | b'f' | b'n' | b'r' | b't') => 1,
+            Some(b'u') if inside.get(at + 1..at + 5) == Some(b"0000") => return false,
             Some(b'u') if inside.get(at + 1..at + 5).is_some_and(hex) => 5,
             _ => return false,
         };

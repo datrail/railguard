@@ -29,7 +29,8 @@ pub(crate) struct Tree {
 /// its format can't hold.
 type Decode = fn(&[u8], bool) -> Option<Cow<'_, str>>;
 
-/// Whether a string `Decode` refuses, from its raw text, is still of its format's grammar.
+/// Whether a key `Decode` refuses, from its raw text, reads as no key sought to every reader: of
+/// its format's grammar, and holding no NUL a reader could cut it at.
 type Conforms = fn(&[u8]) -> bool;
 
 #[derive(Clone, Copy, Debug)]
@@ -241,8 +242,9 @@ impl<'a> Node<'a> {
         for (name, value) in self.members() {
             let Some(name) = name.text() else {
                 // A key outside its format's grammar may be any key: lenient readers each read it
-                // their own way, too many to follow. One the grammar allows but that doesn't decode
-                // reads the same to every reader, as no key sought.
+                // their own way, too many to follow; one holding a NUL, cut there, may be a key
+                // sought. Any other the grammar allows but that doesn't decode reads the same to
+                // every reader, as no key sought.
                 if !(self.tree.conforms)(name.raw()) {
                     return Member::Ambiguous;
                 }
