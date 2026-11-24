@@ -20,85 +20,19 @@ pub struct Document {
     generated_at: Timestamp,
     document_id: Uuid,
     agent: AgentId,
-    status: Status,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    plan_version: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    plan_hash: Option<String>,
+    plan_version: u64,
+    plan_hash: String,
     redaction_version: u64,
     window: Span,
     truncated: Truncated,
     hosts: Vec<HostTotal>,
     records: Vec<CallRecord>,
-    /// Empty for a window that captured nothing, or under a plan asking for no steps.
+    /// Empty under a plan asking for no steps.
     sequence: Vec<Step>,
 }
 
-/// Why a window captured nothing.
-#[derive(Debug)]
-pub enum NotCapturing {
-    /// Rail Center said there's no plan.
-    NoPlan,
-    /// A plan of a `schema_version` this reader doesn't know.
-    PlanUnknown(PlanId),
-    /// A plan this reader refuses.
-    PlanInvalid(PlanId),
-    /// A plan redacted by another version of the redaction rule.
-    RedactionMismatch(PlanId),
-}
-
-/// The plan held, as its peek names it.
-#[derive(Debug)]
-pub struct PlanId {
-    pub plan_hash: String,
-    /// Where the peek could read one.
-    pub plan_version: Option<u64>,
-}
-
 impl Document {
-    /// A window that captured nothing, and why; given what a capturing window's document is given
-    /// in [`ClosedWindow::into_document`](super::ClosedWindow::into_document).
-    pub fn not_capturing(
-        why: NotCapturing,
-        agent: AgentId,
-        start: SystemTime,
-        end: SystemTime,
-        document_id: Uuid,
-        generated_at: SystemTime,
-        windows_dropped: u64,
-    ) -> Self {
-        let (status, plan) = match why {
-            NotCapturing::NoPlan => (Status::NoPlan, None),
-            NotCapturing::PlanUnknown(plan) => (Status::PlanUnknown, Some(plan)),
-            NotCapturing::PlanInvalid(plan) => (Status::PlanInvalid, Some(plan)),
-            NotCapturing::RedactionMismatch(plan) => (Status::RedactionMismatch, Some(plan)),
-        };
-        let captured = Captured {
-            agent,
-            plan_version: plan.as_ref().and_then(|plan| plan.plan_version),
-            plan_hash: plan.map(|plan| plan.plan_hash),
-            start,
-            end,
-            truncated: Truncated::default(),
-            hosts: Vec::new(),
-            records: Vec::new(),
-            sequence: Vec::new(),
-        };
-        Self::new(status, captured, document_id, generated_at, windows_dropped)
-    }
-
-    pub(crate) fn capturing(
-        captured: Captured,
-        document_id: Uuid,
-        generated_at: SystemTime,
-        windows_dropped: u64,
-    ) -> Self {
-        let status = Status::Capturing;
-        Self::new(status, captured, document_id, generated_at, windows_dropped)
-    }
-
-    fn new(
-        status: Status,
+    pub(crate) fn new(
         captured: Captured,
         document_id: Uuid,
         generated_at: SystemTime,
@@ -113,7 +47,6 @@ impl Document {
             generated_at: Timestamp(generated_at),
             document_id,
             agent: captured.agent,
-            status,
             plan_version: captured.plan_version,
             plan_hash: captured.plan_hash,
             redaction_version: REDACTION_VERSION,
@@ -126,28 +59,18 @@ impl Document {
     }
 }
 
-/// What a window's document holds but what its sender gives and its status.
+/// What a window's document holds but what its sender gives.
 #[derive(Debug)]
 pub(crate) struct Captured {
     pub(crate) agent: AgentId,
-    pub(crate) plan_version: Option<u64>,
-    pub(crate) plan_hash: Option<String>,
+    pub(crate) plan_version: u64,
+    pub(crate) plan_hash: String,
     pub(crate) start: SystemTime,
     pub(crate) end: SystemTime,
     pub(crate) truncated: Truncated,
     pub(crate) hosts: Vec<HostTotal>,
     pub(crate) records: Vec<CallRecord>,
     pub(crate) sequence: Vec<Step>,
-}
-
-#[derive(Clone, Copy, Debug, Serialize)]
-#[serde(rename_all = "snake_case")]
-enum Status {
-    Capturing,
-    PlanUnknown,
-    PlanInvalid,
-    RedactionMismatch,
-    NoPlan,
 }
 
 #[derive(Debug, Serialize)]
