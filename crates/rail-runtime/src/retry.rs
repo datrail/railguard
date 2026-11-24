@@ -1,18 +1,15 @@
-//! How a call to Rail Center is asked again after it brought nothing usable: 5 s doubling to
-//! 320 s, every wait jittered.
+//! How long a call to Rail Center waits to be made again: after attempts in a row that back off,
+//! 5 s doubling to 320 s; every wait jittered.
 
 use std::hash::{BuildHasher, RandomState};
 use std::sync::Arc;
 use std::time::Duration;
 
-// The first wait: a lower one would let a fleet hammer Rail Center.
+// The first step, before the jitter: a lower one would let a fleet hammer Rail Center.
 const FLOOR: Duration = Duration::from_secs(5);
 
-// Six doublings of the floor.
-const MAX_BACKOFF: Duration = Duration::from_secs(320);
-
-// 5 s doubled 15 times is far past the 320 s cap, and the power can't overflow.
-const MAX_DOUBLINGS: u32 = 15;
+// Six doublings of the floor: 320 s.
+const MAX_DOUBLINGS: u32 = 6;
 
 const MIN_JITTER: f64 = 0.8;
 const MAX_JITTER: f64 = 1.2;
@@ -38,7 +35,7 @@ impl Jitter {
     }
 }
 
-/// The failures in a row, and the wait each brings.
+/// The attempts in a row that backed off, and the wait each brings.
 pub(crate) struct Backoff {
     failures: u32,
     jitter: Jitter,
@@ -56,7 +53,7 @@ impl Backoff {
     /// jittered.
     pub(crate) fn failed(&mut self, at_most: Option<Duration>) -> Duration {
         self.failures = self.failures.saturating_add(1);
-        let wait = (FLOOR * 2_u32.pow((self.failures - 1).min(MAX_DOUBLINGS))).min(MAX_BACKOFF);
+        let wait = FLOOR * 2_u32.pow((self.failures - 1).min(MAX_DOUBLINGS));
         self.jittered(at_most.map_or(wait, |at_most| wait.min(at_most)))
     }
 

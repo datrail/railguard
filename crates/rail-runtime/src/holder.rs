@@ -17,7 +17,8 @@ use tokio::time::{Instant, timeout_at};
 use crate::client::Unread;
 use crate::retry::{Backoff, Jitter, round_to_seconds};
 
-// Not settings: a lower floor would let a fleet hammer Rail Center.
+// The lowest interval accepted and the shortest wait, not settings: a lower one would let a fleet
+// hammer Rail Center.
 const MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(5);
 
 // A day: a ticket lives no longer, and a bundle polled less often is surely a mistake.

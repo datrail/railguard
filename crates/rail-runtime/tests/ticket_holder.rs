@@ -407,6 +407,23 @@ async fn jitter_scales_every_wait_never_under_5_s() {
 }
 
 #[tokio::test(start_paused = true)]
+async fn the_backoff_is_capped_by_the_interval_before_the_jitter() {
+    let clock = TestClock::new();
+    let script = Script::new(&clock, |_| failed());
+
+    let _holder = start_jittered(
+        &clock,
+        &script,
+        Duration::from_secs(30),
+        Jitter::new(|| 1.2),
+    );
+    until(&clock, 114).await;
+
+    // 5, 10, 20 s jittered, then the interval's 30 s, jittered to 36.
+    assert_eq!(script.fetched_at()[..6], [0, 6, 18, 42, 78, 114]);
+}
+
+#[tokio::test(start_paused = true)]
 async fn random_jitter_varies_within_a_fifth_of_the_period() {
     let clock = TestClock::new();
     // A day, the longest Rail Center stamps, so half its remaining life never caps a wait here.

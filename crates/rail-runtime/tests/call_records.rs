@@ -187,12 +187,21 @@ async fn a_window_whose_document_cant_be_written_is_dropped_and_counted_in_the_n
 
 #[tokio::test(start_paused = true)]
 async fn sending_now_skips_the_backoff_even_for_a_send_in_flight() {
-    // Whether the first send, which fails, is still in flight when told.
-    for in_flight in [false, true] {
+    // Whether the first send is still in flight when told; the sends that fail; when each came.
+    let cases: [(bool, usize, &[u64]); 2] = [
+        (false, 1, &[0, 1]),
+        // The hurried failure still counts: the next one waits 10 s.
+        (true, 2, &[0, 2, 12]),
+    ];
+    for (in_flight, failing, sent_at) in cases {
         let clock = TestClock::new();
-        let center = Center::new(&clock, |n| if n == 0 { failed() } else { accepted() }).holding();
+        let center = Center::new(
+            &clock,
+            move |n| if n < failing { failed() } else { accepted() },
+        )
+        .holding();
         if !in_flight {
-            center.release.add_permits(2);
+            center.release.add_permits(3);
         }
         let reporter = center.start(&clock);
 
@@ -200,10 +209,9 @@ async fn sending_now_skips_the_backoff_even_for_a_send_in_flight() {
         until(&clock, 1).await;
         reporter.send_now();
         until(&clock, 2).await;
-        center.release.add_permits(2);
-        until(&clock, 3).await;
+        center.release.add_permits(3);
+        until(&clock, 13).await;
 
-        let sent_at = if in_flight { [0, 2] } else { [0, 1] };
         assert_eq!(center.sent_at(), sent_at, "{in_flight}");
     }
 }
