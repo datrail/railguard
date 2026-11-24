@@ -233,19 +233,17 @@ async fn run<K: Kind>(
             Attempt::Refused => kind.refusal_backs_off(&current),
             Attempt::Succeeded => false,
         };
-        let wait = if backs_off {
+        let scheduled = if backs_off {
             backoff.failed(Some(period))
         } else {
             backoff.reset();
             // A period runs from the start of the attempt, so a slow fetch doesn't shift the
-            // cadence; one outlasting a short period gets the floor below.
+            // cadence.
             backoff.jittered(period).saturating_sub(took)
         };
-        // After the jitter, so a kind's cap is never exceeded.
-        let wait = kind
-            .wait_at_most(&current)
-            .map_or(wait, |at_most| wait.min(at_most))
-            .max(MIN_REFRESH_INTERVAL);
+        // The kind's cap after the jitter, so it's never exceeded; then the floor.
+        let at_most = kind.wait_at_most(&current).unwrap_or(Duration::MAX);
+        let wait = scheduled.min(at_most).max(MIN_REFRESH_INTERVAL);
         if let Some(outcome) = outcome {
             kind.report(outcome, &current, after_failure, round_to_seconds(wait));
         }
