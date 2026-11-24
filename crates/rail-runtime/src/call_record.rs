@@ -16,7 +16,8 @@ use uuid::Uuid;
 
 use crate::client::{FetchError, RailCenterClient, answered};
 use crate::clock::WallClock;
-use crate::holder::{Jitter, backoff, round_to_seconds};
+use crate::holder::backoff;
+use crate::retry::{Jitter, round_to_seconds};
 
 const ROUTE: &str = "/v1/call-records";
 

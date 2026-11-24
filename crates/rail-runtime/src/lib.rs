@@ -20,6 +20,7 @@ mod peek;
 mod protected_hosts;
 mod rail_center;
 mod rail_center_thread;
+mod retry;
 mod ticket;
 mod ticket_holder;
 mod xrail;
@@ -39,7 +40,6 @@ pub use denial::{Denial, DenialReporter, DenialSink, DeniedBy, RailCenterDenials
 pub use gateway::{Answer, Call, UnitSettings, read_path};
 pub use gateway_call::{Gateway, GatewaySettings};
 pub use gateway_start::start_gateway;
-pub use holder::Jitter;
 pub use key_set::{KeySet, KeySetHolder, KeySource, RailCenterKeys};
 pub use logging::{read_log_format, read_log_level};
 pub use protected_hosts::{ProtectedHost, ProtectedHosts, read_protected_hosts};
@@ -47,6 +47,7 @@ pub use rail_center::{
     CenterUrl, RailCenterSettings, read_disabled, read_rail_center, read_rail_center_with,
 };
 pub use rail_center_thread::RailCenterThread;
+pub use retry::Jitter;
 pub use ticket::{
     OpaqueTicket, RailCenterTickets, TicketSettings, TicketSource, read_ticket_settings,
 };

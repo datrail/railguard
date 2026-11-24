@@ -11,7 +11,8 @@ use tokio::runtime::Handle;
 
 use crate::client::{FetchError, Limits, RailCenterClient, Response, Unread, read_ok};
 use crate::clock::{Clock, Stamp};
-use crate::holder::{Attempt, Holder, Jitter, Kind, Step};
+use crate::holder::{Attempt, Holder, Kind, Step};
+use crate::retry::Jitter;
 
 const ROUTE: &str = "/v1/jwks.json";
 

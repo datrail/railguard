@@ -9,10 +9,10 @@ use crate::client::RailCenterClient;
 use crate::clock::Clock;
 use crate::denial::{DenialReporter, RailCenterDenials};
 use crate::gateway_call::{Gateway, GatewaySettings};
-use crate::holder::Jitter;
 use crate::key_set::{KeySetHolder, RailCenterKeys};
 use crate::rail_center::RailCenterSettings;
 use crate::rail_center_thread::RailCenterThread;
+use crate::retry::Jitter;
 
 // The bundle, the key set and the denial reports go through the Rail Center thread; calls only
 // read what's held.

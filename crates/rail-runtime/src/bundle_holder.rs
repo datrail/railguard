@@ -11,8 +11,9 @@ use tokio::runtime::Handle;
 
 use crate::bundle::BundleSource;
 use crate::client::{FetchError, Response, Unread, read_ok};
-use crate::holder::{Attempt, Holder, Jitter, Kind, Step};
+use crate::holder::{Attempt, Holder, Kind, Step};
 use crate::peek::{peek, schema_version, text};
+use crate::retry::Jitter;
 
 // The one `schema_version` major read: any minor of it is.
 const SCHEMA_MAJOR: u32 = 2;

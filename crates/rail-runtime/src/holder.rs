@@ -2,7 +2,6 @@
 //! and the backoff and jitter every retry of a Rail Center call waits by.
 
 use std::future::{Future, poll_fn};
-use std::hash::{BuildHasher, RandomState};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::pin::pin;
 use std::sync::{Arc, Weak};
@@ -17,6 +16,7 @@ use tokio::task::AbortHandle;
 use tokio::time::{Instant, timeout_at};
 
 use crate::client::Unread;
+use crate::retry::{Jitter, round_to_seconds};
 
 // Not settings: a lower floor would let a fleet hammer Rail Center.
 const MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(5);
@@ -29,9 +29,6 @@ const MAX_REFRESH_INTERVAL: Duration = Duration::from_secs(86_400);
 
 // 5 s doubled 15 times is far past the 320 s cap, and the power can't overflow.
 const MAX_DOUBLINGS: u32 = 15;
-
-const MIN_JITTER: f64 = 0.8;
-const MAX_JITTER: f64 = 1.2;
 
 /// One kind of value: how it's fetched, and what an answer makes of what's held.
 pub(crate) trait Kind: Send + Sync + 'static {
@@ -104,31 +101,6 @@ pub(crate) fn parse_refresh_interval(text: &str) -> Result<Duration, String> {
             MAX_REFRESH_INTERVAL.as_secs(),
             sanitize(text)
         )),
-    }
-}
-
-/// The factor every wait is scaled by, from 0.8 to 1.2, so a fleet doesn't call Rail Center in
-/// lockstep.
-#[derive(Clone)]
-pub struct Jitter(Arc<dyn Fn() -> f64 + Send + Sync>);
-
-impl Jitter {
-    /// A random factor each time, from `std`'s per-process random keys.
-    pub fn random() -> Self {
-        Self::new(|| {
-            // The top 53 bits, a uniform fraction in [0, 1).
-            let fraction = (RandomState::new().hash_one(()) >> 11) as f64 / (1_u64 << 53) as f64;
-            MIN_JITTER + (MAX_JITTER - MIN_JITTER) * fraction
-        })
-    }
-
-    /// The factor `factor` returns.
-    pub fn new(factor: impl Fn() -> f64 + Send + Sync + 'static) -> Self {
-        Self(Arc::new(factor))
-    }
-
-    pub(crate) fn factor(&self) -> f64 {
-        (self.0)()
     }
 }
 
@@ -338,9 +310,4 @@ fn next_wait(period: Duration, failures: u32, factor: f64) -> Duration {
 pub(crate) fn backoff(failures: u32) -> Duration {
     (MIN_REFRESH_INTERVAL * 2_u32.pow(failures.saturating_sub(1).min(MAX_DOUBLINGS)))
         .min(MAX_BACKOFF)
-}
-
-/// Whole seconds, rounded: a jittered 5.9 s reads as 6.
-pub(crate) fn round_to_seconds(wait: Duration) -> u64 {
-    wait.as_secs() + u64::from(wait.subsec_millis() >= 500)
 }
