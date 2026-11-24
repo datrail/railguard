@@ -1,11 +1,11 @@
-//! A scripted capture plan source and plans to answer with, for the capture plan holder's tests.
+//! Plans to answer with and the holder started on them, for the capture plan holder's tests.
 // Shared by both test binaries, and each uses only part of it.
 #![allow(dead_code)]
 
 use std::time::Duration;
 
 use rail_model::agent::AgentId;
-use rail_runtime::{CapturePlanHolder, CapturePlanSource, Jitter};
+use rail_runtime::{CapturePlanHolder, Jitter};
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 use tokio::runtime::Handle;
@@ -21,23 +21,6 @@ pub fn agent() -> AgentId {
     AgentId {
         host_id: "host-7f3c".to_owned(),
         sandbox_name: "agent-finretail".to_owned(),
-    }
-}
-
-// A script fetching `agent()`'s plan.
-#[derive(Clone)]
-pub struct Plans {
-    pub script: Script,
-    pub agent: AgentId,
-}
-
-impl CapturePlanSource for Plans {
-    async fn fetch(&self) -> Answer {
-        self.script.answer().await
-    }
-
-    fn agent(&self) -> &AgentId {
-        &self.agent
     }
 }
 
@@ -58,7 +41,7 @@ pub fn plan(content_hash: &str, with: Value) -> Value {
 }
 
 pub fn ok(body: &Value) -> Answer {
-    answer(StatusCode::OK, body.to_string().as_bytes())
+    answer(StatusCode::OK, body.to_string())
 }
 
 pub fn no_plan() -> Answer {
@@ -67,9 +50,9 @@ pub fn no_plan() -> Answer {
 
 // With no jitter, so the times the fetches come are exact.
 pub fn start(script: &Script, refresh_interval: Duration) -> CapturePlanHolder {
-    let plans = Plans {
-        script: script.clone(),
+    let plans = Script {
         agent: agent(),
+        ..script.clone()
     };
     CapturePlanHolder::start(
         &Handle::current(),

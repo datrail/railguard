@@ -6,7 +6,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use rail_model::agent::AgentId;
-use rail_runtime::{BundleSource, FetchError, KeySource, Response, TicketSource};
+use rail_runtime::{
+    BundleSource, CapturePlanSource, FetchError, KeySource, Response, TicketSource,
+};
 use reqwest::StatusCode;
 use tokio::time::Instant;
 
@@ -24,7 +26,7 @@ pub struct Script {
     pub takes: Duration,
     pub fetched_at: Arc<Mutex<Vec<u64>>>,
     pub started: Instant,
-    // The agent a ticket must name; public, as struct update needs every field.
+    // The agent a ticket or a plan must name; public, as struct update needs every field.
     pub agent: AgentId,
 }
 
@@ -56,7 +58,7 @@ impl Script {
         self.fetched_at.lock().unwrap().clone()
     }
 
-    pub async fn answer(&self) -> Answer {
+    async fn answer(&self) -> Answer {
         let fetches = {
             let mut fetched_at = self.fetched_at.lock().unwrap();
             fetched_at.push(self.started.elapsed().as_secs());
@@ -76,6 +78,16 @@ impl BundleSource for Script {
 impl KeySource for Script {
     async fn fetch(&self) -> Answer {
         self.answer().await
+    }
+}
+
+impl CapturePlanSource for Script {
+    async fn fetch(&self) -> Answer {
+        self.answer().await
+    }
+
+    fn agent(&self) -> &AgentId {
+        &self.agent
     }
 }
 

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use rail_runtime::{CapturePlanHolder, FetchError, Jitter, RailCenterCapturePlans};
+use rail_runtime::{CapturePlanHolder, Jitter, RailCenterCapturePlans};
 use reqwest::StatusCode;
 use serde_json::json;
 use tokio::runtime::Handle;
@@ -9,7 +9,7 @@ use tokio::runtime::Handle;
 use crate::capture_plans::{MINUTE, Script, agent, answer, hash, held, no_plan, ok, plan, start};
 use crate::common::{self, Reply, client, response, serve};
 use crate::holder::{TestClock, until};
-use crate::scripted::Answering;
+use crate::scripted::{Answering, failed};
 
 // Asked again 5 s after an answer that may pass, the period after any other.
 const SOONER: u64 = 5;
@@ -23,7 +23,8 @@ fn b() -> String {
     hash('b')
 }
 
-// Every answer after plan a is applied: the hash held after it, and when the next fetch comes.
+// One answer after plan a is applied down each path it can take: the hash held after it, and when
+// the next fetch comes.
 fn answers() -> Vec<(&'static str, Answering, Option<String>, u64)> {
     let kept = || Some(a());
     vec![
@@ -63,12 +64,6 @@ fn answers() -> Vec<(&'static str, Answering, Option<String>, u64)> {
             PERIOD,
         ),
         (
-            "a version not MAJOR.MINOR",
-            || ok(&plan(&b(), json!({"schema_version": "1"}))),
-            kept(),
-            PERIOD,
-        ),
-        (
             "another redaction_version",
             || ok(&plan(&b(), json!({"redaction_version": 2}))),
             kept(),
@@ -81,36 +76,12 @@ fn answers() -> Vec<(&'static str, Answering, Option<String>, u64)> {
             PERIOD,
         ),
         (
-            "a 202 carrying a plan",
-            || {
-                answer(
-                    StatusCode::ACCEPTED,
-                    plan(&b(), json!({})).to_string().as_bytes(),
-                )
-            },
-            kept(),
-            PERIOD,
-        ),
-        (
             "a body that isn't JSON",
             || answer(StatusCode::OK, b"<html>nope</html>"),
             kept(),
             PERIOD,
         ),
         ("a JSON array", || ok(&json!([])), kept(), PERIOD),
-        (
-            "a field peeked repeated",
-            || {
-                let body = format!(
-                    r#"{{"content_hash": "{}", "content_hash": "{}"}}"#,
-                    b(),
-                    b()
-                );
-                answer(StatusCode::OK, body.as_bytes())
-            },
-            kept(),
-            PERIOD,
-        ),
         (
             "no content_hash",
             || ok(&plan(&b(), json!({"content_hash": null}))),
@@ -120,18 +91,6 @@ fn answers() -> Vec<(&'static str, Answering, Option<String>, u64)> {
         (
             "a content_hash in capitals",
             || ok(&plan(&hash('B'), json!({}))),
-            kept(),
-            PERIOD,
-        ),
-        (
-            "a content_hash too short",
-            || ok(&plan("sha256:bbbb", json!({}))),
-            kept(),
-            PERIOD,
-        ),
-        (
-            "a content_hash of another digest",
-            || ok(&plan(&b().replace("sha256", "sha512"), json!({}))),
             kept(),
             PERIOD,
         ),
@@ -150,12 +109,7 @@ fn answers() -> Vec<(&'static str, Answering, Option<String>, u64)> {
             kept(),
             SOONER,
         ),
-        (
-            "a deadline",
-            || Err(FetchError::Deadline(Duration::from_secs(10))),
-            kept(),
-            SOONER,
-        ),
+        ("a deadline", failed, kept(), SOONER),
     ]
 }
 
