@@ -43,13 +43,19 @@ pub(crate) trait Kind: Send + Sync + 'static {
     const WHAT: &'static str;
 
     /// Whether what's held lapses, so a refusal is asked again sooner, as a failure is, to replace
-    /// it in time; a value that doesn't is asked again after the period.
+    /// it in time; a value that doesn't is asked again after the period, once one is held.
     const EXPIRES: bool;
 
     fn fetch(&self) -> impl Future<Output = Self::Answer> + Send;
 
     /// What `answer` does to `held`. A panic here, or polling `fetch`, is a failed attempt.
     fn step(&self, held: &Self::Held, answer: Self::Answer) -> Step<Self::Held, Self::Outcome>;
+
+    /// Whether nothing is held: a refusal then backs off too, so a value is sought soon after a
+    /// refusal at start, or after Rail Center cleared it.
+    fn holds_nothing(&self, _held: &Self::Held) -> bool {
+        false
+    }
 
     /// A cap on the wait before the next attempt, from what's held, after a panic too.
     fn wait_at_most(&self, _held: &Self::Held) -> Option<Duration> {
@@ -262,9 +268,10 @@ async fn run<K: Kind>(
                 (None, Attempt::Failed)
             }
         };
+        let refusal_backs_off = K::EXPIRES || kind.holds_nothing(&held.load());
         failures = match attempted {
             Attempt::Failed => failures + 1,
-            Attempt::Refused if K::EXPIRES => failures + 1,
+            Attempt::Refused if refusal_backs_off => failures + 1,
             Attempt::Succeeded | Attempt::Refused => 0,
         };
         let wait = {

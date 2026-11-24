@@ -32,8 +32,8 @@ pub struct CapturePlanHolder {
 
 impl CapturePlanHolder {
     /// Starts fetching the source's agent's plan at once, on `runtime`, and again every
-    /// `refresh_interval`; after a failure that may pass it backs off from 5 s up to 320 s or the
-    /// interval, if shorter. `jitter` scales every wait.
+    /// `refresh_interval`; after a failure that may pass, or a refusal while none is held, it backs
+    /// off from 5 s up to 320 s or the interval, if shorter. `jitter` scales every wait.
     pub fn start(
         runtime: &Handle,
         source: impl CapturePlanSource,
@@ -85,6 +85,10 @@ impl<S: CapturePlanSource> Kind for CapturePlans<S> {
 
     const WHAT: &'static str = "capture plan";
     const EXPIRES: bool = false;
+
+    fn holds_nothing(&self, held: &Held) -> bool {
+        held.is_none()
+    }
 
     fn fetch(&self) -> impl Future<Output = Self::Answer> + Send {
         self.source.fetch()

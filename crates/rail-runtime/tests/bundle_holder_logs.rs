@@ -230,7 +230,7 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
             vec![refused()],
             [refusing, none_held],
             "ERROR",
-            60,
+            5,
             vec!["unusable policy bundle"],
         ),
         (
@@ -238,7 +238,7 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
             vec![ok(&json!([]))],
             [refusing, none_held],
             "ERROR",
-            60,
+            5,
             vec!["unusable policy bundle"],
         ),
         (
@@ -265,7 +265,7 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
             vec![answer(StatusCode::UNAUTHORIZED, b"")],
             [fetch_failed, none_held],
             "ERROR",
-            60,
+            5,
             vec![
                 "Rail Center refused the credential (401 Unauthorized)",
                 "RAIL_AUTH_MODE and RAIL_AUTH_TOKEN",
@@ -275,7 +275,7 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
             vec![answer(StatusCode::FORBIDDEN, b"")],
             [fetch_failed, none_held],
             "ERROR",
-            60,
+            5,
             vec![
                 "Rail Center refused the credential (403 Forbidden)",
                 "RAIL_AUTH_MODE and RAIL_AUTH_TOKEN",
@@ -288,7 +288,7 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
         let lines = lines_with(&logs, &line);
         assert_eq!(lines.len(), 1, "{line}: {logs}");
         assert!(lines[0].contains(level), "{logs}");
-        // The first since a success: 5 s away if it may pass, else the period.
+        // The first since a success: 5 s away if it may pass or none is held, else the period.
         assert!(lines[0].ends_with(&format!(" retry={retry}")), "{logs}");
         for text in says {
             assert!(lines[0].contains(text), "{logs}");
