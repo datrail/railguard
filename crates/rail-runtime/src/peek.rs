@@ -19,8 +19,8 @@ pub(crate) fn peek<T: DeserializeOwned>(body: &[u8]) -> Result<(&str, Result<T, 
     }
 }
 
-// Where, not what: serde's message can quote a value.
-fn locate(error: &serde_json::Error) -> String {
+/// Where, not what: serde's message can quote a value, and a value may be a secret.
+pub(crate) fn locate(error: &serde_json::Error) -> String {
     format!(
         "{:?} error at line {}, column {}",
         error.classify(),

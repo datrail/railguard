@@ -11,10 +11,7 @@ use tokio::runtime::Handle;
 
 use crate::bundle::BundleSource;
 use crate::client::{FetchError, Response, Unread, read_ok};
-use crate::holder::{
-    Attempt, Holder, Jitter, Kind, MAX_BACKOFF, MIN_REFRESH_INTERVAL, Schedule, Step,
-    round_to_seconds,
-};
+use crate::holder::{Attempt, Holder, Jitter, Kind, Step};
 use crate::peek::{peek, schema_version, text};
 
 // The one `schema_version` major read: any minor of it is.
@@ -77,14 +74,9 @@ impl BundleHolder {
         refresh_interval: Duration,
         jitter: Jitter,
     ) -> Self {
-        let schedule = Schedule {
-            period: refresh_interval,
-            initial_delay: MIN_REFRESH_INTERVAL,
-            max_delay: MAX_BACKOFF.min(refresh_interval),
-        };
         let kind = Bundles { source };
         Self {
-            holder: Holder::start(runtime, kind, None, schedule, jitter),
+            holder: Holder::start(runtime, kind, None, refresh_interval, jitter),
         }
     }
 
@@ -155,9 +147,8 @@ impl<S: BundleSource> Kind for Bundles<S> {
         }
     }
 
-    fn report(&self, outcome: Outcome, held: &Held, after_failure: bool, retry: Duration) {
+    fn report(&self, outcome: Outcome, held: &Held, after_failure: bool, retry: u64) {
         let current = held.as_ref();
-        let retry = round_to_seconds(retry);
         match outcome {
             // Said once, so a recovery shows without a line every poll.
             Outcome::Unchanged(bundle) if after_failure => tracing::info!(

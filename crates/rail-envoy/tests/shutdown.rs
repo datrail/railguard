@@ -56,7 +56,7 @@ fn with_rail_center_unreachable_it_serves_unready_and_stops_at_once() {
     assert_eq!(server.wait_for_exit(Duration::from_secs(3)), Some(Some(0)));
     assert!(started.elapsed() < Duration::from_secs(3));
     let logs = server.read_logs();
-    assert!(logs.contains("ticket refresh failed"), "{logs}");
+    assert!(logs.contains("ticket fetch failed"), "{logs}");
     assert!(
         logs.contains("shut down: every connection drained"),
         "{logs}"

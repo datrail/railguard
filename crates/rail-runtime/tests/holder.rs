@@ -48,7 +48,6 @@ pub struct Script {
     pub fetched_at: Arc<Mutex<Vec<u64>>>,
     pub agent: AgentId,
     pub started: Instant,
-    pub refresh_interval: Duration,
     pub takes: Duration,
 }
 
@@ -65,7 +64,6 @@ impl Script {
                 sandbox_name: "sandbox a".to_owned(),
             },
             started: clock.started,
-            refresh_interval: HOUR,
             takes: Duration::ZERO,
         }
     }
@@ -88,10 +86,6 @@ impl TicketSource for Script {
 
     fn agent(&self) -> &AgentId {
         &self.agent
-    }
-
-    fn refresh_interval(&self) -> Duration {
-        self.refresh_interval
     }
 }
 
@@ -130,6 +124,7 @@ pub async fn read_at(
     let holder = TicketHolder::start(
         &Handle::current(),
         script,
+        HOUR,
         Arc::new(move || now),
         Jitter::new(|| 1.0),
     );
@@ -171,11 +166,14 @@ pub fn start_jittered(
     refresh_interval: Duration,
     jitter: Jitter,
 ) -> TicketHolder {
-    let source = Script {
+    let source = script.clone();
+    TicketHolder::start(
+        &Handle::current(),
+        source,
         refresh_interval,
-        ..script.clone()
-    };
-    TicketHolder::start(&Handle::current(), source, clock.wall(), jitter)
+        clock.wall(),
+        jitter,
+    )
 }
 
 pub fn token(holder: &TicketHolder) -> Result<String, Unavailable> {

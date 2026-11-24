@@ -100,6 +100,7 @@ async fn a_hostile_answer_is_logged_escaped_once() {
     let _holder = TicketHolder::start(
         &Handle::current(),
         source,
+        HOUR,
         Arc::new(SystemTime::now),
         Jitter::random(),
     );
@@ -108,7 +109,7 @@ async fn a_hostile_answer_is_logged_escaped_once() {
         let text = logs.text();
         if let Some(line) = text
             .lines()
-            .find(|line| line.contains("ticket refresh failed"))
+            .find(|line| line.contains("ticket fetch failed"))
         {
             break line.to_owned();
         }
@@ -148,12 +149,12 @@ async fn each_answer_is_logged_for_what_it_did_to_the_ticket_held() {
         format!("ticket acquired fingerprint=\"{}\"", fingerprint("a")),
         format!("ticket rotated fingerprint=\"{}\"", fingerprint("b")),
         format!(
-            "ticket refresh failed; keeping the one held reason=\"the fetch ran past its 10s deadline\" \
+            "ticket fetch failed; keeping the one held reason=\"the fetch ran past its 10s deadline\" \
              fingerprint=\"{}\"",
             fingerprint("b")
         ),
         "Rail Center holds no ticket for this host and sandbox cleared=true".to_owned(),
-        "ticket refresh failed; none is held".to_owned(),
+        "ticket fetch failed; none is held".to_owned(),
         "Rail Center holds no ticket for this host and sandbox cleared=false".to_owned(),
         "Rail Center returned a lapsed ticket; none is valid".to_owned(),
         // A lapsed ticket held is replaced, not acquired anew.
@@ -238,7 +239,7 @@ async fn a_refused_ticket_is_logged_with_why() {
             Err(Unavailable::IssuerUnreachable)
         ));
         let logs = logs.text();
-        let line = format!("ticket refresh failed; none is held reason=\"{reason}");
+        let line = format!("ticket fetch failed; none is held reason=\"{reason}");
         assert!(logs.contains(&line), "{line}\n{logs}");
         assert!(!logs.contains("eyJ0aGUiOiJ0aWNrZXQifQ"), "{logs}");
     }

@@ -94,9 +94,6 @@ pub trait TicketSource: Send + Sync + 'static {
 
     /// The agent whose ticket is fetched, which a ticket must name.
     fn agent(&self) -> &AgentId;
-
-    /// The longest a valid ticket goes unrefreshed, before jitter.
-    fn refresh_interval(&self) -> Duration;
 }
 
 /// This host's ticket, fetched from Rail Center.
@@ -117,9 +114,5 @@ impl TicketSource for RailCenterTickets {
 
     fn agent(&self) -> &AgentId {
         &self.settings.agent
-    }
-
-    fn refresh_interval(&self) -> Duration {
-        self.settings.refresh_interval
     }
 }

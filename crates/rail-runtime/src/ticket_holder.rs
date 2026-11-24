@@ -11,10 +11,8 @@ use tokio::runtime::Handle;
 
 use crate::client::{FetchError, Response, Unread, read_ok};
 use crate::config::Secret;
-use crate::holder::{
-    Attempt, Holder, Jitter, Kind, MAX_BACKOFF, MIN_REFRESH_INTERVAL, Schedule, Step,
-    round_to_seconds,
-};
+use crate::holder::{Attempt, Holder, Jitter, Kind, Step};
+use crate::peek::locate;
 use crate::ticket::{OpaqueTicket, TicketSource};
 use crate::xrail::Unavailable;
 
@@ -48,25 +46,20 @@ pub struct TicketHolder {
 }
 
 impl TicketHolder {
-    /// Starts fetching at once, on `runtime`; the source's refresh interval, jittered, caps the wait
-    /// on a valid ticket, and `jitter` scales every wait.
+    /// Starts fetching at once, on `runtime`; `refresh_interval`, jittered, caps the wait on a valid
+    /// ticket, and `jitter` scales every wait.
     pub fn start(
         runtime: &Handle,
         source: impl TicketSource,
+        refresh_interval: Duration,
         now: WallClock,
         jitter: Jitter,
     ) -> Self {
-        let refresh_interval = source.refresh_interval();
-        let schedule = Schedule {
-            period: refresh_interval,
-            initial_delay: MIN_REFRESH_INTERVAL,
-            max_delay: MAX_BACKOFF.min(refresh_interval),
-        };
         let kind = Tickets {
             source,
             now: Arc::clone(&now),
         };
-        let holder = Holder::start(runtime, kind, Held::default(), schedule, jitter);
+        let holder = Holder::start(runtime, kind, Held::default(), refresh_interval, jitter);
         Self { holder, now }
     }
 
@@ -113,7 +106,7 @@ impl<S: TicketSource> Kind for Tickets<S> {
             .map(|remaining| remaining / 2)
     }
 
-    fn report(&self, outcome: Outcome, held: &Held, _: bool, retry: Duration) {
+    fn report(&self, outcome: Outcome, held: &Held, _: bool, retry: u64) {
         log(
             &outcome,
             held.ticket().map(|ticket| &**ticket),
@@ -193,14 +186,13 @@ enum Outcome {
     Lapsed,
 }
 
-fn log(outcome: &Outcome, ticket: Option<&OpaqueTicket>, now: SystemTime, retry: Duration) {
+fn log(outcome: &Outcome, ticket: Option<&OpaqueTicket>, now: SystemTime, retry: u64) {
     let fingerprint = ticket.map(|ticket| fingerprint(ticket.token.expose()));
     let fingerprint = fingerprint.as_deref().unwrap_or("none");
     let expires_in = ticket
         .and_then(|ticket| ticket.expires_at.duration_since(now).ok())
         .unwrap_or_default()
         .as_secs();
-    let retry = round_to_seconds(retry);
     match outcome {
         Outcome::Acquired => {
             tracing::info!(fingerprint, expires_in, "ticket acquired");
@@ -209,7 +201,7 @@ fn log(outcome: &Outcome, ticket: Option<&OpaqueTicket>, now: SystemTime, retry:
             tracing::info!(fingerprint, expires_in, "ticket rotated");
         }
         Outcome::Unchanged => {
-            tracing::debug!(fingerprint, expires_in, "ticket refreshed, unchanged");
+            tracing::debug!(fingerprint, expires_in, "ticket unchanged");
         }
         Outcome::NoTicket { cleared } => {
             tracing::warn!(
@@ -224,14 +216,14 @@ fn log(outcome: &Outcome, ticket: Option<&OpaqueTicket>, now: SystemTime, retry:
                 fingerprint,
                 expires_in,
                 retry,
-                "ticket refresh failed; keeping the one held"
+                "ticket fetch failed; keeping the one held"
             );
         }
         Outcome::Failed {
             reason,
             kept: false,
         } => {
-            tracing::warn!(reason, retry, "ticket refresh failed; none is held");
+            tracing::warn!(reason, retry, "ticket fetch failed; none is held");
         }
         Outcome::LapsedKept { lapsed } => {
             tracing::warn!(
@@ -289,15 +281,8 @@ fn read_ticket(
 }
 
 fn read_body(body: &[u8], agent: &AgentId, sent_at: SystemTime) -> Result<TicketAnswer, String> {
-    let envelope: Envelope = serde_json::from_slice(body).map_err(|error| {
-        // Where, not what: serde's message can quote a value, and a value may be the ticket.
-        format!(
-            "the response is off the contract ({:?} error at line {}, column {})",
-            error.classify(),
-            error.line(),
-            error.column()
-        )
-    })?;
+    let envelope: Envelope = serde_json::from_slice(body)
+        .map_err(|error| format!("the response is off the contract ({})", locate(&error)))?;
     if envelope.host_id != agent.host_id {
         return Err(format!(
             "the response answers for host {}, not {}",

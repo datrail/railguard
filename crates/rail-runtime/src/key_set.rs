@@ -11,9 +11,7 @@ use tokio::runtime::Handle;
 
 use crate::client::{FetchError, Limits, RailCenterClient, Response, Unread, read_ok};
 use crate::clock::{Clock, Stamp};
-use crate::holder::{
-    Attempt, Holder, Jitter, Kind, MIN_REFRESH_INTERVAL, Schedule, Step, round_to_seconds,
-};
+use crate::holder::{Attempt, Holder, Jitter, Kind, Step};
 
 const ROUTE: &str = "/v1/jwks.json";
 
@@ -67,19 +65,15 @@ pub struct KeySetHolder {
 
 impl KeySetHolder {
     /// Starts fetching at once, on `runtime`, and again every 300 s; after any answer without a
-    /// usable set it backs off from 5 s up to that, since a set lapses. `clock` ages the set, and `jitter` scales every wait.
+    /// usable set it backs off from 5 s up to that, since a set lapses. `clock` ages the set, and
+    /// `jitter` scales every wait.
     pub fn start(runtime: &Handle, source: impl KeySource, clock: Clock, jitter: Jitter) -> Self {
-        let schedule = Schedule {
-            period: REFRESH_INTERVAL,
-            initial_delay: MIN_REFRESH_INTERVAL,
-            max_delay: REFRESH_INTERVAL,
-        };
         let kind = Keys {
             source,
             clock: clock.clone(),
         };
         Self {
-            holder: Holder::start(runtime, kind, None, schedule, jitter),
+            holder: Holder::start(runtime, kind, None, REFRESH_INTERVAL, jitter),
             clock,
         }
     }
@@ -173,8 +167,7 @@ impl<S: KeySource> Kind for Keys<S> {
         }
     }
 
-    fn report(&self, outcome: Outcome, held: &Self::Held, _: bool, retry: Duration) {
-        let retry = round_to_seconds(retry);
+    fn report(&self, outcome: Outcome, held: &Self::Held, _: bool, retry: u64) {
         // At every fetch: Rail Center publishes none, so one is a fault, or not its answer.
         for DroppedKey { kid, reason } in &outcome.dropped {
             tracing::warn!(
@@ -191,10 +184,10 @@ impl<S: KeySource> Kind for Keys<S> {
                 );
             }
             Ok((set, true)) => {
-                tracing::info!(kids = %format_kids(&set.keys), "holding signing keys");
+                tracing::info!(kids = %format_kids(&set.keys), "holding a signing key set");
             }
             Ok((set, false)) => {
-                tracing::debug!(kids = %format_kids(&set.keys), "signing keys unchanged");
+                tracing::debug!(kids = %format_kids(&set.keys), "signing key set unchanged");
             }
             Err(reason) => {
                 match fresh(held, &self.clock) {
@@ -202,7 +195,7 @@ impl<S: KeySource> Kind for Keys<S> {
                         reason = %reason,
                         kids = %format_kids(&set.keys),
                         retry,
-                        "signing key set fetch failed; keeping the set held"
+                        "signing key set fetch failed; keeping the one held"
                     ),
                     // Only a later fetch ends this state.
                     None => tracing::error!(

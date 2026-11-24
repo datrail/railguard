@@ -37,10 +37,6 @@ impl TicketSource for Gated {
     fn agent(&self) -> &AgentId {
         &self.agent
     }
-
-    fn refresh_interval(&self) -> Duration {
-        Duration::from_secs(3600)
-    }
 }
 
 // Valid until a minute after the start.
@@ -63,7 +59,13 @@ fn start(first: &'static str) -> (Arc<TicketHolder>, Arc<Semaphore>, Arc<AtomicU
             sandbox_name: "sandbox a".to_owned(),
         },
     };
-    let holder = TicketHolder::start(&Handle::current(), source, now, Jitter::new(|| 1.0));
+    let holder = TicketHolder::start(
+        &Handle::current(),
+        source,
+        Duration::from_secs(3600),
+        now,
+        Jitter::new(|| 1.0),
+    );
     (Arc::new(holder), gate, elapsed)
 }
 
