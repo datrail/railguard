@@ -1,6 +1,7 @@
 use std::future::Future;
 use std::time::{Duration, SystemTime};
 
+use rail_model::agent::AgentId;
 use serde::Deserialize;
 use time::PrimitiveDateTime;
 use time::macros::format_description;
@@ -34,7 +35,7 @@ const MAX_LIFETIME: Duration = Duration::from_secs(86_400 + 300);
 /// How this host's ticket is fetched and kept.
 #[derive(Clone, Debug)]
 pub struct TicketSettings {
-    pub query: TicketQuery,
+    pub agent: AgentId,
     /// The longest a valid ticket goes unrefreshed, before jitter; its own lifetime paces
     /// refreshes below it.
     pub refresh_interval: Duration,
@@ -65,25 +66,18 @@ pub fn read_ticket_settings(
     let ticket = host_id
         .zip(sandbox_name)
         .map(|(host_id, sandbox_name)| TicketSettings {
-            query: TicketQuery {
+            agent: AgentId {
                 host_id: host_id.to_owned(),
                 sandbox_name: sandbox_name.to_owned(),
             },
             refresh_interval,
         });
     if let Some(ticket) = &ticket {
-        settings.describe(HOST_ID, &ticket.query.host_id);
-        settings.describe(SANDBOX_NAME, &ticket.query.sandbox_name);
+        settings.describe(HOST_ID, &ticket.agent.host_id);
+        settings.describe(SANDBOX_NAME, &ticket.agent.sandbox_name);
         settings.describe(TICKET_REFRESH_SECONDS, ticket.refresh_interval.as_secs());
     }
     Ok(ticket)
-}
-
-/// Whose ticket to fetch: this host, and the one sandbox it serves.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TicketQuery {
-    pub host_id: String,
-    pub sandbox_name: String,
 }
 
 /// A ticket to present, opaque, and the instant it stops being valid.
@@ -142,10 +136,10 @@ impl TicketSource for RailCenterTickets {
     /// life.
     async fn fetch(&self, sent_at: SystemTime) -> Result<TicketAnswer, String> {
         let (client, ticket) = (&self.client, &self.settings);
-        let query = &ticket.query;
+        let agent = &ticket.agent;
         let params = [
-            ("host_id", query.host_id.as_str()),
-            ("sandbox_name", query.sandbox_name.as_str()),
+            ("host_id", agent.host_id.as_str()),
+            ("sandbox_name", agent.sandbox_name.as_str()),
         ];
         let body = read_ok(client.get(ROUTE, &params, LIMITS).await)?;
         let envelope: Envelope = serde_json::from_slice(&body).map_err(|error| {
@@ -157,10 +151,10 @@ impl TicketSource for RailCenterTickets {
                 error.column()
             )
         })?;
-        if envelope.host_id != query.host_id {
+        if envelope.host_id != agent.host_id {
             return Err(format!(
                 "the response answers for host {}, not {}",
-                envelope.host_id, query.host_id
+                envelope.host_id, agent.host_id
             ));
         }
         let entry = match <[Entry; 1]>::try_from(envelope.tickets) {
@@ -174,11 +168,11 @@ impl TicketSource for RailCenterTickets {
             }
         };
         // An unnamed or other sandbox's entry is another agent's identity.
-        if entry.sandbox_name.as_deref() != Some(query.sandbox_name.as_str()) {
+        if entry.sandbox_name.as_deref() != Some(agent.sandbox_name.as_str()) {
             return Err(format!(
                 "the ticket names sandbox {}, not {}",
                 entry.sandbox_name.as_deref().unwrap_or("none"),
-                query.sandbox_name
+                agent.sandbox_name
             ));
         }
         check_token(&entry.token)?;

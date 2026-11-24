@@ -18,7 +18,8 @@ pub(crate) const OPS: [&str; 12] = [
     "matches",
 ];
 
-/// A policy's condition. The last two refuse the request that reaches them, not the bundle.
+/// A policy's or a plan entry's condition. The last two refuse what they're compiled for, never the
+/// bundle or the plan.
 #[derive(Debug, PartialEq)]
 pub enum Condition {
     Valid(Predicate),
@@ -30,7 +31,7 @@ pub enum Condition {
 
 impl<'de> Deserialize<'de> for Condition {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        // Kept raw, so what serde_json can't hold fails this condition and not the bundle.
+        // Kept raw, so what serde_json can't hold fails this condition and not the document.
         let raw = Box::<RawValue>::deserialize(deserializer)?;
         let Ok(value) = serde_json::from_str::<Value>(raw.get()) else {
             return Ok(Self::Invalid(raw.get().to_string()));
@@ -39,6 +40,7 @@ impl<'de> Deserialize<'de> for Condition {
     }
 }
 
+// Either spelling of its path; which paths a use reads is checked when compiling.
 fn read_condition(value: Value, raw: &str) -> Condition {
     // Not only for `op`: `Predicate` alone would accept a positional array.
     let Some(op) = value["op"].as_str() else {
@@ -48,9 +50,8 @@ fn read_condition(value: Value, raw: &str) -> Condition {
         return Condition::Unknown(value);
     }
     match Predicate::deserialize(&value) {
-        // A bundle spells its paths as strings; which a use reads is checked when compiling.
-        Ok(predicate) if value["path"].is_string() => Condition::Valid(predicate),
-        _ => Condition::Invalid(raw.to_string()),
+        Ok(predicate) => Condition::Valid(predicate),
+        Err(_) => Condition::Invalid(raw.to_string()),
     }
 }
 
@@ -133,9 +134,9 @@ pub enum Scalar {
     String(String),
 }
 
-/// What a condition reads: a source, then steps into it. Spelled as a dotted string,
-/// `<source>.<key>.<key>`, every step a key; or as a list, `["<source>", <step>, ...]`, a number
-/// step an index into a body. Which paths a use reads is checked when compiling.
+/// What a condition, a context key or a measure reads: a source, then steps into it. Spelled as a
+/// dotted string, `<source>.<key>.<key>`, every step a key; or as a list, `["<source>", <step>, ...]`,
+/// a number step an index. Which paths a use reads is checked when compiling.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Path {
     Ticket(TicketPath),
@@ -180,14 +181,16 @@ impl Path {
     }
 }
 
-/// What a condition is read for, which decides the paths it may read: those its environment
-/// fills.
+/// What a path is read for, which decides the paths it may read: for a condition, those its
+/// environment fills.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ConditionUse {
     /// A bundle's policy, judged in [`Environment::for_judging`](super::Environment::for_judging).
     Policy,
     /// A capture plan entry's match, in [`Environment::for_capture`](super::Environment::for_capture).
     PlanMatch,
+    /// A capture plan's context key or measure: a call's body, query or path segments.
+    PlanRecord,
 }
 
 impl ConditionUse {
@@ -209,10 +212,19 @@ impl ConditionUse {
                     RequestPath::Body(_)
                         | RequestPath::Host
                         | RequestPath::Method
-                        | RequestPath::Path
-                        | RequestPath::RedactedPath
+                        | RequestPath::Path(None)
+                        | RequestPath::RedactedPath(None)
                         | RequestPath::McpMethod
                         | RequestPath::McpTool
+                )
+            ),
+            Self::PlanRecord => matches!(
+                path,
+                Path::Request(
+                    RequestPath::Body(_)
+                        | RequestPath::Path(Some(_))
+                        | RequestPath::RedactedPath(Some(_))
+                        | RequestPath::Query { .. }
                 )
             ),
         }
@@ -234,9 +246,18 @@ pub enum RequestPath {
     Header(String),
     Host,
     Method,
-    /// Up to its first `?` or `#`, as received.
-    Path,
-    RedactedPath,
+    /// Up to its first `?` or `#`, as received; or one of its segments, from 0:
+    /// `["request", "path", <n>]`.
+    Path(Option<usize>),
+    /// The path redacted, or one of its segments, from 0: `["request", "redacted_path", <n>]`; a
+    /// segment that looked like a secret reads `[redacted]`.
+    RedactedPath(Option<usize>),
+    /// A query parameter's values by its name, or one of them, from 0:
+    /// `["request", "query", "<name>", <n>]`.
+    Query {
+        name: String,
+        index: Option<usize>,
+    },
     McpMethod,
     McpTool,
     Body(BodyPath),
@@ -245,11 +266,27 @@ pub enum RequestPath {
 impl RequestPath {
     /// From the steps past `request`; `None` for any field or step this reader doesn't know.
     fn parse(steps: &[Value]) -> Option<Self> {
-        if let Some((field, steps)) = steps.split_first()
-            && field == "body"
-        {
-            let steps = steps.iter().map(BodyStep::read).collect::<Option<_>>()?;
-            return Some(Self::Body(BodyPath(steps)));
+        match steps {
+            [field, steps @ ..] if field == "body" => {
+                let steps = steps.iter().map(BodyStep::read).collect::<Option<_>>()?;
+                return Some(Self::Body(BodyPath(steps)));
+            }
+            [field, index] if field == "path" => {
+                return Some(Self::Path(Some(read_index(index)?)));
+            }
+            [field, index] if field == "redacted_path" => {
+                return Some(Self::RedactedPath(Some(read_index(index)?)));
+            }
+            [field, Value::String(name), index @ ..] if field == "query" && !name.is_empty() => {
+                let index = match index {
+                    [] => None,
+                    [index] => Some(read_index(index)?),
+                    _ => return None,
+                };
+                let name = name.clone();
+                return Some(Self::Query { name, index });
+            }
+            _ => {}
         }
         let keys: Vec<&str> = steps.iter().map(Value::as_str).collect::<Option<_>>()?;
         Some(match keys.as_slice() {
@@ -259,8 +296,8 @@ impl RequestPath {
             ["headers", name] => Self::Header(name.to_string()),
             ["host"] => Self::Host,
             ["method"] => Self::Method,
-            ["path"] => Self::Path,
-            ["redacted_path"] => Self::RedactedPath,
+            ["path"] => Self::Path(None),
+            ["redacted_path"] => Self::RedactedPath(None),
             ["mcp", "method"] => Self::McpMethod,
             ["mcp", "tool"] => Self::McpTool,
             _ => return None,
@@ -283,8 +320,12 @@ impl BodyStep {
     fn read(step: &Value) -> Option<Self> {
         match step {
             Value::String(key) => Some(Self::Key(key.clone())),
-            Value::Number(index) => Some(Self::Index(usize::try_from(index.as_u64()?).ok()?)),
-            _ => None,
+            index => read_index(index).map(Self::Index),
         }
     }
+}
+
+// A whole number from 0, as a list spells an index.
+fn read_index(step: &Value) -> Option<usize> {
+    usize::try_from(step.as_u64()?).ok()
 }

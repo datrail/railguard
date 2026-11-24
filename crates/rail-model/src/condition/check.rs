@@ -197,7 +197,7 @@ struct Parsed<'a> {
     /// `None` where the op is missing or unknown.
     op: Option<&'a str>,
     /// With its text as sent, or `None` where it doesn't parse.
-    path: Option<(&'a str, Path)>,
+    path: Option<(String, Path)>,
 }
 
 /// As a reader parses a condition: the op, then the path and the operand.
@@ -251,36 +251,50 @@ fn check_grammar<'a>(
     Parsed { op: known_op, path }
 }
 
-fn check_path<'a>(
-    path: Option<&'a Value>,
+// As a reader reads it: a dotted string, or a list.
+fn check_path(
+    path: Option<&Value>,
     scope: ProblemScope,
     problems: &mut Vec<ConditionProblem>,
-) -> Option<(&'a str, Path)> {
-    let Some(text) = path.and_then(Value::as_str) else {
-        let message = "not a string".to_string();
-        problems.push(build_problem(
-            loc!["path"],
-            ProblemCode::UnknownSource,
-            scope,
-            message,
-        ));
-        return None;
+) -> Option<(String, Path)> {
+    let (text, source, read) = match path {
+        Some(Value::String(text)) => (
+            text.clone(),
+            text.split('.').next(),
+            Path::try_from(text.clone()).ok(),
+        ),
+        Some(steps @ Value::Array(list)) => (
+            steps.to_string(),
+            list.first().and_then(Value::as_str),
+            Path::from_steps(list),
+        ),
+        _ => {
+            let message = "not a string or a list".to_string();
+            problems.push(build_problem(
+                loc!["path"],
+                ProblemCode::UnknownSource,
+                scope,
+                message,
+            ));
+            return None;
+        }
     };
-    let shown = sanitize(text);
-    let (code, message) = if !matches!(text.split('.').next(), Some("ticket" | "request")) {
+    let under_a_source = matches!(source, Some("ticket" | "request"));
+    if under_a_source && let Some(path) = read.filter(|path| ConditionUse::Policy.reads(path)) {
+        return Some((text, path));
+    }
+    let shown = sanitize(&text);
+    let (code, message) = if under_a_source {
+        // Only a `request` path can fail: any `ticket` path is a policy's.
+        (
+            ProblemCode::UnknownPath,
+            format!("\"{shown}\": names nothing a request carries"),
+        )
+    } else {
         (
             ProblemCode::UnknownSource,
             format!("\"{shown}\": not under ticket or request"),
         )
-    } else {
-        match Path::try_from(text.to_string()) {
-            Ok(path) if ConditionUse::Policy.reads(&path) => return Some((text, path)),
-            // Only a `request` path can fail: any `ticket` path is a policy's.
-            _ => (
-                ProblemCode::UnknownPath,
-                format!("\"{shown}\": names nothing a request carries"),
-            ),
-        }
     };
     problems.push(build_problem(loc!["path"], code, scope, message));
     None

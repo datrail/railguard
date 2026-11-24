@@ -6,7 +6,7 @@ mod ticket;
 
 pub use bundle::{
     Action, Binding, BindingMode, Bundle, EndpointKey, Enforcement, EnforcementMode, Fallback,
-    Policy, SchemaVersion, TicketClaim, UnusableBundle, parse_bundle,
+    Policy, TicketClaim, UnusableBundle, parse_bundle,
 };
 pub use judge::{
     ChainOutcome, CompiledBundle, Decision, FallbackDenial, JudgingMode, Outcome, Tracer,
