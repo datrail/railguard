@@ -1,7 +1,5 @@
 use rail_model::agent::AgentId;
-use rail_model::capture::{
-    CatchAllKey, Combine, ContextKey, Function, Measure, OnMaxGroups, Plan, parse_plan,
-};
+use rail_model::capture::{Combine, ContextKey, Function, Measure, OnMaxGroups, Plan, parse_plan};
 use rail_model::condition::{BodyPath, BodyStep, Condition, Path, RequestPath};
 use rail_model::schema_version::SchemaVersion;
 use serde::Deserialize;
@@ -135,7 +133,7 @@ fn test_reads_the_worked_example_as_written() {
             Measure::Named {
                 name: "argument_bytes".into(),
                 combine: Combine::Sum,
-                function: Function::Size,
+                function: Function::SizeInBytes,
                 paths: vec![body(&["params", "arguments", "content"])],
             },
         ]
@@ -144,10 +142,10 @@ fn test_reads_the_worked_example_as_written() {
     assert_eq!(
         plan.catch_all.record.context_keys,
         [
-            CatchAllKey::Host,
-            CatchAllKey::PathPrefix { segments: 1 },
-            CatchAllKey::Method,
-            CatchAllKey::Operation,
+            ContextKey::Host,
+            ContextKey::PathPrefix { segments: 1 },
+            ContextKey::Method,
+            ContextKey::Operation,
         ]
     );
     assert_eq!(

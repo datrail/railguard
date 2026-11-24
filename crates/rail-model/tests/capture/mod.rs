@@ -1,5 +1,6 @@
 use serde_json::Value;
 
+mod call;
 mod compile;
 mod plan;
 
@@ -16,6 +17,7 @@ pub fn patch(document: &mut Value, operation: &Value) {
             drop(fields.insert(last.into(), value.unwrap()))
         }
         ("add", Value::Array(items)) if last == "-" => items.push(value.unwrap()),
+        ("add", Value::Array(items)) => items.insert(last.parse().unwrap(), value.unwrap()),
         ("replace", Value::Array(items)) => items[last.parse::<usize>().unwrap()] = value.unwrap(),
         (op, _) => panic!("{op} at {pointer}"),
     }

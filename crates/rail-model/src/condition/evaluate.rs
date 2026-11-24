@@ -13,7 +13,6 @@ use crate::body::mcp::McpReading;
 use crate::body::tree::{self, Kind, Member, Step};
 use crate::body::{BodyRead, RequestBody, Unparsed, Unread};
 use crate::endpoint::Endpoint;
-use crate::request_line::RequestLine;
 
 /// The steps one judgement may take, unless the caller sets its own.
 pub const DEFAULT_STEP_LIMIT: u64 = 100_000;
@@ -141,7 +140,8 @@ pub enum Lookup<'a> {
     Number(f64),
     /// Never compared: `true == 1` in some languages and not in others.
     Bool(bool),
-    /// A header with several values, or a list in the ticket or the body, which may hold anything.
+    /// A header or a query parameter with several values, or a list in the ticket or the body,
+    /// which may hold anything.
     List(Items<'a>),
     Object,
     /// A body value that can't be told: readers differ on it.
@@ -281,8 +281,18 @@ fn resolve<'a>(
     environment: &Environment<'a>,
     budget: &mut Budget,
 ) -> Result<Lookup<'a>, Refusal> {
+    resolve_path(path, environment, budget).map(|(lookup, _)| lookup)
+}
+
+/// What `path` resolves to, with the body's node it was read from, if it was one: a record's
+/// `size` reads a value's text as the body writes it.
+pub(crate) fn resolve_path<'a>(
+    path: &Path,
+    environment: &Environment<'a>,
+    budget: &mut Budget,
+) -> Result<(Lookup<'a>, Option<tree::Node<'a>>), Refusal> {
     match path {
-        Path::Ticket(path) => resolve_ticket(path, environment),
+        Path::Ticket(path) => resolve_ticket(path, environment).map(|lookup| (lookup, None)),
         Path::Request(path) => resolve_request(path, environment, budget),
     }
 }
@@ -326,12 +336,12 @@ fn resolve_request<'a>(
     path: &RequestPath,
     environment: &Environment<'a>,
     budget: &mut Budget,
-) -> Result<Lookup<'a>, Refusal> {
-    let line = |read: fn(&RequestLine) -> &str| {
-        let line = environment.request_line.ok_or(Refusal::NotForUse)?;
-        Ok(Lookup::String(Cow::Borrowed(read(line))))
+) -> Result<(Lookup<'a>, Option<tree::Node<'a>>), Refusal> {
+    let request_line = || environment.request_line.ok_or(Refusal::NotForUse);
+    let text = |text: Option<&'a str>| {
+        text.map_or(Lookup::Absent, |text| Lookup::String(Cow::Borrowed(text)))
     };
-    Ok(match path {
+    let lookup = match path {
         RequestPath::Whole => Lookup::Object,
         RequestPath::Headers => {
             environment.headers.ok_or(Refusal::NotForUse)?;
@@ -347,20 +357,25 @@ fn resolve_request<'a>(
             Some([value]) => read_value(value),
             Some(values) => Lookup::List(Items::Values(values)),
         },
-        RequestPath::Host => line(RequestLine::host)?,
-        RequestPath::Method => line(RequestLine::method)?,
-        RequestPath::Path(None) => line(RequestLine::path)?,
-        RequestPath::RedactedPath(None) => line(RequestLine::redacted_path)?,
+        RequestPath::Host => text(Some(request_line()?.host())),
+        RequestPath::Method => text(Some(request_line()?.method())),
+        RequestPath::Path(None) => text(Some(request_line()?.path())),
+        RequestPath::RedactedPath(None) => text(Some(request_line()?.redacted_path())),
+        RequestPath::Path(Some(index)) => text(request_line()?.path_segment(*index)),
+        RequestPath::RedactedPath(Some(index)) => {
+            text(request_line()?.redacted_path_segment(*index))
+        }
+        RequestPath::Query { name, index } => match (request_line()?.query_values(name), index) {
+            (values, Some(index)) => values.get(*index).map_or(Lookup::Absent, read_value),
+            ([], None) => Lookup::Absent,
+            ([value], None) => read_value(value),
+            (values, None) => Lookup::List(Items::Values(values)),
+        },
         RequestPath::McpMethod => read_mcp(environment, McpReading::method)?,
         RequestPath::McpTool => read_mcp(environment, McpReading::tool)?,
-        RequestPath::Body(path) => resolve_body(path, environment, budget)?,
-        // A plan record's paths, which no environment fills.
-        RequestPath::Path(Some(_))
-        | RequestPath::RedactedPath(Some(_))
-        | RequestPath::Query { .. } => {
-            return Err(Refusal::NotForUse);
-        }
-    })
+        RequestPath::Body(path) => return resolve_body(path, environment, budget),
+    };
+    Ok((lookup, None))
 }
 
 // The body kept, or what any path into it resolves to.
@@ -397,18 +412,18 @@ fn resolve_body<'a>(
     path: &BodyPath,
     environment: &Environment<'a>,
     budget: &mut Budget,
-) -> Result<Lookup<'a>, Refusal> {
+) -> Result<(Lookup<'a>, Option<tree::Node<'a>>), Refusal> {
     let body = match read_body(environment) {
         Ok(body) => body,
-        Err(otherwise) => return otherwise,
+        Err(otherwise) => return otherwise.map(|lookup| (lookup, None)),
     };
     // An empty body, as an event stream's `GET` sends, holds nothing.
     if body.as_bytes().is_empty() {
-        return Ok(Lookup::Absent);
+        return Ok((Lookup::Absent, None));
     }
     let mut member = match body.json() {
         Ok(root) => Member::Found(root),
-        Err(why) => return Ok(Lookup::BodyUnread(BodyUnread::Unparsed(why))),
+        Err(why) => return Ok((Lookup::BodyUnread(BodyUnread::Unparsed(why)), None)),
     };
     for step in &path.0 {
         let Member::Found(node) = member else {
@@ -429,9 +444,9 @@ fn resolve_body<'a>(
         };
     }
     Ok(match member {
-        Member::Found(node) => read_node(node),
-        Member::Absent => Lookup::Absent,
-        Member::Ambiguous => Lookup::Ambiguous,
+        Member::Found(node) => (read_node(node), Some(node)),
+        Member::Absent => (Lookup::Absent, None),
+        Member::Ambiguous => (Lookup::Ambiguous, None),
     })
 }
 

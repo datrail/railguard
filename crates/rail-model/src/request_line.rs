@@ -1,11 +1,15 @@
 //! A call's request line, read once, its host and path spelled one way wherever they're compared,
-//! and what a call record reports of it.
+//! its path's segments and its query read as a record reads them, and what a call record reports
+//! of it.
 
 use std::borrow::Cow;
+use std::collections::BTreeMap;
 use std::fmt;
 
+use serde_json::Value;
+
 use crate::authority::split_authority;
-use crate::redaction::redact_path;
+use crate::redaction::{redact_path, segments};
 
 // What a host that can't be read reads as, compared and reported.
 const UNPARSEABLE: &str = "[unparseable]";
@@ -20,17 +24,19 @@ const STANDARD_METHODS: [&str; 9] = [
     "GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH",
 ];
 
-/// A call's host, method and path, as conditions read them under `request`.
+/// A call's host, method, path and query, as conditions and records read them under `request`.
 pub struct RequestLine {
     host: HostReading,
     method: String,
     path: String,
     path_lossy: bool,
     redacted_path: String,
+    /// Each parameter's values by its name, both decoded, in the order sent.
+    query: BTreeMap<String, Vec<Value>>,
 }
 
 /// How a call's host was read.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum HostReading {
     /// Spelled as `split_authority` spells it.
     Read(String),
@@ -75,15 +81,22 @@ impl ReportedMethod {
 
 impl RequestLine {
     /// From a call's `:authority`, `:method` and `:path` as sent: the path up to its first `?` or
-    /// `#`, and `/` for a `CONNECT`.
+    /// `#`, the query between them, and `/` with no query for a `CONNECT`.
     pub fn read(authority: &[u8], method: &[u8], path: &[u8]) -> Self {
         let host = read_host(authority);
         let method = String::from_utf8_lossy(method).into_owned();
-        let path = if method == "CONNECT" { b"/" } else { path };
-        let path = path
-            .split(|byte| matches!(byte, b'?' | b'#'))
-            .next()
-            .unwrap_or_default();
+        let target = if method == "CONNECT" { b"/" } else { path };
+        let end = target
+            .iter()
+            .position(|byte| matches!(byte, b'?' | b'#'))
+            .unwrap_or(target.len());
+        let (path, rest) = target.split_at(end);
+        let query = match rest.split_first() {
+            Some((b'?', rest)) => {
+                read_query(rest.split(|&byte| byte == b'#').next().unwrap_or_default())
+            }
+            _ => BTreeMap::new(),
+        };
         let path = String::from_utf8_lossy(path);
         // Borrowed exactly when the bytes are UTF-8.
         let path_lossy = matches!(path, Cow::Owned(_));
@@ -94,6 +107,7 @@ impl RequestLine {
             redacted_path: redact_path(&path),
             path,
             path_lossy,
+            query,
         }
     }
 
@@ -123,6 +137,25 @@ impl RequestLine {
     /// The path by RailMon's redaction rule, as Rail Center writes a plan's paths.
     pub fn redacted_path(&self) -> &str {
         &self.redacted_path
+    }
+
+    /// The path's segment at `index`, from 0, empty segments skipped as the redaction rule skips
+    /// them, so it's the redacted path's segment at the same index.
+    pub(crate) fn path_segment(&self, index: usize) -> Option<&str> {
+        segment(&self.path, index)
+    }
+
+    /// The redacted path's segment at `index`, from 0: `[redacted]` for one that looked like a
+    /// secret.
+    pub(crate) fn redacted_path_segment(&self, index: usize) -> Option<&str> {
+        segment(&self.redacted_path, index)
+    }
+
+    /// A query parameter's values, as strings, in the order sent: none if it isn't sent. Names
+    /// and values decoded as a form's are (`+` a space, then percent-decoded), bytes that aren't
+    /// UTF-8 replaced.
+    pub(crate) fn query_values(&self, name: &str) -> &[Value] {
+        self.query.get(name).map_or(&[], Vec::as_slice)
     }
 
     /// Why the path matches no plan entry, if it can't. On the path as received, before redaction.
@@ -181,6 +214,20 @@ impl fmt::Debug for RequestLine {
             .field("redacted_path", &self.redacted_path)
             .finish_non_exhaustive()
     }
+}
+
+fn segment(path: &str, index: usize) -> Option<&str> {
+    segments(path).nth(index)
+}
+
+// As the URL standard parses `application/x-www-form-urlencoded`, which a query is read as.
+fn read_query(query: &[u8]) -> BTreeMap<String, Vec<Value>> {
+    let mut parameters: BTreeMap<String, Vec<Value>> = BTreeMap::new();
+    for (name, value) in form_urlencoded::parse(query) {
+        let value = Value::String(value.into_owned());
+        parameters.entry(name.into_owned()).or_default().push(value);
+    }
+    parameters
 }
 
 fn read_host(authority: &[u8]) -> HostReading {

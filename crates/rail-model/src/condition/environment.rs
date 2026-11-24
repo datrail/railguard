@@ -34,7 +34,8 @@ impl<'a> Environment<'a> {
         }
     }
 
-    /// For capture to match a call against a plan: its request line and its body.
+    /// For capture to match a call against a plan and read its record: its request line and its
+    /// body.
     pub fn for_capture(request_line: &'a RequestLine, body: &'a BodyRead) -> Self {
         Self {
             ticket: TicketClaims::NotFilled,
