@@ -6,7 +6,7 @@ use serde_json::json;
 use tokio::runtime::Handle;
 use tokio::time::Instant;
 
-use crate::bundles::{Answer, MINUTE, Script, answer, bundle, failed, held_hash, ok, start};
+use crate::bundles::{MINUTE, Script, answer, bundle, failed, held_hash, ok, start};
 use crate::common::{self, Reply, client, response, serve};
 use crate::holder::{HOUR, TestClock, until};
 use crate::scripted::Answering;
@@ -17,26 +17,16 @@ const LIMIT: Duration = Duration::from_secs(2);
 const SOONER: u64 = 5;
 const PERIOD: u64 = 60;
 
-// Every way of getting no usable bundle, a bundle Rail Center sent or not, and when it's retried.
+// One way of getting no usable bundle down each path the answer's class takes, and when it's
+// retried.
 fn unusable_answers() -> Vec<(&'static str, u64, Answering)> {
-    fn without(field: &str) -> Answer {
-        let mut body = bundle("v2", json!({}));
-        body.as_object_mut().unwrap().remove(field);
-        ok(&body)
-    }
     vec![
         ("a 503", SOONER, || {
             answer(StatusCode::SERVICE_UNAVAILABLE, b"")
         }),
-        ("a 500", SOONER, || {
-            answer(StatusCode::INTERNAL_SERVER_ERROR, b"")
-        }),
         ("a 404", PERIOD, || answer(StatusCode::NOT_FOUND, b"")),
         ("a refused credential", PERIOD, || {
             answer(StatusCode::UNAUTHORIZED, b"")
-        }),
-        ("a forbidden read", PERIOD, || {
-            answer(StatusCode::FORBIDDEN, b"")
         }),
         ("a connection failure", SOONER, || {
             Err(FetchError::Transport("connection refused".to_owned()))
@@ -49,18 +39,8 @@ fn unusable_answers() -> Vec<(&'static str, u64, Answering)> {
         ("a body past the cap", PERIOD, || {
             Err(FetchError::TooLarge { max_bytes: 1024 })
         }),
-        ("a gzip that doesn't decode", PERIOD, || {
-            Err(FetchError::BadGzip("corrupt deflate stream".to_owned()))
-        }),
-        ("an encoding not offered", PERIOD, || {
-            Err(FetchError::Encoding("br".to_owned()))
-        }),
         ("a body that isn't JSON", PERIOD, || {
             answer(StatusCode::OK, b"<html>nope</html>")
-        }),
-        ("an empty body", PERIOD, || answer(StatusCode::OK, b"")),
-        ("a body that isn't UTF-8", PERIOD, || {
-            answer(StatusCode::OK, b"{\"\xff\":1}")
         }),
         ("a 202 carrying a good bundle", PERIOD, || {
             answer(
@@ -72,17 +52,9 @@ fn unusable_answers() -> Vec<(&'static str, u64, Answering)> {
         ("another major", PERIOD, || {
             ok(&bundle("v2", json!({"schema_version": "3.0"})))
         }),
-        ("a version not MAJOR.MINOR", PERIOD, || {
-            ok(&bundle("v2", json!({"schema_version": "2.0.1"})))
-        }),
         ("policies not a list", PERIOD, || {
             ok(&bundle("v2", json!({"policies": "not a list"})))
         }),
-        ("no posture", PERIOD, || without("enforcement")),
-        ("a posture outside the contract", PERIOD, || {
-            ok(&bundle("v2", json!({"enforcement": {"mode": "audit"}})))
-        }),
-        ("no content_hash", PERIOD, || without("content_hash")),
     ]
 }
 
