@@ -7,7 +7,7 @@ use serde::{Serialize, Serializer};
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 
-/// Written to the nanosecond the clock gives; a time before 1970 or past 9999 is an error.
+/// Written to the nanosecond the clock gives; a year before 0 or past 9999 is an error.
 #[derive(Clone, Copy, Debug)]
 pub struct Timestamp(pub SystemTime);
 
