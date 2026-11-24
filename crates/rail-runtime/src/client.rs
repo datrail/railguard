@@ -180,8 +180,16 @@ impl RailCenterClient {
     }
 }
 
+/// Why an answer has no body to read.
+#[derive(Debug)]
+pub(crate) struct Unread {
+    pub(crate) reason: String,
+    /// Whether asking again soon could bring another answer: no answer, or a 408, 429 or 5xx.
+    pub(crate) transient: bool,
+}
+
 /// The body of a 200, or why the answer has none.
-pub(crate) fn read_ok(answer: Result<Response, FetchError>) -> Result<Vec<u8>, String> {
+pub(crate) fn read_ok(answer: Result<Response, FetchError>) -> Result<Vec<u8>, Unread> {
     read_status(answer, StatusCode::OK)
 }
 
@@ -189,18 +197,35 @@ pub(crate) fn read_ok(answer: Result<Response, FetchError>) -> Result<Vec<u8>, S
 pub(crate) fn read_status(
     answer: Result<Response, FetchError>,
     expected: StatusCode,
-) -> Result<Vec<u8>, String> {
-    let response = answer.map_err(|error| error.to_string())?;
-    match response.status {
-        status if status == expected => Ok(response.body),
+) -> Result<Vec<u8>, Unread> {
+    let response = match answer {
+        Ok(response) => response,
+        Err(error) => {
+            // A body too large or badly encoded is sent again as it was.
+            let transient = matches!(
+                error,
+                FetchError::Deadline(_) | FetchError::Silent(_) | FetchError::Transport(_)
+            );
+            return Err(Unread {
+                reason: error.to_string(),
+                transient,
+            });
+        }
+    };
+    let status = response.status;
+    let reason = match status {
+        status if status == expected => return Ok(response.body),
         // Unlike Rail Center having a bad minute, this lasts until the configuration changes.
-        StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => Err(format!(
-            "Rail Center refused the credential ({}); every fetch fails this way until \
-             {AUTH_MODE} and {AUTH_TOKEN} are fixed",
-            response.status
-        )),
-        status => Err(format!("Rail Center answered {status}")),
-    }
+        StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => format!(
+            "Rail Center refused the credential ({status}); every fetch fails this way until \
+             {AUTH_MODE} and {AUTH_TOKEN} are fixed"
+        ),
+        status => format!("Rail Center answered {status}"),
+    };
+    let transient = status == StatusCode::REQUEST_TIMEOUT
+        || status == StatusCode::TOO_MANY_REQUESTS
+        || status.is_server_error();
+    Err(Unread { reason, transient })
 }
 
 // Every value of every `Content-Encoding` line, so a second encoding can't hide behind a first.

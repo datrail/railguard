@@ -6,7 +6,8 @@ use sha2::{Digest, Sha256};
 use tokio::runtime::Handle;
 
 use crate::holder::{
-    Holder, Jitter, Kind, MAX_BACKOFF, MIN_REFRESH_INTERVAL, Schedule, Step, round_to_seconds,
+    Attempt, Holder, Jitter, Kind, MAX_BACKOFF, MIN_REFRESH_INTERVAL, Schedule, Step,
+    round_to_seconds,
 };
 use crate::ticket::{OpaqueTicket, TicketAnswer, TicketSource};
 use crate::xrail::Unavailable;
@@ -156,9 +157,15 @@ fn step(
             (Some(Held::Ticket(Arc::new(ticket))), valid, outcome)
         }
     };
+    // Every answer but a valid ticket is asked again sooner: a host lacks one meanwhile.
+    let attempt = if succeeded {
+        Attempt::Succeeded
+    } else {
+        Attempt::Failed
+    };
     Step {
         next,
-        succeeded,
+        attempt,
         outcome,
     }
 }

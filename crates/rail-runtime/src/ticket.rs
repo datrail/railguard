@@ -141,7 +141,8 @@ impl TicketSource for RailCenterTickets {
             ("host_id", agent.host_id.as_str()),
             ("sandbox_name", agent.sandbox_name.as_str()),
         ];
-        let body = read_ok(client.get(ROUTE, &params, LIMITS).await)?;
+        let body =
+            read_ok(client.get(ROUTE, &params, LIMITS).await).map_err(|unread| unread.reason)?;
         let envelope: Envelope = serde_json::from_slice(&body).map_err(|error| {
             // Where, not what: serde's message can quote a value, and a value may be the ticket.
             format!(

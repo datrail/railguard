@@ -13,59 +13,69 @@ use crate::scripted::Answering;
 
 const LIMIT: Duration = Duration::from_secs(2);
 
-// Every way of getting no usable bundle, a bundle Rail Center sent or not.
-fn unusable_answers() -> Vec<(&'static str, Answering)> {
+// Asked again 5 s after an answer that may pass, the period after one Rail Center would repeat.
+const SOONER: u64 = 5;
+const PERIOD: u64 = 60;
+
+// Every way of getting no usable bundle, a bundle Rail Center sent or not, and when it's retried.
+fn unusable_answers() -> Vec<(&'static str, u64, Answering)> {
     fn without(field: &str) -> Answer {
         let mut body = bundle("v2", json!({}));
         body.as_object_mut().unwrap().remove(field);
         ok(&body)
     }
     vec![
-        ("a 503", || answer(StatusCode::SERVICE_UNAVAILABLE, b"")),
-        ("a 500", || answer(StatusCode::INTERNAL_SERVER_ERROR, b"")),
-        ("a 404", || answer(StatusCode::NOT_FOUND, b"")),
-        ("a refused credential", || {
+        ("a 503", SOONER, || {
+            answer(StatusCode::SERVICE_UNAVAILABLE, b"")
+        }),
+        ("a 500", SOONER, || {
+            answer(StatusCode::INTERNAL_SERVER_ERROR, b"")
+        }),
+        ("a 404", PERIOD, || answer(StatusCode::NOT_FOUND, b"")),
+        ("a refused credential", PERIOD, || {
             answer(StatusCode::UNAUTHORIZED, b"")
         }),
-        ("a forbidden read", || answer(StatusCode::FORBIDDEN, b"")),
-        ("a connection failure", || {
+        ("a forbidden read", PERIOD, || {
+            answer(StatusCode::FORBIDDEN, b"")
+        }),
+        ("a connection failure", SOONER, || {
             Err(FetchError::Transport("connection refused".to_owned()))
         }),
-        ("a deadline", failed),
-        ("a body that isn't JSON", || {
+        ("a deadline", SOONER, failed),
+        ("a body that isn't JSON", PERIOD, || {
             answer(StatusCode::OK, b"<html>nope</html>")
         }),
-        ("an empty body", || answer(StatusCode::OK, b"")),
-        ("a body that isn't UTF-8", || {
+        ("an empty body", PERIOD, || answer(StatusCode::OK, b"")),
+        ("a body that isn't UTF-8", PERIOD, || {
             answer(StatusCode::OK, b"{\"\xff\":1}")
         }),
-        ("a 202 carrying a good bundle", || {
+        ("a 202 carrying a good bundle", PERIOD, || {
             answer(
                 StatusCode::ACCEPTED,
                 bundle("v2", json!({})).to_string().as_bytes(),
             )
         }),
-        ("a JSON array", || ok(&json!([]))),
-        ("another major", || {
+        ("a JSON array", PERIOD, || ok(&json!([]))),
+        ("another major", PERIOD, || {
             ok(&bundle("v2", json!({"schema_version": "3.0"})))
         }),
-        ("a version not MAJOR.MINOR", || {
+        ("a version not MAJOR.MINOR", PERIOD, || {
             ok(&bundle("v2", json!({"schema_version": "2.0.1"})))
         }),
-        ("policies not a list", || {
+        ("policies not a list", PERIOD, || {
             ok(&bundle("v2", json!({"policies": "not a list"})))
         }),
-        ("no posture", || without("enforcement")),
-        ("a posture outside the contract", || {
+        ("no posture", PERIOD, || without("enforcement")),
+        ("a posture outside the contract", PERIOD, || {
             ok(&bundle("v2", json!({"enforcement": {"mode": "audit"}})))
         }),
-        ("no content_hash", || without("content_hash")),
+        ("no content_hash", PERIOD, || without("content_hash")),
     ]
 }
 
 #[tokio::test(start_paused = true)]
-async fn only_a_usable_answer_is_held_and_any_other_is_retried_as_a_failure() {
-    for (label, unusable) in unusable_answers() {
+async fn only_a_usable_answer_is_held_and_only_one_that_may_pass_is_retried_sooner() {
+    for (label, retry, unusable) in unusable_answers() {
         let clock = TestClock::new();
         let script = Script::new(&clock, move |n| match n {
             1 => ok(&bundle("v1", json!({}))),
@@ -75,9 +85,9 @@ async fn only_a_usable_answer_is_held_and_any_other_is_retried_as_a_failure() {
         let holder = start(&script, MINUTE);
         until(&clock, 0).await;
         assert_eq!(held_hash(&holder), None, "{label}");
-        until(&clock, 65).await;
+        until(&clock, retry + 60).await;
 
-        assert_eq!(script.fetched_at(), [0, 5, 65], "{label}");
+        assert_eq!(script.fetched_at(), [0, retry, retry + 60], "{label}");
         assert_eq!(held_hash(&holder).as_deref(), Some("v1"), "{label}");
     }
 }

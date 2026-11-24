@@ -50,7 +50,7 @@ pub(crate) trait Kind: Send + Sync + 'static {
     }
 
     /// Logs what a step did, once the wait before the next attempt is known; `after_failure` is
-    /// whether the attempt before it failed, a panic included.
+    /// whether the attempt before it didn't succeed, a panic included.
     fn report(
         &self,
         outcome: Self::Outcome,
@@ -64,9 +64,19 @@ pub(crate) trait Kind: Send + Sync + 'static {
 pub(crate) struct Step<T, O> {
     /// The value to hold from now on; `None` keeps the one held.
     pub(crate) next: Option<T>,
-    /// A failure backs off; a success resumes the period.
-    pub(crate) succeeded: bool,
+    pub(crate) attempt: Attempt,
     pub(crate) outcome: O,
+}
+
+/// What an attempt was, for the schedule: only a failure backs off.
+#[derive(Clone, Copy, PartialEq)]
+pub(crate) enum Attempt {
+    Succeeded,
+    /// Rail Center's answer, not one to hold: asked again after the period, since asking sooner
+    /// can't change it.
+    Refused,
+    /// No answer, or one that may pass: asked again sooner, backing off.
+    Failed,
 }
 
 /// A refresh interval as set: whole seconds, from the 5 s floor to a day.
@@ -224,31 +234,33 @@ async fn run<K: Kind>(
     jitter: Jitter,
 ) {
     let mut progress = publish.subscribe();
-    // Failed attempts since the last success.
+    // Failed attempts in a row, since the last that wasn't.
     let mut failures: u32 = 0;
+    let mut after_failure = false;
     loop {
         publish.send_replace(Progress::InFlight);
         let started = Instant::now();
-        let after_failure = failures > 0;
         let step = attempt(&kind, &held).await;
         let took = started.elapsed();
-        let outcome = match step {
+        let (outcome, attempted) = match step {
             Some(step) => {
                 if let Some(next) = step.next {
                     held.store(Arc::new(next));
                 }
-                failures = if step.succeeded { 0 } else { failures + 1 };
-                Some(step.outcome)
+                (Some(step.outcome), step.attempt)
             }
             None => {
-                failures += 1;
                 // Not the panic's message, which may quote what Rail Center sent.
                 tracing::error!(
                     "a {} refresh attempt panicked; keeping what's held",
                     K::WHAT
                 );
-                None
+                (None, Attempt::Failed)
             }
+        };
+        failures = match attempted {
+            Attempt::Failed => failures + 1,
+            Attempt::Succeeded | Attempt::Refused => 0,
         };
         let wait = {
             let held = held.load();
@@ -270,6 +282,7 @@ async fn run<K: Kind>(
             }
             wait
         };
+        after_failure = attempted != Attempt::Succeeded;
         publish.send_replace(Progress::NextAt {
             next: Instant::now() + wait,
             started,

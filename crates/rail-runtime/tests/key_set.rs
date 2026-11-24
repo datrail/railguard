@@ -44,36 +44,39 @@ async fn nothing_is_held_before_the_first_fetch() {
     assert_eq!(kids(&holder), None);
 }
 
-// Every way of getting no usable set.
-fn unusable_answers() -> Vec<(&'static str, Answering)> {
+// Every way of getting no usable set, and when it's first retried: an answer Rail Center would
+// repeat, the period after.
+fn unusable_answers() -> Vec<(&'static str, u64, Answering)> {
     vec![
-        ("a 503", || answer(StatusCode::SERVICE_UNAVAILABLE, b"")),
-        ("a 404", || answer(StatusCode::NOT_FOUND, b"")),
-        ("a refused credential", || {
+        ("a 503", 5, || answer(StatusCode::SERVICE_UNAVAILABLE, b"")),
+        ("a 404", 300, || answer(StatusCode::NOT_FOUND, b"")),
+        ("a refused credential", 300, || {
             answer(StatusCode::UNAUTHORIZED, b"")
         }),
-        ("a forbidden read", || answer(StatusCode::FORBIDDEN, b"")),
-        ("a 404 carrying a set", || {
+        ("a forbidden read", 300, || {
+            answer(StatusCode::FORBIDDEN, b"")
+        }),
+        ("a 404 carrying a set", 300, || {
             answer(
                 StatusCode::NOT_FOUND,
                 key_set(&["b"]).to_string().as_bytes(),
             )
         }),
-        ("a 203 carrying a set", || {
+        ("a 203 carrying a set", 300, || {
             let set = key_set(&["b"]).to_string();
             answer(StatusCode::NON_AUTHORITATIVE_INFORMATION, set.as_bytes())
         }),
-        ("a body that isn't JSON", || {
+        ("a body that isn't JSON", 300, || {
             answer(StatusCode::OK, b"<html>")
         }),
-        ("a kid twice", || ok(&["b", "b"])),
-        ("no response", failed),
+        ("a kid twice", 300, || ok(&["b", "b"])),
+        ("no response", 5, failed),
     ]
 }
 
 #[tokio::test(start_paused = true)]
 async fn no_usable_answer_replaces_the_set_held_nor_holds_one_first() {
-    for (label, unusable) in unusable_answers() {
+    for (label, retry, unusable) in unusable_answers() {
         let clock = TestClock::new();
         let warm = Script::new(
             &clock,
@@ -88,6 +91,7 @@ async fn no_usable_answer_replaces_the_set_held_nor_holds_one_first() {
         assert_eq!(warm.fetched_at(), [0, 300], "{label}");
         assert_eq!(kids(&warm_holder), named(&["a"]), "{label}");
         assert_eq!(kids(&cold_holder), None, "{label}");
+        assert_eq!(cold.fetched_at()[1], retry, "{label}");
     }
 }
 

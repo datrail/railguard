@@ -16,7 +16,7 @@ use tokio::runtime::Handle;
 use tokio::sync::Semaphore;
 use uuid::Uuid;
 
-use crate::client::{FetchError, Limits, RailCenterClient, Response, read_status};
+use crate::client::{FetchError, Limits, RailCenterClient, Response, Unread, read_status};
 use crate::ticket_holder::WallClock;
 
 const ROUTE: &str = "/v1/denials";
@@ -179,7 +179,7 @@ impl DenialReporter {
         self.runtime.spawn(async move {
             match read_status(sink.send(body).await, StatusCode::ACCEPTED) {
                 Ok(_) => tracing::debug!(?denied_by, endpoint_key, "denial reported"),
-                Err(reason) => tracing::warn!(
+                Err(Unread { reason, .. }) => tracing::warn!(
                     reason,
                     ?denied_by,
                     endpoint_key,

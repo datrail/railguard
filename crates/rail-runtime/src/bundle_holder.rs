@@ -10,9 +10,10 @@ use serde_json::Value;
 use tokio::runtime::Handle;
 
 use crate::bundle::BundleSource;
-use crate::client::{FetchError, Response, read_ok};
+use crate::client::{FetchError, Response, Unread, read_ok};
 use crate::holder::{
-    Holder, Jitter, Kind, MAX_BACKOFF, MIN_REFRESH_INTERVAL, Schedule, Step, round_to_seconds,
+    Attempt, Holder, Jitter, Kind, MAX_BACKOFF, MIN_REFRESH_INTERVAL, Schedule, Step,
+    round_to_seconds,
 };
 use crate::peek::{peek, schema_version, text};
 
@@ -68,7 +69,8 @@ pub struct BundleHolder {
 
 impl BundleHolder {
     /// Starts fetching at once, on `runtime`, and again every `refresh_interval`; after a failure
-    /// it backs off from 5 s up to 320 s or the interval, if shorter. `jitter` scales every wait.
+    /// that may pass it backs off from 5 s up to 320 s or the interval, if shorter. `jitter` scales
+    /// every wait.
     pub fn start(
         runtime: &Handle,
         source: impl BundleSource,
@@ -120,7 +122,7 @@ enum Outcome {
         not_strings: Vec<&'static str>,
     },
     Refused(String),
-    Failed(String),
+    Failed(Unread),
 }
 
 impl<S: BundleSource> Kind for Bundles<S> {
@@ -140,10 +142,16 @@ impl<S: BundleSource> Kind for Bundles<S> {
             Outcome::Replaced { bundle, .. } => Some(Some(Arc::clone(bundle))),
             _ => None,
         };
-        let succeeded = matches!(outcome, Outcome::Unchanged(_) | Outcome::Replaced { .. });
+        let attempt = match &outcome {
+            Outcome::Unchanged(_) | Outcome::Replaced { .. } => Attempt::Succeeded,
+            Outcome::Failed(Unread {
+                transient: true, ..
+            }) => Attempt::Failed,
+            Outcome::Refused(_) | Outcome::Failed(_) => Attempt::Refused,
+        };
         Step {
             next,
-            succeeded,
+            attempt,
             outcome,
         }
     }
@@ -187,7 +195,7 @@ impl<S: BundleSource> Kind for Bundles<S> {
                 }
             }
             Outcome::Refused(reason) => log_refused(current, &reason, retry),
-            Outcome::Failed(reason) => log_fetch_failed(current, &reason, retry),
+            Outcome::Failed(Unread { reason, .. }) => log_fetch_failed(current, &reason, retry),
         }
     }
 }
@@ -270,7 +278,12 @@ fn read_answer(held: Option<&Arc<HeldBundle>>, answer: Result<Response, FetchErr
     let (json, peek) = match peek::<Peek>(&body) {
         // JSON, but not an object: `parse_bundle` says what it is.
         Ok((json, peek)) => (json, peek.unwrap_or_default()),
-        Err(reason) => return Outcome::Failed(reason),
+        Err(reason) => {
+            return Outcome::Failed(Unread {
+                reason,
+                transient: false,
+            });
+        }
     };
     // The hash covers every field that changes behaviour, so the same one is the bundle held.
     if let Some(held) = held

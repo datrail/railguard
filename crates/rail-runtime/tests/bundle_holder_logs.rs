@@ -191,17 +191,19 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
     let fetch_failed = "policy bundle fetch failed; ";
     let refusing = "refusing the fetched policy bundle; ";
     let (none_held, keeping) = ("none is held", "keeping the one held");
-    for (answers, line, level, says) in [
+    for (answers, line, level, retry, says) in [
         (
             vec![unavailable()],
             [fetch_failed, none_held],
             "ERROR",
+            5,
             vec![r#"reason="Rail Center answered 503 Service Unavailable""#],
         ),
         (
             vec![held(), failed()],
             [fetch_failed, keeping],
             "WARN",
+            5,
             vec![
                 r#"reason="the fetch ran past its 30s deadline""#,
                 r#"content_hash="v-held""#,
@@ -211,6 +213,7 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
             vec![held(), answer(StatusCode::OK, b"<html>")],
             [fetch_failed, keeping],
             "WARN",
+            60,
             vec![
                 r#"reason="the response isn't JSON"#,
                 r#"content_hash="v-held""#,
@@ -220,12 +223,14 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
             vec![held(), answer(StatusCode::OK, b"{\"\xff\":1}")],
             [fetch_failed, keeping],
             "WARN",
+            60,
             vec![r#"reason="the response isn't UTF-8""#],
         ),
         (
             vec![refused()],
             [refusing, none_held],
             "ERROR",
+            60,
             vec!["unusable policy bundle"],
         ),
         (
@@ -233,12 +238,14 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
             vec![ok(&json!([]))],
             [refusing, none_held],
             "ERROR",
+            60,
             vec!["unusable policy bundle"],
         ),
         (
             vec![held(), refused()],
             [refusing, keeping],
             "ERROR",
+            60,
             vec!["unusable policy bundle", r#"content_hash="v-held""#],
         ),
         (
@@ -251,12 +258,14 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
             ],
             [refusing, keeping],
             "ERROR",
+            60,
             vec!["schema_version 3.0 ", "it reads 2.x"],
         ),
         (
             vec![answer(StatusCode::UNAUTHORIZED, b"")],
             [fetch_failed, none_held],
             "ERROR",
+            60,
             vec![
                 "Rail Center refused the credential (401 Unauthorized)",
                 "RAIL_AUTH_MODE and RAIL_AUTH_TOKEN",
@@ -266,6 +275,7 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
             vec![answer(StatusCode::FORBIDDEN, b"")],
             [fetch_failed, none_held],
             "ERROR",
+            60,
             vec![
                 "Rail Center refused the credential (403 Forbidden)",
                 "RAIL_AUTH_MODE and RAIL_AUTH_TOKEN",
@@ -278,8 +288,8 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
         let lines = lines_with(&logs, &line);
         assert_eq!(lines.len(), 1, "{line}: {logs}");
         assert!(lines[0].contains(level), "{logs}");
-        // The first failure since a success: the retry is 5 s away.
-        assert!(lines[0].ends_with(" retry=5"), "{logs}");
+        // The first since a success: 5 s away if it may pass, else the period.
+        assert!(lines[0].ends_with(&format!(" retry={retry}")), "{logs}");
         for text in says {
             assert!(lines[0].contains(text), "{logs}");
         }
