@@ -39,6 +39,10 @@ pub(crate) trait Kind: Send + Sync + 'static {
     /// Names the kind in the loop's own log lines.
     const WHAT: &'static str;
 
+    /// Whether what's held lapses, so a refusal is asked again sooner, as a failure is, to replace
+    /// it in time; a value that doesn't is asked again after the period.
+    const EXPIRES: bool;
+
     fn fetch(&self) -> impl Future<Output = Self::Answer> + Send;
 
     /// What `answer` does to `held`. A panic here, or polling `fetch`, is a failed attempt.
@@ -68,14 +72,14 @@ pub(crate) struct Step<T, O> {
     pub(crate) outcome: O,
 }
 
-/// What an attempt was, for the schedule: only a failure backs off.
+/// What an attempt was, for the schedule.
 #[derive(Clone, Copy, PartialEq)]
 pub(crate) enum Attempt {
     Succeeded,
-    /// Rail Center's answer, not one to hold: asked again after the period, since asking sooner
-    /// can't change it.
+    /// Rail Center's answer, with nothing usable: asking sooner can't change it, so it backs off
+    /// only for a kind that expires.
     Refused,
-    /// No answer, or one that may pass: asked again sooner, backing off.
+    /// No answer, or one that may pass: backs off.
     Failed,
 }
 
@@ -260,6 +264,7 @@ async fn run<K: Kind>(
         };
         failures = match attempted {
             Attempt::Failed => failures + 1,
+            Attempt::Refused if K::EXPIRES => failures + 1,
             Attempt::Succeeded | Attempt::Refused => 0,
         };
         let wait = {

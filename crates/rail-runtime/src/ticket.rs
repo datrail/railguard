@@ -6,7 +6,7 @@ use serde::Deserialize;
 use time::PrimitiveDateTime;
 use time::macros::format_description;
 
-use crate::client::{Limits, RailCenterClient, read_ok};
+use crate::client::{FetchError, Limits, RailCenterClient, Response, Unread, read_ok};
 use crate::config::{Refused, Secret, Settings};
 use crate::holder::parse_refresh_interval;
 
@@ -95,7 +95,7 @@ impl OpaqueTicket {
 
 /// What Rail Center answered: a ticket, or that none exists for this host and sandbox.
 #[derive(Debug, PartialEq, Eq)]
-pub enum TicketAnswer {
+pub(crate) enum TicketAnswer {
     Ticket(OpaqueTicket),
     NoTicket,
 }
@@ -115,11 +115,11 @@ struct Entry {
 
 /// Where tickets come from: Rail Center, or a test's script.
 pub trait TicketSource: Send + Sync + 'static {
-    /// One fetch; `sent_at` is the wall-clock time read just before it.
-    fn fetch(
-        &self,
-        sent_at: SystemTime,
-    ) -> impl Future<Output = Result<TicketAnswer, String>> + Send;
+    /// One fetch, whatever its status: what each means is the holder's.
+    fn fetch(&self) -> impl Future<Output = Result<Response, FetchError>> + Send;
+
+    /// The agent whose ticket is fetched, which a ticket must name.
+    fn agent(&self) -> &AgentId;
 
     /// The longest a valid ticket goes unrefreshed, before jitter.
     fn refresh_interval(&self) -> Duration;
@@ -132,70 +132,87 @@ pub struct RailCenterTickets {
 }
 
 impl TicketSource for RailCenterTickets {
-    /// Fetches this host's ticket; `sent_at`, read before the call, keeps the round trip off its
-    /// life.
-    async fn fetch(&self, sent_at: SystemTime) -> Result<TicketAnswer, String> {
-        let (client, ticket) = (&self.client, &self.settings);
-        let agent = &ticket.agent;
+    async fn fetch(&self) -> Result<Response, FetchError> {
+        let agent = &self.settings.agent;
         let params = [
             ("host_id", agent.host_id.as_str()),
             ("sandbox_name", agent.sandbox_name.as_str()),
         ];
-        let body =
-            read_ok(client.get(ROUTE, &params, LIMITS).await).map_err(|unread| unread.reason)?;
-        let envelope: Envelope = serde_json::from_slice(&body).map_err(|error| {
-            // Where, not what: serde's message can quote a value, and a value may be the ticket.
-            format!(
-                "the response is off the contract ({:?} error at line {}, column {})",
-                error.classify(),
-                error.line(),
-                error.column()
-            )
-        })?;
-        if envelope.host_id != agent.host_id {
-            return Err(format!(
-                "the response answers for host {}, not {}",
-                envelope.host_id, agent.host_id
-            ));
-        }
-        let entry = match <[Entry; 1]>::try_from(envelope.tickets) {
-            Ok([entry]) => entry,
-            Err(tickets) if tickets.is_empty() => return Ok(TicketAnswer::NoTicket),
-            Err(tickets) => {
-                return Err(format!(
-                    "{} tickets for one sandbox; the narrowing wasn't honoured",
-                    tickets.len()
-                ));
-            }
-        };
-        // An unnamed or other sandbox's entry is another agent's identity.
-        if entry.sandbox_name.as_deref() != Some(agent.sandbox_name.as_str()) {
-            return Err(format!(
-                "the ticket names sandbox {}, not {}",
-                entry.sandbox_name.as_deref().unwrap_or("none"),
-                agent.sandbox_name
-            ));
-        }
-        check_token(&entry.token)?;
-        let expires_at = parse_expires_at(&entry.expires_at)?;
-        if expires_at
-            .duration_since(sent_at)
-            .is_ok_and(|lifetime| lifetime > MAX_LIFETIME)
-        {
-            return Err(format!(
-                "the ticket expires more than {} s away, past what Rail Center stamps",
-                MAX_LIFETIME.as_secs()
-            ));
-        }
-        Ok(TicketAnswer::Ticket(OpaqueTicket {
-            token: Secret::new(entry.token),
-            expires_at,
-        }))
+        self.client.get(ROUTE, &params, LIMITS).await
+    }
+
+    fn agent(&self) -> &AgentId {
+        &self.settings.agent
     }
 
     fn refresh_interval(&self) -> Duration {
         self.settings.refresh_interval
     }
+}
+
+/// The ticket an answer brings for `agent`, or why none; `sent_at`, read before the fetch, keeps
+/// the round trip off its life.
+pub(crate) fn read_ticket(
+    answer: Result<Response, FetchError>,
+    agent: &AgentId,
+    sent_at: SystemTime,
+) -> Result<TicketAnswer, Unread> {
+    let body = read_ok(answer)?;
+    read_body(&body, agent, sent_at).map_err(|reason| Unread {
+        reason,
+        transient: false,
+    })
+}
+
+fn read_body(body: &[u8], agent: &AgentId, sent_at: SystemTime) -> Result<TicketAnswer, String> {
+    let envelope: Envelope = serde_json::from_slice(body).map_err(|error| {
+        // Where, not what: serde's message can quote a value, and a value may be the ticket.
+        format!(
+            "the response is off the contract ({:?} error at line {}, column {})",
+            error.classify(),
+            error.line(),
+            error.column()
+        )
+    })?;
+    if envelope.host_id != agent.host_id {
+        return Err(format!(
+            "the response answers for host {}, not {}",
+            envelope.host_id, agent.host_id
+        ));
+    }
+    let entry = match <[Entry; 1]>::try_from(envelope.tickets) {
+        Ok([entry]) => entry,
+        Err(tickets) if tickets.is_empty() => return Ok(TicketAnswer::NoTicket),
+        Err(tickets) => {
+            return Err(format!(
+                "{} tickets for one sandbox; the narrowing wasn't honoured",
+                tickets.len()
+            ));
+        }
+    };
+    // An unnamed or other sandbox's entry is another agent's identity.
+    if entry.sandbox_name.as_deref() != Some(agent.sandbox_name.as_str()) {
+        return Err(format!(
+            "the ticket names sandbox {}, not {}",
+            entry.sandbox_name.as_deref().unwrap_or("none"),
+            agent.sandbox_name
+        ));
+    }
+    check_token(&entry.token)?;
+    let expires_at = parse_expires_at(&entry.expires_at)?;
+    if expires_at
+        .duration_since(sent_at)
+        .is_ok_and(|lifetime| lifetime > MAX_LIFETIME)
+    {
+        return Err(format!(
+            "the ticket expires more than {} s away, past what Rail Center stamps",
+            MAX_LIFETIME.as_secs()
+        ));
+    }
+    Ok(TicketAnswer::Ticket(OpaqueTicket {
+        token: Secret::new(entry.token),
+        expires_at,
+    }))
 }
 
 // base64url, padded or not, and a JWT's dots: what Rail Center mints. Never quoted.

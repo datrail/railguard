@@ -1,12 +1,16 @@
 use std::sync::Arc;
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use rail_model::agent::AgentId;
-use rail_runtime::{Jitter, RailCenterTickets, TicketAnswer, TicketHolder, TicketSettings};
+use rail_runtime::{Jitter, RailCenterTickets, TicketHolder, TicketSettings};
+use reqwest::StatusCode;
 use tokio::runtime::Handle;
 
 use crate::common::{Reply, client, response, serve};
-use crate::holder::{HOUR, Script, TestClock, failed, start, ticket, token, until};
+use crate::holder::{
+    HOUR, Script, TestClock, entry, envelope, failed, no_ticket, one, raw, read_at, start, ticket,
+    token, until,
+};
 use crate::logs::Logs;
 
 #[tokio::test(start_paused = true)]
@@ -129,9 +133,9 @@ async fn each_answer_is_logged_for_what_it_did_to_the_ticket_held() {
         0 | 1 => ticket("a", first),
         2 => ticket("b", second),
         3 => failed(),
-        4 => Ok(TicketAnswer::NoTicket),
+        4 => no_ticket(),
         5 => failed(),
-        6 => Ok(TicketAnswer::NoTicket),
+        6 => no_ticket(),
         7 => ticket("c", lapsed),
         _ => ticket("d", last),
     });
@@ -162,4 +166,75 @@ async fn each_answer_is_logged_for_what_it_did_to_the_ticket_held() {
     // The same ticket again, a's and d's, is logged only at debug.
     assert_eq!(logs.matches("ticket rotated").count(), 2, "{logs}");
     assert_eq!(logs.matches("ticket acquired").count(), 1, "{logs}");
+}
+
+// Why each refusal is, told without the values it may hold.
+#[tokio::test(start_paused = true)]
+async fn a_refused_ticket_is_logged_with_why() {
+    let sent_at = UNIX_EPOCH + Duration::from_secs(1_785_233_700 - 900);
+    let stamp = "2026-07-28T10:15:00Z";
+    let ticket = entry(r#""sandbox a""#, "a.b.c", stamp);
+    for (status, body, reason) in [
+        (
+            StatusCode::NOT_FOUND,
+            String::new(),
+            "Rail Center answered 404 Not Found",
+        ),
+        (
+            StatusCode::UNAUTHORIZED,
+            String::new(),
+            "Rail Center refused the credential (401 Unauthorized); every fetch fails this way \
+             until RAIL_AUTH_MODE and RAIL_AUTH_TOKEN are fixed",
+        ),
+        (
+            StatusCode::OK,
+            envelope("host-1", &[entry(r#""sandbox b""#, "a.b.c", stamp)]),
+            "the ticket names sandbox sandbox b, not sandbox a",
+        ),
+        (
+            StatusCode::OK,
+            envelope("host-1", &[entry("null", "a.b.c", stamp)]),
+            "the ticket names sandbox none, not sandbox a",
+        ),
+        (
+            StatusCode::OK,
+            envelope("host-1", &[ticket.clone(), ticket]),
+            "2 tickets for one sandbox; the narrowing wasn't honoured",
+        ),
+        (
+            StatusCode::OK,
+            envelope("host-2", &[]),
+            "the response answers for host host-2, not host-1",
+        ),
+        (
+            StatusCode::OK,
+            r#"{"host_id":"host-1","tickets":"eyJ0aGUiOiJ0aWNrZXQifQ"}"#.to_owned(),
+            "the response is off the contract (Data error at line 1, column 54)",
+        ),
+        (
+            StatusCode::OK,
+            one("a+b/c", stamp),
+            "the ticket isn't base64url (5 characters)",
+        ),
+        (
+            StatusCode::OK,
+            one("a.b.c", "2026-07-28T10:15:00.5Z"),
+            "expires_at isn't YYYY-MM-DDTHH:MM:SSZ: 2026-07-28T10:15:00.5Z",
+        ),
+        (
+            StatusCode::OK,
+            one("a.b.c", "2026-07-29T10:20:01Z"),
+            "the ticket expires more than 86700 s away, past what Rail Center stamps",
+        ),
+    ] {
+        let logs = Logs::default();
+        let _logging = logs.capture();
+
+        let _holder = read_at(move || raw(status, &body), sent_at).await;
+
+        let logs = logs.text();
+        let line = format!("ticket refresh failed; none is held reason=\"{reason}\"");
+        assert!(logs.contains(&line), "{line}\n{logs}");
+        assert!(!logs.contains("eyJ0aGUiOiJ0aWNrZXQifQ"), "{logs}");
+    }
 }

@@ -131,6 +131,7 @@ impl<S: BundleSource> Kind for Bundles<S> {
     type Outcome = Outcome;
 
     const WHAT: &'static str = "policy bundle";
+    const EXPIRES: bool = false;
 
     fn fetch(&self) -> impl Future<Output = Self::Answer> + Send {
         self.source.fetch()

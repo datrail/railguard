@@ -129,6 +129,7 @@ impl<S: KeySource> Kind for Keys<S> {
     type Outcome = Outcome;
 
     const WHAT: &'static str = "signing key set";
+    const EXPIRES: bool = true;
 
     fn fetch(&self) -> impl Future<Output = Self::Answer> + Send {
         self.source.fetch()

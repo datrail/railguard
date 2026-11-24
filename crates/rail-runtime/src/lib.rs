@@ -42,8 +42,7 @@ pub use rail_center::{
 };
 pub use rail_center_thread::RailCenterThread;
 pub use ticket::{
-    OpaqueTicket, RailCenterTickets, TicketAnswer, TicketSettings, TicketSource,
-    read_ticket_settings,
+    OpaqueTicket, RailCenterTickets, TicketSettings, TicketSource, read_ticket_settings,
 };
 pub use ticket_holder::{TicketHolder, WallClock};
 pub use xrail::{

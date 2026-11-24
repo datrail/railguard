@@ -1,9 +1,11 @@
 use std::time::Duration;
 
-use rail_runtime::{Jitter, TicketAnswer, Unavailable};
+use rail_runtime::{Jitter, Unavailable};
 use tokio::time::sleep;
 
-use crate::holder::{HOUR, Script, TestClock, failed, start, start_jittered, ticket, token, until};
+use crate::holder::{
+    HOUR, Script, TestClock, failed, no_ticket, start, start_jittered, ticket, token, until,
+};
 
 #[tokio::test(start_paused = true)]
 async fn a_fetched_ticket_is_presented_from_the_first_fetch() {
@@ -51,7 +53,7 @@ async fn rail_center_answering_none_clears_a_ticket_still_valid() {
         if n == 0 {
             ticket("a", expiry)
         } else {
-            Ok(TicketAnswer::NoTicket)
+            no_ticket()
         }
     });
 
@@ -64,13 +66,7 @@ async fn rail_center_answering_none_clears_a_ticket_still_valid() {
 #[tokio::test(start_paused = true)]
 async fn not_found_lasts_only_while_rail_center_says_so() {
     let clock = TestClock::new();
-    let script = Script::new(&clock, |n| {
-        if n == 0 {
-            Ok(TicketAnswer::NoTicket)
-        } else {
-            failed()
-        }
-    });
+    let script = Script::new(&clock, |n| if n == 0 { no_ticket() } else { failed() });
 
     let holder = start(&clock, &script, HOUR);
     until(&clock, 0).await;
@@ -85,7 +81,7 @@ async fn a_recovered_ticket_clears_the_reason() {
     let clock = TestClock::new();
     let expiry = clock.at(900);
     let script = Script::new(&clock, move |n| match n {
-        0 => Ok(TicketAnswer::NoTicket),
+        0 => no_ticket(),
         _ => ticket("a", expiry),
     });
 
@@ -165,7 +161,7 @@ async fn the_backoff_never_exceeds_the_interval_nor_goes_under_5_s() {
 #[tokio::test(start_paused = true)]
 async fn no_ticket_backs_off_like_a_failure() {
     let clock = TestClock::new();
-    let script = Script::new(&clock, |_| Ok(TicketAnswer::NoTicket));
+    let script = Script::new(&clock, |_| no_ticket());
 
     let _holder = start(&clock, &script, HOUR);
     until(&clock, 35).await;
@@ -280,19 +276,20 @@ async fn a_lapsed_answer_never_replaces_a_ticket_still_valid_and_backs_off() {
     assert_eq!(script.fetched_at(), [0, 20, 25, 32, 37, 42]);
 }
 
+// Rail Center stamps at most a day, plus a margin: past it from the send, a ticket is refused.
 #[tokio::test(start_paused = true)]
-async fn the_clock_is_read_for_the_fetch_as_it_is_sent() {
+async fn a_tickets_lifetime_is_judged_from_when_its_fetch_was_sent() {
     let clock = TestClock::new();
-    let expiry = clock.at(900);
-    let script = Script::new(&clock, move |_| ticket("a", expiry));
+    let expiry = clock.at(86_400 + 300 + 1);
+    let script = Script {
+        takes: Duration::from_secs(10),
+        ..Script::new(&clock, move |_| ticket("a", expiry))
+    };
 
-    let _holder = start(&clock, &script, HOUR);
-    until(&clock, 450).await;
+    let holder = start(&clock, &script, HOUR);
+    until(&clock, 10).await;
 
-    assert_eq!(
-        *script.sent_at.lock().unwrap(),
-        [clock.at(0), clock.at(450)]
-    );
+    assert_eq!(token(&holder), Err(Unavailable::IssuerUnreachable));
 }
 
 #[tokio::test(start_paused = true)]
@@ -301,7 +298,7 @@ async fn a_lapsed_ticket_after_none_is_expired_not_not_found() {
     let lapsed = clock.at(0);
     let script = Script::new(&clock, move |n| {
         if n == 0 {
-            Ok(TicketAnswer::NoTicket)
+            no_ticket()
         } else {
             ticket("a", lapsed)
         }
@@ -412,7 +409,8 @@ async fn jitter_scales_every_wait_never_under_5_s() {
 #[tokio::test(start_paused = true)]
 async fn random_jitter_varies_within_a_fifth_of_the_period() {
     let clock = TestClock::new();
-    let expiry = clock.at(86_400 * 30);
+    // A day, the longest Rail Center stamps, so half its remaining life never caps a wait here.
+    let expiry = clock.at(86_400);
     let script = Script::new(&clock, move |_| ticket("a", expiry));
 
     let _holder = start_jittered(&clock, &script, Duration::from_secs(600), Jitter::random());

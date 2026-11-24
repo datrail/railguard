@@ -29,7 +29,10 @@ tonic = { version = "0.14", default-features = false, features = ["codegen", "ro
 tonic-health = { version = "0.14", default-features = false }
 
 [dev-dependencies]
+# What a scripted ticket source answers, as rail-runtime reads it.
+rail-model = { path = "../rail-model" }
 rail-test-support = { path = "../rail-test-support" }
+reqwest = { version = "0.13", default-features = false }
 # The tests' client.
 tonic = { version = "0.14", default-features = false, features = ["channel"] }
 

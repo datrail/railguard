@@ -5,11 +5,12 @@ use std::time::{Duration, SystemTime};
 use sha2::{Digest, Sha256};
 use tokio::runtime::Handle;
 
+use crate::client::{FetchError, Response, Unread};
 use crate::holder::{
     Attempt, Holder, Jitter, Kind, MAX_BACKOFF, MIN_REFRESH_INTERVAL, Schedule, Step,
     round_to_seconds,
 };
-use crate::ticket::{OpaqueTicket, TicketAnswer, TicketSource};
+use crate::ticket::{OpaqueTicket, TicketAnswer, TicketSource, read_ticket};
 use crate::xrail::Unavailable;
 
 /// The wall clock: what a ticket's `expires_at` is read against, and denials are stamped with.
@@ -82,16 +83,21 @@ struct Tickets<S> {
 
 impl<S: TicketSource> Kind for Tickets<S> {
     type Held = Held;
-    type Answer = Result<TicketAnswer, String>;
+    // When the fetch was sent, and what it brought.
+    type Answer = (SystemTime, Result<Response, FetchError>);
     type Outcome = Outcome;
 
     const WHAT: &'static str = "ticket";
+    const EXPIRES: bool = true;
 
     fn fetch(&self) -> impl Future<Output = Self::Answer> + Send {
-        self.source.fetch((self.now)())
+        let sent_at = (self.now)();
+        let fetch = self.source.fetch();
+        async move { (sent_at, fetch.await) }
     }
 
-    fn step(&self, held: &Held, answer: Self::Answer) -> Step<Held, Outcome> {
+    fn step(&self, held: &Held, (sent_at, answer): Self::Answer) -> Step<Held, Outcome> {
+        let answer = read_ticket(answer, self.source.agent(), sent_at);
         step(held, answer, (self.now)())
     }
 
@@ -115,30 +121,35 @@ impl<S: TicketSource> Kind for Tickets<S> {
 // What one answer, read at `at`, makes of the ticket held. Only a valid ticket is a success.
 fn step(
     previous: &Held,
-    answer: Result<TicketAnswer, String>,
+    answer: Result<TicketAnswer, Unread>,
     at: SystemTime,
 ) -> Step<Held, Outcome> {
     let usable = |held: &Held| held.ticket().is_some_and(|ticket| ticket.is_valid(at));
-    let (next, succeeded, outcome) = match answer {
+    let (next, attempt, outcome) = match answer {
         Ok(TicketAnswer::NoTicket) => (
             Some(Held::NotFound),
-            false,
+            Attempt::Refused,
             Outcome::NoTicket {
                 cleared: usable(previous),
             },
         ),
-        Err(reason) => {
+        Err(Unread { reason, transient }) => {
             let kept = usable(previous);
             let next = match previous.ticket() {
                 Some(ticket) => Held::Ticket(Arc::clone(ticket)),
                 None => Held::Unreached,
             };
-            (Some(next), false, Outcome::Failed { reason, kept })
+            let attempt = if transient {
+                Attempt::Failed
+            } else {
+                Attempt::Refused
+            };
+            (Some(next), attempt, Outcome::Failed { reason, kept })
         }
         // An already-lapsed ticket never displaces one still good.
         Ok(TicketAnswer::Ticket(ticket)) if !ticket.is_valid(at) && usable(previous) => {
             let lapsed = fingerprint(ticket.token.expose());
-            (None, false, Outcome::LapsedKept { lapsed })
+            (None, Attempt::Refused, Outcome::LapsedKept { lapsed })
         }
         Ok(TicketAnswer::Ticket(ticket)) => {
             let outcome = if !ticket.is_valid(at) {
@@ -153,15 +164,13 @@ fn step(
             } else {
                 Outcome::Unchanged
             };
-            let valid = ticket.is_valid(at);
-            (Some(Held::Ticket(Arc::new(ticket))), valid, outcome)
+            let attempt = if ticket.is_valid(at) {
+                Attempt::Succeeded
+            } else {
+                Attempt::Refused
+            };
+            (Some(Held::Ticket(Arc::new(ticket))), attempt, outcome)
         }
-    };
-    // Every answer but a valid ticket is asked again sooner: a host lacks one meanwhile.
-    let attempt = if succeeded {
-        Attempt::Succeeded
-    } else {
-        Attempt::Failed
     };
     Step {
         next,
