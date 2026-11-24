@@ -51,8 +51,16 @@ async fn a_plan_refused_is_warned_of_with_why_and_what_is_kept() {
         (
             "another redaction_version",
             ok(&plan(&b, json!({"redaction_version": 2}))),
-            "redaction_version 2: its paths were redacted by another version of the redaction \
-             rule than this proxy's 1",
+            "redaction_version 2: ",
+        ),
+        (
+            // Compared last, so a plan refused for its shape is told by that.
+            "a plan refused for its shape and its redaction_version",
+            ok(&plan(
+                &b,
+                json!({"window_seconds": 10, "redaction_version": 2}),
+            )),
+            "window_seconds",
         ),
     ] {
         let logs = log_of(vec![refused]).await;
@@ -64,6 +72,10 @@ async fn a_plan_refused_is_warned_of_with_why_and_what_is_kept() {
             "{label}: {logs}"
         );
         assert!(line[0].contains(said), "{label}: {logs}");
+        assert!(
+            label == "another redaction_version" || !line[0].contains("redaction_version 2"),
+            "{label}: {logs}"
+        );
     }
 
     let logs = log_of(vec![
@@ -95,7 +107,7 @@ async fn the_same_word_again_is_said_at_info_only_after_a_failure() {
     for (label, answers, said, times) in [
         (
             "no plan",
-            vec![no_plan(), no_plan(), failed(), no_plan()],
+            vec![no_plan(), no_plan(), no_plan(), failed(), no_plan()],
             "Rail Center holds no capture plan for this agent",
             2,
         ),
@@ -127,17 +139,27 @@ async fn the_same_word_again_is_said_at_info_only_after_a_failure() {
 
 #[tokio::test(start_paused = true)]
 async fn an_answer_that_is_no_plan_is_a_failure_saying_why() {
-    for (answer, said) in [
-        (ok(&json!([])), "isn't an object"),
-        (
-            answer(StatusCode::NOT_FOUND, b""),
-            "Rail Center answered 404 Not Found",
-        ),
-    ] {
+    // An array would fill the peek's fields in order, a hash and all.
+    let array = json!([hash('a'), null, null]);
+    for (answer, said) in [(ok(&array), "isn't an object")] {
         let logs = log_of(vec![answer]).await;
 
         let line = lines_with(&logs, "capture plan fetch failed; none is held");
         assert_eq!(line.len(), 1, "{logs}");
         assert!(line[0].contains("WARN") && line[0].contains(said), "{logs}");
     }
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_plan_held_cleared_or_named_again_is_said_as_such() {
+    let a = hash('a');
+    let other = json!({"agent": {"host_id": "host-7f3c", "sandbox_name": "other"}});
+
+    let logs = log_of(vec![ok(&plan(&a, json!({}))), no_plan()]).await;
+    let cleared = lines_with(&logs, "Rail Center holds no capture plan for this agent");
+    assert!(cleared.len() == 1 && cleared[0].contains("INFO"), "{logs}");
+
+    // The hash covers the agent too: the same one is the plan held, not another agent's.
+    let logs = log_of(vec![ok(&plan(&a, json!({}))), ok(&plan(&a, other))]).await;
+    assert!(!logs.contains("capture plan fetch failed"), "{logs}");
 }

@@ -3,7 +3,7 @@ use std::time::{Duration, SystemTime};
 
 use rail_model::agent::AgentId;
 
-use crate::client::{FetchError, Limits, RailCenterClient, Response};
+use crate::client::{FetchError, Limits, RailCenterClient, Response, agent_query};
 use crate::config::{Refused, Secret, Settings};
 use crate::holder::parse_refresh_interval;
 
@@ -85,14 +85,6 @@ impl OpaqueTicket {
     pub fn is_valid(&self, now: SystemTime) -> bool {
         now < self.expires_at
     }
-}
-
-/// The query naming `agent` to Rail Center, for its ticket and anything else of its own.
-pub(crate) fn agent_query(agent: &AgentId) -> [(&'static str, &str); 2] {
-    [
-        ("host_id", agent.host_id.as_str()),
-        ("sandbox_name", agent.sandbox_name.as_str()),
-    ]
 }
 
 /// Where tickets come from: Rail Center, or a test's script.

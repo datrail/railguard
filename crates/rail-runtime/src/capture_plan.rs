@@ -3,10 +3,9 @@ use std::time::Duration;
 
 use rail_model::agent::AgentId;
 
-use crate::client::{FetchError, Limits, RailCenterClient, Response};
+use crate::client::{FetchError, Limits, RailCenterClient, Response, agent_query};
 use crate::config::{Refused, Settings};
 use crate::holder::parse_refresh_interval;
-use crate::ticket::agent_query;
 
 const ROUTE: &str = "/v1/capture-plan";
 

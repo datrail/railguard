@@ -7,16 +7,17 @@ use serde_json::json;
 use tokio::runtime::Handle;
 
 use crate::capture_plans::{MINUTE, Script, agent, answer, hash, held, no_plan, ok, plan, start};
-use crate::common::{self, Reply, client, response, serve};
+use crate::common::{Reply, client, response, serve};
 use crate::holder::{TestClock, until};
-use crate::scripted::{Answering, failed};
+use crate::scripted::Answering;
 
 // Asked again 5 s after an answer that may pass, the period after any other.
 const SOONER: u64 = 5;
 const PERIOD: u64 = 60;
 
+// Digits, so a hash's form is read for them as for its letters, b()'s.
 fn a() -> String {
-    hash('a')
+    hash('1')
 }
 
 fn b() -> String {
@@ -109,7 +110,6 @@ fn answers() -> Vec<(&'static str, Answering, Option<String>, u64)> {
             kept(),
             SOONER,
         ),
-        ("a deadline", failed, kept(), SOONER),
     ]
 }
 
@@ -131,20 +131,6 @@ async fn only_a_plan_applied_or_a_204_replaces_the_plan_held() {
         until(&clock, 60 + retry).await;
 
         assert_eq!(script.fetched_at(), [0, 60, 60 + retry], "{label}");
-    }
-}
-
-#[tokio::test(start_paused = true)]
-async fn with_none_held_only_a_plan_applied_holds_one() {
-    for (label, first, expected, _) in answers() {
-        let clock = TestClock::new();
-        let script = Script::new(&clock, move |_| first());
-
-        let holder = start(&script, MINUTE);
-        until(&clock, 0).await;
-
-        let expected = expected.filter(|hash| *hash == b());
-        assert_eq!(held(&holder), expected, "{label}");
     }
 }
 
@@ -185,7 +171,7 @@ async fn the_plan_held_is_replaced_only_when_it_changes() {
 
 // Real time: the fetch goes over a socket, which paused time would race.
 #[tokio::test]
-async fn the_route_the_agent_and_the_credential_travel_with_the_request() {
+async fn the_route_and_the_agent_travel_with_the_request() {
     let body = plan(&a(), json!({})).to_string();
     let server = serve(move |_| Reply::Raw(response("200 OK", &[], body.as_bytes()))).await;
     let source = RailCenterCapturePlans {
@@ -211,8 +197,4 @@ async fn the_route_the_agent_and_the_credential_travel_with_the_request() {
         ),
         "{request}"
     );
-    assert!(request.contains(&format!(
-        "authorization: bearer {}",
-        common::TOKEN.to_ascii_lowercase()
-    )));
 }

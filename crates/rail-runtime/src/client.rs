@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use flate2::write::GzDecoder;
+use rail_model::agent::AgentId;
 use reqwest::header::{
     ACCEPT, ACCEPT_ENCODING, AUTHORIZATION, CACHE_CONTROL, CONTENT_ENCODING, CONTENT_TYPE,
     HeaderMap, HeaderValue,
@@ -217,6 +218,14 @@ impl Unread {
             transient: false,
         }
     }
+}
+
+/// The query naming `agent` to Rail Center, for its ticket and anything else of its own.
+pub(crate) fn agent_query(agent: &AgentId) -> [(&'static str, &str); 2] {
+    [
+        ("host_id", agent.host_id.as_str()),
+        ("sandbox_name", agent.sandbox_name.as_str()),
+    ]
 }
 
 /// The body of a 200, or why the answer has none.

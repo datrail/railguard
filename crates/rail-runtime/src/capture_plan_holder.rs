@@ -66,17 +66,16 @@ struct CapturePlans<S> {
 enum Outcome {
     // The plan held: an answer is only unchanged against one.
     Unchanged(Arc<CompiledPlan>),
-    Applied(Arc<CompiledPlan>),
+    Replaced(Arc<CompiledPlan>),
     // `cleared`: a plan was held.
-    NoPlan { cleared: bool },
-    Refused { content_hash: String, why: Refusal },
+    NoPlan {
+        cleared: bool,
+    },
+    Refused {
+        refused_hash: String,
+        reason: String,
+    },
     Failed(Unread),
-}
-
-enum Refusal {
-    SchemaVersion(String),
-    Invalid(String),
-    RedactionVersion(u64),
 }
 
 impl<S: CapturePlanSource> Kind for CapturePlans<S> {
@@ -94,12 +93,12 @@ impl<S: CapturePlanSource> Kind for CapturePlans<S> {
     fn step(&self, held: &Held, answer: Self::Answer) -> Step<Held, Outcome> {
         let outcome = read_answer(held.as_ref(), self.source.agent(), answer);
         let next = match &outcome {
-            Outcome::Applied(plan) => Some(Some(Arc::clone(plan))),
+            Outcome::Replaced(plan) => Some(Some(Arc::clone(plan))),
             Outcome::NoPlan { cleared: true } => Some(None),
             _ => None,
         };
         let attempt = match &outcome {
-            Outcome::Unchanged(_) | Outcome::Applied(_) | Outcome::NoPlan { .. } => {
+            Outcome::Unchanged(_) | Outcome::Replaced(_) | Outcome::NoPlan { .. } => {
                 Attempt::Succeeded
             }
             Outcome::Refused { .. } => Attempt::Refused,
@@ -113,7 +112,7 @@ impl<S: CapturePlanSource> Kind for CapturePlans<S> {
     }
 
     fn report(&self, outcome: Outcome, held: &Held, after_failure: bool, retry: u64) {
-        let held_hash = held.as_ref().map(|plan| plan.plan().content_hash.as_str());
+        let current = held.as_ref();
         let first = !self.reported.swap(true, Ordering::Relaxed);
         match outcome {
             // Said once, so a recovery shows without a line every poll.
@@ -125,51 +124,59 @@ impl<S: CapturePlanSource> Kind for CapturePlans<S> {
                 content_hash = %plan.plan().content_hash,
                 "capture plan unchanged"
             ),
-            Outcome::Applied(plan) => log_applied(&plan),
+            Outcome::Replaced(plan) => {
+                let read = plan.plan();
+                tracing::info!(
+                    content_hash = %read.content_hash,
+                    plan_version = read.plan_version,
+                    window_seconds = read.window_seconds,
+                    entries = read.entries.len(),
+                    refused_entries = plan.refused().count(),
+                    entries_skipped = plan.entries_skipped(),
+                    "holding a capture plan"
+                );
+            }
             Outcome::NoPlan { cleared } if cleared || first || after_failure => tracing::info!(
                 "Rail Center holds no capture plan for this agent; capturing nothing"
             ),
             Outcome::NoPlan { .. } => tracing::debug!("still no capture plan for this agent"),
-            Outcome::Refused { content_hash, why } => {
-                let reason = match why {
-                    Refusal::SchemaVersion(declared) => format!(
-                        "schema_version {declared} is a plan shape this proxy doesn't read; it \
-                         reads {SCHEMA_MAJOR}.x"
-                    ),
-                    Refusal::Invalid(reason) => reason,
-                    Refusal::RedactionVersion(version) => format!(
-                        "redaction_version {version}: its paths were redacted by another version \
-                         of the redaction rule than this proxy's {REDACTION_VERSION}"
-                    ),
-                };
-                // `content_hash` names the plan held, as in every other line.
-                let refused_hash = content_hash;
-                match held_hash {
-                    Some(content_hash) => tracing::warn!(
-                        reason,
-                        refused_hash,
-                        content_hash,
-                        retry,
-                        "refusing the fetched capture plan; keeping the one held"
-                    ),
-                    None => tracing::warn!(
-                        reason,
-                        refused_hash,
-                        retry,
-                        "refusing the fetched capture plan; none is held"
-                    ),
-                }
-            }
-            Outcome::Failed(Unread { reason, .. }) => match held_hash {
-                Some(content_hash) => tracing::warn!(
-                    reason,
-                    content_hash,
-                    retry,
-                    "capture plan fetch failed; keeping the one held"
-                ),
-                None => tracing::warn!(reason, retry, "capture plan fetch failed; none is held"),
-            },
+            Outcome::Refused {
+                refused_hash,
+                reason,
+            } => log_refused(current, &reason, &refused_hash, retry),
+            Outcome::Failed(Unread { reason, .. }) => log_fetch_failed(current, &reason, retry),
         }
+    }
+}
+
+// At `warn`, where the bundle's are at `error`: with no plan the proxy only captures nothing.
+fn log_refused(current: Option<&Arc<CompiledPlan>>, reason: &str, refused_hash: &str, retry: u64) {
+    match current {
+        Some(current) => tracing::warn!(
+            reason,
+            refused_hash,
+            content_hash = %current.plan().content_hash,
+            retry,
+            "refusing the fetched capture plan; keeping the one held"
+        ),
+        None => tracing::warn!(
+            reason,
+            refused_hash,
+            retry,
+            "refusing the fetched capture plan; none is held"
+        ),
+    }
+}
+
+fn log_fetch_failed(current: Option<&Arc<CompiledPlan>>, reason: &str, retry: u64) {
+    match current {
+        Some(current) => tracing::warn!(
+            reason,
+            content_hash = %current.plan().content_hash,
+            retry,
+            "capture plan fetch failed; keeping the one held"
+        ),
+        None => tracing::warn!(reason, retry, "capture plan fetch failed; none is held"),
     }
 }
 
@@ -180,19 +187,6 @@ struct Peek {
     content_hash: Option<Value>,
     schema_version: Option<Value>,
     agent: Option<Value>,
-}
-
-fn log_applied(plan: &CompiledPlan) {
-    let read = plan.plan();
-    tracing::info!(
-        content_hash = %read.content_hash,
-        plan_version = read.plan_version,
-        window_seconds = read.window_seconds,
-        entries = read.entries.len(),
-        refused_entries = plan.refused().count(),
-        entries_skipped = plan.entries_skipped(),
-        "holding a capture plan"
-    );
 }
 
 fn read_answer(
@@ -214,14 +208,22 @@ fn read_answer(
         Err(unread) => return Outcome::Failed(unread),
     };
     let failed = |reason| Outcome::Failed(Unread::refused(reason));
+    let not_a_plan = |reason| {
+        failed(format!(
+            "the capture plan isn't an object with one of each field read before it is ({reason})"
+        ))
+    };
     let (json, peek) = match peek::<Peek>(&body) {
-        Ok((json, Ok(peek))) => (json, peek),
-        Ok((_, Err(reason))) => {
-            return failed(format!(
-                "the capture plan isn't an object with one of each field read before it is \
-                 ({reason})"
-            ));
+        // A JSON array fills a struct's fields in order: only an object is a plan's shape.
+        Ok((json, _))
+            if !json
+                .trim_start_matches([' ', '\t', '\n', '\r'])
+                .starts_with('{') =>
+        {
+            return not_a_plan("not an object".to_owned());
         }
+        Ok((json, Ok(peek))) => (json, peek),
+        Ok((_, Err(reason))) => return not_a_plan(reason),
         Err(reason) => return failed(reason),
     };
     // Every reading of a plan is told by its hash, so one without a readable hash is a failed fetch.
@@ -248,25 +250,32 @@ fn read_answer(
             agent.host_id, agent.sandbox_name
         ));
     }
-    let refused = |why| Outcome::Refused {
-        content_hash: content_hash.to_owned(),
-        why,
+    let refused = |reason| Outcome::Refused {
+        refused_hash: content_hash.to_owned(),
+        reason,
     };
     // Before the shape, so another major is refused for its version, not for what it holds.
     if let Some((declared, version)) = schema_version(peek.schema_version.as_ref())
         && version.major != SCHEMA_MAJOR
     {
-        return refused(Refusal::SchemaVersion(declared.to_owned()));
+        return refused(format!(
+            "schema_version {declared} is a plan shape this proxy doesn't read; it reads \
+             {SCHEMA_MAJOR}.x"
+        ));
     }
     let plan = match parse_plan(json) {
         Ok(plan) => plan,
-        Err(error) => return refused(Refusal::Invalid(error.to_string())),
+        Err(error) => return refused(error.to_string()),
     };
     // Last, so a mismatch describes only a plan the proxy would otherwise apply.
     if plan.redaction_version != REDACTION_VERSION {
-        return refused(Refusal::RedactionVersion(plan.redaction_version));
+        return refused(format!(
+            "redaction_version {}: its paths were redacted by another version of the redaction \
+             rule than this proxy's {REDACTION_VERSION}",
+            plan.redaction_version
+        ));
     }
-    Outcome::Applied(Arc::new(compile_plan(plan)))
+    Outcome::Replaced(Arc::new(compile_plan(plan)))
 }
 
 fn is_content_hash(text: &str) -> bool {
