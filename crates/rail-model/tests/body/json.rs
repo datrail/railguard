@@ -83,6 +83,9 @@ fn test_reads_every_key_as_ambiguous_in_an_object_holding_a_key_not_json() {
     // A lone surrogate is JSON, a surrogate or U+FFFD to every reader, whatever escapes are beside it.
     let kept = keep(br#"{"\ud800\"\\\/\b\f\n\r\t\u00e9": 1, "a": 2}"#);
     assert_eq!(describe(kept.json().unwrap().walk(&[Key("a")])), "2");
+    // An escaped backslash before `u0000` is no NUL.
+    let kept = keep(br#"{"\\u0000\ud800": 1, "a": 2}"#);
+    assert_eq!(describe(kept.json().unwrap().walk(&[Key("a")])), "2");
 }
 
 #[test]
