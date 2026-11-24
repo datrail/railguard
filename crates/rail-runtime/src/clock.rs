@@ -5,13 +5,13 @@ use rustix::time::{ClockId, clock_gettime};
 
 type Read<T> = Arc<dyn Fn() -> T + Send + Sync>;
 
-/// The wall clock: what a ticket's `expires_at` is read against, and denials are stamped with.
+/// The wall clock, as a caller reads it: tests pass their own.
 pub type WallClock = Arc<dyn Fn() -> SystemTime + Send + Sync>;
 
 /// The two clocks a held value is aged on; tests pass their own.
 #[derive(Clone)]
 pub struct Clock {
-    wall: Read<SystemTime>,
+    wall: WallClock,
     since_boot: Read<Duration>,
 }
 
