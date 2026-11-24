@@ -1,33 +1,11 @@
-use std::sync::Mutex;
-use std::time::Duration;
-
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 
-use crate::bundles::{Answer, MINUTE, Script, TWO, answer, bundle, failed, ok, start};
-use crate::holder::TestClock;
-use crate::logs::{Logs, lines_with};
+use crate::bundles::{Answer, MINUTE, TWO, answer, bundle, failed, ok, start};
+use crate::logs::{self, lines_with};
 
-// The log of a holder answered with `answers` in turn, once the last is fetched.
 async fn log_of(answers: Vec<Answer>) -> String {
-    let logs = Logs::default();
-    let _logging = logs.capture();
-    let clock = TestClock::new();
-    let count = answers.len();
-    let answers: Vec<_> = answers
-        .into_iter()
-        .map(|answer| Mutex::new(Some(answer)))
-        .collect();
-    let script = Script::new(&clock, move |n| answers[n].lock().unwrap().take().unwrap());
-
-    let _holder = start(&script, MINUTE);
-    while script.fetched_at().len() < count {
-        tokio::time::sleep(Duration::from_secs(1)).await;
-    }
-    // No attempt comes under 5 s after the last, so this only lets it be logged.
-    tokio::time::sleep(Duration::from_secs(1)).await;
-
-    logs.text()
+    logs::log_of(answers, |script| start(script, MINUTE)).await
 }
 
 fn enforcing(content_hash: &str, binding_fallback: &str, ticket_fallback: &str) -> Value {
@@ -246,6 +224,13 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
         ),
         (
             vec![refused()],
+            [refusing, none_held],
+            "ERROR",
+            vec!["unusable policy bundle"],
+        ),
+        (
+            // JSON, but not an object: refused for what it is, not failed as not JSON.
+            vec![ok(&json!([]))],
             [refusing, none_held],
             "ERROR",
             vec!["unusable policy bundle"],

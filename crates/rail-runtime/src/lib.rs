@@ -13,6 +13,7 @@ mod gateway_start;
 mod holder;
 mod key_set;
 pub mod logging;
+mod peek;
 mod protected_hosts;
 mod rail_center;
 mod rail_center_thread;

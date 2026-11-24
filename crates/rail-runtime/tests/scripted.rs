@@ -1,4 +1,4 @@
-//! A scripted Rail Center source, for the bundle and key set holders' tests.
+//! A scripted Rail Center source, for the holders' tests.
 // Shared by both test binaries, and each uses only part of it.
 #![allow(dead_code)]
 
@@ -36,6 +36,15 @@ impl Script {
             fetched_at: Arc::default(),
             started: clock.started,
         }
+    }
+
+    // Answers each fetch with the next of `answers`, panicking past the last.
+    pub fn in_turn(clock: &TestClock, answers: Vec<Answer>) -> Self {
+        let answers: Vec<_> = answers
+            .into_iter()
+            .map(|answer| Mutex::new(Some(answer)))
+            .collect();
+        Self::new(clock, move |n| answers[n].lock().unwrap().take().unwrap())
     }
 
     // When each fetch started, in whole seconds from the start.

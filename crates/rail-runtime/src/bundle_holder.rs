@@ -7,7 +7,6 @@ use rail_model::policy::{
 use rail_model::schema_version::SchemaVersion;
 use serde::Deserialize;
 use serde_json::Value;
-use serde_json::error::Category;
 use tokio::runtime::Handle;
 
 use crate::bundle::BundleSource;
@@ -15,6 +14,7 @@ use crate::client::{FetchError, Response, read_ok};
 use crate::holder::{
     Holder, Jitter, Kind, MAX_BACKOFF, MIN_REFRESH_INTERVAL, Schedule, Step, round_to_seconds,
 };
+use crate::peek::{peek, schema_version, text};
 
 // The one `schema_version` major read: any minor of it is.
 const SCHEMA_MAJOR: u32 = 2;
@@ -267,32 +267,19 @@ fn read_answer(held: Option<&Arc<HeldBundle>>, answer: Result<Response, FetchErr
         Ok(body) => body,
         Err(reason) => return Outcome::Failed(reason),
     };
-    let Ok(json) = std::str::from_utf8(&body) else {
-        return Outcome::Failed("the response isn't UTF-8".to_owned());
-    };
-    let peek = match serde_json::from_str::<Peek>(json) {
-        Ok(peek) => peek,
+    let (json, peek) = match peek::<Peek>(&body) {
         // JSON, but not an object: `parse_bundle` says what it is.
-        Err(error) if error.classify() == Category::Data => Peek::default(),
-        Err(error) => {
-            return Outcome::Failed(format!(
-                "the response isn't JSON ({:?} error at line {}, column {})",
-                error.classify(),
-                error.line(),
-                error.column()
-            ));
-        }
+        Ok((json, peek)) => (json, peek.unwrap_or_default()),
+        Err(reason) => return Outcome::Failed(reason),
     };
     // The hash covers every field that changes behaviour, so the same one is the bundle held.
-    let hash = peek.content_hash.as_ref().and_then(Value::as_str);
     if let Some(held) = held
-        && hash == Some(held.content_hash.as_str())
+        && text(peek.content_hash.as_ref()) == Some(held.content_hash.as_str())
     {
         return Outcome::Unchanged(Arc::clone(held));
     }
     // Before the shape, so another major is refused for its version, not for what it holds.
-    if let Some(Value::String(declared)) = &peek.schema_version
-        && let Ok(version) = SchemaVersion::try_from(declared.clone())
+    if let Some((declared, version)) = schema_version(peek.schema_version.as_ref())
         && version.major != SCHEMA_MAJOR
     {
         return Outcome::Refused(format!(
