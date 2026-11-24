@@ -1,11 +1,9 @@
-use std::time::Duration;
-
 use reqwest::StatusCode;
 
 use crate::call_record_center::{Center, accepted, window};
 use crate::holder::{TestClock, until};
 use crate::logs::{Logs, lines_with};
-use crate::scripted::{Script, answer, failed};
+use crate::scripted::{answer, failed};
 
 #[tokio::test(start_paused = true)]
 async fn a_failed_send_is_warned_of_with_why_and_when_it_is_retried() {
@@ -68,7 +66,7 @@ async fn a_window_dropped_past_the_limit_is_warned_of() {
     let logs = Logs::default();
     let _logging = logs.capture();
     let clock = TestClock::new();
-    let center = Center::holding(&clock);
+    let center = Center::accepting(&clock).holding();
     let reporter = center.start(&clock);
 
     reporter.report(window(0, &["/a"]));
@@ -94,13 +92,7 @@ async fn windows_left_when_the_flush_ends_are_warned_of() {
     let logs = Logs::default();
     let _logging = logs.capture();
     let clock = TestClock::new();
-    let center = Center {
-        script: Script {
-            takes: Duration::from_secs(3),
-            ..Script::new(&clock, |_| accepted())
-        },
-        ..Center::accepting(&clock)
-    };
+    let center = Center::accepting(&clock).holding();
     let reporter = center.start(&clock);
 
     reporter.report(window(8, &["/a"]));

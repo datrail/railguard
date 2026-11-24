@@ -188,6 +188,7 @@ fn test_tells_what_a_closed_window_holds() {
         let closed = window.close(time(2));
         assert_eq!(closed.records_and_steps(), records_and_steps, "{paths:?}");
         assert_eq!(closed.is_empty(), empty, "{paths:?}, {dropped}");
-        assert_eq!(closed.max_unsent_windows(), 3);
     }
+    let closed = Window::open(compiled, time(0)).close(time(1));
+    assert_eq!(closed.max_unsent_windows(), 3);
 }

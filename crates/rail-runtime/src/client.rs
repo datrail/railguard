@@ -127,40 +127,32 @@ impl RailCenterClient {
         body: Vec<u8>,
         limits: Limits,
     ) -> Result<Response, FetchError> {
-        let url = self.url.endpoint(route, &[]);
-        let request = self
-            .http
-            .post(url)
-            .header(CONTENT_TYPE, "application/json")
-            .body(body);
-        self.fetch(request, limits).await
+        self.fetch(self.post_request(route, body), limits).await
     }
 
     /// `POST` `body`, JSON, to `route`, in one attempt, its answer read for its status alone: the
-    /// body is drained as an error's is, so a success's can't fail it.
-    pub async fn post_for_status(
+    /// deadline bounds the upload and the wait for the status, and the body is drained as an
+    /// error's is, for up to 1 s more, so a success's can't fail it.
+    pub(crate) async fn post_for_status(
         &self,
         route: &str,
         body: Vec<u8>,
         deadline: Duration,
-        silence: Duration,
     ) -> Result<StatusCode, FetchError> {
-        let url = self.url.endpoint(route, &[]);
-        let request = self
-            .http
-            .post(url)
-            .header(CONTENT_TYPE, "application/json")
-            .body(body);
-        let mut response = timeout(deadline, async {
-            timeout(silence, request.send())
-                .await
-                .map_err(|_| FetchError::Silent(silence))?
-                .map_err(|error| FetchError::Transport(describe(error)))
-        })
-        .await
-        .unwrap_or(Err(FetchError::Deadline(deadline)))?;
+        let mut response = timeout(deadline, self.post_request(route, body).send())
+            .await
+            .map_err(|_| FetchError::Deadline(deadline))?
+            .map_err(|error| FetchError::Transport(describe(error)))?;
         let _ = timeout(DRAIN_TIMEOUT, drain(&mut response)).await;
         Ok(response.status())
+    }
+
+    fn post_request(&self, route: &str, body: Vec<u8>) -> RequestBuilder {
+        let url = self.url.endpoint(route, &[]);
+        self.http
+            .post(url)
+            .header(CONTENT_TYPE, "application/json")
+            .body(body)
     }
 
     async fn fetch(&self, request: RequestBuilder, limits: Limits) -> Result<Response, FetchError> {

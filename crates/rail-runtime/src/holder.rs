@@ -1,4 +1,5 @@
-//! One shape for what Rail Center hands out: a value read lock-free, replaced by one refresh loop.
+//! One shape for what Rail Center hands out: a value read lock-free, replaced by one refresh loop;
+//! and the backoff and jitter every retry of a Rail Center call waits by.
 
 use std::future::{Future, poll_fn};
 use std::hash::{BuildHasher, RandomState};
@@ -106,7 +107,8 @@ pub(crate) fn parse_refresh_interval(text: &str) -> Result<Duration, String> {
     }
 }
 
-/// The factor every wait is scaled by, from 0.8 to 1.2, so a fleet doesn't poll in lockstep.
+/// The factor every wait is scaled by, from 0.8 to 1.2, so a fleet doesn't call Rail Center in
+/// lockstep.
 #[derive(Clone)]
 pub struct Jitter(Arc<dyn Fn() -> f64 + Send + Sync>);
 
@@ -330,8 +332,7 @@ fn next_wait(period: Duration, failures: u32, factor: f64) -> Duration {
     wait.mul_f64(factor)
 }
 
-/// The wait after `failures` attempts in a row, at least one, that back off: 5 s doubling to 320 s,
-/// the call record reporter's too.
+/// The wait after `failures` failures in a row (none counts as one): 5 s doubling to 320 s.
 pub(crate) fn backoff(failures: u32) -> Duration {
     (MIN_REFRESH_INTERVAL * 2_u32.pow(failures.saturating_sub(1).min(MAX_DOUBLINGS)))
         .min(MAX_BACKOFF)

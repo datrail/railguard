@@ -20,11 +20,11 @@ use crate::holder::{Jitter, backoff, round_to_seconds};
 
 const ROUTE: &str = "/v1/call-records";
 
-// A document is up to a few MiB, sent in the background.
+// The upload and the wait for its status: a window at the plan's ceilings is tens of MiB.
 const DEADLINE: Duration = Duration::from_secs(30);
-const SILENCE: Duration = Duration::from_secs(5);
 
-// Bounds the queue's memory however a plan's ceilings combine: under two windows at them.
+// Bounds the queue's memory however a plan's ceilings combine: under two windows at them, each
+// up to rail-model's 100 000 groups and 1 000 000 steps.
 const MAX_QUEUED_RECORDS_AND_STEPS: usize = 2_000_000;
 
 // How long the shutdown flush may take.
@@ -43,9 +43,7 @@ pub struct RailCenterCallRecords {
 
 impl CallRecordSink for RailCenterCallRecords {
     async fn send(&self, body: Vec<u8>) -> Result<StatusCode, FetchError> {
-        self.client
-            .post_for_status(ROUTE, body, DEADLINE, SILENCE)
-            .await
+        self.client.post_for_status(ROUTE, body, DEADLINE).await
     }
 }
 
@@ -56,10 +54,10 @@ enum Message {
 }
 
 /// Sends each closed window to Rail Center as its document, oldest first, one at a time, retrying
-/// with a backoff from 5 s to 320 s; a document Rail Center refuses is dropped. Besides the one
-/// being sent, it keeps up to the newest window's plan's `max_unsent_windows`, the oldest empty
-/// one dropped first, and two million records and steps, the oldest dropped; each drop is counted
-/// in the next document. Dropping it stops the sending.
+/// with a backoff from 5 s to 320 s; a document Rail Center refuses is dropped. Besides the oldest,
+/// it keeps up to the newest window's plan's `max_unsent_windows`, the oldest empty one dropped
+/// first, else the oldest; and up to two million records and steps, the oldest dropped. Each drop
+/// is counted in the next document. Dropping it stops the sending.
 pub struct CallRecordReporter {
     // Its task ends once this is dropped.
     messages: mpsc::UnboundedSender<Message>,
@@ -104,27 +102,13 @@ struct Queued {
     content: Content,
     records_and_steps: usize,
     empty: bool,
+    // The drops written into its document, handed on if it's dropped too; 0 until written.
+    windows_dropped: u64,
 }
 
 enum Content {
     Window(Box<ClosedWindow>),
-    Document {
-        id: Uuid,
-        body: Vec<u8>,
-        // The drops written into it, handed on if it's dropped too.
-        windows_dropped: u64,
-    },
-}
-
-impl Queued {
-    fn windows_dropped(&self) -> u64 {
-        match self.content {
-            Content::Window(_) => 0,
-            Content::Document {
-                windows_dropped, ..
-            } => windows_dropped,
-        }
-    }
+    Document { id: Uuid, body: Vec<u8> },
 }
 
 // What one attempt brought.
@@ -149,7 +133,7 @@ struct Reporter {
     queue: VecDeque<Queued>,
     // Drops not yet written into a document.
     windows_dropped: u64,
-    // Attempts in a row that failed.
+    // Failed attempts since the last document taken.
     failures: u32,
     next_attempt: Instant,
     // Whether the attempt after the one in flight skips the backoff.
@@ -187,8 +171,8 @@ async fn run(
         tokio::select! {
             message = messages.recv() => match message {
                 None => return,
-                Some(Message::Window(window)) => reporter.push(*window, in_flight.is_some()),
-                Some(Message::SendNow) => reporter.hurry(in_flight.is_some()),
+                Some(Message::Window(window)) => reporter.push(window, in_flight.is_some()),
+                Some(Message::SendNow) => reporter.hurry(),
                 Some(Message::Flush(done)) => reporter.start_flush(done),
             },
             answer = async { in_flight.as_mut().unwrap().await }, if in_flight.is_some() => {
@@ -206,13 +190,14 @@ async fn run(
 }
 
 impl Reporter {
-    fn push(&mut self, window: ClosedWindow, sending: bool) {
+    fn push(&mut self, window: Box<ClosedWindow>, sending: bool) {
         // The newest window's plan is the one Rail Center last served, so its limit applies.
         let limit = window.max_unsent_windows() as usize;
         self.queue.push_back(Queued {
             records_and_steps: window.records_and_steps(),
             empty: window.is_empty(),
-            content: Content::Window(Box::new(window)),
+            windows_dropped: 0,
+            content: Content::Window(window),
         });
         self.trim(limit, sending);
     }
@@ -235,15 +220,15 @@ impl Reporter {
             };
             let dropped = self.queue.remove(at).expect("an index in the queue");
             records_and_steps -= dropped.records_and_steps;
-            self.drop_window(&dropped, "the queue is past its limits");
+            self.count_drop(
+                dropped.windows_dropped,
+                dropped.empty,
+                "the queue is past its limits",
+            );
         }
     }
 
     // Counted in the next document, with the drops it carried.
-    fn drop_window(&mut self, dropped: &Queued, why: &str) {
-        self.count_drop(dropped.windows_dropped(), dropped.empty, why);
-    }
-
     fn count_drop(&mut self, carried: u64, empty: bool, why: &str) {
         self.windows_dropped += carried + 1;
         tracing::warn!(
@@ -255,12 +240,10 @@ impl Reporter {
         );
     }
 
-    fn hurry(&mut self, sending: bool) {
-        if sending {
-            self.send_now = true;
-        } else {
-            self.next_attempt = Instant::now();
-        }
+    // The next attempt goes now; one in flight, if failing, is retried at once.
+    fn hurry(&mut self) {
+        self.send_now = true;
+        self.next_attempt = Instant::now();
     }
 
     fn start_flush(&mut self, done: oneshot::Sender<()>) {
@@ -290,31 +273,29 @@ impl Reporter {
 
     // The oldest's bytes, made its document if it isn't yet; `None` if it can't be.
     fn attempt(&mut self) -> Option<Vec<u8>> {
-        let mut head = self.queue.pop_front()?;
-        let window = match head.content {
-            Content::Window(window) => window,
-            Content::Document { ref body, .. } => {
-                let body = body.clone();
-                self.queue.push_front(head);
-                return Some(body);
-            }
-        };
+        // A hurry is for the attempt in flight, or this one: not for its retries.
+        self.send_now = false;
+        if let Content::Document { body, .. } = &self.queue.front()?.content {
+            return Some(body.clone());
+        }
         let mut random = [0; 16];
         if self.random.fill(&mut random).is_err() {
-            head.content = Content::Window(window);
-            self.queue.push_front(head);
             self.answered(Delivery::Failed("no random bytes for its id".to_owned()));
             return None;
         }
         let id = uuid::Builder::from_random_bytes(random).into_uuid();
+        let mut head = self.queue.pop_front()?;
+        let Content::Window(window) = head.content else {
+            unreachable!("the oldest was a window just above")
+        };
         let document = window.into_document(id, (self.now)(), self.windows_dropped);
         match serde_json::to_vec(&document) {
             Ok(body) => {
                 head.content = Content::Document {
                     id,
                     body: body.clone(),
-                    windows_dropped: mem::take(&mut self.windows_dropped),
                 };
+                head.windows_dropped = mem::take(&mut self.windows_dropped);
                 self.queue.push_front(head);
                 Some(body)
             }
@@ -334,7 +315,7 @@ impl Reporter {
             _ => None,
         };
         let hurry = mem::take(&mut self.send_now);
-        let delivery = match delivery {
+        let dropped = match delivery {
             Delivery::Failed(reason) if self.flush.is_none() => {
                 self.failures += 1;
                 let wait = if hurry {
@@ -352,24 +333,25 @@ impl Reporter {
                 );
                 return;
             }
-            delivery => delivery,
-        };
-        let head = self.queue.pop_front().expect("the document answered");
-        self.next_attempt = Instant::now();
-        match delivery {
             Delivery::Taken => {
                 self.failures = 0;
                 tracing::debug!(document_id, "call records sent");
+                None
             }
             Delivery::Refused(reason) => {
                 tracing::error!(reason, document_id, "Rail Center refused call records");
-                self.drop_window(&head, "Rail Center refused it");
+                Some("Rail Center refused it")
             }
             // Each is tried once while flushing: the process is stopping.
             Delivery::Failed(reason) => {
                 tracing::warn!(reason, document_id, "call records send failed at shutdown");
-                self.drop_window(&head, "it failed at shutdown");
+                Some("it failed at shutdown")
             }
+        };
+        let head = self.queue.pop_front().expect("the document answered");
+        self.next_attempt = Instant::now();
+        if let Some(why) = dropped {
+            self.count_drop(head.windows_dropped, head.empty, why);
         }
     }
 }

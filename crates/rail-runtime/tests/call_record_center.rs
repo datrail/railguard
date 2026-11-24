@@ -42,10 +42,10 @@ impl Center {
     }
 
     // Holds each send in flight until released.
-    pub fn holding(clock: &TestClock) -> Self {
+    pub fn holding(self) -> Self {
         Self {
             release: Arc::new(Semaphore::new(0)),
-            ..Self::accepting(clock)
+            ..self
         }
     }
 
@@ -116,6 +116,15 @@ pub fn calls(document: &Value) -> u64 {
         .iter()
         .map(|host| host["count"].as_u64().unwrap())
         .sum()
+}
+
+// Each document's calls and the drops it carries.
+pub fn windows(center: &Center) -> Vec<(u64, u64)> {
+    center
+        .documents()
+        .iter()
+        .map(|document| (calls(document), dropped(document)))
+        .collect()
 }
 
 pub fn dropped(document: &Value) -> u64 {
