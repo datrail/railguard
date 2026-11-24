@@ -50,15 +50,18 @@ impl Backoff {
     }
 
     /// Counts one more attempt in a row that backed off.
-    pub(crate) fn failed(&mut self) {
+    pub(crate) fn record_failure(&mut self) {
         self.failures = self.failures.saturating_add(1);
     }
 
-    /// The wait after the attempts counted: 5 s doubling to 320 s, or `at_most` if shorter,
-    /// jittered.
-    pub(crate) fn wait(&self, at_most: Option<Duration>) -> Duration {
-        let wait = FLOOR * 2_u32.pow(self.failures.saturating_sub(1).min(MAX_DOUBLINGS));
-        self.jittered(at_most.map_or(wait, |at_most| wait.min(at_most)))
+    /// The wait after the attempts counted: 5 s doubling to 320 s, jittered.
+    pub(crate) fn wait(&self) -> Duration {
+        self.jittered(self.step())
+    }
+
+    /// As `wait`, the step capped at `at_most` before the jitter.
+    pub(crate) fn wait_at_most(&self, at_most: Duration) -> Duration {
+        self.jittered(self.step().min(at_most))
     }
 
     /// Ends a run of failures.
@@ -69,6 +72,10 @@ impl Backoff {
     /// `wait`, jittered.
     pub(crate) fn jittered(&self, wait: Duration) -> Duration {
         wait.mul_f64((self.jitter.0)())
+    }
+
+    fn step(&self) -> Duration {
+        FLOOR * 2_u32.pow(self.failures.saturating_sub(1).min(MAX_DOUBLINGS))
     }
 }
 
