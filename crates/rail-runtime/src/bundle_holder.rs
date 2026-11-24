@@ -108,7 +108,7 @@ struct Bundles<S> {
     source: S,
 }
 
-// What one answer is: `Refused` blames the bundle Rail Center sent, `Failed` the fetch.
+// What one answer is: `Refused` blames the bundle Rail Center sent, `Failed` the fetch or its body.
 enum Outcome {
     // The bundle held: an answer is only unchanged against one.
     Unchanged(Arc<HeldBundle>),
@@ -145,10 +145,8 @@ impl<S: BundleSource> Kind for Bundles<S> {
         };
         let attempt = match &outcome {
             Outcome::Unchanged(_) | Outcome::Replaced { .. } => Attempt::Succeeded,
-            Outcome::Failed(Unread {
-                transient: true, ..
-            }) => Attempt::Failed,
-            Outcome::Refused(_) | Outcome::Failed(_) => Attempt::Refused,
+            Outcome::Refused(_) => Attempt::Refused,
+            Outcome::Failed(unread) => Attempt::of(unread),
         };
         Step {
             next,
@@ -279,12 +277,7 @@ fn read_answer(held: Option<&Arc<HeldBundle>>, answer: Result<Response, FetchErr
     let (json, peek) = match peek::<Peek>(&body) {
         // JSON, but not an object: `parse_bundle` says what it is.
         Ok((json, peek)) => (json, peek.unwrap_or_default()),
-        Err(reason) => {
-            return Outcome::Failed(Unread {
-                reason,
-                transient: false,
-            });
-        }
+        Err(reason) => return Outcome::Failed(Unread::refused(reason)),
     };
     // The hash covers every field that changes behaviour, so the same one is the bundle held.
     if let Some(held) = held

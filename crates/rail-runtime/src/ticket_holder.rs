@@ -2,15 +2,20 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
+use rail_model::agent::AgentId;
+use serde::Deserialize;
 use sha2::{Digest, Sha256};
+use time::PrimitiveDateTime;
+use time::macros::format_description;
 use tokio::runtime::Handle;
 
-use crate::client::{FetchError, Response, Unread};
+use crate::client::{FetchError, Response, Unread, read_ok};
+use crate::config::Secret;
 use crate::holder::{
     Attempt, Holder, Jitter, Kind, MAX_BACKOFF, MIN_REFRESH_INTERVAL, Schedule, Step,
     round_to_seconds,
 };
-use crate::ticket::{OpaqueTicket, TicketAnswer, TicketSource, read_ticket};
+use crate::ticket::{OpaqueTicket, TicketSource};
 use crate::xrail::Unavailable;
 
 /// The wall clock: what a ticket's `expires_at` is read against, and denials are stamped with.
@@ -133,17 +138,14 @@ fn step(
                 cleared: usable(previous),
             },
         ),
-        Err(Unread { reason, transient }) => {
+        Err(unread) => {
             let kept = usable(previous);
             let next = match previous.ticket() {
                 Some(ticket) => Held::Ticket(Arc::clone(ticket)),
                 None => Held::Unreached,
             };
-            let attempt = if transient {
-                Attempt::Failed
-            } else {
-                Attempt::Refused
-            };
+            let attempt = Attempt::of(&unread);
+            let reason = unread.reason;
             (Some(next), attempt, Outcome::Failed { reason, kept })
         }
         // An already-lapsed ticket never displaces one still good.
@@ -251,4 +253,109 @@ fn fingerprint(token: &str) -> String {
         .iter()
         .map(|byte| format!("{byte:02x}"))
         .collect()
+}
+
+// Rail Center stamps at most a day (`TICKET_TTL_MAX_SECONDS`), plus a margin for skew.
+const MAX_LIFETIME: Duration = Duration::from_secs(86_400 + 300);
+
+/// What Rail Center answered: a ticket, or that none exists for this host and sandbox.
+enum TicketAnswer {
+    Ticket(OpaqueTicket),
+    NoTicket,
+}
+
+#[derive(Deserialize)]
+struct Envelope {
+    host_id: String,
+    tickets: Vec<Entry>,
+}
+
+#[derive(Deserialize)]
+struct Entry {
+    sandbox_name: Option<String>,
+    token: String,
+    expires_at: String,
+}
+
+/// The ticket an answer brings for `agent`, or why none; `sent_at`, read before the fetch, keeps
+/// the round trip off its life.
+fn read_ticket(
+    answer: Result<Response, FetchError>,
+    agent: &AgentId,
+    sent_at: SystemTime,
+) -> Result<TicketAnswer, Unread> {
+    let body = read_ok(answer)?;
+    read_body(&body, agent, sent_at).map_err(Unread::refused)
+}
+
+fn read_body(body: &[u8], agent: &AgentId, sent_at: SystemTime) -> Result<TicketAnswer, String> {
+    let envelope: Envelope = serde_json::from_slice(body).map_err(|error| {
+        // Where, not what: serde's message can quote a value, and a value may be the ticket.
+        format!(
+            "the response is off the contract ({:?} error at line {}, column {})",
+            error.classify(),
+            error.line(),
+            error.column()
+        )
+    })?;
+    if envelope.host_id != agent.host_id {
+        return Err(format!(
+            "the response answers for host {}, not {}",
+            envelope.host_id, agent.host_id
+        ));
+    }
+    let entry = match <[Entry; 1]>::try_from(envelope.tickets) {
+        Ok([entry]) => entry,
+        Err(tickets) if tickets.is_empty() => return Ok(TicketAnswer::NoTicket),
+        Err(tickets) => {
+            return Err(format!(
+                "{} tickets for one sandbox; the narrowing wasn't honoured",
+                tickets.len()
+            ));
+        }
+    };
+    // An unnamed or other sandbox's entry is another agent's identity.
+    if entry.sandbox_name.as_deref() != Some(agent.sandbox_name.as_str()) {
+        return Err(format!(
+            "the ticket names sandbox {}, not {}",
+            entry.sandbox_name.as_deref().unwrap_or("none"),
+            agent.sandbox_name
+        ));
+    }
+    check_token(&entry.token)?;
+    let expires_at = parse_expires_at(&entry.expires_at)?;
+    if expires_at
+        .duration_since(sent_at)
+        .is_ok_and(|lifetime| lifetime > MAX_LIFETIME)
+    {
+        return Err(format!(
+            "the ticket expires more than {} s away, past what Rail Center stamps",
+            MAX_LIFETIME.as_secs()
+        ));
+    }
+    Ok(TicketAnswer::Ticket(OpaqueTicket {
+        token: Secret::new(entry.token),
+        expires_at,
+    }))
+}
+
+// base64url, padded or not, and a JWT's dots: what Rail Center mints. Never quoted.
+fn check_token(token: &str) -> Result<(), String> {
+    let valid =
+        |byte: u8| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'=');
+    if token.is_empty() || !token.bytes().all(valid) {
+        return Err(format!(
+            "the ticket isn't base64url ({} characters)",
+            token.chars().count()
+        ));
+    }
+    Ok(())
+}
+
+/// Reads `expires_at` as Rail Center writes it, `2026-07-28T10:15:00Z`, and nothing else.
+fn parse_expires_at(text: &str) -> Result<SystemTime, String> {
+    let format = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
+    PrimitiveDateTime::parse(text, &format)
+        .map(|at| at.assume_utc().into())
+        .map_err(|_| format!("expires_at isn't YYYY-MM-DDTHH:MM:SSZ: {text}"))
 }

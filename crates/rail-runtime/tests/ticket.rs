@@ -8,7 +8,7 @@ use rail_runtime::{
 use reqwest::StatusCode;
 
 use crate::common::{Reply, client, response, serve};
-use crate::holder::{HOUR, entry, envelope, one, raw, read_at};
+use crate::holder::{HOUR, envelope, one, raw, read_at};
 
 // 2026-07-28T10:15:00Z
 const EXPIRES_AT: u64 = 1_785_233_700;
@@ -56,21 +56,9 @@ async fn the_single_entry_is_read_and_its_expiry_parsed() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn an_empty_list_is_an_answer_not_a_failure() {
-    assert_eq!(
-        held(envelope("host-1", &[])).await,
-        Err(Unavailable::NotFound)
-    );
-}
-
-#[tokio::test(start_paused = true)]
 async fn only_200_is_read() {
-    for status in [
-        StatusCode::NO_CONTENT,
-        StatusCode::NOT_FOUND,
-        StatusCode::UNAUTHORIZED,
-        StatusCode::INTERNAL_SERVER_ERROR,
-    ] {
+    // A 404 and a 401 too: `ticket_holder_logs`.
+    for status in [StatusCode::NO_CONTENT, StatusCode::INTERNAL_SERVER_ERROR] {
         let body = envelope("host-1", &[]);
         let holder = read_at(move || raw(status, &body), at(SENT_AT)).await;
 
@@ -81,15 +69,11 @@ async fn only_200_is_read() {
     }
 }
 
-// Each refused whole, so no ticket is held: why is the log's (`ticket_holder_logs`).
+// Each refused whole, so no ticket is held; another agent's, and why each is refused, are
+// `ticket_holder_logs`'.
 #[tokio::test(start_paused = true)]
 async fn a_ticket_off_the_contract_is_refused() {
-    let ticket = entry(r#""sandbox a""#, "a.b.c", "2026-07-28T10:15:00Z");
     let mut refused = vec![
-        envelope("host-1", &[entry(r#""sandbox b""#, "a.b.c", "2026-07-28T10:15:00Z")]),
-        envelope("host-1", &[entry("null", "a.b.c", "2026-07-28T10:15:00Z")]),
-        envelope("host-1", &[ticket.clone(), ticket]),
-        envelope("host-2", &[]),
         "[]".to_owned(),
         r#"{"host_id":"host-1"}"#.to_owned(),
         r#"{"host_id":"host-1","tickets":{}}"#.to_owned(),
@@ -136,21 +120,6 @@ async fn a_leap_day_is_read() {
         .unwrap();
 
     assert_eq!(ticket.expires_at, at(1_835_395_200));
-}
-
-#[tokio::test(start_paused = true)]
-async fn an_expiry_in_the_past_is_a_ticket_not_an_error() {
-    let held = held_at(one("a.b.c", "2026-07-28T10:15:00Z"), at(EXPIRES_AT + 60)).await;
-
-    assert_eq!(held, Err(Unavailable::Expired));
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_ticket_stops_being_valid_at_its_expiry() {
-    let ticket = held(one("a.b.c", "2026-07-28T10:15:00Z")).await.unwrap();
-
-    assert!(ticket.is_valid(at(EXPIRES_AT - 1)));
-    assert!(!ticket.is_valid(at(EXPIRES_AT)));
 }
 
 #[tokio::test(start_paused = true)]

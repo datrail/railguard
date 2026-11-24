@@ -15,6 +15,8 @@ use tokio::sync::watch;
 use tokio::task::AbortHandle;
 use tokio::time::{Instant, timeout_at};
 
+use crate::client::Unread;
+
 // Not settings: a lower floor would let a fleet hammer Rail Center.
 pub(crate) const MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(5);
 
@@ -83,6 +85,17 @@ pub(crate) enum Attempt {
     Failed,
 }
 
+impl Attempt {
+    /// An answer that brought nothing usable: a failure if it may pass, else a refusal.
+    pub(crate) fn of(unread: &Unread) -> Self {
+        if unread.transient {
+            Self::Failed
+        } else {
+            Self::Refused
+        }
+    }
+}
+
 /// A refresh interval as set: whole seconds, from the 5 s floor to a day.
 pub(crate) fn parse_refresh_interval(text: &str) -> Result<Duration, String> {
     match text.parse::<u64>().map(Duration::from_secs) {
@@ -102,9 +115,9 @@ pub(crate) fn parse_refresh_interval(text: &str) -> Result<Duration, String> {
 /// When a kind's attempts come, before the jitter and the 5 s floor.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Schedule {
-    /// From the start of an attempt that succeeded to the next one.
+    /// From the start of an attempt that doesn't back off to the next one.
     pub(crate) period: Duration,
-    /// After the first failure, doubling after each one that follows.
+    /// After the first attempt that backs off, doubling after each one that follows.
     pub(crate) initial_delay: Duration,
     pub(crate) max_delay: Duration,
 }
@@ -238,7 +251,7 @@ async fn run<K: Kind>(
     jitter: Jitter,
 ) {
     let mut progress = publish.subscribe();
-    // Failed attempts in a row, since the last that wasn't.
+    // Attempts in a row that back off: failures, and refusals for a kind that expires.
     let mut failures: u32 = 0;
     let mut after_failure = false;
     loop {
@@ -323,7 +336,7 @@ async fn attempt<K: Kind>(kind: &K, held: &ArcSwap<K::Held>) -> Option<Step<K::H
     catch_unwind(AssertUnwindSafe(|| kind.step(&held.load(), answer))).ok()
 }
 
-// The period after a success, else the backoff; jittered.
+// The period when nothing backs off, else the backoff; jittered.
 fn next_wait(schedule: &Schedule, failures: u32, factor: f64) -> Duration {
     let wait = match failures {
         0 => schedule.period,

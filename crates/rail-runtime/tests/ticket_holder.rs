@@ -198,7 +198,7 @@ async fn failures_while_a_ticket_holds_back_off_within_half_its_remaining_life()
     until(&clock, 123).await;
 
     // From 20, waits 5, then 7.5 (half of 15, under 10), then the floor twice; lapsed by 42.5, the
-    // fifth failure, so the ramp's 80 s.
+    // fifth backed off, so the ramp's 80 s.
     assert_eq!(script.fetched_at(), [0, 20, 25, 32, 37, 42, 122]);
 }
 
@@ -272,7 +272,7 @@ async fn a_lapsed_answer_never_replaces_a_ticket_still_valid_and_backs_off() {
     until(&clock, 60).await;
 
     assert_eq!(token(&holder), Err(Unavailable::Expired));
-    // Lapsed answers kept out until 40, each a failure, as in the test above.
+    // Lapsed answers kept out until 40, each backed off, as in the test above.
     assert_eq!(script.fetched_at(), [0, 20, 25, 32, 37, 42]);
 }
 

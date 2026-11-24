@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use rail_model::agent::AgentId;
-use rail_runtime::{Jitter, RailCenterTickets, TicketHolder, TicketSettings};
+use rail_runtime::{Jitter, RailCenterTickets, TicketHolder, TicketSettings, Unavailable};
 use reqwest::StatusCode;
 use tokio::runtime::Handle;
 
@@ -209,7 +209,8 @@ async fn a_refused_ticket_is_logged_with_why() {
         (
             StatusCode::OK,
             r#"{"host_id":"host-1","tickets":"eyJ0aGUiOiJ0aWNrZXQifQ"}"#.to_owned(),
-            "the response is off the contract (Data error at line 1, column 54)",
+            // Where, by serde's reckoning, never what.
+            "the response is off the contract (",
         ),
         (
             StatusCode::OK,
@@ -230,10 +231,14 @@ async fn a_refused_ticket_is_logged_with_why() {
         let logs = Logs::default();
         let _logging = logs.capture();
 
-        let _holder = read_at(move || raw(status, &body), sent_at).await;
+        let holder = read_at(move || raw(status, &body), sent_at).await;
 
+        assert!(matches!(
+            holder.current(),
+            Err(Unavailable::IssuerUnreachable)
+        ));
         let logs = logs.text();
-        let line = format!("ticket refresh failed; none is held reason=\"{reason}\"");
+        let line = format!("ticket refresh failed; none is held reason=\"{reason}");
         assert!(logs.contains(&line), "{line}\n{logs}");
         assert!(!logs.contains("eyJ0aGUiOiJ0aWNrZXQifQ"), "{logs}");
     }

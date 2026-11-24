@@ -239,7 +239,7 @@ impl SignedTicket {
 /// can't be.
 #[derive(Debug, PartialEq)]
 pub struct ParsedKeySet {
-    /// By `kid`; empty where no entry is usable, which a reader counts as a failed fetch.
+    /// By `kid`; empty where no entry is usable, which a reader counts as a refused set.
     pub keys: HashMap<String, VerifyingKey>,
     pub dropped: Vec<DroppedKey>,
 }

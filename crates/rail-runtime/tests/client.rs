@@ -89,6 +89,21 @@ async fn a_redirect_is_answered_not_followed() {
     assert!(elsewhere.requests.lock().unwrap().is_empty());
 }
 
+// An outage's error page is often large or encoded: its status still tells it may pass.
+#[tokio::test]
+async fn an_error_answer_tells_its_status_whatever_its_body() {
+    let page = vec![b'x'; 2048];
+    for headers in [&["content-encoding: br"][..], &[]] {
+        let page = page.clone();
+        let server =
+            serve(move |_| Reply::Raw(response("503 Service Unavailable", headers, &page))).await;
+
+        let fetched = client(&server.url).get("/v1/x", &[], LIMITS).await.unwrap();
+
+        assert_eq!(fetched.status, 503);
+    }
+}
+
 #[tokio::test]
 async fn a_declared_length_past_the_cap_is_refused_unread() {
     // The body never comes, so only the declared length can refuse it in time.

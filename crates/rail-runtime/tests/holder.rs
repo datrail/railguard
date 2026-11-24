@@ -10,7 +10,6 @@ use rail_runtime::{
     FetchError, Jitter, Response, TicketHolder, TicketSource, Unavailable, WallClock,
 };
 use reqwest::StatusCode;
-use serde_json::json;
 use time::OffsetDateTime;
 use tokio::runtime::Handle;
 use tokio::time::Instant;
@@ -96,11 +95,6 @@ impl TicketSource for Script {
     }
 }
 
-fn tickets(tickets: serde_json::Value) -> Answer {
-    let body = json!({"host_id": "host-1", "tickets": tickets});
-    raw(StatusCode::OK, &body.to_string())
-}
-
 pub fn raw(status: StatusCode, body: &str) -> Answer {
     Ok(Response {
         status,
@@ -155,11 +149,11 @@ pub fn ticket(token: &str, expires_at: SystemTime) -> Answer {
         at.minute(),
         at.second()
     );
-    tickets(json!([{"sandbox_name": "sandbox a", "token": token, "expires_at": expires_at}]))
+    raw(StatusCode::OK, &one(token, &expires_at))
 }
 
 pub fn no_ticket() -> Answer {
-    tickets(json!([]))
+    raw(StatusCode::OK, &envelope("host-1", &[]))
 }
 
 pub fn failed() -> Answer {

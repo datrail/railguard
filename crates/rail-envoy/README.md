@@ -62,7 +62,7 @@ The ticket held is kept while it's valid, and fetched again with a backoff. It's
 or after `RAIL_TICKET_REFRESH_SECONDS`, whichever comes first, so a short one is replaced before it lapses. Without a
 valid ticket, a protected host's calls carry `x-rail-status`:
 
-- `issuer-unreachable`: no answer yet, or the last answer was a failure to reach Rail Center;
+- `issuer-unreachable`: no answer yet, or the last one brought no ticket and none is held;
 - `expired`: the ticket held lapsed with no valid one to replace it;
 - `not-found`: Rail Center answered that this host and sandbox have no ticket.
 

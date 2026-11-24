@@ -42,6 +42,19 @@ fn unusable_answers() -> Vec<(&'static str, u64, Answering)> {
             Err(FetchError::Transport("connection refused".to_owned()))
         }),
         ("a deadline", SOONER, failed),
+        ("a 408", SOONER, || answer(StatusCode::REQUEST_TIMEOUT, b"")),
+        ("a 429", SOONER, || {
+            answer(StatusCode::TOO_MANY_REQUESTS, b"")
+        }),
+        ("a body past the cap", PERIOD, || {
+            Err(FetchError::TooLarge { max_bytes: 1024 })
+        }),
+        ("a gzip that doesn't decode", PERIOD, || {
+            Err(FetchError::BadGzip("corrupt deflate stream".to_owned()))
+        }),
+        ("an encoding not offered", PERIOD, || {
+            Err(FetchError::Encoding("br".to_owned()))
+        }),
         ("a body that isn't JSON", PERIOD, || {
             answer(StatusCode::OK, b"<html>nope</html>")
         }),

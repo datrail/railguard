@@ -66,8 +66,8 @@ pub struct KeySetHolder {
 }
 
 impl KeySetHolder {
-    /// Starts fetching at once, on `runtime`, and again every 300 s; after a failure that may pass
-    /// it backs off from 5 s up to that. `clock` ages the set, and `jitter` scales every wait.
+    /// Starts fetching at once, on `runtime`, and again every 300 s; after any answer without a
+    /// usable set it backs off from 5 s up to that, since a set lapses. `clock` ages the set, and `jitter` scales every wait.
     pub fn start(runtime: &Handle, source: impl KeySource, clock: Clock, jitter: Jitter) -> Self {
         let schedule = Schedule {
             period: REFRESH_INTERVAL,
@@ -147,22 +147,15 @@ impl<S: KeySource> Kind for Keys<S> {
                 (Ok(keys), dropped)
             }
             Ok(ParsedKeySet { keys, dropped }) if keys.is_empty() => {
-                let unread = Unread {
-                    reason: "the set holds no usable key".to_owned(),
-                    transient: false,
-                };
+                let unread = Unread::refused("the set holds no usable key".to_owned());
                 (Err(unread), dropped)
             }
             Ok(ParsedKeySet { keys, dropped }) => (Ok(keys), dropped),
             Err(unread) => (Err(unread), Vec::new()),
         };
-        let attempt = match &keys {
-            Ok(_) => Attempt::Succeeded,
-            Err(Unread {
-                transient: true, ..
-            }) => Attempt::Failed,
-            Err(_) => Attempt::Refused,
-        };
+        let attempt = keys
+            .as_ref()
+            .map_or_else(Attempt::of, |_| Attempt::Succeeded);
         let read = keys.map_err(|unread| unread.reason).map(|keys| {
             // A set aged out holds nothing, so the next one is news.
             let changed = fresh(held, &self.clock).is_none_or(|set| set.keys != keys);
@@ -227,9 +220,8 @@ impl<S: KeySource> Kind for Keys<S> {
 // The set an answer brings, or why none.
 fn read_answer(answer: Result<Response, FetchError>) -> Result<ParsedKeySet, Unread> {
     let body = read_ok(answer)?;
-    parse_key_set(&body).ok_or_else(|| Unread {
-        reason: "the set isn't an object of keys, or two entries share a kid".to_owned(),
-        transient: false,
+    parse_key_set(&body).ok_or_else(|| {
+        Unread::refused("the set isn't an object of keys, or two entries share a kid".to_owned())
     })
 }
 

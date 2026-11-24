@@ -30,6 +30,7 @@ pub struct Limits {
 #[derive(Debug)]
 pub struct Response {
     pub status: StatusCode,
+    /// Empty unless the status is a success.
     pub body: Vec<u8>,
 }
 
@@ -140,6 +141,14 @@ impl RailCenterClient {
             .await
             .map_err(|_| FetchError::Silent(limits.silence))?
             .map_err(|error| FetchError::Transport(describe(error)))?;
+        let status = response.status();
+        // Never read: an error page too large or badly encoded still tells its status.
+        if !status.is_success() {
+            return Ok(Response {
+                status,
+                body: Vec::new(),
+            });
+        }
         if response
             .content_length()
             .is_some_and(|length| length > limits.max_bytes as u64)
@@ -149,7 +158,6 @@ impl RailCenterClient {
             });
         }
         let gzipped = is_gzipped(response.headers())?;
-        let status = response.status();
         let capped = Capped {
             body: Vec::new(),
             max_bytes: limits.max_bytes,
@@ -180,12 +188,22 @@ impl RailCenterClient {
     }
 }
 
-/// Why an answer has no body to read.
+/// Why an answer brings nothing usable: no body to read, or one its reader refuses.
 #[derive(Debug)]
 pub(crate) struct Unread {
     pub(crate) reason: String,
     /// Whether asking again soon could bring another answer: no answer, or a 408, 429 or 5xx.
     pub(crate) transient: bool,
+}
+
+impl Unread {
+    /// An answer Rail Center would send again.
+    pub(crate) fn refused(reason: String) -> Self {
+        Self {
+            reason,
+            transient: false,
+        }
+    }
 }
 
 /// The body of a 200, or why the answer has none.

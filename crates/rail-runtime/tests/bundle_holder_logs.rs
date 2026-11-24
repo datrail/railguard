@@ -215,7 +215,7 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
             "WARN",
             60,
             vec![
-                r#"reason="the response isn't JSON"#,
+                r#"reason="the response isn't JSON (Syntax error at line 1, column 1)""#,
                 r#"content_hash="v-held""#,
             ],
         ),
@@ -308,4 +308,13 @@ async fn a_bundle_fetched_again_after_a_failure_says_so_once() {
 
     let logs = log_of(vec![v1(), v1(), v1()]).await;
     assert!(!logs.contains("fetched again"), "{logs}");
+
+    // A refusal is no success either.
+    let not_found = answer(StatusCode::NOT_FOUND, b"");
+    let logs = log_of(vec![v1(), not_found, v1()]).await;
+    assert_eq!(
+        lines_with(&logs, "fetched again, unchanged").len(),
+        1,
+        "{logs}"
+    );
 }
