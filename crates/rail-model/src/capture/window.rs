@@ -174,6 +174,7 @@ impl Window {
             agent: plan.agent.clone(),
             plan_version: plan.plan_version,
             plan_hash: plan.content_hash.clone(),
+            max_unsent_windows: plan.budget.max_unsent_windows,
             start: self.start,
             end,
             truncated: self.truncated,
@@ -275,6 +276,22 @@ impl Window {
 pub struct ClosedWindow(Captured);
 
 impl ClosedWindow {
+    /// How many records and steps it holds: what a queue of windows bounds its memory by.
+    pub fn records_and_steps(&self) -> usize {
+        self.0.records.len() + self.0.sequence.len()
+    }
+
+    /// Whether Rail Center loses nothing by missing it: no call recorded or dropped.
+    /// `entries_skipped` is its plan's, the same in every window.
+    pub fn is_empty(&self) -> bool {
+        self.0.records.is_empty() && self.0.truncated.calls_dropped == 0
+    }
+
+    /// Its plan's `max_unsent_windows`.
+    pub fn max_unsent_windows(&self) -> u32 {
+        self.0.max_unsent_windows
+    }
+
     /// Given its id, kept when it's sent again; when it was built; and the windows dropped since
     /// the last one sent.
     pub fn into_document(

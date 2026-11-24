@@ -158,3 +158,37 @@ fn test_tells_why_a_body_went_unread() {
         assert_eq!(window.record(&call(body), time(1)), reason);
     }
 }
+
+#[test]
+fn test_tells_what_a_closed_window_holds() {
+    let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
+    let mut plan = vectors.plan.clone();
+    plan["budget"]["max_unsent_windows"] = 3.into();
+    let compiled = Arc::new(compile_plan(parse_plan(&plan.to_string()).unwrap()));
+    let call = |path: &str| ObservedCall {
+        authority: b"api.github.com".to_vec(),
+        method: b"GET".to_vec(),
+        path: path.as_bytes().to_vec(),
+        body: BodyRead::Unread(Unread::NotSent),
+        body_bytes: 0,
+    };
+    // (paths called, calls dropped) and what the closed window holds: its records and steps,
+    // and whether it's empty.
+    let cases: [(&[&str], u64, usize, bool); 4] = [
+        (&[], 0, 0, true),
+        (&[], 1, 0, false),
+        (&["/a"], 0, 2, false),
+        (&["/a", "/a", "/b"], 0, 5, false),
+    ];
+    for (paths, dropped, records_and_steps, empty) in cases {
+        let mut window = Window::open(Arc::clone(&compiled), time(0));
+        window.count_dropped(dropped);
+        for path in paths {
+            window.record(&call(path), time(1));
+        }
+        let closed = window.close(time(2));
+        assert_eq!(closed.records_and_steps(), records_and_steps, "{paths:?}");
+        assert_eq!(closed.is_empty(), empty, "{paths:?}, {dropped}");
+        assert_eq!(closed.max_unsent_windows(), 3);
+    }
+}
