@@ -50,7 +50,7 @@ impl Backoff {
     }
 
     /// Counts one more attempt in a row that backed off.
-    pub(crate) fn record_failure(&mut self) {
+    pub(crate) fn count_failure(&mut self) {
         self.failures = self.failures.saturating_add(1);
     }
 

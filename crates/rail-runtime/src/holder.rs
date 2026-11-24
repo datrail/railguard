@@ -234,7 +234,7 @@ async fn run<K: Kind>(
             Attempt::Succeeded => false,
         };
         let scheduled = if backs_off {
-            backoff.record_failure();
+            backoff.count_failure();
             backoff.wait_at_most(period)
         } else {
             backoff.reset();
