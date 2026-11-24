@@ -6,66 +6,61 @@ use serde_json::json;
 use tokio::runtime::Handle;
 use tokio::time::Instant;
 
-use crate::bundles::{Answer, MINUTE, Script, answer, bundle, failed, held_hash, ok, start};
+use crate::bundles::{MINUTE, Script, answer, bundle, failed, held_hash, ok, start};
 use crate::common::{self, Reply, client, response, serve};
 use crate::holder::{HOUR, TestClock, until};
 use crate::scripted::Answering;
 
 const LIMIT: Duration = Duration::from_secs(2);
 
-// Every way of getting no usable bundle, a bundle Rail Center sent or not.
-fn unusable_answers() -> Vec<(&'static str, Answering)> {
-    fn without(field: &str) -> Answer {
-        let mut body = bundle("v2", json!({}));
-        body.as_object_mut().unwrap().remove(field);
-        ok(&body)
-    }
+// Asked again 5 s after an answer that may pass, the period after one Rail Center would repeat.
+const SOONER: u64 = 5;
+const PERIOD: u64 = 60;
+
+// One way of getting no usable bundle down each path the answer's class takes, and when it's
+// retried.
+fn unusable_answers() -> Vec<(&'static str, u64, Answering)> {
     vec![
-        ("a 503", || answer(StatusCode::SERVICE_UNAVAILABLE, b"")),
-        ("a 500", || answer(StatusCode::INTERNAL_SERVER_ERROR, b"")),
-        ("a 404", || answer(StatusCode::NOT_FOUND, b"")),
-        ("a refused credential", || {
+        ("a 503", SOONER, || {
+            answer(StatusCode::SERVICE_UNAVAILABLE, b"")
+        }),
+        ("a 404", PERIOD, || answer(StatusCode::NOT_FOUND, b"")),
+        ("a refused credential", PERIOD, || {
             answer(StatusCode::UNAUTHORIZED, b"")
         }),
-        ("a forbidden read", || answer(StatusCode::FORBIDDEN, b"")),
-        ("a connection failure", || {
+        ("a connection failure", SOONER, || {
             Err(FetchError::Transport("connection refused".to_owned()))
         }),
-        ("a deadline", failed),
-        ("a body that isn't JSON", || {
+        ("a deadline", SOONER, failed),
+        ("a 408", SOONER, || answer(StatusCode::REQUEST_TIMEOUT, b"")),
+        ("a 429", SOONER, || {
+            answer(StatusCode::TOO_MANY_REQUESTS, b"")
+        }),
+        ("a body past the cap", PERIOD, || {
+            Err(FetchError::TooLarge { max_bytes: 1024 })
+        }),
+        ("a body that isn't JSON", PERIOD, || {
             answer(StatusCode::OK, b"<html>nope</html>")
         }),
-        ("an empty body", || answer(StatusCode::OK, b"")),
-        ("a body that isn't UTF-8", || {
-            answer(StatusCode::OK, b"{\"\xff\":1}")
-        }),
-        ("a 202 carrying a good bundle", || {
+        ("a 202 carrying a good bundle", PERIOD, || {
             answer(
                 StatusCode::ACCEPTED,
                 bundle("v2", json!({})).to_string().as_bytes(),
             )
         }),
-        ("a JSON array", || ok(&json!([]))),
-        ("another major", || {
+        ("a JSON array", PERIOD, || ok(&json!([]))),
+        ("another major", PERIOD, || {
             ok(&bundle("v2", json!({"schema_version": "3.0"})))
         }),
-        ("a version not MAJOR.MINOR", || {
-            ok(&bundle("v2", json!({"schema_version": "2.0.1"})))
-        }),
-        ("policies not a list", || {
+        ("policies not a list", PERIOD, || {
             ok(&bundle("v2", json!({"policies": "not a list"})))
         }),
-        ("no posture", || without("enforcement")),
-        ("a posture outside the contract", || {
-            ok(&bundle("v2", json!({"enforcement": {"mode": "audit"}})))
-        }),
-        ("no content_hash", || without("content_hash")),
     ]
 }
 
 #[tokio::test(start_paused = true)]
-async fn only_a_usable_answer_is_held_and_any_other_is_retried_as_a_failure() {
-    for (label, unusable) in unusable_answers() {
+async fn only_a_usable_answer_is_held_and_only_one_that_may_pass_is_retried_sooner() {
+    for (label, retry, unusable) in unusable_answers() {
         let clock = TestClock::new();
         let script = Script::new(&clock, move |n| match n {
             1 => ok(&bundle("v1", json!({}))),
@@ -75,9 +70,9 @@ async fn only_a_usable_answer_is_held_and_any_other_is_retried_as_a_failure() {
         let holder = start(&script, MINUTE);
         until(&clock, 0).await;
         assert_eq!(held_hash(&holder), None, "{label}");
-        until(&clock, 65).await;
+        until(&clock, retry + 60).await;
 
-        assert_eq!(script.fetched_at(), [0, 5, 65], "{label}");
+        assert_eq!(script.fetched_at(), [0, retry, retry + 60], "{label}");
         assert_eq!(held_hash(&holder).as_deref(), Some("v1"), "{label}");
     }
 }
@@ -90,10 +85,17 @@ async fn the_backoff_stops_at_320_s_or_the_interval_if_shorter() {
 
     let _long = start(&long, HOUR);
     let _short = start(&short, Duration::from_secs(30));
-    until(&clock, 955).await;
+    // Past 33 failures in a row, where an unbounded doubling would overflow.
+    until(&clock, 315 + 320 * 40).await;
 
-    // 5, 10, 20, 40, 80, 160, 320, then 320 again.
-    assert_eq!(long.fetched_at(), [0, 5, 15, 35, 75, 155, 315, 635, 955]);
+    // 5, 10, 20, 40, 80, 160, 320, then 320 again, however long it fails.
+    let long = long.fetched_at();
+    assert_eq!(long[..8], [0, 5, 15, 35, 75, 155, 315, 635]);
+    assert_eq!(long.len(), 7 + 40, "{long:?}");
+    assert!(
+        long[6..].windows(2).all(|pair| pair[1] - pair[0] == 320),
+        "{long:?}"
+    );
     assert_eq!(short.fetched_at()[..6], [0, 5, 15, 35, 65, 95]);
 }
 

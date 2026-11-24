@@ -27,7 +27,7 @@ async fn the_set_is_logged_when_its_kids_change_and_only_then() {
     let sets: [&[&str]; 4] = [&["b", "a"], &["a", "b"], &["a", "c"], &["a", "c", "d"]];
     let logs = log_until(900, move |n| ok(sets[n])).await;
 
-    let lines = lines_with(&logs, "holding signing keys");
+    let lines = lines_with(&logs, "holding a signing key set");
     let logged: Vec<&str> = ["a, b", "a, c", "a, c, d"].to_vec();
     assert_eq!(lines.len(), logged.len(), "{logs}");
     for (line, kids) in lines.iter().zip(logged) {
@@ -40,7 +40,7 @@ async fn a_failure_is_a_warning_while_a_set_is_held_and_an_error_once_none_is() 
     let warm = log_until(300, |n| if n == 0 { ok(&["a"]) } else { failed() }).await;
     let cold = log_until(0, |_| failed()).await;
 
-    let warm = lines_with(&warm, "signing key set fetch failed; keeping the set held");
+    let warm = lines_with(&warm, "signing key set fetch failed; keeping the one held");
     assert_eq!(warm.len(), 1, "{warm:?}");
     assert!(
         warm[0].contains("WARN") && warm[0].contains(r#"kids="a""#),
@@ -70,7 +70,11 @@ async fn a_set_past_its_age_is_logged_as_none_held_and_its_return_as_news() {
         failed_lines.last().unwrap().contains("none is held"),
         "{logs}"
     );
-    assert_eq!(lines_with(&logs, "holding signing keys").len(), 2, "{logs}");
+    assert_eq!(
+        lines_with(&logs, "holding a signing key set").len(),
+        2,
+        "{logs}"
+    );
 }
 
 #[tokio::test(start_paused = true)]
@@ -117,7 +121,7 @@ async fn a_dropped_key_is_warned_of_with_its_kid_and_why_whether_or_not_one_is_l
         );
     }
     assert!(
-        lines_with(&kept, "holding signing keys")[0].contains(r#"kids="a""#),
+        lines_with(&kept, "holding a signing key set")[0].contains(r#"kids="a""#),
         "{kept}"
     );
     assert!(
@@ -139,7 +143,11 @@ async fn a_new_key_under_a_kid_held_is_news() {
     })
     .await;
 
-    assert_eq!(lines_with(&logs, "holding signing keys").len(), 2, "{logs}");
+    assert_eq!(
+        lines_with(&logs, "holding a signing key set").len(),
+        2,
+        "{logs}"
+    );
     assert!(lines_with(&logs, "dropping").is_empty(), "{logs}");
 }
 

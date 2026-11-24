@@ -89,6 +89,21 @@ async fn a_redirect_is_answered_not_followed() {
     assert!(elsewhere.requests.lock().unwrap().is_empty());
 }
 
+// An outage's error page is often large or encoded: its status still tells it may pass.
+#[tokio::test]
+async fn an_error_answer_tells_its_status_whatever_its_body() {
+    let page = vec![b'x'; 2048];
+    for headers in [&["content-encoding: br"][..], &[]] {
+        let page = page.clone();
+        let server =
+            serve(move |_| Reply::Raw(response("503 Service Unavailable", headers, &page))).await;
+
+        let fetched = client(&server.url).get("/v1/x", &[], LIMITS).await.unwrap();
+
+        assert_eq!(fetched.status, 503);
+    }
+}
+
 #[tokio::test]
 async fn a_declared_length_past_the_cap_is_refused_unread() {
     // The body never comes, so only the declared length can refuse it in time.
@@ -371,6 +386,49 @@ async fn a_connection_is_reused_only_within_the_idle_timeout() {
 
     // The first two share a connection; the third, past the timeout, opens its own.
     assert_eq!(answered_on, ["0", "0", "1"]);
+}
+
+// The denial reporter posts on, an outage or not: an error's connection is kept for the next.
+#[tokio::test(start_paused = true)]
+async fn an_error_answer_leaves_its_connection_for_the_next_call() {
+    // The first connection answers 503 to all, its page coming after its head; any other 200.
+    let server = serve(|connection| match connection {
+        0 => Reply::KeepAliveLate(
+            b"HTTP/1.1 503 Service Unavailable\r\ncontent-length: 5\r\n\r\n".to_vec(),
+            b"busy.".to_vec(),
+            Duration::from_millis(50),
+        ),
+        _ => Reply::KeepAlive(b"HTTP/1.1 200 OK\r\ncontent-length: 0\r\n\r\n".to_vec()),
+    })
+    .await;
+    let client = client(&server.url);
+
+    for _ in 0..2 {
+        let fetched = client.get("/v1/x", &[], LIMITS).await.unwrap();
+        assert_eq!(fetched.status, 503);
+    }
+}
+
+// On paused time the drain's cap fires first: a page that stalls past the deadline keeps its status.
+#[tokio::test(start_paused = true)]
+async fn an_error_answer_whose_page_stalls_still_tells_its_status() {
+    let server = serve(|_| {
+        Reply::Dribble(
+            b"HTTP/1.1 401 Unauthorized\r\ncontent-length: 1000\r\n\r\n".to_vec(),
+            Duration::from_secs(3600),
+        )
+    })
+    .await;
+
+    // A deadline shorter than the silence, so only the drain's own cap ends the wait in time.
+    let limits = Limits {
+        deadline: Duration::from_secs(3),
+        ..LIMITS
+    };
+
+    let fetched = client(&server.url).get("/v1/x", &[], limits).await.unwrap();
+
+    assert_eq!(fetched.status, 401);
 }
 
 #[tokio::test]

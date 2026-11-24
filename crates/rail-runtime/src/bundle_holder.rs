@@ -7,14 +7,12 @@ use rail_model::policy::{
 use rail_model::schema_version::SchemaVersion;
 use serde::Deserialize;
 use serde_json::Value;
-use serde_json::error::Category;
 use tokio::runtime::Handle;
 
 use crate::bundle::BundleSource;
-use crate::client::{FetchError, Response, read_ok};
-use crate::holder::{
-    Holder, Jitter, Kind, MAX_BACKOFF, MIN_REFRESH_INTERVAL, Schedule, Step, round_to_seconds,
-};
+use crate::client::{FetchError, Response, Unread, read_ok};
+use crate::holder::{Attempt, Holder, Jitter, Kind, Step};
+use crate::peek::{peek, schema_version, text};
 
 // The one `schema_version` major read: any minor of it is.
 const SCHEMA_MAJOR: u32 = 2;
@@ -68,21 +66,17 @@ pub struct BundleHolder {
 
 impl BundleHolder {
     /// Starts fetching at once, on `runtime`, and again every `refresh_interval`; after a failure
-    /// it backs off from 5 s up to 320 s or the interval, if shorter. `jitter` scales every wait.
+    /// that may pass it backs off from 5 s up to 320 s or the interval, if shorter. `jitter` scales
+    /// every wait.
     pub fn start(
         runtime: &Handle,
         source: impl BundleSource,
         refresh_interval: Duration,
         jitter: Jitter,
     ) -> Self {
-        let schedule = Schedule {
-            period: refresh_interval,
-            initial_delay: MIN_REFRESH_INTERVAL,
-            max_delay: MAX_BACKOFF.min(refresh_interval),
-        };
         let kind = Bundles { source };
         Self {
-            holder: Holder::start(runtime, kind, None, schedule, jitter),
+            holder: Holder::start(runtime, kind, None, refresh_interval, jitter),
         }
     }
 
@@ -106,7 +100,7 @@ struct Bundles<S> {
     source: S,
 }
 
-// What one answer is: `Refused` blames the bundle Rail Center sent, `Failed` the fetch.
+// What one answer is: `Refused` blames the bundle Rail Center sent, `Failed` the fetch or its body.
 enum Outcome {
     // The bundle held: an answer is only unchanged against one.
     Unchanged(Arc<HeldBundle>),
@@ -120,7 +114,7 @@ enum Outcome {
         not_strings: Vec<&'static str>,
     },
     Refused(String),
-    Failed(String),
+    Failed(Unread),
 }
 
 impl<S: BundleSource> Kind for Bundles<S> {
@@ -129,6 +123,7 @@ impl<S: BundleSource> Kind for Bundles<S> {
     type Outcome = Outcome;
 
     const WHAT: &'static str = "policy bundle";
+    const EXPIRES: bool = false;
 
     fn fetch(&self) -> impl Future<Output = Self::Answer> + Send {
         self.source.fetch()
@@ -140,17 +135,20 @@ impl<S: BundleSource> Kind for Bundles<S> {
             Outcome::Replaced { bundle, .. } => Some(Some(Arc::clone(bundle))),
             _ => None,
         };
-        let succeeded = matches!(outcome, Outcome::Unchanged(_) | Outcome::Replaced { .. });
+        let attempt = match &outcome {
+            Outcome::Unchanged(_) | Outcome::Replaced { .. } => Attempt::Succeeded,
+            Outcome::Refused(_) => Attempt::Refused,
+            Outcome::Failed(unread) => Attempt::of(unread),
+        };
         Step {
             next,
-            succeeded,
+            attempt,
             outcome,
         }
     }
 
-    fn report(&self, outcome: Outcome, held: &Held, after_failure: bool, retry: Duration) {
+    fn report(&self, outcome: Outcome, held: &Held, after_failure: bool, retry: u64) {
         let current = held.as_ref();
-        let retry = round_to_seconds(retry);
         match outcome {
             // Said once, so a recovery shows without a line every poll.
             Outcome::Unchanged(bundle) if after_failure => tracing::info!(
@@ -187,7 +185,7 @@ impl<S: BundleSource> Kind for Bundles<S> {
                 }
             }
             Outcome::Refused(reason) => log_refused(current, &reason, retry),
-            Outcome::Failed(reason) => log_fetch_failed(current, &reason, retry),
+            Outcome::Failed(Unread { reason, .. }) => log_fetch_failed(current, &reason, retry),
         }
     }
 }
@@ -267,32 +265,19 @@ fn read_answer(held: Option<&Arc<HeldBundle>>, answer: Result<Response, FetchErr
         Ok(body) => body,
         Err(reason) => return Outcome::Failed(reason),
     };
-    let Ok(json) = std::str::from_utf8(&body) else {
-        return Outcome::Failed("the response isn't UTF-8".to_owned());
-    };
-    let peek = match serde_json::from_str::<Peek>(json) {
-        Ok(peek) => peek,
+    let (json, peek) = match peek::<Peek>(&body) {
         // JSON, but not an object: `parse_bundle` says what it is.
-        Err(error) if error.classify() == Category::Data => Peek::default(),
-        Err(error) => {
-            return Outcome::Failed(format!(
-                "the response isn't JSON ({:?} error at line {}, column {})",
-                error.classify(),
-                error.line(),
-                error.column()
-            ));
-        }
+        Ok((json, peek)) => (json, peek.unwrap_or_default()),
+        Err(reason) => return Outcome::Failed(Unread::refused(reason)),
     };
     // The hash covers every field that changes behaviour, so the same one is the bundle held.
-    let hash = peek.content_hash.as_ref().and_then(Value::as_str);
     if let Some(held) = held
-        && hash == Some(held.content_hash.as_str())
+        && text(peek.content_hash.as_ref()) == Some(held.content_hash.as_str())
     {
         return Outcome::Unchanged(Arc::clone(held));
     }
     // Before the shape, so another major is refused for its version, not for what it holds.
-    if let Some(Value::String(declared)) = &peek.schema_version
-        && let Ok(version) = SchemaVersion::try_from(declared.clone())
+    if let Some((declared, version)) = schema_version(peek.schema_version.as_ref())
         && version.major != SCHEMA_MAJOR
     {
         return Outcome::Refused(format!(

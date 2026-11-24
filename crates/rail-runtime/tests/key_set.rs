@@ -88,6 +88,8 @@ async fn no_usable_answer_replaces_the_set_held_nor_holds_one_first() {
         assert_eq!(warm.fetched_at(), [0, 300], "{label}");
         assert_eq!(kids(&warm_holder), named(&["a"]), "{label}");
         assert_eq!(kids(&cold_holder), None, "{label}");
+        // A set lapses, so even an answer Rail Center would repeat is asked again sooner.
+        assert_eq!(cold.fetched_at()[1], 5, "{label}");
     }
 }
 

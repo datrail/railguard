@@ -1,9 +1,13 @@
 //! The log, captured through the field formatter `logging::init` installs.
 
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use rail_runtime::logging::{JsonLines, QuotedFields};
 use tracing::subscriber::DefaultGuard;
+
+use crate::holder::TestClock;
+use crate::scripted::{Answer, Script};
 
 #[derive(Clone, Default)]
 pub struct Logs(Arc<Mutex<Vec<u8>>>);
@@ -50,4 +54,23 @@ impl std::io::Write for Logs {
 /// The lines of `logs` holding `text`.
 pub fn lines_with<'a>(logs: &'a str, text: &str) -> Vec<&'a str> {
     logs.lines().filter(|line| line.contains(text)).collect()
+}
+
+/// The log of a holder `start` starts on a script answering `answers` in turn, once the last is
+/// fetched.
+pub async fn log_of<H>(answers: Vec<Answer>, start: impl FnOnce(&Script) -> H) -> String {
+    let logs = Logs::default();
+    let _logging = logs.capture();
+    let clock = TestClock::new();
+    let count = answers.len();
+    let script = Script::in_turn(&clock, answers);
+
+    let _holder = start(&script);
+    while script.fetched_at().len() < count {
+        tokio::time::sleep(Duration::from_secs(1)).await;
+    }
+    // No attempt comes under 5 s after the last, so this only lets it be logged.
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    logs.text()
 }

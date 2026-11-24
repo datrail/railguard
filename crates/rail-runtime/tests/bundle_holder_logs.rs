@@ -1,33 +1,11 @@
-use std::sync::Mutex;
-use std::time::Duration;
-
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 
-use crate::bundles::{Answer, MINUTE, Script, TWO, answer, bundle, failed, ok, start};
-use crate::holder::TestClock;
-use crate::logs::{Logs, lines_with};
+use crate::bundles::{Answer, MINUTE, TWO, answer, bundle, failed, ok, start};
+use crate::logs::{self, lines_with};
 
-// The log of a holder answered with `answers` in turn, once the last is fetched.
 async fn log_of(answers: Vec<Answer>) -> String {
-    let logs = Logs::default();
-    let _logging = logs.capture();
-    let clock = TestClock::new();
-    let count = answers.len();
-    let answers: Vec<_> = answers
-        .into_iter()
-        .map(|answer| Mutex::new(Some(answer)))
-        .collect();
-    let script = Script::new(&clock, move |n| answers[n].lock().unwrap().take().unwrap());
-
-    let _holder = start(&script, MINUTE);
-    while script.fetched_at().len() < count {
-        tokio::time::sleep(Duration::from_secs(1)).await;
-    }
-    // No attempt comes under 5 s after the last, so this only lets it be logged.
-    tokio::time::sleep(Duration::from_secs(1)).await;
-
-    logs.text()
+    logs::log_of(answers, |script| start(script, MINUTE)).await
 }
 
 fn enforcing(content_hash: &str, binding_fallback: &str, ticket_fallback: &str) -> Value {
@@ -213,19 +191,21 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
     let fetch_failed = "policy bundle fetch failed; ";
     let refusing = "refusing the fetched policy bundle; ";
     let (none_held, keeping) = ("none is held", "keeping the one held");
-    for (answers, line, level, says) in [
+    for (answers, line, level, retry, says) in [
         (
             vec![unavailable()],
             [fetch_failed, none_held],
             "ERROR",
+            5,
             vec![r#"reason="Rail Center answered 503 Service Unavailable""#],
         ),
         (
             vec![held(), failed()],
             [fetch_failed, keeping],
             "WARN",
+            5,
             vec![
-                r#"reason="the fetch ran past its 30s deadline""#,
+                r#"reason="the fetch ran past its 10s deadline""#,
                 r#"content_hash="v-held""#,
             ],
         ),
@@ -233,8 +213,9 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
             vec![held(), answer(StatusCode::OK, b"<html>")],
             [fetch_failed, keeping],
             "WARN",
+            60,
             vec![
-                r#"reason="the response isn't JSON"#,
+                r#"reason="the response isn't JSON (Syntax error at line 1, column 1)""#,
                 r#"content_hash="v-held""#,
             ],
         ),
@@ -242,18 +223,29 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
             vec![held(), answer(StatusCode::OK, b"{\"\xff\":1}")],
             [fetch_failed, keeping],
             "WARN",
+            60,
             vec![r#"reason="the response isn't UTF-8""#],
         ),
         (
             vec![refused()],
             [refusing, none_held],
             "ERROR",
+            60,
+            vec!["unusable policy bundle"],
+        ),
+        (
+            // JSON, but not an object: refused for what it is, not failed as not JSON.
+            vec![ok(&json!([]))],
+            [refusing, none_held],
+            "ERROR",
+            60,
             vec!["unusable policy bundle"],
         ),
         (
             vec![held(), refused()],
             [refusing, keeping],
             "ERROR",
+            60,
             vec!["unusable policy bundle", r#"content_hash="v-held""#],
         ),
         (
@@ -266,12 +258,14 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
             ],
             [refusing, keeping],
             "ERROR",
+            60,
             vec!["schema_version 3.0 ", "it reads 2.x"],
         ),
         (
             vec![answer(StatusCode::UNAUTHORIZED, b"")],
             [fetch_failed, none_held],
             "ERROR",
+            60,
             vec![
                 "Rail Center refused the credential (401 Unauthorized)",
                 "RAIL_AUTH_MODE and RAIL_AUTH_TOKEN",
@@ -281,6 +275,7 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
             vec![answer(StatusCode::FORBIDDEN, b"")],
             [fetch_failed, none_held],
             "ERROR",
+            60,
             vec![
                 "Rail Center refused the credential (403 Forbidden)",
                 "RAIL_AUTH_MODE and RAIL_AUTH_TOKEN",
@@ -293,8 +288,8 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
         let lines = lines_with(&logs, &line);
         assert_eq!(lines.len(), 1, "{line}: {logs}");
         assert!(lines[0].contains(level), "{logs}");
-        // The first failure since a success: the retry is 5 s away.
-        assert!(lines[0].ends_with(" retry=5"), "{logs}");
+        // The first since a success: 5 s away if it may pass, else the period.
+        assert!(lines[0].ends_with(&format!(" retry={retry}")), "{logs}");
         for text in says {
             assert!(lines[0].contains(text), "{logs}");
         }
@@ -313,4 +308,13 @@ async fn a_bundle_fetched_again_after_a_failure_says_so_once() {
 
     let logs = log_of(vec![v1(), v1(), v1()]).await;
     assert!(!logs.contains("fetched again"), "{logs}");
+
+    // A refusal is no success either.
+    let not_found = answer(StatusCode::NOT_FOUND, b"");
+    let logs = log_of(vec![v1(), not_found, v1()]).await;
+    assert_eq!(
+        lines_with(&logs, "fetched again, unchanged").len(),
+        1,
+        "{logs}"
+    );
 }

@@ -141,9 +141,11 @@ How often the bundle held is fetched again.
 - **Default:** `60`, so a rule changed in Rail Center reaches every gateway within about a minute.
 - **Accepted:** `5` to `86400`, whole seconds: a bundle polled less often than daily is surely a mistake.
 - **Read by:** both hosts' gateways.
-- Each wait is scaled by 0.8 to 1.2, so a fleet doesn't poll in step. After a failure, the next attempt comes in 5 s,
-  doubling to at most 320 s or the interval, whichever is less. The 5 s floor isn't a setting: a lower one would let a
-  fleet hammer Rail Center.
+- Each wait is scaled by 0.8 to 1.2, so a fleet doesn't poll in step. After a failure that may pass (no answer, a
+  timeout, a 408, 429 or 5xx), the next attempt comes in 5 s, doubling to at most 320 s or the interval, whichever is
+  less. Any other answer that isn't held (a bundle refused, a body not JSON or too large, a 401, 403, 404 or another
+  status) would be repeated, so it's asked again after the interval. The 5 s floor isn't a setting: a lower one would
+  let a fleet hammer Rail Center.
 
 ### `RAIL_MAX_BODY_MB`
 
@@ -209,7 +211,8 @@ The longest a valid ticket goes without being fetched again.
 - **Accepted:** `5` to `86400`, whole seconds: a ticket lives no longer than a day.
 - **Read by:** `rail-envoy` as the proxy (`rail proxy`).
 - A ticket is fetched again at half its remaining life when that comes sooner, so a short one is replaced before it
-  lapses. The waits are scaled and backed off as the bundle's are (`RAIL_GATEWAY_BUNDLE_REFRESH_SECONDS`).
+  lapses. The waits are scaled as the bundle's are (`RAIL_GATEWAY_BUNDLE_REFRESH_SECONDS`), and every answer but a valid
+  ticket is backed off, a refusal too, since a ticket lapses and must be replaced in time.
 
 ## Retired names
 

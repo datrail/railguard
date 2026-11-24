@@ -9,9 +9,9 @@ use ed25519_dalek::VerifyingKey;
 use rail_model::policy::{DroppedKey, ParsedKeySet, parse_key_set};
 use tokio::runtime::Handle;
 
-use crate::client::{FetchError, Limits, RailCenterClient, Response, read_ok};
+use crate::client::{FetchError, Limits, RailCenterClient, Response, Unread, read_ok};
 use crate::clock::{Clock, Stamp};
-use crate::holder::{Holder, Jitter, Kind, MIN_REFRESH_INTERVAL, Schedule, Step, round_to_seconds};
+use crate::holder::{Attempt, Holder, Jitter, Kind, Step};
 
 const ROUTE: &str = "/v1/jwks.json";
 
@@ -64,20 +64,16 @@ pub struct KeySetHolder {
 }
 
 impl KeySetHolder {
-    /// Starts fetching at once, on `runtime`, and again every 300 s; after a failure it backs off
-    /// from 5 s up to that. `clock` ages the set, and `jitter` scales every wait.
+    /// Starts fetching at once, on `runtime`, and again every 300 s; after any answer without a
+    /// usable set it backs off from 5 s up to that, since a set lapses. `clock` ages the set, and
+    /// `jitter` scales every wait.
     pub fn start(runtime: &Handle, source: impl KeySource, clock: Clock, jitter: Jitter) -> Self {
-        let schedule = Schedule {
-            period: REFRESH_INTERVAL,
-            initial_delay: MIN_REFRESH_INTERVAL,
-            max_delay: REFRESH_INTERVAL,
-        };
         let kind = Keys {
             source,
             clock: clock.clone(),
         };
         Self {
-            holder: Holder::start(runtime, kind, None, schedule, jitter),
+            holder: Holder::start(runtime, kind, None, REFRESH_INTERVAL, jitter),
             clock,
         }
     }
@@ -127,6 +123,7 @@ impl<S: KeySource> Kind for Keys<S> {
     type Outcome = Outcome;
 
     const WHAT: &'static str = "signing key set";
+    const EXPIRES: bool = true;
 
     fn fetch(&self) -> impl Future<Output = Self::Answer> + Send {
         self.source.fetch()
@@ -144,12 +141,16 @@ impl<S: KeySource> Kind for Keys<S> {
                 (Ok(keys), dropped)
             }
             Ok(ParsedKeySet { keys, dropped }) if keys.is_empty() => {
-                (Err("the set holds no usable key".to_owned()), dropped)
+                let unread = Unread::refused("the set holds no usable key".to_owned());
+                (Err(unread), dropped)
             }
             Ok(ParsedKeySet { keys, dropped }) => (Ok(keys), dropped),
-            Err(reason) => (Err(reason), Vec::new()),
+            Err(unread) => (Err(unread), Vec::new()),
         };
-        let read = keys.map(|keys| {
+        let attempt = keys
+            .as_ref()
+            .map_or_else(Attempt::of, |_| Attempt::Succeeded);
+        let read = keys.map_err(|unread| unread.reason).map(|keys| {
             // A set aged out holds nothing, so the next one is news.
             let changed = fresh(held, &self.clock).is_none_or(|set| set.keys != keys);
             let set = KeySet {
@@ -160,14 +161,13 @@ impl<S: KeySource> Kind for Keys<S> {
         });
         let next = read.as_ref().ok().map(|(set, _)| Some(Arc::clone(set)));
         Step {
-            succeeded: next.is_some(),
             next,
+            attempt,
             outcome: Outcome { read, dropped },
         }
     }
 
-    fn report(&self, outcome: Outcome, held: &Self::Held, _: bool, retry: Duration) {
-        let retry = round_to_seconds(retry);
+    fn report(&self, outcome: Outcome, held: &Self::Held, _: bool, retry: u64) {
         // At every fetch: Rail Center publishes none, so one is a fault, or not its answer.
         for DroppedKey { kid, reason } in &outcome.dropped {
             tracing::warn!(
@@ -184,10 +184,10 @@ impl<S: KeySource> Kind for Keys<S> {
                 );
             }
             Ok((set, true)) => {
-                tracing::info!(kids = %format_kids(&set.keys), "holding signing keys");
+                tracing::info!(kids = %format_kids(&set.keys), "holding a signing key set");
             }
             Ok((set, false)) => {
-                tracing::debug!(kids = %format_kids(&set.keys), "signing keys unchanged");
+                tracing::debug!(kids = %format_kids(&set.keys), "signing key set unchanged");
             }
             Err(reason) => {
                 match fresh(held, &self.clock) {
@@ -195,7 +195,7 @@ impl<S: KeySource> Kind for Keys<S> {
                         reason = %reason,
                         kids = %format_kids(&set.keys),
                         retry,
-                        "signing key set fetch failed; keeping the set held"
+                        "signing key set fetch failed; keeping the one held"
                     ),
                     // Only a later fetch ends this state.
                     None => tracing::error!(
@@ -211,10 +211,11 @@ impl<S: KeySource> Kind for Keys<S> {
 }
 
 // The set an answer brings, or why none.
-fn read_answer(answer: Result<Response, FetchError>) -> Result<ParsedKeySet, String> {
+fn read_answer(answer: Result<Response, FetchError>) -> Result<ParsedKeySet, Unread> {
     let body = read_ok(answer)?;
-    parse_key_set(&body)
-        .ok_or_else(|| "the set isn't an object of keys, or two entries share a kid".to_owned())
+    parse_key_set(&body).ok_or_else(|| {
+        Unread::refused("the set isn't an object of keys, or two entries share a kid".to_owned())
+    })
 }
 
 // Sorted, so the same set reads the same in every line.

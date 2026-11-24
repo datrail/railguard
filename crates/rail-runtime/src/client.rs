@@ -14,6 +14,10 @@ use tokio::time::timeout;
 
 use crate::rail_center::{AUTH_MODE, AUTH_TOKEN, CenterUrl, RailCenterSettings};
 
+// An error answer's body, read only so its connection can be kept, for no longer than this.
+const MAX_DRAINED_BYTES: usize = 8 * 1024;
+const DRAIN_TIMEOUT: Duration = Duration::from_secs(1);
+
 /// What one caller allows a fetch.
 #[derive(Clone, Copy, Debug)]
 pub struct Limits {
@@ -22,7 +26,8 @@ pub struct Limits {
     /// How long Rail Center may send nothing, for the response and then for each chunk of its
     /// body: one gone quiet is given up on before the deadline.
     pub silence: Duration,
-    /// The largest body read, counted as sent and again after decoding, each against it.
+    /// The largest success's body read, counted as sent and again after decoding, each against
+    /// it; an error's is read to 8 KiB and dropped.
     pub max_bytes: usize,
 }
 
@@ -30,6 +35,7 @@ pub struct Limits {
 #[derive(Debug)]
 pub struct Response {
     pub status: StatusCode,
+    /// Empty unless the status is a success.
     pub body: Vec<u8>,
 }
 
@@ -130,16 +136,33 @@ impl RailCenterClient {
     }
 
     async fn fetch(&self, request: RequestBuilder, limits: Limits) -> Result<Response, FetchError> {
-        timeout(limits.deadline, self.read(request, limits))
+        let read = timeout(limits.deadline, self.read(request, limits))
             .await
-            .unwrap_or(Err(FetchError::Deadline(limits.deadline)))
+            .unwrap_or(Err(FetchError::Deadline(limits.deadline)))?;
+        match read {
+            Read::Success(response) => Ok(response),
+            // Past the deadline, under a cap of its own: a page that stalls can't hide the status.
+            Read::Error(mut response) => {
+                let status = response.status();
+                let _ = timeout(DRAIN_TIMEOUT, drain(&mut response)).await;
+                Ok(Response {
+                    status,
+                    body: Vec::new(),
+                })
+            }
+        }
     }
 
-    async fn read(&self, request: RequestBuilder, limits: Limits) -> Result<Response, FetchError> {
+    async fn read(&self, request: RequestBuilder, limits: Limits) -> Result<Read, FetchError> {
         let mut response = timeout(limits.silence, request.send())
             .await
             .map_err(|_| FetchError::Silent(limits.silence))?
             .map_err(|error| FetchError::Transport(describe(error)))?;
+        let status = response.status();
+        // Never kept: an error page too large or badly encoded still tells its status.
+        if !status.is_success() {
+            return Ok(Read::Error(response));
+        }
         if response
             .content_length()
             .is_some_and(|length| length > limits.max_bytes as u64)
@@ -149,7 +172,6 @@ impl RailCenterClient {
             });
         }
         let gzipped = is_gzipped(response.headers())?;
-        let status = response.status();
         let capped = Capped {
             body: Vec::new(),
             max_bytes: limits.max_bytes,
@@ -176,12 +198,29 @@ impl RailCenterClient {
                 .map_err(|error| read_error(error, limits))?;
         }
         let body = body.finish().map_err(|error| read_error(error, limits))?;
-        Ok(Response { status, body })
+        Ok(Read::Success(Response { status, body }))
+    }
+}
+
+/// Why an answer brings nothing usable: no body to read, or one its reader refuses.
+pub(crate) struct Unread {
+    pub(crate) reason: String,
+    /// Whether asking again soon could bring another answer: no answer, or a 408, 429 or 5xx.
+    pub(crate) transient: bool,
+}
+
+impl Unread {
+    /// An answer Rail Center would send again.
+    pub(crate) fn refused(reason: String) -> Self {
+        Self {
+            reason,
+            transient: false,
+        }
     }
 }
 
 /// The body of a 200, or why the answer has none.
-pub(crate) fn read_ok(answer: Result<Response, FetchError>) -> Result<Vec<u8>, String> {
+pub(crate) fn read_ok(answer: Result<Response, FetchError>) -> Result<Vec<u8>, Unread> {
     read_status(answer, StatusCode::OK)
 }
 
@@ -189,17 +228,51 @@ pub(crate) fn read_ok(answer: Result<Response, FetchError>) -> Result<Vec<u8>, S
 pub(crate) fn read_status(
     answer: Result<Response, FetchError>,
     expected: StatusCode,
-) -> Result<Vec<u8>, String> {
-    let response = answer.map_err(|error| error.to_string())?;
-    match response.status {
-        status if status == expected => Ok(response.body),
+) -> Result<Vec<u8>, Unread> {
+    let response = match answer {
+        Ok(response) => response,
+        Err(error) => {
+            // A body too large or badly encoded is sent again as it was.
+            let transient = matches!(
+                error,
+                FetchError::Deadline(_) | FetchError::Silent(_) | FetchError::Transport(_)
+            );
+            return Err(Unread {
+                reason: error.to_string(),
+                transient,
+            });
+        }
+    };
+    let status = response.status;
+    let reason = match status {
+        status if status == expected => return Ok(response.body),
         // Unlike Rail Center having a bad minute, this lasts until the configuration changes.
-        StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => Err(format!(
-            "Rail Center refused the credential ({}); every fetch fails this way until \
-             {AUTH_MODE} and {AUTH_TOKEN} are fixed",
-            response.status
-        )),
-        status => Err(format!("Rail Center answered {status}")),
+        StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => format!(
+            "Rail Center refused the credential ({status}); every fetch fails this way until \
+             {AUTH_MODE} and {AUTH_TOKEN} are fixed"
+        ),
+        status => format!("Rail Center answered {status}"),
+    };
+    let transient = status == StatusCode::REQUEST_TIMEOUT
+        || status == StatusCode::TOO_MANY_REQUESTS
+        || status.is_server_error();
+    Err(Unread { reason, transient })
+}
+
+// What came before the deadline: a success's body read, or an error answer whose isn't.
+enum Read {
+    Success(Response),
+    Error(reqwest::Response),
+}
+
+// Read and dropped, so the connection carries the next call; a page past 8 KiB isn't worth it.
+async fn drain(response: &mut reqwest::Response) {
+    let mut drained = 0;
+    while drained <= MAX_DRAINED_BYTES {
+        match response.chunk().await {
+            Ok(Some(chunk)) => drained += chunk.len(),
+            _ => return,
+        }
     }
 }
 

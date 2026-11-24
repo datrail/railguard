@@ -1,13 +1,18 @@
 use std::sync::Arc;
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use rail_model::agent::AgentId;
-use rail_runtime::{Jitter, RailCenterTickets, TicketAnswer, TicketHolder, TicketSettings};
+use rail_runtime::{Jitter, RailCenterTickets, TicketHolder, Unavailable};
+use reqwest::StatusCode;
 use tokio::runtime::Handle;
 
 use crate::common::{Reply, client, response, serve};
-use crate::holder::{HOUR, Script, TestClock, failed, start, ticket, token, until};
-use crate::logs::Logs;
+use crate::holder::{HOUR, TestClock, until};
+use crate::logs::{Logs, lines_with};
+use crate::tickets::{
+    Script, answer, entry, envelope, failed, no_ticket, one, read_at, start, start_jittered,
+    ticket, token,
+};
 
 #[tokio::test(start_paused = true)]
 async fn a_panicking_fetch_is_a_failed_attempt_logged_without_its_message() {
@@ -84,18 +89,16 @@ async fn a_hostile_answer_is_logged_escaped_once() {
     let server = serve(move |_| Reply::Raw(response("200 OK", &[], body.as_bytes()))).await;
     let source = RailCenterTickets {
         client: client(&server.url),
-        settings: TicketSettings {
-            agent: AgentId {
-                host_id: "host-1".to_owned(),
-                sandbox_name: "sandbox a".to_owned(),
-            },
-            refresh_interval: HOUR,
+        agent: AgentId {
+            host_id: "host-1".to_owned(),
+            sandbox_name: "sandbox a".to_owned(),
         },
     };
 
     let _holder = TicketHolder::start(
         &Handle::current(),
         source,
+        HOUR,
         Arc::new(SystemTime::now),
         Jitter::random(),
     );
@@ -104,7 +107,7 @@ async fn a_hostile_answer_is_logged_escaped_once() {
         let text = logs.text();
         if let Some(line) = text
             .lines()
-            .find(|line| line.contains("ticket refresh failed"))
+            .find(|line| line.contains("ticket fetch failed"))
         {
             break line.to_owned();
         }
@@ -129,9 +132,9 @@ async fn each_answer_is_logged_for_what_it_did_to_the_ticket_held() {
         0 | 1 => ticket("a", first),
         2 => ticket("b", second),
         3 => failed(),
-        4 => Ok(TicketAnswer::NoTicket),
+        4 => no_ticket(),
         5 => failed(),
-        6 => Ok(TicketAnswer::NoTicket),
+        6 => no_ticket(),
         7 => ticket("c", lapsed),
         _ => ticket("d", last),
     });
@@ -144,12 +147,12 @@ async fn each_answer_is_logged_for_what_it_did_to_the_ticket_held() {
         format!("ticket acquired fingerprint=\"{}\"", fingerprint("a")),
         format!("ticket rotated fingerprint=\"{}\"", fingerprint("b")),
         format!(
-            "ticket refresh failed; keeping the one held reason=\"the fetch ran past its 10s deadline\" \
+            "ticket fetch failed; keeping the one held reason=\"the fetch ran past its 10s deadline\" \
              fingerprint=\"{}\"",
             fingerprint("b")
         ),
         "Rail Center holds no ticket for this host and sandbox cleared=true".to_owned(),
-        "ticket refresh failed; none is held".to_owned(),
+        "ticket fetch failed; none is held".to_owned(),
         "Rail Center holds no ticket for this host and sandbox cleared=false".to_owned(),
         "Rail Center returned a lapsed ticket; none is valid".to_owned(),
         // A lapsed ticket held is replaced, not acquired anew.
@@ -162,4 +165,97 @@ async fn each_answer_is_logged_for_what_it_did_to_the_ticket_held() {
     // The same ticket again, a's and d's, is logged only at debug.
     assert_eq!(logs.matches("ticket rotated").count(), 2, "{logs}");
     assert_eq!(logs.matches("ticket acquired").count(), 1, "{logs}");
+}
+
+// Why each refusal is, told without the values it may hold.
+#[tokio::test(start_paused = true)]
+async fn a_refused_ticket_is_logged_with_why() {
+    let sent_at = UNIX_EPOCH + Duration::from_secs(1_785_233_700 - 900);
+    let stamp = "2026-07-28T10:15:00Z";
+    let ticket = entry(r#""sandbox a""#, "a.b.c", stamp);
+    for (status, body, reason) in [
+        (
+            StatusCode::NOT_FOUND,
+            String::new(),
+            "Rail Center answered 404 Not Found",
+        ),
+        (
+            StatusCode::UNAUTHORIZED,
+            String::new(),
+            "Rail Center refused the credential (401 Unauthorized); every fetch fails this way \
+             until RAIL_AUTH_MODE and RAIL_AUTH_TOKEN are fixed",
+        ),
+        (
+            StatusCode::OK,
+            envelope("host-1", &[entry(r#""sandbox b""#, "a.b.c", stamp)]),
+            "the ticket names sandbox sandbox b, not sandbox a",
+        ),
+        (
+            StatusCode::OK,
+            envelope("host-1", &[entry("null", "a.b.c", stamp)]),
+            "the ticket names sandbox none, not sandbox a",
+        ),
+        (
+            StatusCode::OK,
+            envelope("host-1", &[ticket.clone(), ticket]),
+            "2 tickets for one sandbox; the narrowing wasn't honoured",
+        ),
+        (
+            StatusCode::OK,
+            envelope("host-2", &[]),
+            "the response answers for host host-2, not host-1",
+        ),
+        (
+            StatusCode::OK,
+            r#"{"host_id":"host-1","tickets":"eyJ0aGUiOiJ0aWNrZXQifQ"}"#.to_owned(),
+            // Where, by serde's reckoning, never what.
+            "the response is off the contract (",
+        ),
+        (
+            StatusCode::OK,
+            one("a+b/c", stamp),
+            "the ticket isn't base64url (5 characters)",
+        ),
+        (
+            StatusCode::OK,
+            one("a.b.c", "2026-07-28T10:15:00.5Z"),
+            "expires_at isn't YYYY-MM-DDTHH:MM:SSZ: 2026-07-28T10:15:00.5Z",
+        ),
+        (
+            StatusCode::OK,
+            one("a.b.c", "2026-07-29T10:20:01Z"),
+            "the ticket expires more than ",
+        ),
+    ] {
+        let logs = Logs::default();
+        let _logging = logs.capture();
+
+        let holder = read_at(move || answer(status, &body), sent_at).await;
+
+        assert!(matches!(
+            holder.current(),
+            Err(Unavailable::IssuerUnreachable)
+        ));
+        let logs = logs.text();
+        let line = format!("ticket fetch failed; none is held reason=\"{reason}");
+        assert!(logs.contains(&line), "{line}\n{logs}");
+        assert!(!logs.contains("eyJ0aGUiOiJ0aWNrZXQifQ"), "{logs}");
+    }
+}
+
+// A jittered 5.5 s reads as 6: the retry is said in whole seconds, rounded.
+#[tokio::test(start_paused = true)]
+async fn the_retry_is_said_rounded_to_the_second() {
+    let logs = Logs::default();
+    let _logging = logs.capture();
+    let clock = TestClock::new();
+    let script = Script::new(&clock, |_| failed());
+
+    let _holder = start_jittered(&clock, &script, HOUR, Jitter::new(|| 1.1));
+    until(&clock, 0).await;
+
+    let logs = logs.text();
+    let line = lines_with(&logs, "ticket fetch failed; none is held");
+    assert_eq!(line.len(), 1, "{logs}");
+    assert!(line[0].ends_with(" retry=6"), "{logs}");
 }

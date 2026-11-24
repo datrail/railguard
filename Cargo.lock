@@ -1019,8 +1019,10 @@ version = "0.0.0"
 dependencies = [
  "envoy-types",
  "rail-grpc-host",
+ "rail-model",
  "rail-runtime",
  "rail-test-support",
+ "reqwest",
  "tokio",
  "tokio-stream",
  "tonic",

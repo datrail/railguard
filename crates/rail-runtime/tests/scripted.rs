@@ -1,11 +1,12 @@
-//! A scripted Rail Center source, for the bundle and key set holders' tests.
+//! A scripted Rail Center source, for the holders' tests.
 // Shared by both test binaries, and each uses only part of it.
 #![allow(dead_code)]
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use rail_runtime::{BundleSource, FetchError, KeySource, Response};
+use rail_model::agent::AgentId;
+use rail_runtime::{BundleSource, FetchError, KeySource, Response, TicketSource};
 use reqwest::StatusCode;
 use tokio::time::Instant;
 
@@ -23,6 +24,8 @@ pub struct Script {
     pub takes: Duration,
     pub fetched_at: Arc<Mutex<Vec<u64>>>,
     pub started: Instant,
+    // The agent a ticket must name; public, as struct update needs every field.
+    pub agent: AgentId,
 }
 
 impl Script {
@@ -35,7 +38,17 @@ impl Script {
             takes: Duration::ZERO,
             fetched_at: Arc::default(),
             started: clock.started,
+            agent: agent(),
         }
+    }
+
+    // Answers each fetch with the next of `answers`, panicking past the last.
+    pub fn in_turn(clock: &TestClock, answers: Vec<Answer>) -> Self {
+        let answers: Vec<_> = answers
+            .into_iter()
+            .map(|answer| Mutex::new(Some(answer)))
+            .collect();
+        Self::new(clock, move |n| answers[n].lock().unwrap().take().unwrap())
     }
 
     // When each fetch started, in whole seconds from the start.
@@ -66,9 +79,31 @@ impl KeySource for Script {
     }
 }
 
-pub fn answer(status: StatusCode, body: &[u8]) -> Answer {
+impl TicketSource for Script {
+    async fn fetch(&self) -> Answer {
+        self.answer().await
+    }
+
+    fn agent(&self) -> &AgentId {
+        &self.agent
+    }
+}
+
+// The agent a ticket must name.
+pub fn agent() -> AgentId {
+    AgentId {
+        host_id: "host-1".to_owned(),
+        sandbox_name: "sandbox a".to_owned(),
+    }
+}
+
+pub fn answer(status: StatusCode, body: impl AsRef<[u8]>) -> Answer {
     Ok(Response {
         status,
-        body: body.to_vec(),
+        body: body.as_ref().to_vec(),
     })
+}
+
+pub fn failed() -> Answer {
+    Err(FetchError::Deadline(Duration::from_secs(10)))
 }

@@ -15,16 +15,18 @@ use tokio::sync::watch;
 use tokio::task::AbortHandle;
 use tokio::time::{Instant, timeout_at};
 
+use crate::client::Unread;
+
 // Not settings: a lower floor would let a fleet hammer Rail Center.
-pub(crate) const MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(5);
+const MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(5);
 
 // Six doublings of the 5 s floor; the refresh interval caps it too.
-pub(crate) const MAX_BACKOFF: Duration = Duration::from_secs(320);
+const MAX_BACKOFF: Duration = Duration::from_secs(320);
 
 // A day: a ticket lives no longer, and a bundle polled less often is surely a mistake.
 const MAX_REFRESH_INTERVAL: Duration = Duration::from_secs(86_400);
 
-// 5 s doubled 15 times is past a day, more than any maximum delay, and the power can't overflow.
+// 5 s doubled 15 times is far past the 320 s cap, and the power can't overflow.
 const MAX_DOUBLINGS: u32 = 15;
 
 const MIN_JITTER: f64 = 0.8;
@@ -39,6 +41,10 @@ pub(crate) trait Kind: Send + Sync + 'static {
     /// Names the kind in the loop's own log lines.
     const WHAT: &'static str;
 
+    /// Whether what's held lapses, so a refusal is asked again sooner, as a failure is, to replace
+    /// it in time; a value that doesn't is asked again after the period.
+    const EXPIRES: bool;
+
     fn fetch(&self) -> impl Future<Output = Self::Answer> + Send;
 
     /// What `answer` does to `held`. A panic here, or polling `fetch`, is a failed attempt.
@@ -49,24 +55,39 @@ pub(crate) trait Kind: Send + Sync + 'static {
         None
     }
 
-    /// Logs what a step did, once the wait before the next attempt is known; `after_failure` is
-    /// whether the attempt before it failed, a panic included.
-    fn report(
-        &self,
-        outcome: Self::Outcome,
-        held: &Self::Held,
-        after_failure: bool,
-        next_attempt_in: Duration,
-    );
+    /// Logs what a step did, once the wait before the next attempt is known, in whole seconds;
+    /// `after_failure` is whether the attempt before it didn't succeed, a panic included.
+    fn report(&self, outcome: Self::Outcome, held: &Self::Held, after_failure: bool, retry: u64);
 }
 
 /// What one attempt decided.
 pub(crate) struct Step<T, O> {
     /// The value to hold from now on; `None` keeps the one held.
     pub(crate) next: Option<T>,
-    /// A failure backs off; a success resumes the period.
-    pub(crate) succeeded: bool,
+    pub(crate) attempt: Attempt,
     pub(crate) outcome: O,
+}
+
+/// What an attempt was, for the wait before the next.
+#[derive(PartialEq)]
+pub(crate) enum Attempt {
+    Succeeded,
+    /// Rail Center's answer, with nothing usable: asking sooner can't change it, so it backs off
+    /// only for a kind that expires.
+    Refused,
+    /// No answer, or one that may pass: backs off.
+    Failed,
+}
+
+impl Attempt {
+    /// An answer that brought nothing usable: a failure if it may pass, else a refusal.
+    pub(crate) fn of(unread: &Unread) -> Self {
+        if unread.transient {
+            Self::Failed
+        } else {
+            Self::Refused
+        }
+    }
 }
 
 /// A refresh interval as set: whole seconds, from the 5 s floor to a day.
@@ -83,16 +104,6 @@ pub(crate) fn parse_refresh_interval(text: &str) -> Result<Duration, String> {
             sanitize(text)
         )),
     }
-}
-
-/// When a kind's attempts come, before the jitter and the 5 s floor.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct Schedule {
-    /// From the start of an attempt that succeeded to the next one.
-    pub(crate) period: Duration,
-    /// After the first failure, doubling after each one that follows.
-    pub(crate) initial_delay: Duration,
-    pub(crate) max_delay: Duration,
 }
 
 /// The factor every wait is scaled by, from 0.8 to 1.2, so a fleet doesn't poll in lockstep.
@@ -137,12 +148,13 @@ pub(crate) struct Holder<T> {
 }
 
 impl<T: Send + Sync + 'static> Holder<T> {
-    /// Holds `initial` and fetches at once.
+    /// Holds `initial` and fetches at once, then again every `period` from the start of an attempt
+    /// that doesn't back off; one that does waits 5 s, doubling, up to 320 s or the period.
     pub(crate) fn start<K: Kind<Held = T>>(
         runtime: &Handle,
         kind: K,
         initial: T,
-        schedule: Schedule,
+        period: Duration,
         jitter: Jitter,
     ) -> Self {
         let held = Arc::new(ArcSwap::from_pointee(initial));
@@ -150,7 +162,7 @@ impl<T: Send + Sync + 'static> Holder<T> {
         let publish = Arc::new(publish);
         let weak = Arc::downgrade(&publish);
         let refresh = runtime
-            .spawn(run(kind, Arc::clone(&held), publish, schedule, jitter))
+            .spawn(run(kind, Arc::clone(&held), publish, period, jitter))
             .abort_handle();
         Self {
             held,
@@ -220,39 +232,42 @@ async fn run<K: Kind>(
     kind: K,
     held: Arc<ArcSwap<K::Held>>,
     publish: Arc<watch::Sender<Progress>>,
-    schedule: Schedule,
+    period: Duration,
     jitter: Jitter,
 ) {
     let mut progress = publish.subscribe();
-    // Failed attempts since the last success.
+    // Attempts in a row that back off: failures, and refusals for a kind that expires.
     let mut failures: u32 = 0;
+    let mut after_failure = false;
     loop {
         publish.send_replace(Progress::InFlight);
         let started = Instant::now();
-        let after_failure = failures > 0;
         let step = attempt(&kind, &held).await;
         let took = started.elapsed();
-        let outcome = match step {
+        let (outcome, attempted) = match step {
             Some(step) => {
                 if let Some(next) = step.next {
                     held.store(Arc::new(next));
                 }
-                failures = if step.succeeded { 0 } else { failures + 1 };
-                Some(step.outcome)
+                (Some(step.outcome), step.attempt)
             }
             None => {
-                failures += 1;
                 // Not the panic's message, which may quote what Rail Center sent.
                 tracing::error!(
                     "a {} refresh attempt panicked; keeping what's held",
                     K::WHAT
                 );
-                None
+                (None, Attempt::Failed)
             }
+        };
+        failures = match attempted {
+            Attempt::Failed => failures + 1,
+            Attempt::Refused if K::EXPIRES => failures + 1,
+            Attempt::Succeeded | Attempt::Refused => 0,
         };
         let wait = {
             let held = held.load();
-            let wait = next_wait(&schedule, failures, jitter.factor());
+            let wait = next_wait(period, failures, jitter.factor());
             // A period runs from the start of the attempt, so a slow fetch doesn't shift the cadence.
             let wait = if failures == 0 {
                 // A fetch may outlast a short period: then the floor below applies.
@@ -266,10 +281,11 @@ async fn run<K: Kind>(
                 .map_or(wait, |at_most| wait.min(at_most))
                 .max(MIN_REFRESH_INTERVAL);
             if let Some(outcome) = outcome {
-                kind.report(outcome, &held, after_failure, wait);
+                kind.report(outcome, &held, after_failure, round_to_seconds(wait));
             }
             wait
         };
+        after_failure = attempted != Attempt::Succeeded;
         publish.send_replace(Progress::NextAt {
             next: Instant::now() + wait,
             started,
@@ -305,17 +321,17 @@ async fn attempt<K: Kind>(kind: &K, held: &ArcSwap<K::Held>) -> Option<Step<K::H
     catch_unwind(AssertUnwindSafe(|| kind.step(&held.load(), answer))).ok()
 }
 
-// The period after a success, else the backoff; jittered.
-fn next_wait(schedule: &Schedule, failures: u32, factor: f64) -> Duration {
+// The period when nothing backs off, else the backoff; jittered.
+fn next_wait(period: Duration, failures: u32, factor: f64) -> Duration {
     let wait = match failures {
-        0 => schedule.period,
-        _ => (schedule.initial_delay * 2_u32.pow((failures - 1).min(MAX_DOUBLINGS)))
-            .min(schedule.max_delay),
+        0 => period,
+        _ => (MIN_REFRESH_INTERVAL * 2_u32.pow((failures - 1).min(MAX_DOUBLINGS)))
+            .min(MAX_BACKOFF.min(period)),
     };
     wait.mul_f64(factor)
 }
 
 // Whole seconds, rounded: a jittered 5.9 s reads as 6.
-pub(crate) fn round_to_seconds(wait: Duration) -> u64 {
+fn round_to_seconds(wait: Duration) -> u64 {
     wait.as_secs() + u64::from(wait.subsec_millis() >= 500)
 }

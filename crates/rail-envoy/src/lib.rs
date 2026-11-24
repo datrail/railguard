@@ -207,11 +207,12 @@ fn start_tickets(
     let thread = RailCenterThread::start()?;
     let source = RailCenterTickets {
         client,
-        settings: ticket,
+        agent: ticket.agent,
     };
     let tickets = TicketHolder::start(
         thread.runtime(),
         source,
+        ticket.refresh_interval,
         Arc::new(SystemTime::now),
         Jitter::random(),
     );

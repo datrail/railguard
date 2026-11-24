@@ -20,4 +20,5 @@ mod sink;
 mod ticket;
 mod ticket_holder;
 mod ticket_settings;
+mod tickets;
 mod xrail;
