@@ -5,7 +5,8 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use rail_runtime::{BundleSource, FetchError, KeySource, Response};
+use rail_model::agent::AgentId;
+use rail_runtime::{BundleSource, FetchError, KeySource, Response, TicketSource};
 use reqwest::StatusCode;
 use tokio::time::Instant;
 
@@ -23,6 +24,8 @@ pub struct Script {
     pub takes: Duration,
     pub fetched_at: Arc<Mutex<Vec<u64>>>,
     pub started: Instant,
+    // The agent a ticket must name.
+    pub agent: AgentId,
 }
 
 impl Script {
@@ -35,6 +38,10 @@ impl Script {
             takes: Duration::ZERO,
             fetched_at: Arc::default(),
             started: clock.started,
+            agent: AgentId {
+                host_id: "host-1".to_owned(),
+                sandbox_name: "sandbox a".to_owned(),
+            },
         }
     }
 
@@ -72,6 +79,16 @@ impl BundleSource for Script {
 impl KeySource for Script {
     async fn fetch(&self) -> Answer {
         self.answer().await
+    }
+}
+
+impl TicketSource for Script {
+    async fn fetch(&self) -> Answer {
+        self.answer().await
+    }
+
+    fn agent(&self) -> &AgentId {
+        &self.agent
     }
 }
 

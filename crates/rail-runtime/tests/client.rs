@@ -388,6 +388,27 @@ async fn a_connection_is_reused_only_within_the_idle_timeout() {
     assert_eq!(answered_on, ["0", "0", "1"]);
 }
 
+// The denial reporter posts on, an outage or not: an error's connection is kept for the next.
+#[tokio::test]
+async fn an_error_answer_leaves_its_connection_for_the_next_call() {
+    // The first connection answers 503 to all, its page coming after its head; any other 200.
+    let server = serve(|connection| match connection {
+        0 => Reply::KeepAliveLate(
+            b"HTTP/1.1 503 Service Unavailable\r\ncontent-length: 5\r\n\r\n".to_vec(),
+            b"busy.".to_vec(),
+            Duration::from_millis(50),
+        ),
+        _ => Reply::KeepAlive(b"HTTP/1.1 200 OK\r\ncontent-length: 0\r\n\r\n".to_vec()),
+    })
+    .await;
+    let client = client(&server.url);
+
+    for _ in 0..2 {
+        let fetched = client.get("/v1/x", &[], LIMITS).await.unwrap();
+        assert_eq!(fetched.status, 503);
+    }
+}
+
 #[tokio::test]
 async fn no_failure_carries_the_credential_or_the_url() {
     let silent = serve(|_| {

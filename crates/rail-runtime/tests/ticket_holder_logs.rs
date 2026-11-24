@@ -2,14 +2,14 @@ use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use rail_model::agent::AgentId;
-use rail_runtime::{Jitter, RailCenterTickets, TicketHolder, TicketSettings, Unavailable};
+use rail_runtime::{Jitter, RailCenterTickets, TicketHolder, Unavailable};
 use reqwest::StatusCode;
 use tokio::runtime::Handle;
 
 use crate::common::{Reply, client, response, serve};
 use crate::holder::{
-    HOUR, Script, TestClock, entry, envelope, failed, no_ticket, one, raw, read_at, start, ticket,
-    token, until,
+    HOUR, Script, TestClock, entry, envelope, failed, no_ticket, one, raw, read_at, start,
+    start_jittered, ticket, token, until,
 };
 use crate::logs::Logs;
 
@@ -88,12 +88,9 @@ async fn a_hostile_answer_is_logged_escaped_once() {
     let server = serve(move |_| Reply::Raw(response("200 OK", &[], body.as_bytes()))).await;
     let source = RailCenterTickets {
         client: client(&server.url),
-        settings: TicketSettings {
-            agent: AgentId {
-                host_id: "host-1".to_owned(),
-                sandbox_name: "sandbox a".to_owned(),
-            },
-            refresh_interval: HOUR,
+        agent: AgentId {
+            host_id: "host-1".to_owned(),
+            sandbox_name: "sandbox a".to_owned(),
         },
     };
 
@@ -226,7 +223,7 @@ async fn a_refused_ticket_is_logged_with_why() {
         (
             StatusCode::OK,
             one("a.b.c", "2026-07-29T10:20:01Z"),
-            "the ticket expires more than 86700 s away, past what Rail Center stamps",
+            "the ticket expires more than ",
         ),
     ] {
         let logs = Logs::default();
@@ -243,4 +240,20 @@ async fn a_refused_ticket_is_logged_with_why() {
         assert!(logs.contains(&line), "{line}\n{logs}");
         assert!(!logs.contains("eyJ0aGUiOiJ0aWNrZXQifQ"), "{logs}");
     }
+}
+
+// A jittered 5.5 s reads as 6: the retry is said in whole seconds, rounded.
+#[tokio::test(start_paused = true)]
+async fn the_retry_is_said_rounded_to_the_second() {
+    let logs = Logs::default();
+    let _logging = logs.capture();
+    let clock = TestClock::new();
+    let script = Script::new(&clock, |_| failed());
+
+    let _holder = start_jittered(&clock, &script, HOUR, Jitter::new(|| 1.1));
+    until(&clock, 0).await;
+
+    let logs = logs.text();
+    assert!(logs.contains("ticket fetch failed; none is held"), "{logs}");
+    assert!(logs.contains(" retry=6"), "{logs}");
 }

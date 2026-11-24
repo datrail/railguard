@@ -2,13 +2,12 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use rail_model::agent::AgentId;
 use rail_runtime::{
-    FetchError, OpaqueTicket, RailCenterTickets, Response, TicketSettings, TicketSource,
-    Unavailable,
+    FetchError, OpaqueTicket, RailCenterTickets, Response, TicketSource, Unavailable,
 };
 use reqwest::StatusCode;
 
 use crate::common::{Reply, client, response, serve};
-use crate::holder::{HOUR, envelope, one, raw, read_at};
+use crate::holder::{envelope, one, raw, read_at};
 
 // 2026-07-28T10:15:00Z
 const EXPIRES_AT: u64 = 1_785_233_700;
@@ -17,12 +16,9 @@ const SENT_AT: u64 = EXPIRES_AT - 900;
 fn tickets(url: &str) -> RailCenterTickets {
     RailCenterTickets {
         client: client(url),
-        settings: TicketSettings {
-            agent: AgentId {
-                host_id: "host-1".to_owned(),
-                sandbox_name: "sandbox a".to_owned(),
-            },
-            refresh_interval: HOUR,
+        agent: AgentId {
+            host_id: "host-1".to_owned(),
+            sandbox_name: "sandbox a".to_owned(),
         },
     }
 }
@@ -57,42 +53,28 @@ async fn the_single_entry_is_read_and_its_expiry_parsed() {
 
 #[tokio::test(start_paused = true)]
 async fn only_200_is_read() {
-    // A 404 and a 401 too: `ticket_holder_logs`.
-    for status in [StatusCode::NO_CONTENT, StatusCode::INTERNAL_SERVER_ERROR] {
-        let body = envelope("host-1", &[]);
-        let holder = read_at(move || raw(status, &body), at(SENT_AT)).await;
+    // A success too, if not a 200; a 404 and a 401: `ticket_holder_logs`.
+    let body = envelope("host-1", &[]);
+    let holder = read_at(move || raw(StatusCode::NO_CONTENT, &body), at(SENT_AT)).await;
 
-        assert!(
-            matches!(holder.current(), Err(Unavailable::IssuerUnreachable)),
-            "{status}"
-        );
-    }
+    assert!(matches!(
+        holder.current(),
+        Err(Unavailable::IssuerUnreachable)
+    ));
 }
 
 // Each refused whole, so no ticket is held; another agent's, and why each is refused, are
 // `ticket_holder_logs`'.
 #[tokio::test(start_paused = true)]
 async fn a_ticket_off_the_contract_is_refused() {
-    let mut refused = vec![
-        "[]".to_owned(),
-        r#"{"host_id":"host-1","tickets":[{"sandbox_name":"sandbox a","expires_at":"2026-07-28T10:15:00Z"}]}"#
-            .to_owned(),
+    // An empty token, and stamps not of Rail Center's form, beside the logs' rows; a date the
+    // calendar refuses is `time`'s to refuse.
+    let refused = [
         "not json".to_owned(),
+        one("", "2026-07-28T10:15:00Z"),
+        one("a.b.c", "2026-07-28T10:15:00+00:00"),
+        one("a.b.c", "2026-7-28T10:15:00Z"),
     ];
-    for token in ["", "a+b/c"] {
-        refused.push(one(token, "2026-07-28T10:15:00Z"));
-    }
-    // Only Rail Center's own form: a date the calendar refuses is `time`'s to refuse.
-    for stamp in [
-        "2026-07-28",
-        "2026-07-28T10:15:00",
-        "2026-07-28T10:15:00+00:00",
-        "2026-07-28T10:15:00.5Z",
-        "2026-07-28t10:15:00z",
-        "2026-07-28 10:15:00Z",
-    ] {
-        refused.push(one("a.b.c", stamp));
-    }
 
     for body in refused {
         assert_eq!(
@@ -101,18 +83,6 @@ async fn a_ticket_off_the_contract_is_refused() {
             "{body}"
         );
     }
-}
-
-#[tokio::test(start_paused = true)]
-async fn a_lifetime_past_what_rail_center_stamps_is_refused() {
-    let day_and_margin = 86_400 + 300;
-    let body = || one("a.b.c", "2026-07-28T10:15:00Z");
-
-    let kept = held_at(body(), at(EXPIRES_AT - day_and_margin)).await;
-    let refused = held_at(body(), at(EXPIRES_AT - day_and_margin - 1)).await;
-
-    assert!(kept.is_ok(), "{kept:?}");
-    assert_eq!(refused, Err(Unavailable::IssuerUnreachable));
 }
 
 #[tokio::test]

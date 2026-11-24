@@ -22,7 +22,7 @@ pub type WallClock = Arc<dyn Fn() -> SystemTime + Send + Sync>;
 // What the answers so far leave to present.
 #[derive(Default)]
 enum Held {
-    // No answer yet, or the last one was a failure with no ticket held.
+    // No answer yet, or the last one brought nothing usable, with no ticket held.
     #[default]
     Unreached,
     // Set only by Rail Center answering "none", never by a failed fetch.
@@ -133,13 +133,11 @@ fn step(
         ),
         Err(unread) => {
             let kept = usable(previous);
-            let next = match previous.ticket() {
-                Some(ticket) => Held::Ticket(Arc::clone(ticket)),
-                None => Held::Unreached,
-            };
+            // A ticket held is kept; only "none" gives way to "unreached".
+            let next = previous.ticket().is_none().then_some(Held::Unreached);
             let attempt = Attempt::of(&unread);
             let reason = unread.reason;
-            (Some(next), attempt, Outcome::Failed { reason, kept })
+            (next, attempt, Outcome::Failed { reason, kept })
         }
         // An already-lapsed ticket never displaces one still good.
         Ok(TicketAnswer::Ticket(ticket)) if !ticket.is_valid(at) && usable(previous) => {
@@ -147,19 +145,14 @@ fn step(
             (None, Attempt::Refused, Outcome::LapsedKept { lapsed })
         }
         Ok(TicketAnswer::Ticket(ticket)) => {
-            let outcome = if !ticket.is_valid(at) {
-                Outcome::Lapsed
-            } else if previous.ticket().is_none() {
-                Outcome::Acquired
-            } else if previous
-                .ticket()
-                .is_some_and(|held| held.token != ticket.token)
-            {
-                Outcome::Rotated
-            } else {
-                Outcome::Unchanged
+            let valid = ticket.is_valid(at);
+            let outcome = match previous.ticket() {
+                _ if !valid => Outcome::Lapsed,
+                None => Outcome::Acquired,
+                Some(held) if held.token != ticket.token => Outcome::Rotated,
+                Some(_) => Outcome::Unchanged,
             };
-            let attempt = if ticket.is_valid(at) {
+            let attempt = if valid {
                 Attempt::Succeeded
             } else {
                 Attempt::Refused

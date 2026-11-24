@@ -9,9 +9,9 @@ use crate::holder::parse_refresh_interval;
 
 const ROUTE: &str = "/v1/tickets";
 
-pub(crate) const HOST_ID: &str = "RAIL_HOST_ID";
-pub(crate) const SANDBOX_NAME: &str = "RAIL_SANDBOX_NAME";
-pub(crate) const TICKET_REFRESH_SECONDS: &str = "RAIL_TICKET_REFRESH_SECONDS";
+const HOST_ID: &str = "RAIL_HOST_ID";
+const SANDBOX_NAME: &str = "RAIL_SANDBOX_NAME";
+const TICKET_REFRESH_SECONDS: &str = "RAIL_TICKET_REFRESH_SECONDS";
 
 // Rail Center's bounds on the query (`get_host_tickets`), in characters.
 const MAX_HOST_ID_CHARS: usize = 64;
@@ -99,12 +99,12 @@ pub trait TicketSource: Send + Sync + 'static {
 /// This host's ticket, fetched from Rail Center.
 pub struct RailCenterTickets {
     pub client: RailCenterClient,
-    pub settings: TicketSettings,
+    pub agent: AgentId,
 }
 
 impl TicketSource for RailCenterTickets {
     async fn fetch(&self) -> Result<Response, FetchError> {
-        let agent = &self.settings.agent;
+        let agent = &self.agent;
         let params = [
             ("host_id", agent.host_id.as_str()),
             ("sandbox_name", agent.sandbox_name.as_str()),
@@ -113,6 +113,6 @@ impl TicketSource for RailCenterTickets {
     }
 
     fn agent(&self) -> &AgentId {
-        &self.settings.agent
+        &self.agent
     }
 }

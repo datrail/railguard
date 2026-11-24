@@ -22,6 +22,8 @@ pub enum Reply {
     Silent,
     // Answers every request on the connection with these bytes, keeping it open.
     KeepAlive(Vec<u8>),
+    // As `KeepAlive`, its head first and its body after the delay, as a page over the network.
+    KeepAliveLate(Vec<u8>, Vec<u8>, Duration),
 }
 
 pub struct Server {
@@ -70,6 +72,15 @@ pub async fn answer(mut stream: TcpStream, reply: Reply, seen: &Mutex<Vec<String
         Reply::KeepAlive(bytes) => {
             while stream.write_all(&bytes).await.is_ok() && read_head(&mut stream, seen).await {}
         }
+        Reply::KeepAliveLate(head, body, delay) => loop {
+            if stream.write_all(&head).await.is_err() {
+                break;
+            }
+            tokio::time::sleep(delay).await;
+            if stream.write_all(&body).await.is_err() || !read_head(&mut stream, seen).await {
+                break;
+            }
+        },
     }
 }
 

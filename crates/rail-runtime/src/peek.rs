@@ -1,5 +1,6 @@
-//! What a holder reads of a Rail Center document before reading it whole, so a document of a
-//! shape it doesn't read is still told by its hash and version.
+//! Reading a Rail Center JSON body safely: what a holder peeks before reading it whole, so one of
+//! a shape it doesn't read is still told by its hash and version, and a parse error told by where,
+//! never what.
 
 use rail_model::schema_version::SchemaVersion;
 use serde::de::DeserializeOwned;

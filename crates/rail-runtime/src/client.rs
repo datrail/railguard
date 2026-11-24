@@ -14,6 +14,9 @@ use tokio::time::timeout;
 
 use crate::rail_center::{AUTH_MODE, AUTH_TOKEN, CenterUrl, RailCenterSettings};
 
+// An error answer's body, read only so its connection can be kept.
+const MAX_DRAINED_BYTES: usize = 8 * 1024;
+
 /// What one caller allows a fetch.
 #[derive(Clone, Copy, Debug)]
 pub struct Limits {
@@ -142,8 +145,9 @@ impl RailCenterClient {
             .map_err(|_| FetchError::Silent(limits.silence))?
             .map_err(|error| FetchError::Transport(describe(error)))?;
         let status = response.status();
-        // Never read: an error page too large or badly encoded still tells its status.
+        // Never kept: an error page too large or badly encoded still tells its status.
         if !status.is_success() {
+            drain(&mut response, limits.silence).await;
             return Ok(Response {
                 status,
                 body: Vec::new(),
@@ -189,7 +193,6 @@ impl RailCenterClient {
 }
 
 /// Why an answer brings nothing usable: no body to read, or one its reader refuses.
-#[derive(Debug)]
 pub(crate) struct Unread {
     pub(crate) reason: String,
     /// Whether asking again soon could bring another answer: no answer, or a 408, 429 or 5xx.
@@ -244,6 +247,17 @@ pub(crate) fn read_status(
         || status == StatusCode::TOO_MANY_REQUESTS
         || status.is_server_error();
     Err(Unread { reason, transient })
+}
+
+// Read and dropped, so the connection carries the next call; a page past 8 KiB isn't worth it.
+async fn drain(response: &mut reqwest::Response, silence: Duration) {
+    let mut drained = 0;
+    while drained <= MAX_DRAINED_BYTES {
+        match timeout(silence, response.chunk()).await {
+            Ok(Ok(Some(chunk))) => drained += chunk.len(),
+            _ => return,
+        }
+    }
 }
 
 // Every value of every `Content-Encoding` line, so a second encoding can't hide behind a first.

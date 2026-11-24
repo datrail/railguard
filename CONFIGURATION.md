@@ -212,7 +212,7 @@ The longest a valid ticket goes without being fetched again.
 - **Read by:** `rail-envoy` as the proxy (`rail proxy`).
 - A ticket is fetched again at half its remaining life when that comes sooner, so a short one is replaced before it
   lapses. The waits are scaled as the bundle's are (`RAIL_GATEWAY_BUNDLE_REFRESH_SECONDS`), and every answer but a valid
-  ticket is backed off, a refusal too, since the host has none meanwhile.
+  ticket is backed off, a refusal too, since a ticket lapses and must be replaced in time.
 
 ## Retired names
 

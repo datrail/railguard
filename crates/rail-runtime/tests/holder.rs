@@ -1,18 +1,17 @@
-//! A scripted ticket source and a clock on tokio's paused time, for the holder's tests.
+//! Tickets to script and a clock on tokio's paused time, for the holders' tests.
 // Shared by both test binaries, and each uses only part of it.
 #![allow(dead_code)]
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use rail_model::agent::AgentId;
-use rail_runtime::{
-    FetchError, Jitter, Response, TicketHolder, TicketSource, Unavailable, WallClock,
-};
+use rail_runtime::{FetchError, Jitter, TicketHolder, Unavailable, WallClock};
 use reqwest::StatusCode;
 use time::OffsetDateTime;
 use tokio::runtime::Handle;
 use tokio::time::Instant;
+
+use crate::scripted::answer;
 
 pub const HOUR: Duration = Duration::from_secs(3600);
 
@@ -39,61 +38,10 @@ impl TestClock {
     }
 }
 
-pub type Answer = Result<Response, FetchError>;
-
-// Answers fetch n with `answers(n)`, `takes` after it starts, recording when it started.
-#[derive(Clone)]
-pub struct Script {
-    pub answers: Arc<dyn Fn(usize) -> Answer + Send + Sync>,
-    pub fetched_at: Arc<Mutex<Vec<u64>>>,
-    pub agent: AgentId,
-    pub started: Instant,
-    pub takes: Duration,
-}
-
-impl Script {
-    pub fn new(
-        clock: &TestClock,
-        answers: impl Fn(usize) -> Answer + Send + Sync + 'static,
-    ) -> Self {
-        Self {
-            answers: Arc::new(answers),
-            fetched_at: Arc::default(),
-            agent: AgentId {
-                host_id: "host-1".to_owned(),
-                sandbox_name: "sandbox a".to_owned(),
-            },
-            started: clock.started,
-            takes: Duration::ZERO,
-        }
-    }
-
-    pub fn fetched_at(&self) -> Vec<u64> {
-        self.fetched_at.lock().unwrap().clone()
-    }
-}
-
-impl TicketSource for Script {
-    async fn fetch(&self) -> Answer {
-        let fetches = {
-            let mut fetched_at = self.fetched_at.lock().unwrap();
-            fetched_at.push(self.started.elapsed().as_secs());
-            fetched_at.len()
-        };
-        tokio::time::sleep(self.takes).await;
-        (self.answers)(fetches - 1)
-    }
-
-    fn agent(&self) -> &AgentId {
-        &self.agent
-    }
-}
+pub use crate::scripted::{Answer, Script};
 
 pub fn raw(status: StatusCode, body: &str) -> Answer {
-    Ok(Response {
-        status,
-        body: body.as_bytes().to_vec(),
-    })
+    answer(status, body.as_bytes())
 }
 
 // An answer for the script's agent, as Rail Center writes one.

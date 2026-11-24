@@ -69,7 +69,7 @@ pub(crate) struct Step<T, O> {
 }
 
 /// What an attempt was, for the schedule.
-#[derive(Clone, Copy, PartialEq)]
+#[derive(PartialEq)]
 pub(crate) enum Attempt {
     Succeeded,
     /// Rail Center's answer, with nothing usable: asking sooner can't change it, so it backs off

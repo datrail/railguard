@@ -85,10 +85,17 @@ async fn the_backoff_stops_at_320_s_or_the_interval_if_shorter() {
 
     let _long = start(&long, HOUR);
     let _short = start(&short, Duration::from_secs(30));
-    until(&clock, 955).await;
+    // Past 33 failures in a row, where an unbounded doubling would overflow.
+    until(&clock, 315 + 320 * 40).await;
 
-    // 5, 10, 20, 40, 80, 160, 320, then 320 again.
-    assert_eq!(long.fetched_at(), [0, 5, 15, 35, 75, 155, 315, 635, 955]);
+    // 5, 10, 20, 40, 80, 160, 320, then 320 again, however long it fails.
+    let long = long.fetched_at();
+    assert_eq!(long[..8], [0, 5, 15, 35, 75, 155, 315, 635]);
+    assert_eq!(long.len(), 7 + 40, "{long:?}");
+    assert!(
+        long[6..].windows(2).all(|pair| pair[1] - pair[0] == 320),
+        "{long:?}"
+    );
     assert_eq!(short.fetched_at()[..6], [0, 5, 15, 35, 65, 95]);
 }
 
