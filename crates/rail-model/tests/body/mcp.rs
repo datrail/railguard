@@ -75,6 +75,15 @@ fn test_reads_the_method_and_tool_a_body_names() {
             r#"{"method": "tools/call", "params": {"name": "\ud800"}}"#,
             McpReading::Ambiguous,
         ),
+        // Or that holds a NUL, which a reader cutting strings there reads short.
+        (
+            r#"{"method": "tools/call\u0000x", "params": {"name": "a"}}"#,
+            McpReading::Ambiguous,
+        ),
+        (
+            r#"{"method": "tools/call", "params": {"name": "a\u0000b"}}"#,
+            McpReading::Ambiguous,
+        ),
         // On another method, the name isn't read.
         (
             r#"{"method": "resources/read", "params": {"name": "\ud800"}}"#,

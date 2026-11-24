@@ -433,10 +433,15 @@ fn apply(test: &Test, value: &Lookup, budget: &mut Budget) -> Verdict {
         Lookup::Ambiguous => return Verdict::Ambiguous,
         Lookup::BodyUnread(why) => return Verdict::BodyUnread(*why),
         Lookup::List(list) => {
-            let read: Vec<Lookup> = list.iter().collect();
-            if let Err(refusal) = budget.charge(read.len() as u64) {
-                return Verdict::Refused(refusal);
-            }
+            // Charged as read, so a body's long list is refused before it's held whole.
+            let read = match list
+                .iter()
+                .map(|item| budget.charge(1).map(|()| item))
+                .collect::<Result<Vec<_>, _>>()
+            {
+                Ok(read) => read,
+                Err(refusal) => return Verdict::Refused(refusal),
+            };
             if read.iter().any(|item| matches!(item, Lookup::Ambiguous)) {
                 return Verdict::Ambiguous;
             }
