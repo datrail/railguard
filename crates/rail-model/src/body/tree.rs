@@ -29,8 +29,8 @@ pub(crate) struct Tree {
 /// its format can't hold.
 type Decode = fn(&[u8], bool) -> Option<Cow<'_, str>>;
 
-/// Whether a string `Decode` refuses, from its raw text, is still of its format's grammar, and
-/// holds no NUL.
+/// Whether a key `Decode` refuses, from its raw text, reads as no key sought to every reader: of
+/// its format's grammar, and holding no NUL a reader could cut it at.
 type Conforms = fn(&[u8]) -> bool;
 
 #[derive(Clone, Copy, Debug)]
