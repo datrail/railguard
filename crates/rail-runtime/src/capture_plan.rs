@@ -6,6 +6,7 @@ use rail_model::agent::AgentId;
 use crate::client::{FetchError, Limits, RailCenterClient, Response};
 use crate::config::{Refused, Settings};
 use crate::holder::parse_refresh_interval;
+use crate::ticket::agent_query;
 
 const ROUTE: &str = "/v1/capture-plan";
 
@@ -48,12 +49,9 @@ pub struct RailCenterCapturePlans {
 
 impl CapturePlanSource for RailCenterCapturePlans {
     async fn fetch(&self) -> Result<Response, FetchError> {
-        // As `/v1/tickets` is asked, from the same settings.
-        let query = [
-            ("host_id", self.agent.host_id.as_str()),
-            ("sandbox_name", self.agent.sandbox_name.as_str()),
-        ];
-        self.client.get(ROUTE, &query, LIMITS).await
+        self.client
+            .get(ROUTE, &agent_query(&self.agent), LIMITS)
+            .await
     }
 
     fn agent(&self) -> &AgentId {

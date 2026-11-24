@@ -12,10 +12,7 @@ use tokio::runtime::Handle;
 
 use crate::capture_plan::CapturePlanSource;
 use crate::client::{FetchError, Response, Unread, read_ok};
-use crate::holder::{
-    Attempt, Holder, Jitter, Kind, MAX_BACKOFF, MIN_REFRESH_INTERVAL, Schedule, Step,
-    round_to_seconds,
-};
+use crate::holder::{Attempt, Holder, Jitter, Kind, Step};
 use crate::peek::{peek, schema_version, text};
 
 // The one `schema_version` major read: any minor of it is.
@@ -43,17 +40,12 @@ impl CapturePlanHolder {
         refresh_interval: Duration,
         jitter: Jitter,
     ) -> Self {
-        let schedule = Schedule {
-            period: refresh_interval,
-            initial_delay: MIN_REFRESH_INTERVAL,
-            max_delay: MAX_BACKOFF.min(refresh_interval),
-        };
         let kind = CapturePlans {
             source,
             reported: AtomicBool::new(false),
         };
         Self {
-            holder: Holder::start(runtime, kind, None, schedule, jitter),
+            holder: Holder::start(runtime, kind, None, refresh_interval, jitter),
         }
     }
 
@@ -120,9 +112,8 @@ impl<S: CapturePlanSource> Kind for CapturePlans<S> {
         }
     }
 
-    fn report(&self, outcome: Outcome, held: &Held, after_failure: bool, retry: Duration) {
+    fn report(&self, outcome: Outcome, held: &Held, after_failure: bool, retry: u64) {
         let held_hash = held.as_ref().map(|plan| plan.plan().content_hash.as_str());
-        let retry = round_to_seconds(retry);
         let first = !self.reported.swap(true, Ordering::Relaxed);
         match outcome {
             // Said once, so a recovery shows without a line every poll.
@@ -151,28 +142,33 @@ impl<S: CapturePlanSource> Kind for CapturePlans<S> {
                          of the redaction rule than this proxy's {REDACTION_VERSION}"
                     ),
                 };
+                // `content_hash` names the plan held, as in every other line.
+                let refused_hash = content_hash;
                 match held_hash {
-                    Some(held) => tracing::warn!(
+                    Some(content_hash) => tracing::warn!(
                         reason,
+                        refused_hash,
                         content_hash,
-                        held = held,
                         retry,
-                        "refusing the capture plan; keeping the one held"
+                        "refusing the fetched capture plan; keeping the one held"
                     ),
                     None => tracing::warn!(
                         reason,
-                        content_hash,
+                        refused_hash,
                         retry,
-                        "refusing the capture plan; capturing nothing"
+                        "refusing the fetched capture plan; none is held"
                     ),
                 }
             }
-            Outcome::Failed(Unread { reason, .. }) => tracing::warn!(
-                reason,
-                content_hash = held_hash,
-                retry,
-                "capture plan fetch failed; keeping what's held"
-            ),
+            Outcome::Failed(Unread { reason, .. }) => match held_hash {
+                Some(content_hash) => tracing::warn!(
+                    reason,
+                    content_hash,
+                    retry,
+                    "capture plan fetch failed; keeping the one held"
+                ),
+                None => tracing::warn!(reason, retry, "capture plan fetch failed; none is held"),
+            },
         }
     }
 }
@@ -195,7 +191,7 @@ fn log_applied(plan: &CompiledPlan) {
         entries = read.entries.len(),
         refused_entries = plan.refused().count(),
         entries_skipped = plan.entries_skipped(),
-        "capturing under a capture plan"
+        "holding a capture plan"
     );
 }
 

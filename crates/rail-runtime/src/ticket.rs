@@ -87,6 +87,14 @@ impl OpaqueTicket {
     }
 }
 
+/// The query naming `agent` to Rail Center, for its ticket and anything else of its own.
+pub(crate) fn agent_query(agent: &AgentId) -> [(&'static str, &str); 2] {
+    [
+        ("host_id", agent.host_id.as_str()),
+        ("sandbox_name", agent.sandbox_name.as_str()),
+    ]
+}
+
 /// Where tickets come from: Rail Center, or a test's script.
 pub trait TicketSource: Send + Sync + 'static {
     /// One fetch, whatever its status: what each means is the holder's.
@@ -104,12 +112,9 @@ pub struct RailCenterTickets {
 
 impl TicketSource for RailCenterTickets {
     async fn fetch(&self) -> Result<Response, FetchError> {
-        let agent = &self.agent;
-        let params = [
-            ("host_id", agent.host_id.as_str()),
-            ("sandbox_name", agent.sandbox_name.as_str()),
-        ];
-        self.client.get(ROUTE, &params, LIMITS).await
+        self.client
+            .get(ROUTE, &agent_query(&self.agent), LIMITS)
+            .await
     }
 
     fn agent(&self) -> &AgentId {

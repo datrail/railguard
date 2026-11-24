@@ -19,7 +19,7 @@ async fn a_plan_applied_is_said_with_its_hash_version_window_and_refused_entries
     applied["entries"].as_array_mut().unwrap().push(refused);
     let logs = log_of(vec![ok(&applied)]).await;
 
-    let line = lines_with(&logs, "capturing under a capture plan");
+    let line = lines_with(&logs, "holding a capture plan");
     assert_eq!(line.len(), 1, "{logs}");
     assert!(line[0].contains("INFO"), "{logs}");
     for field in [
@@ -56,11 +56,11 @@ async fn a_plan_refused_is_warned_of_with_why_and_what_is_kept() {
         ),
     ] {
         let logs = log_of(vec![refused]).await;
-        let line = lines_with(&logs, "refusing the capture plan; capturing nothing");
+        let line = lines_with(&logs, "refusing the fetched capture plan; none is held");
         assert_eq!(line.len(), 1, "{label}: {logs}");
         assert!(line[0].contains("WARN"), "{label}: {logs}");
         assert!(
-            line[0].contains(&format!(r#"content_hash="{b}""#)),
+            line[0].contains(&format!(r#"refused_hash="{b}""#)),
             "{label}: {logs}"
         );
         assert!(line[0].contains(said), "{label}: {logs}");
@@ -71,9 +71,19 @@ async fn a_plan_refused_is_warned_of_with_why_and_what_is_kept() {
         ok(&plan(&b, json!({"redaction_version": 2}))),
     ])
     .await;
-    let line = lines_with(&logs, "refusing the capture plan; keeping the one held");
+    let line = lines_with(
+        &logs,
+        "refusing the fetched capture plan; keeping the one held",
+    );
     assert_eq!(line.len(), 1, "{logs}");
-    assert!(line[0].contains(&format!(r#"held="{a}""#)), "{logs}");
+    assert!(
+        line[0].contains(&format!(r#"content_hash="{a}""#)),
+        "{logs}"
+    );
+    assert!(
+        line[0].contains(&format!(r#"refused_hash="{b}""#)),
+        "{logs}"
+    );
 }
 
 #[tokio::test(start_paused = true)]
@@ -105,7 +115,7 @@ async fn the_same_word_again_is_said_at_info_only_after_a_failure() {
             "{label}: {logs}"
         );
         // A failure names the plan held, if any.
-        let failed = lines_with(&logs, "capture plan fetch failed; keeping what's held");
+        let failed = lines_with(&logs, "capture plan fetch failed; ");
         let hash = format!(r#"content_hash="{a}""#);
         assert_eq!(
             failed[0].contains(&hash),
@@ -126,7 +136,7 @@ async fn an_answer_that_is_no_plan_is_a_failure_saying_why() {
     ] {
         let logs = log_of(vec![answer]).await;
 
-        let line = lines_with(&logs, "capture plan fetch failed; keeping what's held");
+        let line = lines_with(&logs, "capture plan fetch failed; none is held");
         assert_eq!(line.len(), 1, "{logs}");
         assert!(line[0].contains("WARN") && line[0].contains(said), "{logs}");
     }
