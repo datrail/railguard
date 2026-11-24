@@ -125,7 +125,7 @@ impl Jitter {
         Self(Arc::new(factor))
     }
 
-    fn factor(&self) -> f64 {
+    pub(crate) fn factor(&self) -> f64 {
         (self.0)()
     }
 }
@@ -325,13 +325,18 @@ async fn attempt<K: Kind>(kind: &K, held: &ArcSwap<K::Held>) -> Option<Step<K::H
 fn next_wait(period: Duration, failures: u32, factor: f64) -> Duration {
     let wait = match failures {
         0 => period,
-        _ => (MIN_REFRESH_INTERVAL * 2_u32.pow((failures - 1).min(MAX_DOUBLINGS)))
-            .min(MAX_BACKOFF.min(period)),
+        _ => backoff(failures).min(period),
     };
     wait.mul_f64(factor)
 }
 
-// Whole seconds, rounded: a jittered 5.9 s reads as 6.
-fn round_to_seconds(wait: Duration) -> u64 {
+/// The wait after `failures` attempts in a row, at least one, that back off: 5 s doubling to 320 s.
+pub(crate) fn backoff(failures: u32) -> Duration {
+    (MIN_REFRESH_INTERVAL * 2_u32.pow(failures.saturating_sub(1).min(MAX_DOUBLINGS)))
+        .min(MAX_BACKOFF)
+}
+
+/// Whole seconds, rounded: a jittered 5.9 s reads as 6.
+pub(crate) fn round_to_seconds(wait: Duration) -> u64 {
     wait.as_secs() + u64::from(wait.subsec_millis() >= 500)
 }

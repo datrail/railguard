@@ -2,6 +2,7 @@
 
 mod bundle;
 mod bundle_holder;
+mod call_record;
 mod callout;
 mod capture_plan;
 mod capture_plan_holder;
@@ -25,6 +26,7 @@ mod xrail;
 
 pub use bundle::{BundleSettings, BundleSource, RailCenterBundles, read_bundle_settings};
 pub use bundle_holder::{BundleHolder, HeldBundle, Posture};
+pub use call_record::{CallRecordReporter, CallRecordSink, RailCenterCallRecords};
 pub use callout::{HostLimit, read_callout_port, read_max_body_bytes, read_max_message_bytes};
 pub use capture_plan::{CapturePlanSource, RailCenterCapturePlans, read_capture_plan_refresh};
 pub use capture_plan_holder::CapturePlanHolder;

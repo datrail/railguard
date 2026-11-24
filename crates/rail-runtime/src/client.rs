@@ -253,19 +253,28 @@ pub(crate) fn read_status(
         }
     };
     let status = response.status;
-    let reason = match status {
-        status if status == expected => return Ok(response.body),
+    if status == expected {
+        return Ok(response.body);
+    }
+    let transient = status == StatusCode::REQUEST_TIMEOUT
+        || status == StatusCode::TOO_MANY_REQUESTS
+        || status.is_server_error();
+    Err(Unread {
+        reason: answered(status),
+        transient,
+    })
+}
+
+/// What an answer with `status`, not the one expected, says.
+pub(crate) fn answered(status: StatusCode) -> String {
+    match status {
         // Unlike Rail Center having a bad minute, this lasts until the configuration changes.
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => format!(
             "Rail Center refused the credential ({status}); every fetch fails this way until \
              {AUTH_MODE} and {AUTH_TOKEN} are fixed"
         ),
         status => format!("Rail Center answered {status}"),
-    };
-    let transient = status == StatusCode::REQUEST_TIMEOUT
-        || status == StatusCode::TOO_MANY_REQUESTS
-        || status.is_server_error();
-    Err(Unread { reason, transient })
+    }
 }
 
 // What came before the deadline: a success's body read, or an error answer whose isn't.

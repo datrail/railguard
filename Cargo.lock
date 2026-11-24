@@ -1081,6 +1081,7 @@ dependencies = [
  "rail-model",
  "rail-test-support",
  "reqwest",
+ "ring",
  "rustix",
  "rustls",
  "serde",

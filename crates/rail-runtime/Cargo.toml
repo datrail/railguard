@@ -28,6 +28,8 @@ percent-encoding = "2"
 rail-model = { path = "../rail-model" }
 # No system proxy, no platform verifier, no decoding: the roots are compiled in, the provider is
 # ours, and gzip is decoded here, capped.
+# The random bytes of a document's id, from the provider rustls already uses.
+ring = "0.17"
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
 # CLOCK_BOOTTIME without unsafe code.
 rustix = { version = "1", default-features = false, features = ["time"] }
@@ -36,8 +38,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
 time = { version = "0.3", default-features = false, features = ["macros", "parsing", "std"] }
-# `net` gives the Rail Center thread's runtime its IO driver, and `sync` its stop signal.
-tokio = { version = "1", features = ["net", "rt", "sync", "time"] }
+# `net` gives the Rail Center thread's runtime its IO driver, `sync` its stop signal, and `macros` the
+# reporter its `select!`.
+tokio = { version = "1", features = ["macros", "net", "rt", "sync", "time"] }
 tracing = "0.1"
 # `tracing-log`: reqwest and rustls log through `log`, so `init` bridges it.
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "tracing-log"] }
