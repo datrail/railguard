@@ -5,14 +5,14 @@
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, UNIX_EPOCH};
 
-use rail_runtime::{Clock, FetchError, Jitter, KeySetHolder};
+use rail_runtime::{Clock, Jitter, KeySetHolder};
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 use tokio::runtime::Handle;
 use tokio::time::Instant;
 
 use crate::holder::TestClock;
-pub use crate::scripted::{Answer, Script, answer};
+pub use crate::scripted::{Answer, Script, answer, failed};
 
 // The JWT vectors' key.
 const X: &str = "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg";
@@ -30,10 +30,6 @@ pub fn key_set(kids: &[&str]) -> Value {
 
 pub fn ok(kids: &[&str]) -> Answer {
     answer(StatusCode::OK, key_set(kids).to_string().as_bytes())
-}
-
-pub fn failed() -> Answer {
-    Err(FetchError::Deadline(Duration::from_secs(10)))
 }
 
 // Both readings move with tokio's paused time, and `skip` moves them alone, as a suspended host.

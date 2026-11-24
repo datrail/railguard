@@ -14,8 +14,9 @@ use tokio::time::timeout;
 
 use crate::rail_center::{AUTH_MODE, AUTH_TOKEN, CenterUrl, RailCenterSettings};
 
-// An error answer's body, read only so its connection can be kept.
+// An error answer's body, read only so its connection can be kept, for no longer than this.
 const MAX_DRAINED_BYTES: usize = 8 * 1024;
+const DRAIN_TIMEOUT: Duration = Duration::from_secs(1);
 
 /// What one caller allows a fetch.
 #[derive(Clone, Copy, Debug)]
@@ -25,7 +26,8 @@ pub struct Limits {
     /// How long Rail Center may send nothing, for the response and then for each chunk of its
     /// body: one gone quiet is given up on before the deadline.
     pub silence: Duration,
-    /// The largest body read, counted as sent and again after decoding, each against it.
+    /// The largest success's body read, counted as sent and again after decoding, each against
+    /// it; an error's is read to 8 KiB and dropped.
     pub max_bytes: usize,
 }
 
@@ -134,12 +136,24 @@ impl RailCenterClient {
     }
 
     async fn fetch(&self, request: RequestBuilder, limits: Limits) -> Result<Response, FetchError> {
-        timeout(limits.deadline, self.read(request, limits))
+        let read = timeout(limits.deadline, self.read(request, limits))
             .await
-            .unwrap_or(Err(FetchError::Deadline(limits.deadline)))
+            .unwrap_or(Err(FetchError::Deadline(limits.deadline)))?;
+        match read {
+            Read::Success(response) => Ok(response),
+            // Past the deadline, under a cap of its own: a page that stalls can't hide the status.
+            Read::Error(mut response) => {
+                let status = response.status();
+                let _ = timeout(DRAIN_TIMEOUT, drain(&mut response)).await;
+                Ok(Response {
+                    status,
+                    body: Vec::new(),
+                })
+            }
+        }
     }
 
-    async fn read(&self, request: RequestBuilder, limits: Limits) -> Result<Response, FetchError> {
+    async fn read(&self, request: RequestBuilder, limits: Limits) -> Result<Read, FetchError> {
         let mut response = timeout(limits.silence, request.send())
             .await
             .map_err(|_| FetchError::Silent(limits.silence))?
@@ -147,11 +161,7 @@ impl RailCenterClient {
         let status = response.status();
         // Never kept: an error page too large or badly encoded still tells its status.
         if !status.is_success() {
-            drain(&mut response, limits.silence).await;
-            return Ok(Response {
-                status,
-                body: Vec::new(),
-            });
+            return Ok(Read::Error(response));
         }
         if response
             .content_length()
@@ -188,7 +198,7 @@ impl RailCenterClient {
                 .map_err(|error| read_error(error, limits))?;
         }
         let body = body.finish().map_err(|error| read_error(error, limits))?;
-        Ok(Response { status, body })
+        Ok(Read::Success(Response { status, body }))
     }
 }
 
@@ -249,12 +259,18 @@ pub(crate) fn read_status(
     Err(Unread { reason, transient })
 }
 
+// What came before the deadline: a success's body read, or an error answer whose isn't.
+enum Read {
+    Success(Response),
+    Error(reqwest::Response),
+}
+
 // Read and dropped, so the connection carries the next call; a page past 8 KiB isn't worth it.
-async fn drain(response: &mut reqwest::Response, silence: Duration) {
+async fn drain(response: &mut reqwest::Response) {
     let mut drained = 0;
     while drained <= MAX_DRAINED_BYTES {
-        match timeout(silence, response.chunk()).await {
-            Ok(Ok(Some(chunk))) => drained += chunk.len(),
+        match response.chunk().await {
+            Ok(Some(chunk)) => drained += chunk.len(),
             _ => return,
         }
     }

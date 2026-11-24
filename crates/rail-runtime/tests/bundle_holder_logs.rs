@@ -205,7 +205,7 @@ async fn each_failure_is_logged_for_whom_it_blames_and_what_is_held() {
             "WARN",
             5,
             vec![
-                r#"reason="the fetch ran past its 30s deadline""#,
+                r#"reason="the fetch ran past its 10s deadline""#,
                 r#"content_hash="v-held""#,
             ],
         ),

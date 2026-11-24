@@ -3,9 +3,8 @@ use std::time::Duration;
 use rail_runtime::{Jitter, Unavailable};
 use tokio::time::sleep;
 
-use crate::holder::{
-    HOUR, Script, TestClock, failed, no_ticket, start, start_jittered, ticket, token, until,
-};
+use crate::holder::{HOUR, TestClock, until};
+use crate::tickets::{Script, failed, no_ticket, start, start_jittered, ticket, token};
 
 #[tokio::test(start_paused = true)]
 async fn a_fetched_ticket_is_presented_from_the_first_fetch() {
@@ -272,7 +271,8 @@ async fn a_lapsed_answer_never_replaces_a_ticket_still_valid_and_backs_off() {
     until(&clock, 60).await;
 
     assert_eq!(token(&holder), Err(Unavailable::Expired));
-    // Lapsed answers kept out until 40, each backed off, as in the test above.
+    // Lapsed answers kept out until 40, each backed off, as in
+    // `failures_while_a_ticket_holds_back_off_within_half_its_remaining_life`.
     assert_eq!(script.fetched_at(), [0, 20, 25, 32, 37, 42]);
 }
 

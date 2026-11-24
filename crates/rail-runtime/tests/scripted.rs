@@ -24,7 +24,7 @@ pub struct Script {
     pub takes: Duration,
     pub fetched_at: Arc<Mutex<Vec<u64>>>,
     pub started: Instant,
-    // The agent a ticket must name.
+    // The agent a ticket must name; public, as struct update needs every field.
     pub agent: AgentId,
 }
 
@@ -38,10 +38,7 @@ impl Script {
             takes: Duration::ZERO,
             fetched_at: Arc::default(),
             started: clock.started,
-            agent: AgentId {
-                host_id: "host-1".to_owned(),
-                sandbox_name: "sandbox a".to_owned(),
-            },
+            agent: agent(),
         }
     }
 
@@ -92,9 +89,21 @@ impl TicketSource for Script {
     }
 }
 
-pub fn answer(status: StatusCode, body: &[u8]) -> Answer {
+// The agent a ticket must name.
+pub fn agent() -> AgentId {
+    AgentId {
+        host_id: "host-1".to_owned(),
+        sandbox_name: "sandbox a".to_owned(),
+    }
+}
+
+pub fn answer(status: StatusCode, body: impl AsRef<[u8]>) -> Answer {
     Ok(Response {
         status,
-        body: body.to_vec(),
+        body: body.as_ref().to_vec(),
     })
+}
+
+pub fn failed() -> Answer {
+    Err(FetchError::Deadline(Duration::from_secs(10)))
 }

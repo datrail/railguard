@@ -7,7 +7,7 @@ use rail_runtime::{
 use reqwest::StatusCode;
 
 use crate::common::{Reply, client, response, serve};
-use crate::holder::{envelope, one, raw, read_at};
+use crate::tickets::{answer, envelope, one, read_at};
 
 // 2026-07-28T10:15:00Z
 const EXPIRES_AT: u64 = 1_785_233_700;
@@ -29,7 +29,7 @@ fn at(seconds: u64) -> SystemTime {
 
 // What a 200 carrying `body`, fetched at `sent_at`, leaves held.
 async fn held_at(body: String, sent_at: SystemTime) -> Result<OpaqueTicket, Unavailable> {
-    let holder = read_at(move || raw(StatusCode::OK, &body), sent_at).await;
+    let holder = read_at(move || answer(StatusCode::OK, &body), sent_at).await;
     holder.current().map(|ticket| (*ticket).clone())
 }
 
@@ -55,7 +55,7 @@ async fn the_single_entry_is_read_and_its_expiry_parsed() {
 async fn only_200_is_read() {
     // A success too, if not a 200; a 404 and a 401: `ticket_holder_logs`.
     let body = envelope("host-1", &[]);
-    let holder = read_at(move || raw(StatusCode::NO_CONTENT, &body), at(SENT_AT)).await;
+    let holder = read_at(move || answer(StatusCode::NO_CONTENT, &body), at(SENT_AT)).await;
 
     assert!(matches!(
         holder.current(),
@@ -67,12 +67,10 @@ async fn only_200_is_read() {
 // `ticket_holder_logs`'.
 #[tokio::test(start_paused = true)]
 async fn a_ticket_off_the_contract_is_refused() {
-    // An empty token, and stamps not of Rail Center's form, beside the logs' rows; a date the
-    // calendar refuses is `time`'s to refuse.
+    // Beside the logs' rows: an empty token, which only its own check refuses, and a month not of
+    // Rail Center's two digits; a date the calendar refuses is `time`'s to refuse.
     let refused = [
-        "not json".to_owned(),
         one("", "2026-07-28T10:15:00Z"),
-        one("a.b.c", "2026-07-28T10:15:00+00:00"),
         one("a.b.c", "2026-7-28T10:15:00Z"),
     ];
 

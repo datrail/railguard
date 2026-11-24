@@ -26,7 +26,7 @@ const MAX_BACKOFF: Duration = Duration::from_secs(320);
 // A day: a ticket lives no longer, and a bundle polled less often is surely a mistake.
 const MAX_REFRESH_INTERVAL: Duration = Duration::from_secs(86_400);
 
-// 5 s doubled 15 times is past a day, more than any maximum delay, and the power can't overflow.
+// 5 s doubled 15 times is far past the 320 s cap, and the power can't overflow.
 const MAX_DOUBLINGS: u32 = 15;
 
 const MIN_JITTER: f64 = 0.8;
@@ -68,7 +68,7 @@ pub(crate) struct Step<T, O> {
     pub(crate) outcome: O,
 }
 
-/// What an attempt was, for the schedule.
+/// What an attempt was, for the wait before the next.
 #[derive(PartialEq)]
 pub(crate) enum Attempt {
     Succeeded,

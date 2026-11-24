@@ -4,12 +4,12 @@
 
 use std::time::Duration;
 
-use rail_runtime::{BundleHolder, FetchError, Jitter};
+use rail_runtime::{BundleHolder, Jitter};
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 use tokio::runtime::Handle;
 
-pub use crate::scripted::{Answer, Script, answer};
+pub use crate::scripted::{Answer, Script, answer, failed};
 
 pub const ONE: &str = "5c8f1e42-0000-4000-8000-0000000000a1";
 pub const TWO: &str = "5c8f1e42-0000-4000-8000-0000000000a2";
@@ -69,10 +69,6 @@ pub fn denying_unticketed(with: Value) -> Value {
 
 pub fn ok(body: &Value) -> Answer {
     answer(StatusCode::OK, body.to_string().as_bytes())
-}
-
-pub fn failed() -> Answer {
-    Err(FetchError::Deadline(Duration::from_secs(30)))
 }
 
 // With no jitter, so the times the fetches come are exact.

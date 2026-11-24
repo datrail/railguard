@@ -389,7 +389,7 @@ async fn a_connection_is_reused_only_within_the_idle_timeout() {
 }
 
 // The denial reporter posts on, an outage or not: an error's connection is kept for the next.
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn an_error_answer_leaves_its_connection_for_the_next_call() {
     // The first connection answers 503 to all, its page coming after its head; any other 200.
     let server = serve(|connection| match connection {
@@ -407,6 +407,28 @@ async fn an_error_answer_leaves_its_connection_for_the_next_call() {
         let fetched = client.get("/v1/x", &[], LIMITS).await.unwrap();
         assert_eq!(fetched.status, 503);
     }
+}
+
+// On paused time the drain's cap fires first: a page that stalls past the deadline keeps its status.
+#[tokio::test(start_paused = true)]
+async fn an_error_answer_whose_page_stalls_still_tells_its_status() {
+    let server = serve(|_| {
+        Reply::Dribble(
+            b"HTTP/1.1 401 Unauthorized\r\ncontent-length: 1000\r\n\r\n".to_vec(),
+            Duration::from_secs(3600),
+        )
+    })
+    .await;
+
+    // A deadline shorter than the silence, so only the drain's own cap ends the wait in time.
+    let limits = Limits {
+        deadline: Duration::from_secs(3),
+        ..LIMITS
+    };
+
+    let fetched = client(&server.url).get("/v1/x", &[], limits).await.unwrap();
+
+    assert_eq!(fetched.status, 401);
 }
 
 #[tokio::test]

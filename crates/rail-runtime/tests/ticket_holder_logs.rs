@@ -7,11 +7,12 @@ use reqwest::StatusCode;
 use tokio::runtime::Handle;
 
 use crate::common::{Reply, client, response, serve};
-use crate::holder::{
-    HOUR, Script, TestClock, entry, envelope, failed, no_ticket, one, raw, read_at, start,
-    start_jittered, ticket, token, until,
+use crate::holder::{HOUR, TestClock, until};
+use crate::logs::{Logs, lines_with};
+use crate::tickets::{
+    Script, answer, entry, envelope, failed, no_ticket, one, read_at, start, start_jittered,
+    ticket, token,
 };
-use crate::logs::Logs;
 
 #[tokio::test(start_paused = true)]
 async fn a_panicking_fetch_is_a_failed_attempt_logged_without_its_message() {
@@ -229,7 +230,7 @@ async fn a_refused_ticket_is_logged_with_why() {
         let logs = Logs::default();
         let _logging = logs.capture();
 
-        let holder = read_at(move || raw(status, &body), sent_at).await;
+        let holder = read_at(move || answer(status, &body), sent_at).await;
 
         assert!(matches!(
             holder.current(),
@@ -254,6 +255,7 @@ async fn the_retry_is_said_rounded_to_the_second() {
     until(&clock, 0).await;
 
     let logs = logs.text();
-    assert!(logs.contains("ticket fetch failed; none is held"), "{logs}");
-    assert!(logs.contains(" retry=6"), "{logs}");
+    let line = lines_with(&logs, "ticket fetch failed; none is held");
+    assert_eq!(line.len(), 1, "{logs}");
+    assert!(line[0].ends_with(" retry=6"), "{logs}");
 }

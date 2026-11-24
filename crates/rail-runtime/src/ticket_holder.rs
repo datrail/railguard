@@ -22,7 +22,7 @@ pub type WallClock = Arc<dyn Fn() -> SystemTime + Send + Sync>;
 // What the answers so far leave to present.
 #[derive(Default)]
 enum Held {
-    // No answer yet, or the last one brought nothing usable, with no ticket held.
+    // No answer yet, or the last a failure or a refusal other than "none", with no ticket held.
     #[default]
     Unreached,
     // Set only by Rail Center answering "none", never by a failed fetch.
@@ -46,8 +46,9 @@ pub struct TicketHolder {
 }
 
 impl TicketHolder {
-    /// Starts fetching at once, on `runtime`; `refresh_interval`, jittered, caps the wait on a valid
-    /// ticket, and `jitter` scales every wait.
+    /// Starts fetching at once, on `runtime`, and again every `refresh_interval`, or at half the
+    /// ticket's remaining life if sooner; anything but a valid ticket backs off from 5 s up to 320 s
+    /// or the interval. `jitter` scales every wait.
     pub fn start(
         runtime: &Handle,
         source: impl TicketSource,
