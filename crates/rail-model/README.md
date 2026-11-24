@@ -2,8 +2,9 @@
 
 DatRail's rules language. Rail Center publishes the rules as a policy bundle: which calls to which MCP tools are
 allowed, judged on what an agent's ticket says about it. This crate reads bundles, tickets and capture plans, compiles a
-plan and matches calls against it, reads which endpoint and host a call names, judges the call against the rules, and
-reads a call's request line, redacted, for capture. See the [main README](../../README.md) for the system around it.
+plan and matches calls against it, counts them in windows closed into call record documents, reads which endpoint and
+host a call names, judges the call against the rules, and reads a call's request line, redacted, for capture. See the
+[main README](../../README.md) for the system around it.
 
 It's one crate, used everywhere a rule is read, so a rule means the same thing where it's written and where it's
 enforced. The conformance cases in [`vectors/`](../../vectors) define its behaviour.
@@ -54,8 +55,16 @@ By module:
   it, its path can't match one, or its walk stopped at an entry refused, one whose conditions read a body value that
   can't be told or a body unread, or one that spent the step budget); and what that record, the entry's or the
   catch-all's, reads of the call (**`RecordReading`**, each key and measure the plan lists, each path's finding kept
-  apart: a value, nothing, one that can't be told, a body unread, the step budget spent).
+  apart: a value, nothing, one that can't be told, a body unread, the step budget spent). A **`Window`** counts the
+  calls captured between two times: grouped into call records by their record and its context keys' values, up to the
+  plan's group ceiling (past it, an entry's new group in the catch-all, a catch-all's in its `[overflow]` record), with
+  each host's total and the calls' order, up to the plan's `max_steps_per_window`. **`close`** gives a
+  **`ClosedWindow`**, which the sender makes the call record **`Document`**, given its id, when it was built and the
+  windows dropped before it; **`Document::not_capturing`** writes a window that captured nothing, and why
+  (**`NotCapturing`**).
 - **`schema_version`:** **`SchemaVersion`**, a document's `MAJOR.MINOR`, a bundle's or a plan's.
+- **`timestamp`:** **`Timestamp`**, a moment as Rail Center's documents write one: RFC 3339 in UTC, `Z`, to the
+  nanosecond the clock gives.
 - **`request_line`:** **`RequestLine::read`** reads a call's `:authority`, `:method` and `:path` once, as conditions
   read them under `request`: the host as `split_authority` spells it, or `[unparseable]`; the path up to its query or
   fragment (`/` for a `CONNECT`), as received and redacted, its segments, and its query, read as a form's. It also tells

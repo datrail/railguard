@@ -218,17 +218,17 @@
     },
     {
       "name": "max_groups_per_window 0",
-      "patch": [{"op": "replace", "path": "/budget/max_groups_per_window", "value": 0}, {"op": "remove", "path": "/budget/max_steps_per_window"}],
+      "patch": [{"op": "replace", "path": "/budget/max_groups_per_window", "value": 0}, {"op": "replace", "path": "/budget/max_steps_per_window", "value": 0}],
       "expect": {"valid": false}
     },
     {
       "name": "max_groups_per_window 100000",
-      "patch": [{"op": "replace", "path": "/budget/max_groups_per_window", "value": 100000}, {"op": "remove", "path": "/budget/max_steps_per_window"}],
+      "patch": [{"op": "replace", "path": "/budget/max_groups_per_window", "value": 100000}, {"op": "replace", "path": "/budget/max_steps_per_window", "value": 0}],
       "expect": {"valid": true}
     },
     {
       "name": "max_groups_per_window 100001",
-      "patch": [{"op": "replace", "path": "/budget/max_groups_per_window", "value": 100001}, {"op": "remove", "path": "/budget/max_steps_per_window"}],
+      "patch": [{"op": "replace", "path": "/budget/max_groups_per_window", "value": 100001}, {"op": "replace", "path": "/budget/max_steps_per_window", "value": 0}],
       "expect": {"valid": false}
     },
     {
@@ -252,14 +252,19 @@
       "expect": {"valid": false}
     },
     {
-      "name": "no max_steps_per_window",
-      "patch": [{"op": "remove", "path": "/budget/max_steps_per_window"}],
+      "name": "max_steps_per_window 0, no steps",
+      "patch": [{"op": "replace", "path": "/budget/max_steps_per_window", "value": 0}],
       "expect": {"valid": true}
     },
     {
-      "name": "max_steps_per_window null, absent",
+      "name": "no max_steps_per_window",
+      "patch": [{"op": "remove", "path": "/budget/max_steps_per_window"}],
+      "expect": {"valid": false}
+    },
+    {
+      "name": "max_steps_per_window null",
       "patch": [{"op": "replace", "path": "/budget/max_steps_per_window", "value": null}],
-      "expect": {"valid": true}
+      "expect": {"valid": false}
     },
     {
       "name": "endpoint_id null, absent",
@@ -452,9 +457,19 @@
       "expect": {"valid": false}
     },
     {
-      "name": "a field_type that isn't a string, read past",
+      "name": "a field_type that isn't a string",
       "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/field_type", "value": 0}],
-      "expect": {"valid": true}
+      "expect": {"valid": false}
+    },
+    {
+      "name": "a field_type that isn't a name",
+      "patch": [{"op": "replace", "path": "/entries/0/record/context_keys/0/field_type", "value": "Repository"}],
+      "expect": {"valid": false}
+    },
+    {
+      "name": "a named key with no field_type",
+      "patch": [{"op": "remove", "path": "/entries/0/record/context_keys/0/field_type"}],
+      "expect": {"valid": false}
     },
     {
       "name": "a context key with no path",

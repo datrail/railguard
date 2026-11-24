@@ -43,8 +43,7 @@ pub struct Plan {
 #[derive(Debug, Deserialize)]
 pub struct PlanBudget {
     pub max_groups_per_window: u32,
-    /// Present: the order of calls is recorded too, up to this many steps.
-    pub max_steps_per_window: Option<u32>,
+    pub max_steps_per_window: u32,
     pub on_max_groups: OnMaxGroups,
     pub max_unsent_windows: u32,
 }
@@ -96,7 +95,8 @@ pub enum ContextKey {
     Named {
         name: String,
         path: Path,
-        // `field_type` goes here: what the value is, read past until a record carries it.
+        /// What the value is, copied into its entry's records' `field_types`, never interpreted.
+        field_type: String,
     },
 }
 
@@ -132,7 +132,7 @@ pub enum Function {
 }
 
 impl ContextKey {
-    fn name(&self) -> &str {
+    pub(crate) fn name(&self) -> &str {
         match self {
             Self::Method => "method",
             Self::Host => "host",
@@ -144,7 +144,7 @@ impl ContextKey {
 }
 
 impl Measure {
-    fn name(&self) -> &str {
+    pub(crate) fn name(&self) -> &str {
         match self {
             Self::CallCount => "call_count",
             Self::ErrorCount => "error_count",
@@ -208,11 +208,11 @@ fn check_budget(budget: &PlanBudget) -> Result<(), String> {
             "max_groups_per_window is outside 1 to {MAX_GROUPS_PER_WINDOW}"
         ));
     }
-    if let Some(steps) = budget.max_steps_per_window
-        && !(groups..=MAX_STEPS_PER_WINDOW).contains(&steps)
-    {
+    // Fewer steps than groups would always bind first; none is asking for no order.
+    let steps = budget.max_steps_per_window;
+    if steps != 0 && !(groups..=MAX_STEPS_PER_WINDOW).contains(&steps) {
         return Err(format!(
-            "max_steps_per_window is outside max_groups_per_window to {MAX_STEPS_PER_WINDOW}"
+            "max_steps_per_window is neither 0 nor max_groups_per_window to {MAX_STEPS_PER_WINDOW}"
         ));
     }
     if budget.max_unsent_windows > MAX_UNSENT_WINDOWS {
@@ -297,6 +297,7 @@ fn unique<'a>(what: &str, names: impl Iterator<Item = &'a str>) -> Result<(), St
 struct Fields {
     name: Option<Value>,
     path: Option<Value>,
+    field_type: Option<Value>,
     segments: Option<Value>,
     #[serde(rename = "type")]
     combine: Option<Value>,
@@ -327,9 +328,14 @@ impl TryFrom<Fields> for ContextKey {
             }
             _ => {
                 let path = present(fields.path, "path", &at)?;
+                let field_type = match present(fields.field_type, "field_type", &at)? {
+                    Value::String(field_type) if is_name(&field_type) => field_type,
+                    _ => return Err(format!("{at}: its field_type isn't a name")),
+                };
                 Self::Named {
                     path: read_record_path(&path).map_err(|why| format!("{at}: {why}"))?,
                     name,
+                    field_type,
                 }
             }
         })

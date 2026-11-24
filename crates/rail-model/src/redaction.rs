@@ -5,8 +5,8 @@
 /// The version of the rule this port implements; a plan names the one it was written with.
 pub const REDACTION_VERSION: u64 = 1;
 
-// What a segment that could be a key reads as.
-const REDACTED: &str = "[redacted]";
+// What a segment that could be a key reads as, and a value that isn't kept.
+pub(crate) const REDACTED: &str = "[redacted]";
 
 // A path after the rule: empty segments dropped, each other redacted, joined with a leading `/`,
 // and `/` for none.

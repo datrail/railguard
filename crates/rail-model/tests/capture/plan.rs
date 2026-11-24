@@ -109,7 +109,7 @@ fn test_reads_the_worked_example_as_written() {
     assert_eq!(plan.redaction_version, 1);
     assert_eq!(plan.window_seconds, 900);
     assert_eq!(plan.budget.max_groups_per_window, 1000);
-    assert_eq!(plan.budget.max_steps_per_window, Some(10000));
+    assert_eq!(plan.budget.max_steps_per_window, 10000);
     assert_eq!(plan.budget.on_max_groups, OnMaxGroups::CoarsenToCatchAll);
     assert_eq!(plan.budget.max_unsent_windows, 8);
     let [entry] = plan.entries.as_slice() else {
@@ -122,6 +122,7 @@ fn test_reads_the_worked_example_as_written() {
         [ContextKey::Named {
             name: "destination".into(),
             path: body(&["params", "arguments", "repo"]),
+            field_type: "repository".into(),
         }]
     );
     assert_eq!(

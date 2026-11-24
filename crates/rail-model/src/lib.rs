@@ -1,5 +1,5 @@
-//! The rules language, the judge, the capture plan, and reading what a call names: its endpoint,
-//! its host and its request line.
+//! The rules language, the judge, the capture plan and the call record documents it yields, and
+//! reading what a call names: its endpoint, its host and its request line.
 
 pub mod agent;
 pub mod authority;
@@ -12,3 +12,4 @@ pub mod redaction;
 pub mod request_line;
 pub mod sanitize;
 pub mod schema_version;
+pub mod timestamp;
