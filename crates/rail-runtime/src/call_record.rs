@@ -16,8 +16,7 @@ use uuid::Uuid;
 
 use crate::client::{FetchError, RailCenterClient, answered};
 use crate::clock::WallClock;
-use crate::holder::backoff;
-use crate::retry::{Jitter, round_to_seconds};
+use crate::retry::{Backoff, Jitter, round_to_seconds};
 
 const ROUTE: &str = "/v1/call-records";
 
@@ -129,13 +128,11 @@ struct Flush {
 // The task's state: it owns the queue, so nothing locks it.
 struct Reporter {
     now: WallClock,
-    jitter: Jitter,
+    backoff: Backoff,
     random: SystemRandom,
     queue: VecDeque<Queued>,
     // Drops not yet written into a document.
     windows_dropped: u64,
-    // Failed attempts since the last document taken.
-    failures: u32,
     next_attempt: Instant,
     // Whether the attempt after the one in flight skips the backoff.
     send_now: bool,
@@ -153,11 +150,10 @@ async fn run(
 ) {
     let mut reporter = Reporter {
         now,
-        jitter,
+        backoff: Backoff::new(jitter),
         random: SystemRandom::new(),
         queue: VecDeque::new(),
         windows_dropped: 0,
-        failures: 0,
         next_attempt: Instant::now(),
         send_now: false,
         flush: None,
@@ -318,12 +314,9 @@ impl Reporter {
         let hurry = mem::take(&mut self.send_now);
         let dropped = match delivery {
             Delivery::Failed(reason) if self.flush.is_none() => {
-                self.failures += 1;
-                let wait = if hurry {
-                    Duration::ZERO
-                } else {
-                    backoff(self.failures).mul_f64(self.jitter.factor())
-                };
+                // A failure counts even when hurried: only a document taken ends the run.
+                let wait = self.backoff.failed(None);
+                let wait = if hurry { Duration::ZERO } else { wait };
                 self.next_attempt = Instant::now() + wait;
                 tracing::warn!(
                     reason,
@@ -335,7 +328,7 @@ impl Reporter {
                 return;
             }
             Delivery::Taken => {
-                self.failures = 0;
+                self.backoff.reset();
                 tracing::debug!(document_id, "call records sent");
                 None
             }
