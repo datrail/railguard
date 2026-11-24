@@ -31,7 +31,7 @@ pub use callout::{HostLimit, read_callout_port, read_max_body_bytes, read_max_me
 pub use capture_plan::{CapturePlanSource, RailCenterCapturePlans, read_capture_plan_refresh};
 pub use capture_plan_holder::CapturePlanHolder;
 pub use client::{FetchError, Limits, RailCenterClient, Response};
-pub use clock::{Clock, Stamp};
+pub use clock::{Clock, Stamp, WallClock};
 pub use config::{
     ConfigErrors, EXIT_CODE, Entry, Level, Refused, Secret, Settings, Source, Startup, Variables,
 };
@@ -50,7 +50,7 @@ pub use rail_center_thread::RailCenterThread;
 pub use ticket::{
     OpaqueTicket, RailCenterTickets, TicketSettings, TicketSource, read_ticket_settings,
 };
-pub use ticket_holder::{TicketHolder, WallClock};
+pub use ticket_holder::TicketHolder;
 pub use xrail::{
     Route, Unavailable, XRAIL, XRailHeader, XRailHeaders, is_withheld_header, withheld_headers,
 };

@@ -15,8 +15,8 @@ use tokio::time::{Instant, sleep_until};
 use uuid::Uuid;
 
 use crate::client::{FetchError, RailCenterClient, answered};
+use crate::clock::WallClock;
 use crate::holder::{Jitter, backoff, round_to_seconds};
-use crate::ticket_holder::WallClock;
 
 const ROUTE: &str = "/v1/call-records";
 
