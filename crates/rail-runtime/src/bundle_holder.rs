@@ -123,9 +123,8 @@ impl<S: BundleSource> Kind for Bundles<S> {
     type Outcome = Outcome;
 
     const WHAT: &'static str = "policy bundle";
-    const EXPIRES: bool = false;
-
-    fn holds_nothing(&self, held: &Held) -> bool {
+    // It doesn't lapse, so only with none held, at start, is one sought sooner.
+    fn refusal_backs_off(&self, held: &Held) -> bool {
         held.is_none()
     }
 

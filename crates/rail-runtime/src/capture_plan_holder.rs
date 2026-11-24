@@ -84,9 +84,8 @@ impl<S: CapturePlanSource> Kind for CapturePlans<S> {
     type Outcome = Outcome;
 
     const WHAT: &'static str = "capture plan";
-    const EXPIRES: bool = false;
-
-    fn holds_nothing(&self, held: &Held) -> bool {
+    // It doesn't lapse, so only with none held is one sought sooner: at start, or after a 204.
+    fn refusal_backs_off(&self, held: &Held) -> bool {
         held.is_none()
     }
 

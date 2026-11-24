@@ -13,7 +13,8 @@ use crate::scripted::Answering;
 
 const LIMIT: Duration = Duration::from_secs(2);
 
-// Asked again 5 s after an answer that may pass, the period after one Rail Center would repeat.
+// Asked again 5 s after an answer that may pass, the period after one Rail Center would repeat
+// while a bundle is held.
 const SOONER: u64 = 5;
 const PERIOD: u64 = 60;
 
@@ -87,6 +88,8 @@ async fn with_none_held_a_refusal_backs_off_as_a_failure_does() {
     });
 
     let holder = start(&script, MINUTE);
+    until(&clock, 0).await;
+    assert_eq!(held_hash(&holder), None);
     until(&clock, 15).await;
 
     assert_eq!(script.fetched_at(), [0, 5, 15]);

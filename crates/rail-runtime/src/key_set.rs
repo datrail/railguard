@@ -123,7 +123,11 @@ impl<S: KeySource> Kind for Keys<S> {
     type Outcome = Outcome;
 
     const WHAT: &'static str = "signing key set";
-    const EXPIRES: bool = true;
+
+    // What's held lapses, so it's replaced as soon as Rail Center can.
+    fn refusal_backs_off(&self, _held: &Self::Held) -> bool {
+        true
+    }
 
     fn fetch(&self) -> impl Future<Output = Self::Answer> + Send {
         self.source.fetch()
