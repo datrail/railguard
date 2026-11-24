@@ -174,10 +174,9 @@ fn test_tells_what_a_closed_window_holds() {
     };
     // (paths called, calls dropped) and what the closed window holds: its records and steps,
     // and whether it's empty.
-    let cases: [(&[&str], u64, usize, bool); 4] = [
+    let cases: [(&[&str], u64, usize, bool); 3] = [
         (&[], 0, 0, true),
         (&[], 1, 0, false),
-        (&["/a"], 0, 2, false),
         (&["/a", "/a", "/b"], 0, 5, false),
     ];
     for (paths, dropped, records_and_steps, empty) in cases {

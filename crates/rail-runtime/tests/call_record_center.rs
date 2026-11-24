@@ -3,33 +3,26 @@
 #![allow(dead_code)]
 
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 use rail_model::body::{BodyRead, Unread};
 use rail_model::capture::{ClosedWindow, ObservedCall, Window, compile_plan, parse_plan};
-use rail_runtime::{CallRecordReporter, CallRecordSink, FetchError, Jitter, Response};
+use rail_runtime::{CallRecordReporter, CallRecordSink, FetchError, Jitter};
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 use tokio::runtime::Handle;
 use tokio::sync::Semaphore;
-use tokio::time::Instant;
 
 use crate::capture_plans::{hash, plan};
 use crate::holder::TestClock;
-use crate::scripted::{Answer, answer};
+use crate::scripted::{Answer, Script, answer};
 
-// When a send started, in whole seconds from the start, and what it sent.
-type Sent = (u64, Vec<u8>);
-
-// Rail Center as a test scripts it: answers send n with `answers(n)`, `takes` after it starts and
-// once `release` lets it, recording when each started and what it sent.
+// Rail Center as a test scripts it: answers send n with its script's nth answer, once `release`
+// lets it, keeping what each sent.
 #[derive(Clone)]
 pub struct Center {
-    pub answers: Arc<dyn Fn(usize) -> Answer + Send + Sync>,
-    pub takes: Duration,
+    pub script: Script,
     pub release: Arc<Semaphore>,
-    pub sent: Arc<Mutex<Vec<Sent>>>,
-    pub started: Instant,
+    pub bodies: Arc<Mutex<Vec<Vec<u8>>>>,
 }
 
 impl Center {
@@ -38,11 +31,9 @@ impl Center {
         answers: impl Fn(usize) -> Answer + Send + Sync + 'static,
     ) -> Self {
         Self {
-            answers: Arc::new(answers),
-            takes: Duration::ZERO,
+            script: Script::new(clock, answers),
             release: Arc::new(Semaphore::new(Semaphore::MAX_PERMITS)),
-            sent: Arc::default(),
-            started: clock.started,
+            bodies: Arc::default(),
         }
     }
 
@@ -69,21 +60,11 @@ impl Center {
 
     // When each send started, in whole seconds from the start.
     pub fn sent_at(&self) -> Vec<u64> {
-        self.sent
-            .lock()
-            .unwrap()
-            .iter()
-            .map(|(at, _)| *at)
-            .collect()
+        self.script.fetched_at()
     }
 
     pub fn bodies(&self) -> Vec<Vec<u8>> {
-        self.sent
-            .lock()
-            .unwrap()
-            .iter()
-            .map(|(_, body)| body.clone())
-            .collect()
+        self.bodies.lock().unwrap().clone()
     }
 
     pub fn documents(&self) -> Vec<Value> {
@@ -95,15 +76,11 @@ impl Center {
 }
 
 impl CallRecordSink for Center {
-    async fn send(&self, body: Vec<u8>) -> Result<Response, FetchError> {
-        let sends = {
-            let mut sent = self.sent.lock().unwrap();
-            sent.push((self.started.elapsed().as_secs(), body));
-            sent.len()
-        };
-        tokio::time::sleep(self.takes).await;
+    async fn send(&self, body: Vec<u8>) -> Result<StatusCode, FetchError> {
+        self.bodies.lock().unwrap().push(body);
+        let answer = self.script.answer().await;
         self.release.acquire().await.unwrap().forget();
-        (self.answers)(sends - 1)
+        answer.map(|response| response.status)
     }
 }
 

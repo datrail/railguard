@@ -15,7 +15,7 @@ use tokio::time::timeout;
 
 use crate::rail_center::{AUTH_MODE, AUTH_TOKEN, CenterUrl, RailCenterSettings};
 
-// An error answer's body, read only so its connection can be kept, for no longer than this.
+// An answer's body not read, drained only so its connection can be kept, for no longer than this.
 const MAX_DRAINED_BYTES: usize = 8 * 1024;
 const DRAIN_TIMEOUT: Duration = Duration::from_secs(1);
 
@@ -134,6 +134,33 @@ impl RailCenterClient {
             .header(CONTENT_TYPE, "application/json")
             .body(body);
         self.fetch(request, limits).await
+    }
+
+    /// `POST` `body`, JSON, to `route`, in one attempt, its answer read for its status alone: the
+    /// body is drained as an error's is, so a success's can't fail it.
+    pub async fn post_for_status(
+        &self,
+        route: &str,
+        body: Vec<u8>,
+        deadline: Duration,
+        silence: Duration,
+    ) -> Result<StatusCode, FetchError> {
+        let url = self.url.endpoint(route, &[]);
+        let request = self
+            .http
+            .post(url)
+            .header(CONTENT_TYPE, "application/json")
+            .body(body);
+        let mut response = timeout(deadline, async {
+            timeout(silence, request.send())
+                .await
+                .map_err(|_| FetchError::Silent(silence))?
+                .map_err(|error| FetchError::Transport(describe(error)))
+        })
+        .await
+        .unwrap_or(Err(FetchError::Deadline(deadline)))?;
+        let _ = timeout(DRAIN_TIMEOUT, drain(&mut response)).await;
+        Ok(response.status())
     }
 
     async fn fetch(&self, request: RequestBuilder, limits: Limits) -> Result<Response, FetchError> {

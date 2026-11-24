@@ -65,7 +65,6 @@ pub(crate) struct Captured {
     pub(crate) agent: AgentId,
     pub(crate) plan_version: u64,
     pub(crate) plan_hash: String,
-    pub(crate) max_unsent_windows: u32,
     pub(crate) start: SystemTime,
     pub(crate) end: SystemTime,
     pub(crate) truncated: Truncated,

@@ -18,8 +18,9 @@ behave the same. See the [main README](../../README.md) for the system around it
   or refuse it as one the rules can't apply to (503). `DenialReporter` reports each denial without the call waiting.
 - **The proxy:** `XRailHeaders` are the proxy's changes to a request, for a protected host or any other.
   `CallRecordReporter` sends each closed capture window to Rail Center as its call record document, oldest first, one at
-  a time, retrying with a backoff; past the plan's `max_unsent_windows`, or two million records and steps queued, it
-  drops the oldest window, an empty one first, and counts the drop in the next document.
+  a time, retrying with a backoff; a document Rail Center refuses (a 4xx other than 401, 403, 408 or 429) is dropped.
+  Besides the one being sent, it keeps up to the newest window's plan's `max_unsent_windows`, dropping the oldest, an
+  empty one first, and two million records and steps; each drop is counted in the next document.
 - **The log:** `logging` writes both hosts' log to stderr as JSON lines, Cloud Logging's on Cloud Run, or as text under
   `RAIL_LOG_FORMAT=text`, each field quoted or a JSON string, with what hides escaped, so a call's text can't forge a
   line.

@@ -170,11 +170,10 @@ impl Window {
                 record_id: record_id(index),
             })
             .collect();
-        ClosedWindow(Captured {
+        let captured = Captured {
             agent: plan.agent.clone(),
             plan_version: plan.plan_version,
             plan_hash: plan.content_hash.clone(),
-            max_unsent_windows: plan.budget.max_unsent_windows,
             start: self.start,
             end,
             truncated: self.truncated,
@@ -189,7 +188,11 @@ impl Window {
                 .collect(),
             records: self.records.into_values().collect(),
             sequence,
-        })
+        };
+        ClosedWindow {
+            captured,
+            max_unsent_windows: plan.budget.max_unsent_windows,
+        }
     }
 
     // A host first seen at the group ceiling, or past as many hosts as groups, is totalled under
@@ -273,23 +276,26 @@ impl Window {
 
 /// A closed window, waiting for its sender to make it a document.
 #[derive(Debug)]
-pub struct ClosedWindow(Captured);
+pub struct ClosedWindow {
+    captured: Captured,
+    max_unsent_windows: u32,
+}
 
 impl ClosedWindow {
     /// How many records and steps it holds: what a queue of windows bounds its memory by.
     pub fn records_and_steps(&self) -> usize {
-        self.0.records.len() + self.0.sequence.len()
+        self.captured.records.len() + self.captured.sequence.len()
     }
 
     /// Whether Rail Center loses nothing by missing it: no call recorded or dropped.
     /// `entries_skipped` is its plan's, the same in every window.
     pub fn is_empty(&self) -> bool {
-        self.0.records.is_empty() && self.0.truncated.calls_dropped == 0
+        self.captured.records.is_empty() && self.captured.truncated.calls_dropped == 0
     }
 
     /// Its plan's `max_unsent_windows`.
     pub fn max_unsent_windows(&self) -> u32 {
-        self.0.max_unsent_windows
+        self.max_unsent_windows
     }
 
     /// Given its id, kept when it's sent again; when it was built; and the windows dropped since
@@ -300,7 +306,7 @@ impl ClosedWindow {
         generated_at: SystemTime,
         windows_dropped: u64,
     ) -> Document {
-        Document::new(self.0, document_id, generated_at, windows_dropped)
+        Document::new(self.captured, document_id, generated_at, windows_dropped)
     }
 }
 

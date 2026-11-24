@@ -20,7 +20,7 @@ use crate::client::Unread;
 // Not settings: a lower floor would let a fleet hammer Rail Center.
 const MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(5);
 
-// Six doublings of the 5 s floor; the refresh interval caps it too.
+// Six doublings of the 5 s floor; a holder's refresh interval caps it too.
 const MAX_BACKOFF: Duration = Duration::from_secs(320);
 
 // A day: a ticket lives no longer, and a bundle polled less often is surely a mistake.
@@ -330,7 +330,8 @@ fn next_wait(period: Duration, failures: u32, factor: f64) -> Duration {
     wait.mul_f64(factor)
 }
 
-/// The wait after `failures` attempts in a row, at least one, that back off: 5 s doubling to 320 s.
+/// The wait after `failures` attempts in a row, at least one, that back off: 5 s doubling to 320 s,
+/// the call record reporter's too.
 pub(crate) fn backoff(failures: u32) -> Duration {
     (MIN_REFRESH_INTERVAL * 2_u32.pow(failures.saturating_sub(1).min(MAX_DOUBLINGS)))
         .min(MAX_BACKOFF)
