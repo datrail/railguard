@@ -1398,6 +1398,37 @@
       "expect": "absent"
     },
     {
+      "id": "policy-ticket-dotted-path-never-reads-a-dotted-claim-absent",
+      "note": "The dotted spelling splits on every dot.",
+      "environment": "judging-ticket-dotted-claim",
+      "use": "gateway_policy",
+      "path": "ticket.posture.score",
+      "expect": "absent"
+    },
+    {
+      "id": "policy-ticket-listed-path-reads-a-dotted-claim",
+      "environment": "judging-ticket-dotted-claim",
+      "use": "gateway_policy",
+      "path": [
+        "ticket",
+        "posture.score"
+      ],
+      "expect": {
+        "number": 10
+      }
+    },
+    {
+      "id": "record-redacted-path-segment-past-the-end-absent",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "redacted_path",
+        2
+      ],
+      "expect": "absent"
+    },
+    {
       "id": "policy-ticket-claim-zero-not-missing",
       "environment": "judging-sample",
       "use": "gateway_policy",

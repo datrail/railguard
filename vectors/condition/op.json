@@ -1518,6 +1518,20 @@
       "expect": "holds"
     },
     {
+      "id": "ne-on-a-list-holding-an-object-holds",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          "object"
+        ]
+      },
+      "op": "ne",
+      "operand": "a",
+      "expect": "holds"
+    },
+    {
       "id": "ne-on-a-list-of-a-numeric-string-holds",
       "note": "No item is coerced.",
       "value": {

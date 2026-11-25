@@ -93,6 +93,14 @@
         ]
       ]
     },
+    "judging-ticket-dotted-claim": {
+      "for": "judging",
+      "ticket": {
+        "posture.score": 10
+      },
+      "endpoint": "keyless",
+      "headers": []
+    },
     "judging-ticket-leaving-out": {
       "for": "judging",
       "ticket": {
