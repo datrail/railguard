@@ -65,8 +65,8 @@ By module:
   window open under the plan held, told the plan and the time at each call and at the open window's **`end`**: each
   window ends at the next multiple of the plan's `window_seconds` since the Unix epoch, in UTC, or sooner, when the plan
   changes or goes or capture stops, and starts when it's opened, at a plan applied or the first time seen past the
-  window before, so windows may leave gaps; a call with no plan held is dropped (**`Counted`** otherwise, with the
-  window it closed, if any).
+  window before, so windows may leave gaps; **`record`** tells the window it closed, if any, and whether the call was
+  counted or, with no plan held, dropped (**`Recorded`**).
 - **`schema_version`:** **`SchemaVersion`**, a document's `MAJOR.MINOR`, a bundle's or a plan's.
 - **`timestamp`:** **`Timestamp`**, a moment as Rail Center's documents write one: RFC 3339 in UTC, `Z`, to the
   nanosecond the clock gives.

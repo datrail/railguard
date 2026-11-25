@@ -3,7 +3,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use rail_model::body::{BodyRead, Unread};
 use rail_model::capture::{
-    ClosedWindow, CompiledPlan, ObservedCall, Windowing, compile_plan, parse_plan,
+    CallOutcome, ClosedWindow, CompiledPlan, ObservedCall, Windowing, compile_plan, parse_plan,
 };
 use serde_json::Value;
 use uuid::Uuid;
@@ -76,13 +76,14 @@ fn run(events: &[Event]) -> Vec<String> {
     for event in events {
         let closed = match *event {
             Hold(plan, at) => windowing.hold(held(plan), time(at)),
-            Record(plan, at) => match windowing.record(held(plan), &call(), time(at)) {
-                Some(counted) => counted.closed,
-                None => {
+            Record(plan, at) => {
+                let recorded = windowing.record(held(plan), &call(), time(at));
+                said.extend(recorded.closed.map(describe));
+                if recorded.call == CallOutcome::Dropped {
                     said.push("call dropped".to_owned());
-                    None
                 }
-            },
+                None
+            }
             Dropped(calls) => {
                 windowing.count_dropped(calls);
                 None
@@ -95,7 +96,7 @@ fn run(events: &[Event]) -> Vec<String> {
 
 #[test]
 fn test_windows_end_on_a_boundary_and_start_when_opened() {
-    let cases: [(&str, &[Event], &[&str]); 7] = [
+    let cases: [(&str, &[Event], &[&str]); 8] = [
         (
             "the first window from the plan applied; past a time not seen, the next from then",
             &[
@@ -160,6 +161,11 @@ fn test_windows_end_on_a_boundary_and_start_when_opened() {
                 "v1 01:01-01:02, 1 calls, 0 dropped",
                 "v1 00:30-00:40, 0 calls, 0 dropped",
             ],
+        ),
+        (
+            "a call after the plan went closes the window and is dropped",
+            &[Hold(Some(0), 0), Record(None, 30)],
+            &["v1 00:00-00:30, 0 calls, 0 dropped", "call dropped"],
         ),
         (
             "no plan closes the window, drops with none are no window's, and none opens until one is held",

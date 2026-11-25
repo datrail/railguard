@@ -22,13 +22,24 @@ struct Open {
     end: SystemTime,
 }
 
-/// A call counted in the open window.
+/// What `record` made of a call.
 #[derive(Debug)]
-pub struct Counted {
-    /// The window closed before the call was counted, if one was.
+pub struct Recorded {
+    /// The window closed before the call was taken, if one was.
     pub closed: Option<ClosedWindow>,
-    /// Why the call's body values weren't told, if an entry could have taken it.
-    pub body_unread: Option<BodyUnreadReason>,
+    pub call: CallOutcome,
+}
+
+/// What became of the call.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CallOutcome {
+    /// Counted in the open window; why its body's values weren't told, if an entry could have
+    /// taken it.
+    Counted {
+        body_unread: Option<BodyUnreadReason>,
+    },
+    /// No plan is held.
+    Dropped,
 }
 
 impl Windowing {
@@ -64,20 +75,21 @@ impl Windowing {
         closed
     }
 
-    /// Counts `call`, received at `at` with `plan` held, in the window open then; `None`, the call
-    /// dropped, if no plan is held.
+    /// Counts `call`, received at `at` with `plan` held, in the window open then, if one is.
     pub fn record(
         &mut self,
         plan: Option<Arc<CompiledPlan>>,
         call: &ObservedCall,
         at: SystemTime,
-    ) -> Option<Counted> {
+    ) -> Recorded {
         let closed = self.hold(plan, at);
-        let open = self.open.as_mut()?;
-        Some(Counted {
-            closed,
-            body_unread: open.window.record(call, at),
-        })
+        let call = match &mut self.open {
+            Some(open) => CallOutcome::Counted {
+                body_unread: open.window.record(call, at),
+            },
+            None => CallOutcome::Dropped,
+        };
+        Recorded { closed, call }
     }
 
     /// Counts calls lost before reaching the open window: told before each `hold` or `record`, so

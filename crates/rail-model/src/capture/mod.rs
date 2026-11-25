@@ -20,4 +20,4 @@ pub use plan::{
     PlanBudget, Record, parse_plan,
 };
 pub use window::{BodyUnreadReason, ClosedWindow, Window};
-pub use windowing::{Counted, Windowing};
+pub use windowing::{CallOutcome, Recorded, Windowing};
