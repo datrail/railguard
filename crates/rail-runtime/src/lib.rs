@@ -21,6 +21,7 @@ mod protected_hosts;
 mod rail_center;
 mod rail_center_thread;
 mod retry;
+mod runtime_thread;
 mod ticket;
 mod ticket_holder;
 mod xrail;
