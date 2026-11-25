@@ -6,6 +6,7 @@ use std::fmt;
 use std::ops::RangeInclusive;
 
 use serde::Deserialize;
+use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
 use crate::agent::AgentId;
@@ -344,8 +345,8 @@ impl TryFrom<Fields> for ContextKey {
                     _ => return Err(format!("{at}: its field_type isn't a name")),
                 };
                 let function = match fields.function {
-                    Some(function) => KeyFunction::deserialize(function)
-                        .map_err(|_| format!("{at}: its function isn't none or sha256"))?,
+                    Some(function) => read_listed(function)
+                        .ok_or_else(|| format!("{at}: its function isn't none or sha256"))?,
                     None => KeyFunction::None,
                 };
                 Self::Named {
@@ -384,8 +385,9 @@ impl TryFrom<Fields> for Measure {
             return Ok(Self::RequestBytes);
         }
         let unlisted = |field: &str| format!("{at}: its {field} is none the reference lists");
-        let combine = Combine::deserialize(combine).map_err(|_| unlisted("type"))?;
-        let function = MeasureFunction::deserialize(function).map_err(|_| unlisted("function"))?;
+        let combine: Combine = read_listed(combine).ok_or_else(|| unlisted("type"))?;
+        let function: MeasureFunction =
+            read_listed(function).ok_or_else(|| unlisted("function"))?;
         let paths = match paths {
             Value::Array(paths) if !paths.is_empty() => paths,
             _ => return Err(format!("{at}: its paths aren't a list of one or more")),
@@ -415,6 +417,14 @@ fn read_name(name: Option<Value>, what: &str) -> Result<String, String> {
         Err(format!(
             "{what} {name}: its name isn't lowercase letters, digits and _, from a letter, up to {MAX_NAME_CHARS}"
         ))
+    }
+}
+
+// A value from a closed list, as its name: serde would read a one-key object as one too.
+fn read_listed<T: DeserializeOwned>(value: Value) -> Option<T> {
+    match value {
+        Value::String(_) => T::deserialize(value).ok(),
+        _ => None,
     }
 }
 

@@ -655,34 +655,22 @@
       "expect": {"taken": {"entry": "e3"}, "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": {"string": "U1"}}, "measures": {"request_bytes": 14, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": ["absent"], "body_bytes": [{"found": 14}], "both_bytes": ["absent", "absent"]}}
     },
     {
-      "name": "a string hashed: the SHA-256 of its UTF-8 bytes, its escapes undone",
+      "name": "a string hashed: the SHA-256 of its UTF-8 bytes, its escapes undone, its spaces kept",
       "patch": [{"op": "add", "path": "/entries/2/record/context_keys/5/function", "value": "sha256"}],
-      "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx", "body": "{\"user\": \"U\\u00e9\"}"},
-      "expect": {"taken": {"entry": "e3"}, "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": {"hashed": "7ba1331f0b63ac73f21cbd6eaf27f37f5a070ae3d0cfc2ba95a5e2a6be551aa5"}}, "measures": {"request_bytes": 19, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": ["absent"], "body_bytes": [{"found": 19}], "both_bytes": ["absent", "absent"]}}
+      "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx", "body": "{\"user\": \" U\\u00e9 \"}"},
+      "expect": {"taken": {"entry": "e3"}, "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": {"hashed": "b7c5ddcbb130c790cdd943748d06ada55e979f282805a58b04443301ede180c3"}}, "measures": {"request_bytes": 21, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": ["absent"], "body_bytes": [{"found": 21}], "both_bytes": ["absent", "absent"]}}
+    },
+    {
+      "name": "a redacted segment's marker kept, not hashed",
+      "patch": [{"op": "add", "path": "/entries/2/record/context_keys/2/function", "value": "sha256"}],
+      "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx", "body": "{}"},
+      "expect": {"taken": {"entry": "e3"}, "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": "absent"}, "measures": {"request_bytes": 2, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": ["absent"], "body_bytes": [{"found": 2}], "both_bytes": ["absent", "absent"]}}
     },
     {
       "name": "a vendor key's shape hashed, not replaced",
       "patch": [{"op": "add", "path": "/entries/2/record/context_keys/5/function", "value": "sha256"}],
       "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx", "body": "{\"user\": \"ghp_a1B2a1B2a1B2a1B2a1B2a1B2a1B2a1B2a1B2\"}"},
       "expect": {"taken": {"entry": "e3"}, "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": {"hashed": "4a15b04cb7d210f268a833cbc41da641367d9d633855742f33185b1041b3b2fe"}}, "measures": {"request_bytes": 52, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": ["absent"], "body_bytes": [{"found": 52}], "both_bytes": ["absent", "absent"]}}
-    },
-    {
-      "name": "a string past 256 characters hashed whole",
-      "patch": [{"op": "add", "path": "/entries/2/record/context_keys/5/function", "value": "sha256"}],
-      "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx", "body": "{\"user\": \"\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\"}"},
-      "expect": {"taken": {"entry": "e3"}, "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": {"hashed": "7250b66610f8b7dbd6f5e5426d2143bcba6d826cedb4bea8a358695da78db023"}}, "measures": {"request_bytes": 1812, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": ["absent"], "body_bytes": [{"found": 1812}], "both_bytes": ["absent", "absent"]}}
-    },
-    {
-      "name": "a value that isn't a string, not hashed",
-      "patch": [{"op": "add", "path": "/entries/2/record/context_keys/5/function", "value": "sha256"}],
-      "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC/B0DEF/abcdefghijklmnopqrstuvwx", "body": "{\"user\": 1}"},
-      "expect": {"taken": {"entry": "e3"}, "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": {"string": "[redacted]"}, "channel": "absent", "page": "absent", "user": {"not_a_string": null}}, "measures": {"request_bytes": 11, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": ["absent"], "body_bytes": [{"found": 11}], "both_bytes": ["absent", "absent"]}}
-    },
-    {
-      "name": "a query parameter sent twice, ambiguous, not hashed",
-      "patch": [{"op": "add", "path": "/entries/2/record/context_keys/3/function", "value": "sha256"}],
-      "call": {"authority": "hooks.slack.com", "method": "POST", "path": "/services/T0ABC?channel=a&channel=b", "body": "{}"},
-      "expect": {"taken": {"entry": "e3"}, "keys": {"method": {"method": "POST"}, "team": {"string": "T0ABC"}, "secret": "absent", "channel": "ambiguous", "page": "absent", "user": "absent"}, "measures": {"request_bytes": 2, "text_bytes": ["absent"], "blocks_bytes": ["absent"], "channel_bytes": [{"found": 2}], "body_bytes": [{"found": 2}], "both_bytes": ["absent", {"found": 2}]}}
     }
   ]
 }

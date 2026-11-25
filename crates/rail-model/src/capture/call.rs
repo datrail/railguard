@@ -10,7 +10,7 @@ use crate::condition::{
     BodyPath, BodyUnread, Budget, Environment, Items, Lookup, Path, Refusal, RequestPath, Verdict,
     evaluate_condition, resolve_path,
 };
-use crate::redaction::is_secret_token;
+use crate::redaction::{REDACTED, is_secret_token};
 use crate::request_line::{HostReading, ReportedMethod, RequestLine, Unmatchable};
 
 // Past this, a kept value could carry data of any length.
@@ -298,6 +298,13 @@ fn read_key(
     match lookup {
         Lookup::String(text) => PathReading::Found(match function {
             KeyFunction::None => keep(&text),
+            // The redaction's marker, kept so the loss still reads as one.
+            KeyFunction::Sha256
+                if text == REDACTED
+                    && matches!(path, Path::Request(RequestPath::RedactedPath(_))) =>
+            {
+                KeptValue::String(text.into_owned())
+            }
             // Its bounds are on what leaves, and a hash leaves none of the string.
             KeyFunction::Sha256 => KeptValue::Hashed(hash(&text)),
         }),

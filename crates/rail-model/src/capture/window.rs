@@ -436,8 +436,8 @@ fn write(
     (values, written)
 }
 
-// A value found, kept, hashed or replaced; `null` for nothing found or a value a key doesn't keep, which
-// a plan path counts as unresolved.
+// A value found, kept, hashed or replaced; `null` for nothing found or a value a key doesn't
+// keep, which a plan path counts as unresolved.
 fn write_value(
     reading: &PathReading<KeptValue>,
     written: &mut Written,
