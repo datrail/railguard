@@ -135,7 +135,6 @@ fn test_vectors() {
 fn test_tells_why_a_body_went_unread() {
     let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
     let compiled = Arc::new(compile_plan(parse_plan(&vectors.plan.to_string()).unwrap()));
-    let mut window = Window::open(Arc::clone(&compiled), time(0));
     let call = |body: BodyRead| ObservedCall {
         authority: b"api.github.com".to_vec(),
         method: b"POST".to_vec(),
@@ -155,7 +154,19 @@ fn test_tells_why_a_body_went_unread() {
         (keep_body(b"{}"), None),
     ];
     for (body, reason) in cases {
+        let mut window = Window::open(Arc::clone(&compiled), time(0));
         assert_eq!(window.record(&call(body), time(1)), reason);
+        // Named as the document counts it.
+        let sent = Sent {
+            document_id: Uuid::nil(),
+            generated_at: 2,
+            windows_dropped: 0,
+        };
+        let written = serde_json::to_value(close(window, 2, &sent)).unwrap();
+        let counted = &written["truncated"]["body_unread"];
+        if let Some(reason) = reason {
+            assert_eq!(counted[reason.as_str()], 1, "{reason:?}");
+        }
     }
 }
 

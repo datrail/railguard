@@ -44,6 +44,22 @@ pub enum BodyUnreadReason {
     StepBudget,
 }
 
+impl BodyUnreadReason {
+    /// Its name in a document's `truncated.body_unread`.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::PastCap => "past_cap",
+            Self::PastBudget => "past_budget",
+            Self::NotSent => "not_sent",
+            Self::CutShort => "cut_short",
+            Self::NotJson => "not_json",
+            Self::Batch => "batch",
+            Self::Ambiguous => "ambiguous",
+            Self::StepBudget => "step_budget",
+        }
+    }
+}
+
 /// The calls captured since a window opened, under one plan.
 #[derive(Debug)]
 pub struct Window {
