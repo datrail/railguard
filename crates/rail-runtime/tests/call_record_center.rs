@@ -109,6 +109,28 @@ pub fn window(max_unsent_windows: u32, paths: &[&str]) -> ClosedWindow {
     window.close(clock.at(2))
 }
 
+// A window under the vectors' plan at the ceiling of steps, holding `calls` calls to one path:
+// one record and a step each.
+pub fn window_of(calls: u32) -> ClosedWindow {
+    let mut plan = plan(&hash('a'), json!({}));
+    plan["budget"]["max_steps_per_window"] = json!(1_000_000);
+    plan["budget"]["max_unsent_windows"] = json!(1_000);
+    let plan = Arc::new(compile_plan(parse_plan(&plan.to_string()).unwrap()));
+    let clock = TestClock::new();
+    let mut window = Window::open(plan, clock.at(0));
+    let call = ObservedCall {
+        authority: b"api.github.com".to_vec(),
+        method: b"GET".to_vec(),
+        path: b"/a".to_vec(),
+        body: BodyRead::Unread(Unread::NotSent),
+        body_bytes: 0,
+    };
+    for _ in 0..calls {
+        window.record(&call, clock.at(1));
+    }
+    window.close(clock.at(2))
+}
+
 pub fn calls(document: &Value) -> u64 {
     document["hosts"]
         .as_array()

@@ -1,6 +1,7 @@
 //! Capture: the calls the callouts hand over, counted in windows under the plan held, on a thread of
 //! its own, each closed window handed to the reporter.
 
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime};
@@ -22,8 +23,8 @@ use crate::runtime_thread::RuntimeThread;
 // Calls waiting for the capture task: past it, a call is dropped and counted.
 const QUEUE: usize = 4_096;
 
-// The longest the task sleeps with a window open: the shortest window, so a clock stepped back is
-// seen though no call comes.
+// The longest the task sleeps with a window open, a minute, the shortest window: a clock stepped
+// back is seen though no call comes.
 const MAX_SLEEP: Duration = Duration::from_secs(60);
 
 /// The thread capture runs on, on a runtime of its own, so its matching and grouping delay neither
@@ -46,7 +47,8 @@ impl CaptureThread {
 }
 
 /// The capture task: it counts each call handed over in the window open under the plan `plans`
-/// holds, and hands each window closed to `reporter`, sent at once when the plan goes.
+/// holds, and hands each window closed to `reporter`, sent at once when the plan goes. Dropping it
+/// stops it as `stop` does, unawaited.
 pub struct Capture {
     stop: oneshot::Sender<()>,
     task: JoinHandle<()>,
@@ -94,14 +96,18 @@ impl Capture {
     /// for up to 2 s.
     pub async fn stop(self) {
         let _ = self.stop.send(());
-        let _ = self.task.await;
+        // Cancelled by its runtime stopping first: what it held isn't sent.
+        if self.task.await.is_err() {
+            tracing::warn!("capture stopped before it could close its window and send it");
+        }
     }
 }
 
 impl CaptureSender {
-    /// Whether a plan is held: read at a call's headers, it decides that call's capture.
+    /// Whether a plan is held and the task takes calls: read at a call's headers, it decides that
+    /// call's capture.
     pub fn is_capturing(&self) -> bool {
-        self.plans.snapshot().is_some()
+        !self.calls.is_closed() && self.plans.snapshot().is_some()
     }
 
     /// Hands `call` over; one the full queue turns away is counted as dropped.
@@ -143,6 +149,8 @@ impl Task {
                 biased;
                 // Stopped, or `Capture` dropped: the calls handed over are counted, not lost.
                 _ = &mut stopped => {
+                    // Closed first, so calls still coming can't keep the drain going.
+                    queued.close();
                     while let Ok(call) = queued.try_recv() {
                         self.record(&call);
                     }
@@ -177,7 +185,14 @@ impl Task {
     fn record(&mut self, call: &ObservedCall) {
         let (plan, now) = self.read();
         let gone = plan.is_none();
-        let recorded = self.windowing.record(plan, call, now);
+        // A call that panics its reading is dropped, so one odd call can't stop capture for good.
+        let windowing = &mut self.windowing;
+        let Ok(recorded) = catch_unwind(AssertUnwindSafe(|| windowing.record(plan, call, now)))
+        else {
+            // Not the panic's message, which may quote the call.
+            tracing::error!("recording a call panicked; dropping it");
+            return;
+        };
         self.hand_over(recorded.closed, gone);
         match recorded.outcome {
             CallOutcome::Counted {

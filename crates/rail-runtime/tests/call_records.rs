@@ -6,7 +6,7 @@ use rail_runtime::{CallRecordReporter, CallRecordSink, Jitter, RailCenterCallRec
 use reqwest::StatusCode;
 use tokio::runtime::Handle;
 
-use crate::call_record_center::{Center, accepted, calls, dropped, window, windows};
+use crate::call_record_center::{Center, accepted, calls, dropped, window, window_of, windows};
 use crate::common::{Reply, assert_posted, client, response, serve};
 use crate::holder::{TestClock, until};
 use crate::scripted::{answer, failed};
@@ -88,6 +88,27 @@ async fn an_empty_window_is_never_sent_nor_counted_as_dropped() {
     until(&clock, 1).await;
 
     assert_eq!(windows(&center), [(1, 0)]);
+}
+
+// Two million calls recorded take a while in debug: run with `-- --ignored`.
+#[ignore = "slow: records two million calls"]
+#[tokio::test(start_paused = true)]
+async fn past_two_million_records_and_steps_queued_the_oldest_not_in_flight_goes() {
+    let clock = TestClock::new();
+    let center = Center::accepting(&clock).holding();
+    let reporter = center.start(&clock);
+
+    // In flight, then a million and one records and steps, then a million: past the cap, the
+    // older goes, never the one in flight.
+    reporter.report(window_of(1));
+    until(&clock, 1).await;
+    reporter.report(window_of(1_000_000));
+    reporter.report(window_of(999_999));
+    until(&clock, 2).await;
+    center.release.add_permits(2);
+    until(&clock, 3).await;
+
+    assert_eq!(windows(&center), [(1, 0), (999_999, 1)]);
 }
 
 #[tokio::test(start_paused = true)]

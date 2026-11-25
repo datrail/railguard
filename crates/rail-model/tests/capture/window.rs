@@ -165,15 +165,15 @@ fn test_tells_why_a_body_went_unread() {
         (keep_body(ambiguous), Some(BodyUnreadReason::Ambiguous)),
         (keep_body(b"{}"), None),
     ];
+    let sent = Sent {
+        document_id: Uuid::nil(),
+        generated_at: 2,
+        windows_dropped: 0,
+    };
     for (body, reason) in cases {
         let mut window = Window::open(Arc::clone(&compiled), time(0));
         assert_eq!(window.record(&call(body), time(1)), reason);
         // Named as the document counts it.
-        let sent = Sent {
-            document_id: Uuid::nil(),
-            generated_at: 2,
-            windows_dropped: 0,
-        };
         let written = serde_json::to_value(close(window, 2, &sent)).unwrap();
         let counted = &written["truncated"]["body_unread"];
         if let Some(reason) = reason {

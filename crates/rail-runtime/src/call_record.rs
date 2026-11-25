@@ -76,7 +76,7 @@ impl CallRecordReporter {
         Self { messages }
     }
 
-    /// Queues `window`, never waiting; an empty one is dropped, Rail Center losing nothing by it.
+    /// Queues `window`, never waiting; an empty one isn't sent, nor counted as dropped.
     pub fn report(&self, window: ClosedWindow) {
         if window.is_empty() {
             tracing::debug!("a call record window with no call or drop, not sent");

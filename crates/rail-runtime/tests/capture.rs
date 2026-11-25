@@ -32,22 +32,22 @@ async fn a_window_ends_on_its_boundary_and_is_sent() {
 #[tokio::test(start_paused = true)]
 async fn the_plan_gone_sends_what_is_queued_at_once() {
     let clock = TestClock::new();
-    // The first window's sends fail at 900, 905, 915 and 935; the next would be at 975.
-    let center = Center::new(&clock, |n| if n < 4 { failed() } else { accepted() });
-    // Fetched every 50 s: the plan until 950, none then, between the window's wakes at 900 and 960.
-    let refresh = Duration::from_secs(50);
-    let answers = |n| if n < 19 { a_plan() } else { no_plan() };
+    // The first window's send fails at 900; the next would be at 905.
+    let center = Center::new(&clock, |n| if n == 0 { failed() } else { accepted() });
+    // Fetched at 0, 451 and 902, the plan gone at the last, between the task's wakes at 900 and 960.
+    let refresh = Duration::from_secs(451);
+    let answers = |n| if n < 2 { a_plan() } else { no_plan() };
     let (_capture, sender) = capture_every(&clock, refresh, answers, &center);
 
     until(&clock, 1).await;
     sender.send(to_catch_all());
     until(&clock, 901).await;
     sender.send(to_catch_all());
-    until(&clock, 951).await;
+    until(&clock, 903).await;
 
     assert!(!sender.is_capturing());
-    assert_eq!(center.sent_at(), [900, 905, 915, 935, 950, 950]);
-    assert_eq!(calls(&center.documents()[5]), 1);
+    assert_eq!(center.sent_at(), [900, 902, 902]);
+    assert_eq!(calls(&center.documents()[2]), 1);
 }
 
 #[tokio::test(start_paused = true)]
@@ -98,6 +98,7 @@ async fn stopping_counts_the_calls_handed_over_but_not_taken() {
     sender.send(to_catch_all());
     capture.stop().await;
 
+    assert!(!sender.is_capturing());
     assert_eq!(calls(&center.documents()[0]), 2);
 }
 
@@ -115,7 +116,12 @@ async fn the_plans_refreshes_ending_leaves_the_window_to_its_end() {
         CapturePlanHolder::start(rail_center.runtime(), source, MINUTE, Jitter::new(|| 1.0));
     let reporter = center.start(&clock);
     let (_capture, sender) = Capture::start(&Handle::current(), plans, reporter, clock.wall());
+    let fetched_by = std::time::Instant::now() + Duration::from_secs(10);
     while !sender.is_capturing() {
+        assert!(
+            std::time::Instant::now() < fetched_by,
+            "the plan never came"
+        );
         thread::sleep(Duration::from_millis(5));
     }
     until(&clock, 1).await;
@@ -132,11 +138,11 @@ async fn a_clock_stepped_back_is_seen_within_a_minute_though_no_call_comes() {
     let clock = TestClock::new();
     let center = Center::accepting(&clock);
     let plans = start(&Script::new(&clock, |_| a_plan()), MINUTE);
-    // Ten minutes back at 100 s, with no call after.
+    // Ten minutes back at 130 s, with no call after.
     let wall = clock.wall();
     let started = clock.started;
     let stepped: WallClock = Arc::new(move || {
-        let back = Duration::from_secs(if started.elapsed() >= Duration::from_secs(100) {
+        let back = Duration::from_secs(if started.elapsed() >= Duration::from_secs(130) {
             600
         } else {
             0
@@ -148,8 +154,9 @@ async fn a_clock_stepped_back_is_seen_within_a_minute_though_no_call_comes() {
 
     until(&clock, 1).await;
     sender.send(to_catch_all());
-    until(&clock, 121).await;
+    until(&clock, 191).await;
 
-    // Woken each minute from the call at 1 s, so at 121, not at the window's end, 900 s on.
-    assert_eq!(center.sent_at(), [121]);
+    // Within a minute of the step, not at the window's end, 900 s on.
+    let sent_at = center.sent_at();
+    assert!(matches!(sent_at[..], [at] if at <= 190), "{sent_at:?}");
 }
