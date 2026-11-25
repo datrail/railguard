@@ -59,8 +59,9 @@ By module:
   calls captured between two times: grouped into call records by their record and its context keys' values, up to the
   plan's group ceiling (past it, an entry's new group in the catch-all, a catch-all's in its `[overflow]` record), with
   each host's total (as many hosts as groups, a host first seen past either under `[overflow]`) and the calls' order, up
-  to the plan's `max_steps_per_window`. **`close`** gives a **`ClosedWindow`**, which the sender makes the call record
-  **`Document`**, given its id, when it was built and the windows dropped before it.
+  to the plan's `max_steps_per_window`. **`close`** gives a **`ClosedWindow`**, which tells its records and steps,
+  whether it's empty and its plan's `max_unsent_windows`, for the sender's queue, and which the sender makes the call
+  record **`Document`**, given its id, when it was built and the windows dropped before it.
 - **`schema_version`:** **`SchemaVersion`**, a document's `MAJOR.MINOR`, a bundle's or a plan's.
 - **`timestamp`:** **`Timestamp`**, a moment as Rail Center's documents write one: RFC 3339 in UTC, `Z`, to the
   nanosecond the clock gives.

@@ -15,7 +15,7 @@ use tokio::time::timeout;
 
 use crate::rail_center::{AUTH_MODE, AUTH_TOKEN, CenterUrl, RailCenterSettings};
 
-// An error answer's body, read only so its connection can be kept, for no longer than this.
+// An answer's body not read, drained only so its connection can be kept, for no longer than this.
 const MAX_DRAINED_BYTES: usize = 8 * 1024;
 const DRAIN_TIMEOUT: Duration = Duration::from_secs(1);
 
@@ -127,13 +127,32 @@ impl RailCenterClient {
         body: Vec<u8>,
         limits: Limits,
     ) -> Result<Response, FetchError> {
+        self.fetch(self.post_request(route, body), limits).await
+    }
+
+    /// `POST` `body`, JSON, to `route`, in one attempt, its answer read for its status alone: the
+    /// deadline bounds the upload and the wait for the status, and the body is drained as an
+    /// error's is, for up to 1 s more, so a success's can't fail it.
+    pub(crate) async fn post_for_status(
+        &self,
+        route: &str,
+        body: Vec<u8>,
+        deadline: Duration,
+    ) -> Result<StatusCode, FetchError> {
+        let mut response = timeout(deadline, self.post_request(route, body).send())
+            .await
+            .map_err(|_| FetchError::Deadline(deadline))?
+            .map_err(|error| FetchError::Transport(describe(error)))?;
+        let _ = timeout(DRAIN_TIMEOUT, drain(&mut response)).await;
+        Ok(response.status())
+    }
+
+    fn post_request(&self, route: &str, body: Vec<u8>) -> RequestBuilder {
         let url = self.url.endpoint(route, &[]);
-        let request = self
-            .http
+        self.http
             .post(url)
             .header(CONTENT_TYPE, "application/json")
-            .body(body);
-        self.fetch(request, limits).await
+            .body(body)
     }
 
     async fn fetch(&self, request: RequestBuilder, limits: Limits) -> Result<Response, FetchError> {
@@ -253,19 +272,28 @@ pub(crate) fn read_status(
         }
     };
     let status = response.status;
-    let reason = match status {
-        status if status == expected => return Ok(response.body),
+    if status == expected {
+        return Ok(response.body);
+    }
+    let transient = status == StatusCode::REQUEST_TIMEOUT
+        || status == StatusCode::TOO_MANY_REQUESTS
+        || status.is_server_error();
+    Err(Unread {
+        reason: answered(status),
+        transient,
+    })
+}
+
+/// What an answer with `status`, not the one expected, says.
+pub(crate) fn answered(status: StatusCode) -> String {
+    match status {
         // Unlike Rail Center having a bad minute, this lasts until the configuration changes.
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => format!(
             "Rail Center refused the credential ({status}); every fetch fails this way until \
              {AUTH_MODE} and {AUTH_TOKEN} are fixed"
         ),
         status => format!("Rail Center answered {status}"),
-    };
-    let transient = status == StatusCode::REQUEST_TIMEOUT
-        || status == StatusCode::TOO_MANY_REQUESTS
-        || status.is_server_error();
-    Err(Unread { reason, transient })
+    }
 }
 
 // What came before the deadline: a success's body read, or an error answer whose isn't.

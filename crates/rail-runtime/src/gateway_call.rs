@@ -13,10 +13,10 @@ use tokio::time::{Instant, timeout_at};
 
 use crate::bundle_holder::{BundleHolder, HeldBundle};
 use crate::callout::{DEFAULT_MAX_BODY_MB, MB};
+use crate::clock::WallClock;
 use crate::denial::DenialReporter;
 use crate::gateway::{Answer, Call, Unit, UnitSettings, decode_x_rail, judge_call};
 use crate::key_set::KeySetHolder;
-use crate::ticket_holder::WallClock;
 
 // The longest a call waits for a bundle, and for a key it names: each within the deadline too.
 const MAX_WAIT: Duration = Duration::from_secs(2);

@@ -10,14 +10,12 @@ use time::macros::format_description;
 use tokio::runtime::Handle;
 
 use crate::client::{FetchError, Response, Unread, read_ok};
+use crate::clock::WallClock;
 use crate::config::Secret;
 use crate::holder::{Attempt, Holder, Jitter, Kind, Step};
 use crate::peek::locate;
 use crate::ticket::{OpaqueTicket, TicketSource};
 use crate::xrail::Unavailable;
-
-/// The wall clock: what a ticket's `expires_at` is read against, and denials are stamped with.
-pub type WallClock = Arc<dyn Fn() -> SystemTime + Send + Sync>;
 
 // What the answers so far leave to present.
 #[derive(Default)]

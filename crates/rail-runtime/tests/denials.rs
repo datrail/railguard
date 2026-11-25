@@ -5,7 +5,7 @@ use rail_runtime::{Denial, DenialSink, DeniedBy, RailCenterDenials};
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 
-use crate::common::{Reply, TOKEN, client, response, serve};
+use crate::common::{Reply, assert_posted, client, response, serve};
 use crate::sink::{POLICY, Sink, denial, valid};
 
 const TICKET_ID: &str = "0d9b6f3c-8a52-4e1f-9c7a-2b3e4f5a6b7c";
@@ -249,15 +249,6 @@ async fn a_report_is_posted_once_to_rail_center_with_the_credential() {
     };
     let answer = sink.send(br#"{"denied_at": "x"}"#.to_vec()).await;
 
-    let requests = server.requests.lock().unwrap().clone();
-    assert_eq!(requests.len(), 1, "{requests:?}");
-    let request = requests[0].to_ascii_lowercase();
-    assert!(request.starts_with("post /v1/denials "), "{request}");
-    assert!(request.contains("content-type: application/json\r\n"));
-    assert!(request.contains(&format!(
-        "authorization: bearer {}\r\n",
-        TOKEN.to_ascii_lowercase()
-    )));
-    assert!(request.ends_with(r#"{"denied_at": "x"}"#), "{request}");
+    assert_posted(&server, "/v1/denials", r#"{"denied_at": "x"}"#);
     assert_eq!(answer.unwrap().status, StatusCode::UNPROCESSABLE_ENTITY);
 }

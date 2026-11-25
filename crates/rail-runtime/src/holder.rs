@@ -1,4 +1,5 @@
-//! One shape for what Rail Center hands out: a value read lock-free, replaced by one refresh loop.
+//! One shape for what Rail Center hands out: a value read lock-free, replaced by one refresh loop;
+//! and the backoff and jitter every retry of a Rail Center call waits by.
 
 use std::future::{Future, poll_fn};
 use std::hash::{BuildHasher, RandomState};
@@ -20,7 +21,7 @@ use crate::client::Unread;
 // Not settings: a lower floor would let a fleet hammer Rail Center.
 const MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(5);
 
-// Six doublings of the 5 s floor; the refresh interval caps it too.
+// Six doublings of the 5 s floor; a holder's refresh interval caps it too.
 const MAX_BACKOFF: Duration = Duration::from_secs(320);
 
 // A day: a ticket lives no longer, and a bundle polled less often is surely a mistake.
@@ -106,7 +107,8 @@ pub(crate) fn parse_refresh_interval(text: &str) -> Result<Duration, String> {
     }
 }
 
-/// The factor every wait is scaled by, from 0.8 to 1.2, so a fleet doesn't poll in lockstep.
+/// The factor every wait is scaled by, from 0.8 to 1.2, so a fleet doesn't call Rail Center in
+/// lockstep.
 #[derive(Clone)]
 pub struct Jitter(Arc<dyn Fn() -> f64 + Send + Sync>);
 
@@ -125,7 +127,7 @@ impl Jitter {
         Self(Arc::new(factor))
     }
 
-    fn factor(&self) -> f64 {
+    pub(crate) fn factor(&self) -> f64 {
         (self.0)()
     }
 }
@@ -325,13 +327,18 @@ async fn attempt<K: Kind>(kind: &K, held: &ArcSwap<K::Held>) -> Option<Step<K::H
 fn next_wait(period: Duration, failures: u32, factor: f64) -> Duration {
     let wait = match failures {
         0 => period,
-        _ => (MIN_REFRESH_INTERVAL * 2_u32.pow((failures - 1).min(MAX_DOUBLINGS)))
-            .min(MAX_BACKOFF.min(period)),
+        _ => backoff(failures).min(period),
     };
     wait.mul_f64(factor)
 }
 
-// Whole seconds, rounded: a jittered 5.9 s reads as 6.
-fn round_to_seconds(wait: Duration) -> u64 {
+/// The wait after `failures` failures in a row (none counts as one): 5 s doubling to 320 s.
+pub(crate) fn backoff(failures: u32) -> Duration {
+    (MIN_REFRESH_INTERVAL * 2_u32.pow(failures.saturating_sub(1).min(MAX_DOUBLINGS)))
+        .min(MAX_BACKOFF)
+}
+
+/// Whole seconds, rounded: a jittered 5.9 s reads as 6.
+pub(crate) fn round_to_seconds(wait: Duration) -> u64 {
     wait.as_secs() + u64::from(wait.subsec_millis() >= 500)
 }

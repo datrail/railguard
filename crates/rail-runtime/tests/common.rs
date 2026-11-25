@@ -144,3 +144,17 @@ pub fn read<T>(
 pub fn client(url: &str) -> RailCenterClient {
     RailCenterClient::new(&settings(url, Some(TOKEN))).unwrap()
 }
+
+/// Asserts `server` was sent one request, posting `body` as JSON to `route` with the credential.
+pub fn assert_posted(server: &Server, route: &str, body: &str) {
+    let requests = server.requests.lock().unwrap().clone();
+    assert_eq!(requests.len(), 1, "{requests:?}");
+    let request = requests[0].to_ascii_lowercase();
+    assert!(request.starts_with(&format!("post {route} ")), "{request}");
+    assert!(request.contains("content-type: application/json\r\n"));
+    assert!(request.contains(&format!(
+        "authorization: bearer {}\r\n",
+        TOKEN.to_ascii_lowercase()
+    )));
+    assert!(request.ends_with(body), "{request}");
+}

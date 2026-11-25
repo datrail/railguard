@@ -1,6 +1,8 @@
 mod bundle_holder;
 mod bundle_settings;
 mod bundles;
+mod call_record_center;
+mod call_records;
 mod capture_plan;
 mod capture_plan_holder;
 mod capture_plans;

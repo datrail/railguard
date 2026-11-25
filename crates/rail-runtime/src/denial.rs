@@ -17,7 +17,7 @@ use tokio::sync::Semaphore;
 use uuid::Uuid;
 
 use crate::client::{FetchError, Limits, RailCenterClient, Response, Unread, read_status};
-use crate::ticket_holder::WallClock;
+use crate::clock::WallClock;
 
 const ROUTE: &str = "/v1/denials";
 

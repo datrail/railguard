@@ -2,6 +2,8 @@
 
 mod bundle_holder_logs;
 mod bundles;
+mod call_record_center;
+mod call_records_logs;
 mod capture_plan_holder_logs;
 mod capture_plans;
 mod common;

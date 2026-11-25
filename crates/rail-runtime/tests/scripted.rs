@@ -58,7 +58,7 @@ impl Script {
         self.fetched_at.lock().unwrap().clone()
     }
 
-    async fn answer(&self) -> Answer {
+    pub async fn answer(&self) -> Answer {
         let fetches = {
             let mut fetched_at = self.fetched_at.lock().unwrap();
             fetched_at.push(self.started.elapsed().as_secs());
