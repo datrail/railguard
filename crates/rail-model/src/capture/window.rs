@@ -303,6 +303,11 @@ impl ClosedWindow {
         self.captured.records.is_empty() && self.captured.truncated.calls_dropped == 0
     }
 
+    // No earlier than its last call: where the next window starts after a smaller step back.
+    pub(super) fn end(&self) -> SystemTime {
+        self.captured.end
+    }
+
     /// Its plan's `max_unsent_windows`.
     pub fn max_unsent_windows(&self) -> u32 {
         self.max_unsent_windows

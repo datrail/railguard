@@ -1,6 +1,6 @@
 //! Capture's windows over time: one open at a time, under the plan held, closed when its time ends,
-//! the plan changes or goes, or capture stops; the next opened when it's next told the time, while a
-//! plan is held.
+//! the plan changes or goes, capture stops, or the clock steps back before its start; the next
+//! opened when it's next told the time, while a plan is held.
 
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -9,29 +9,24 @@ use super::call::ObservedCall;
 use super::compile::CompiledPlan;
 use super::window::{BodyUnreadReason, ClosedWindow, Window};
 
-/// The open window, if a plan is held, and when it ends; each method is told the plan held and the
+/// The open window, if a plan is held; `hold` and `record` are each told the plan held and the
 /// time, so whichever sees the window's time over closes it.
 #[derive(Debug, Default)]
 pub struct Windowing {
-    open: Option<Open>,
-}
-
-#[derive(Debug)]
-struct Open {
-    window: Window,
-    end: SystemTime,
+    open: Option<Window>,
 }
 
 /// What `record` made of a call.
+#[must_use = "a window it closed is lost unless it's sent"]
 #[derive(Debug)]
 pub struct Recorded {
     /// The window closed before the call was taken, if one was.
     pub closed: Option<ClosedWindow>,
-    pub call: CallOutcome,
+    pub outcome: CallOutcome,
 }
 
 /// What became of the call.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug)]
 pub enum CallOutcome {
     /// Counted in the open window; why its body's values weren't told, if an entry could have
     /// taken it.
@@ -45,34 +40,40 @@ pub enum CallOutcome {
 impl Windowing {
     /// When the open window ends, if one is: when to call `hold` next, if nothing comes sooner.
     pub fn end(&self) -> Option<SystemTime> {
-        self.open.as_ref().map(|open| open.end)
+        self.open.as_ref().map(end_of)
     }
 
-    /// The plan held at `now`, a new `Arc` being a new plan, as the holder hands them out. The open
-    /// window closes at `now`, or its end if sooner, if the plan changed or went (a 204, or capture
-    /// stopping), its time is over, or the clock stepped back before its start; then, while a plan
-    /// is held, the next opens at `now`.
+    /// The plan held at `now`, a new `Arc` being a new plan. The open window closes if the plan
+    /// changed or went, its time is over, or the clock stepped back before its start: at `now`, or
+    /// its end if sooner, never before its last call. Then, while a plan is held, the next opens at
+    /// `now`, or at the closed window's end after a smaller step back.
+    #[must_use = "a window it closed is lost unless it's sent"]
     pub fn hold(
         &mut self,
         plan: Option<Arc<CompiledPlan>>,
         now: SystemTime,
     ) -> Option<ClosedWindow> {
-        let closed = match self.open.take() {
-            Some(open) => {
-                let unchanged = plan
-                    .as_ref()
-                    .is_some_and(|plan| Arc::ptr_eq(open.window.plan(), plan));
-                if unchanged && (open.window.start()..open.end).contains(&now) {
-                    self.open = Some(open);
-                    return None;
-                }
-                // Past a step back, the window ends at its last call, so the next may overlap it.
-                Some(open.window.close(now.min(open.end)))
-            }
-            None => None,
+        let keep = self.open.as_ref().is_some_and(|open| {
+            plan.as_ref()
+                .is_some_and(|plan| Arc::ptr_eq(open.plan(), plan))
+                && (open.start()..end_of(open)).contains(&now)
+        });
+        if keep {
+            return None;
+        }
+        let closed = self.open.take().map(|open| {
+            let stepped_back = now < open.start();
+            let end = end_of(&open);
+            (open.close(now.min(end)), stepped_back)
+        });
+        // Past a step back before its start, the next overlaps it: else none would close until
+        // the clock caught up.
+        let start = match &closed {
+            Some((closed, false)) => now.max(closed.end()),
+            _ => now,
         };
-        self.open = plan.map(|plan| Open::new(plan, now));
-        closed
+        self.open = plan.map(|plan| Window::open(plan, start));
+        closed.map(|(closed, _)| closed)
     }
 
     /// Counts `call`, received at `at` with `plan` held, in the window open then, if one is.
@@ -83,37 +84,32 @@ impl Windowing {
         at: SystemTime,
     ) -> Recorded {
         let closed = self.hold(plan, at);
-        let call = match &mut self.open {
+        let outcome = match &mut self.open {
             Some(open) => CallOutcome::Counted {
-                body_unread: open.window.record(call, at),
+                body_unread: open.record(call, at),
             },
             None => CallOutcome::Dropped,
         };
-        Recorded { closed, call }
+        Recorded { closed, outcome }
     }
 
-    /// Counts calls lost before reaching the open window: told before each `hold` or `record`, so
-    /// they count in the window open when they were lost; with none open, they're no window's.
+    /// Counts calls lost before reaching the open window: told before each `hold` or `record`,
+    /// they count in the window open until then; with none open, they're no window's.
     pub fn count_dropped(&mut self, calls: u64) {
         if let Some(open) = &mut self.open {
-            open.window.count_dropped(calls);
+            open.count_dropped(calls);
         }
     }
 }
 
-impl Open {
-    // Ends at the first multiple of the plan's `window_seconds` since the epoch after `start`.
-    fn new(plan: Arc<CompiledPlan>, start: SystemTime) -> Self {
-        let seconds = u64::from(plan.plan().window_seconds);
-        // The proxy never runs before 1970, so such a time reads as the epoch.
-        let since_epoch = start
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-        let end = UNIX_EPOCH + Duration::from_secs((since_epoch / seconds + 1) * seconds);
-        Self {
-            window: Window::open(plan, start),
-            end,
-        }
-    }
+// The first multiple of its plan's `window_seconds` since the epoch after its start.
+fn end_of(window: &Window) -> SystemTime {
+    let seconds = u64::from(window.plan().plan().window_seconds);
+    // The proxy never runs before 1970, so such a time reads as the epoch.
+    let since_epoch = window
+        .start()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    UNIX_EPOCH + Duration::from_secs((since_epoch / seconds + 1) * seconds)
 }

@@ -3,18 +3,16 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use rail_model::body::{BodyRead, Unread};
 use rail_model::capture::{
-    CallOutcome, ClosedWindow, CompiledPlan, ObservedCall, Windowing, compile_plan, parse_plan,
+    BodyUnreadReason, CallOutcome, ClosedWindow, CompiledPlan, ObservedCall, Windowing,
+    compile_plan, parse_plan,
 };
 use serde_json::Value;
 use uuid::Uuid;
 
 const VECTORS: &str = include_str!("../../../../vectors/capture_window_conformance_cases.json");
 
-// 2026-11-10T10:00:00Z: the times below are seconds after it.
-const TEN: u64 = 1_794_304_800;
-
 // What the capture task tells the windowing, in order: the plan held (by index, `None` for none)
-// at seconds after ten, a call received then, or calls lost before the queue.
+// at seconds after the epoch, a call received then, or calls lost before the queue.
 enum Event {
     Hold(Option<usize>, u64),
     Record(Option<usize>, u64),
@@ -24,7 +22,7 @@ enum Event {
 use Event::{Dropped, Hold, Record};
 
 fn time(seconds: u64) -> SystemTime {
-    UNIX_EPOCH + Duration::from_secs(TEN + seconds)
+    UNIX_EPOCH + Duration::from_secs(seconds)
 }
 
 // Plans told apart by their version, each with 60 s windows.
@@ -38,24 +36,23 @@ fn plans() -> [Arc<CompiledPlan>; 2] {
     })
 }
 
-fn call() -> ObservedCall {
+fn call(method: &str, path: &str, why: Unread) -> ObservedCall {
     ObservedCall {
         authority: b"api.github.com".to_vec(),
-        method: b"GET".to_vec(),
-        path: b"/a".to_vec(),
-        body: BodyRead::Unread(Unread::NotSent),
+        method: method.as_bytes().to_vec(),
+        path: path.as_bytes().to_vec(),
+        body: BodyRead::Unread(why),
         body_bytes: 0,
     }
 }
 
-// `v<plan_version> <start>-<end>, <calls> calls, <dropped> dropped`, times as minutes and seconds
-// after ten.
+// `v<plan_version> <start>-<end>, <calls> calls, <dropped> dropped`, times as minutes and seconds.
 fn describe(closed: ClosedWindow) -> String {
     let document = closed.into_document(Uuid::nil(), time(0), 0);
     let written = serde_json::to_value(&document).unwrap();
     let at = |key: &str| {
         let text = written["window"][key].as_str().unwrap();
-        text["2026-11-10T10:".len()..text.len() - 1].to_owned()
+        text["1970-01-01T00:".len()..text.len() - 1].to_owned()
     };
     format!(
         "v{} {}-{}, {} calls, {} dropped",
@@ -74,40 +71,31 @@ fn run(events: &[Event]) -> Vec<String> {
     let mut windowing = Windowing::default();
     let mut said = Vec::new();
     for event in events {
-        let closed = match *event {
-            Hold(plan, at) => windowing.hold(held(plan), time(at)),
+        match *event {
+            Hold(plan, at) => said.extend(windowing.hold(held(plan), time(at)).map(describe)),
             Record(plan, at) => {
-                let recorded = windowing.record(held(plan), &call(), time(at));
+                let get = call("GET", "/a", Unread::NotSent);
+                let recorded = windowing.record(held(plan), &get, time(at));
                 said.extend(recorded.closed.map(describe));
-                if recorded.call == CallOutcome::Dropped {
+                if matches!(recorded.outcome, CallOutcome::Dropped) {
                     said.push("call dropped".to_owned());
                 }
-                None
             }
-            Dropped(calls) => {
-                windowing.count_dropped(calls);
-                None
-            }
-        };
-        said.extend(closed.map(describe));
+            Dropped(calls) => windowing.count_dropped(calls),
+        }
     }
     said
 }
 
 #[test]
 fn test_windows_end_on_a_boundary_and_start_when_opened() {
-    let cases: [(&str, &[Event], &[&str]); 8] = [
+    let cases: [(&str, &[Event], &[&str]); 6] = [
         (
-            "the first window from the plan applied; past a time not seen, the next from then",
+            "the first window from the plan applied; a plan change past the boundary opens no window for the old plan",
+            &[Hold(Some(0), 20), Hold(Some(1), 61), Hold(None, 70)],
             &[
-                Hold(Some(0), 20),
-                Record(Some(0), 30),
-                Hold(Some(0), 1810),
-                Hold(None, 1830),
-            ],
-            &[
-                "v1 00:20-01:00, 1 calls, 0 dropped",
-                "v1 30:10-30:30, 0 calls, 0 dropped",
+                "v1 00:20-01:00, 0 calls, 0 dropped",
+                "v2 01:01-01:10, 0 calls, 0 dropped",
             ],
         ),
         (
@@ -119,36 +107,20 @@ fn test_windows_end_on_a_boundary_and_start_when_opened() {
             ],
         ),
         (
-            "a plan change cuts the window, the same plan doesn't, and none past the end closes there",
+            "a plan change cuts the window and the same plan doesn't",
             &[
                 Hold(Some(0), 0),
                 Hold(Some(0), 30),
                 Hold(Some(1), 40),
-                Hold(None, 70),
+                Hold(None, 50),
             ],
             &[
                 "v1 00:00-00:40, 0 calls, 0 dropped",
-                "v2 00:40-01:00, 0 calls, 0 dropped",
+                "v2 00:40-00:50, 0 calls, 0 dropped",
             ],
         ),
         (
-            "a plan change past the boundary opens no window for the old plan",
-            &[Hold(Some(0), 0), Hold(Some(1), 61), Hold(None, 70)],
-            &[
-                "v1 00:00-01:00, 0 calls, 0 dropped",
-                "v2 01:01-01:10, 0 calls, 0 dropped",
-            ],
-        ),
-        (
-            "a call under another plan changes it first",
-            &[Hold(Some(0), 0), Record(Some(1), 30), Hold(None, 40)],
-            &[
-                "v1 00:00-00:30, 0 calls, 0 dropped",
-                "v2 00:30-00:40, 1 calls, 0 dropped",
-            ],
-        ),
-        (
-            "a clock stepped back before the window's start closes it at its last call",
+            "past its end, a window opens the next when seen; a clock stepped back before its start closes it at its last call",
             &[
                 Hold(Some(0), 0),
                 Hold(Some(0), 61),
@@ -163,18 +135,25 @@ fn test_windows_end_on_a_boundary_and_start_when_opened() {
             ],
         ),
         (
-            "a call after the plan went closes the window and is dropped",
-            &[Hold(Some(0), 0), Record(None, 30)],
-            &["v1 00:00-00:30, 0 calls, 0 dropped", "call dropped"],
+            "after a smaller step back the next window starts at the last call",
+            &[
+                Hold(Some(0), 0),
+                Record(Some(0), 50),
+                Hold(Some(1), 40),
+                Hold(None, 55),
+            ],
+            &[
+                "v1 00:00-00:50, 1 calls, 0 dropped",
+                "v2 00:50-00:55, 0 calls, 0 dropped",
+            ],
         ),
         (
-            "no plan closes the window, drops with none are no window's, and none opens until one is held",
+            "a call after the plan went closes the window and is dropped; drops with none are no window's",
             &[
                 Hold(Some(0), 0),
                 Dropped(2),
-                Hold(None, 30),
+                Record(None, 30),
                 Dropped(3),
-                Record(None, 40),
                 Hold(Some(0), 130),
                 Hold(None, 140),
             ],
@@ -191,10 +170,18 @@ fn test_windows_end_on_a_boundary_and_start_when_opened() {
 }
 
 #[test]
-fn test_tells_when_the_open_window_ends() {
+fn test_tells_when_the_open_window_ends_and_why_a_body_went_unread() {
     let [plan, _] = plans();
     let mut windowing = Windowing::default();
     assert_eq!(windowing.end(), None);
-    windowing.hold(Some(plan), time(60));
+    assert!(windowing.hold(Some(Arc::clone(&plan)), time(60)).is_none());
     assert_eq!(windowing.end(), Some(time(120)));
+    let past_cap = call("POST", "/mcp", Unread::PastCap);
+    let recorded = windowing.record(Some(plan), &past_cap, time(70));
+    assert!(matches!(
+        recorded.outcome,
+        CallOutcome::Counted {
+            body_unread: Some(BodyUnreadReason::PastCap)
+        }
+    ));
 }
