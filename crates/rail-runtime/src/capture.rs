@@ -88,7 +88,7 @@ pub enum SentBody<'a> {
     },
     /// What the callout's configuration kept from it.
     NotSent { declared: Option<u64> },
-    /// Its first `sent_bytes`, the callout told the rest wasn't sent.
+    /// Only its first `sent_bytes` were sent, and the callout knows the rest weren't.
     CutShort {
         sent_bytes: u64,
         declared: Option<u64>,
