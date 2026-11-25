@@ -5,6 +5,13 @@ use std::path::Path;
 
 use rail_model::conformance::run_vectors;
 
+mod bundle;
+mod check;
+mod judge;
+mod plan;
+mod redaction;
+mod ticket;
+
 const VECTORS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../vectors");
 
 // Every file the runner reads.

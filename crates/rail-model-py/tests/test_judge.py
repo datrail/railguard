@@ -23,7 +23,7 @@ from datrail_model import (
 )
 
 _VECTORS = Path(__file__).parents[3] / "vectors"
-_WALK_CASES = json.loads((_VECTORS / "judge_walk_conformance_cases.json").read_text())["cases"]
+_WALK_CASES = json.loads((_VECTORS / "policy" / "judge.json").read_text())["cases"]
 # Decimal, so an operand past what a double holds is written back as sent.
 _CONDITION_CASES = json.loads(
     (_VECTORS / "judge_condition_conformance_cases.json").read_text(), parse_float=Decimal
@@ -91,7 +91,7 @@ def test_has_cases():
     assert _CONDITION_CASES
 
 
-@pytest.mark.parametrize("case", _WALK_CASES, ids=lambda case: case["name"])
+@pytest.mark.parametrize("case", _WALK_CASES, ids=lambda case: case["id"])
 def test_walk_vectors(case):
     endpoint = case["endpoint"]
     judgement = judge_sample(

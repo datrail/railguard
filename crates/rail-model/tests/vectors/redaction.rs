@@ -1,7 +1,7 @@
 use rail_model::request_line::RequestLine;
 use serde::Deserialize;
 
-const VECTORS: &str = include_str!("../../../vectors/redaction_conformance_cases.json");
+const VECTORS: &str = include_str!("../../../../vectors/redaction.json");
 
 #[derive(Deserialize)]
 struct Vectors {
@@ -10,7 +10,7 @@ struct Vectors {
 
 #[derive(Deserialize)]
 struct Case {
-    name: String,
+    id: String,
     path: String,
     redacted: String,
 }
@@ -29,13 +29,13 @@ fn redact(path: &str) -> String {
 #[test]
 fn test_vectors() {
     for case in cases() {
-        assert_eq!(redact(&case.path), case.redacted, "{}", case.name);
+        assert_eq!(redact(&case.path), case.redacted, "{}", case.id);
     }
 }
 
 #[test]
 fn test_redacting_twice_is_redacting_once() {
     for case in cases() {
-        assert_eq!(redact(&case.redacted), case.redacted, "{}", case.name);
+        assert_eq!(redact(&case.redacted), case.redacted, "{}", case.id);
     }
 }

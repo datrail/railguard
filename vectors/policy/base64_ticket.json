@@ -1,38 +1,44 @@
 {
-  "_comment": "Conformance cases for parse_base64_ticket, taken verbatim from datrail/gateway's gateway-core/tests/vectors/ticket.json at 041c92f (master). A valid case's token is the payload as sent. Removed: 8 about how the header arrives (none, a list, or not text), which the runtime handles, and 4 about the gateway's nesting cap of 64, where serde_json's is 128; the contract leaves the cap to each reader. A case marked `differs` is answered otherwise by the gateway, and one marked `added` is this reader's own.",
+  "_source": {
+    "repository": "datrail/gateway",
+    "files": [
+      "gateway-core/tests/vectors/ticket.json"
+    ],
+    "commit": "041c92f"
+  },
   "cases": [
     {
-      "name": "an empty header",
+      "id": "base64-an-empty-header",
       "header": "",
       "now_in_seconds": 1700000000,
       "state": "absent"
     },
     {
-      "name": "not base64 at all",
+      "id": "base64-not-base64-at-all",
       "header": "!!!not base64!!!",
       "now_in_seconds": 1700000000,
       "state": "undecodable"
     },
     {
-      "name": "base64 of bytes that are not JSON",
+      "id": "base64-base64-of-bytes-that-are-not-json",
       "header": "bm90IGpzb24gYXQgYWxs",
       "now_in_seconds": 1700000000,
       "state": "undecodable"
     },
     {
-      "name": "two headers joined by a comma, so the caller picks which is read",
+      "id": "base64-two-headers-joined-by-a-comma-so-the-caller-picks-which-is-read",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDAwNjB9==, eyJhZ2VudF9pZCI6ImIiLCJleHAiOjE3MDAwMDAwNjB9==",
       "now_in_seconds": 1700000000,
       "state": "undecodable"
     },
     {
-      "name": "a JSON array rather than an object",
+      "id": "base64-a-json-array-rather-than-an-object",
       "header": "WzEsMl0",
       "now_in_seconds": 1700000000,
       "state": "malformed"
     },
     {
-      "name": "no agent_id is still a ticket",
+      "id": "base64-no-agent-id-is-still-a-ticket",
       "header": "eyJleHAiOjE3MDAwMDAwNjB9",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -43,7 +49,7 @@
       "exp_in_seconds": 1700000060
     },
     {
-      "name": "an agent_id that is not a string is still a ticket",
+      "id": "base64-an-agent-id-that-is-not-a-string-is-still-a-ticket",
       "header": "eyJhZ2VudF9pZCI6NywiZXhwIjoxNzAwMDAwMDYwfQ",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -54,55 +60,55 @@
       "exp_in_seconds": 1700000060
     },
     {
-      "name": "a missing exp is malformed rather than unbounded",
+      "id": "base64-a-missing-exp-is-malformed-rather-than-unbounded",
       "header": "eyJhZ2VudF9pZCI6ImEifQ",
       "now_in_seconds": 1700000000,
       "state": "malformed"
     },
     {
-      "name": "a fractional exp",
+      "id": "base64-a-fractional-exp",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDAwMDAuNX0",
       "now_in_seconds": 1700000000,
       "state": "malformed"
     },
     {
-      "name": "exp true, which is an int in Python and must not read as 1970",
+      "id": "base64-exp-true-which-is-an-int-in-python-and-must-not-read-as-1970",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOnRydWV9",
       "now_in_seconds": 1700000000,
       "state": "malformed"
     },
     {
-      "name": "an exp beyond what a double can separate",
+      "id": "base64-an-exp-beyond-what-a-double-can-separate",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjkwMDcxOTkyNTQ3NDA5OTJ9",
       "now_in_seconds": 1700000000,
       "state": "malformed"
     },
     {
-      "name": "shape is checked before expiry, so a stale payload with an unusable exp reports malformed",
+      "id": "base64-shape-is-checked-before-expiry-so-a-stale-payload-with-an-unusable-exp-reports-malformed",
       "header": "eyJleHAiOiIxNjk5OTk5OTQwIn0",
       "now_in_seconds": 1700000000,
       "state": "malformed"
     },
     {
-      "name": "past its expiry",
+      "id": "base64-past-its-expiry",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE2OTk5OTk5OTl9",
       "now_in_seconds": 1700000000,
       "state": "expired"
     },
     {
-      "name": "exactly at its expiry is expired, not valid",
+      "id": "base64-exactly-at-its-expiry-is-expired-not-valid",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDAwMDB9",
       "now_in_seconds": 1700000000,
       "state": "expired"
     },
     {
-      "name": "an expired ticket surrenders its claims - a stale score is not a basis",
+      "id": "base64-an-expired-ticket-surrenders-its-claims-a-stale-score-is-not-a-basis",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE2OTk5OTk5OTksInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTl9fX0",
       "now_in_seconds": 1700000000,
       "state": "expired"
     },
     {
-      "name": "one second before expiry is still valid",
+      "id": "base64-one-second-before-expiry-is-still-valid",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDAwMDF9",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -113,7 +119,7 @@
       "exp_in_seconds": 1700000001
     },
     {
-      "name": "only the required claims",
+      "id": "base64-only-the-required-claims",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDAwNjB9",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -124,7 +130,7 @@
       "exp_in_seconds": 1700000060
     },
     {
-      "name": "carries the nested posture, the alignment and the skills when present",
+      "id": "base64-carries-the-nested-posture-the-alignment-and-the-skills-when-present",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDAwNjAsImlkIjoiNWM4ZjFlNDItMDAwMC00MDAwLTgwMDAtMDAwMDAwMDBjMDAxIiwicG9zdHVyZSI6eyJvdmVyYWxsIjp7InNjb3JlIjo4Mi4wLCJsZXZlbCI6ImxvdyJ9LCJjYXRlZ29yaWVzIjp7InNlY3JldHMiOnsic2NvcmUiOjYuNDUsImNhcHBlZCI6dHJ1ZX0sIm5ldHdvcmsiOnsic2NvcmUiOm51bGwsImNhcHBlZCI6ZmFsc2V9fX0sImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjVjOGYxZTQyLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwYjAwMSIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbImxsbV9tb2RlbCJdfSwic2tpbGxzIjpbIngiXX0",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -164,7 +170,7 @@
       "exp_in_seconds": 1700000060
     },
     {
-      "name": "a whole-number exp written as a float is the same wire value",
+      "id": "base64-a-whole-number-exp-written-as-a-float-is-the-same-wire-value",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDAwNjAuMH0",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -175,7 +181,7 @@
       "exp_in_seconds": 1700000060
     },
     {
-      "name": "padding stays optional - a spelling that carries '=' decodes",
+      "id": "base64-padding-stays-optional-a-spelling-that-carries-decodes",
       "header": "eyJhZ2VudF9pZCI6ImFiIiwiZXhwIjoxNzAwMDAwMDYwfQ==",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -186,88 +192,88 @@
       "exp_in_seconds": 1700000060
     },
     {
-      "name": "a NaN literal is not JSON",
+      "id": "base64-a-nan-literal-is-not-json",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDAwNjAsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6TmFOfX19",
       "now_in_seconds": 1700000000,
       "state": "undecodable"
     },
     {
-      "name": "an Infinity literal is not JSON",
+      "id": "base64-an-infinity-literal-is-not-json",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDAwNjAsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6SW5maW5pdHl9fX0",
       "now_in_seconds": 1700000000,
       "state": "undecodable"
     },
     {
-      "name": "a -Infinity literal is not JSON",
+      "id": "base64-a-infinity-literal-is-not-json",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDAwNjAsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6LUluZmluaXR5fX19",
       "now_in_seconds": 1700000000,
       "state": "undecodable"
     },
     {
-      "name": "invalid UTF-8 inside an otherwise valid JSON string",
+      "id": "base64-invalid-utf-8-inside-an-otherwise-valid-json-string",
       "header": "eyJhZ2VudF9pZCI6ImH_IiwiZXhwIjoxNzAwMDAwMDYwfQ",
       "now_in_seconds": 1700000000,
       "state": "undecodable",
       "note": "the TypeScript reference substitutes U+FFFD and reaches valid; this refuses bytes it could not read"
     },
     {
-      "name": "an exp that overflows a double to infinity",
+      "id": "base64-an-exp-that-overflows-a-double-to-infinity",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjFlNDAwfQ",
       "now_in_seconds": 1700000000,
       "state": "undecodable",
-      "differs": "the gateway reads it; serde_json holds no number past a double, so the payload is undecodable here"
+      "note": "serde_json holds no number past a double, so the payload is undecodable."
     },
     {
-      "name": "a score that overflows still decodes, because only exp is checked",
+      "id": "base64-a-score-that-overflows-still-decodes-because-only-exp-is-checked",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDAwNjAsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6MWU0MDB9fX0",
       "now_in_seconds": 1700000000,
       "state": "undecodable",
-      "differs": "the gateway reads it; serde_json holds no number past a double, so the payload is undecodable here"
+      "note": "serde_json holds no number past a double, so the payload is undecodable."
     },
     {
-      "name": "exp null",
+      "id": "base64-exp-null",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOm51bGx9",
       "now_in_seconds": 1700000000,
       "state": "malformed"
     },
     {
-      "name": "exp as a string",
+      "id": "base64-exp-as-a-string",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOiIxNzAwMDAwMDYwIn0",
       "now_in_seconds": 1700000000,
       "state": "malformed"
     },
     {
-      "name": "exp at the negative end of what a double can separate",
+      "id": "base64-exp-at-the-negative-end-of-what-a-double-can-separate",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOi05MDA3MTk5MjU0NzQwOTkyfQ",
       "now_in_seconds": 1700000000,
       "state": "malformed"
     },
     {
-      "name": "a JSON scalar rather than an object",
+      "id": "base64-a-json-scalar-rather-than-an-object",
       "header": "NDI",
       "now_in_seconds": 1700000000,
       "state": "malformed"
     },
     {
-      "name": "the JSON literal null",
+      "id": "base64-the-json-literal-null",
       "header": "bnVsbA",
       "now_in_seconds": 1700000000,
       "state": "malformed"
     },
     {
-      "name": "a stray comma splicing two payloads",
+      "id": "base64-a-stray-comma-splicing-two-payloads",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDAwNjB9LHsiYWdlbnRfaWQiOiJiIn0",
       "now_in_seconds": 1700000000,
       "state": "undecodable"
     },
     {
-      "name": "shape is checked before expiry - a stale ticket with an unusable exp is malformed",
+      "id": "base64-shape-is-checked-before-expiry-a-stale-ticket-with-an-unusable-exp-is-malformed",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOiJub3QtYS1udW1iZXIifQ",
       "now_in_seconds": 1700000000,
       "state": "malformed"
     },
     {
-      "name": "padding stays optional - the same payload stripped of '=' decodes too",
+      "id": "base64-padding-stays-optional-the-same-payload-stripped-of-decodes-too",
       "header": "eyJhZ2VudF9pZCI6ImFiIiwiZXhwIjoxNzAwMDAwMDYwfQ",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -278,7 +284,7 @@
       "exp_in_seconds": 1700000060
     },
     {
-      "name": "nesting at the cap is still read",
+      "id": "base64-nesting-at-the-cap-is-still-read",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDAwNjAsInNraWxscyI6W1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dfQ",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -414,7 +420,7 @@
       "exp_in_seconds": 1700000060
     },
     {
-      "name": "a bracket inside a string is a character, not structure",
+      "id": "base64-a-bracket-inside-a-string-is-a-character-not-structure",
       "header": "eyJhZ2VudF9pZCI6ICJhW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1siLCAiZXhwIjogMTcwMDAwMDA2MH0",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -425,28 +431,28 @@
       "exp_in_seconds": 1700000060
     },
     {
-      "name": "invalid UTF-8 in a key",
+      "id": "base64-invalid-utf-8-in-a-key",
       "header": "eyJhZ2VudF9pZP8iOiJhIiwiZXhwIjoxNzAwMDAwMDYwfQ",
       "now_in_seconds": 1700000000,
       "state": "undecodable",
       "note": "the reference substitutes U+FFFD, so the key is no longer agent_id and it reports malformed; both refuse, on different states"
     },
     {
-      "name": "a MIME-wrapped header is refused rather than quietly unwrapped",
+      "id": "base64-a-mime-wrapped-header-is-refused-rather-than-quietly-unwrapped",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDM2MDAsInNraWxscyI6WyJzc3Nz\nc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nz\nc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nz\nc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nz\nc3MiXX0",
       "now_in_seconds": 1700000000,
       "state": "undecodable",
       "note": "What `openssl base64` produces: a wrap every 64 characters. Java's MIME encoder wraps at 76 and is the same attack. A lenient decoder discards the wraps and reads the whole ticket, and four of them leave the body's length no help either, so the alphabet check is the only thing that answers here."
     },
     {
-      "name": "a body one past a multiple of four is undecodable",
+      "id": "base64-a-body-one-past-a-multiple-of-four-is-undecodable",
       "header": "eyJhZ2VudF9pZCI6ImExMDAiLCJleHAiOjE3MDAwMDM2MDB9A==",
       "now_in_seconds": 1700000000,
       "state": "undecodable",
       "note": "The stray 'A' hides inside the padding, so the raw header measures clean and only the body gives it away. A lenient decoder discards the character and hands back a whole ticket."
     },
     {
-      "name": "one leading byte-order mark is dropped and the ticket reads",
+      "id": "base64-one-leading-byte-order-mark-is-dropped-and-the-ticket-reads",
       "header": "77u_eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDM2MDB9",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -458,20 +464,20 @@
       "exp_in_seconds": 1700003600
     },
     {
-      "name": "a doubled byte-order mark leaves a character that is not JSON",
+      "id": "base64-a-doubled-byte-order-mark-leaves-a-character-that-is-not-json",
       "header": "77u_77u_eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDM2MDB9",
       "now_in_seconds": 1700000000,
       "state": "undecodable",
       "note": "Exactly one mark is dropped. The second is an ordinary U+FEFF."
     },
     {
-      "name": "a byte-order mark anywhere but the start is an ordinary character",
+      "id": "base64-a-byte-order-mark-anywhere-but-the-start-is-an-ordinary-character",
       "header": "eyJhZ2VudF9pZCI6ImEiLO-7vyJleHAiOjE3MDAwMDM2MDB9",
       "now_in_seconds": 1700000000,
       "state": "undecodable"
     },
     {
-      "name": "an integer past what a double separates narrows, as it does in the reference",
+      "id": "base64-an-integer-past-what-a-double-separates-narrows-as-it-does-in-the-reference",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDM2MDAsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTAwNzE5OTI1NDc0MDk5M319fQ",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -488,14 +494,14 @@
       "exp_in_seconds": 1700003600
     },
     {
-      "name": "a 4400-digit integer saturates to infinity rather than raising",
+      "id": "base64-a-4400-digit-integer-saturates-to-infinity-rather-than-raising",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDM2MDAsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTl9fX0",
       "now_in_seconds": 1700000000,
       "state": "undecodable",
-      "differs": "the gateway reads it; serde_json holds no number past a double, so the payload is undecodable here"
+      "note": "serde_json holds no number past a double, so the payload is undecodable."
     },
     {
-      "name": "an exp at exactly the largest safe integer is still read",
+      "id": "base64-an-exp-at-exactly-the-largest-safe-integer-is-still-read",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjkwMDcxOTkyNTQ3NDA5OTF9",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -506,13 +512,13 @@
       "exp_in_seconds": 9007199254740991
     },
     {
-      "name": "an exp at the negative end of the safe range is expired, not malformed",
+      "id": "base64-an-exp-at-the-negative-end-of-the-safe-range-is-expired-not-malformed",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOi05MDA3MTk5MjU0NzQwOTkxfQ",
       "now_in_seconds": 1700000000,
       "state": "expired"
     },
     {
-      "name": "seventy structures opened and closed in turn nest two deep, not seventy-one",
+      "id": "base64-seventy-structures-opened-and-closed-in-turn-nest-two-deep-not-seventy-one",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDM2MDAsImswIjpbXSwiazEiOltdLCJrMiI6W10sImszIjpbXSwiazQiOltdLCJrNSI6W10sIms2IjpbXSwiazciOltdLCJrOCI6W10sIms5IjpbXSwiazEwIjpbXSwiazExIjpbXSwiazEyIjpbXSwiazEzIjpbXSwiazE0IjpbXSwiazE1IjpbXSwiazE2IjpbXSwiazE3IjpbXSwiazE4IjpbXSwiazE5IjpbXSwiazIwIjpbXSwiazIxIjpbXSwiazIyIjpbXSwiazIzIjpbXSwiazI0IjpbXSwiazI1IjpbXSwiazI2IjpbXSwiazI3IjpbXSwiazI4IjpbXSwiazI5IjpbXSwiazMwIjpbXSwiazMxIjpbXSwiazMyIjpbXSwiazMzIjpbXSwiazM0IjpbXSwiazM1IjpbXSwiazM2IjpbXSwiazM3IjpbXSwiazM4IjpbXSwiazM5IjpbXSwiazQwIjpbXSwiazQxIjpbXSwiazQyIjpbXSwiazQzIjpbXSwiazQ0IjpbXSwiazQ1IjpbXSwiazQ2IjpbXSwiazQ3IjpbXSwiazQ4IjpbXSwiazQ5IjpbXSwiazUwIjpbXSwiazUxIjpbXSwiazUyIjpbXSwiazUzIjpbXSwiazU0IjpbXSwiazU1IjpbXSwiazU2IjpbXSwiazU3IjpbXSwiazU4IjpbXSwiazU5IjpbXSwiazYwIjpbXSwiazYxIjpbXSwiazYyIjpbXSwiazYzIjpbXSwiazY0IjpbXSwiazY1IjpbXSwiazY2IjpbXSwiazY3IjpbXSwiazY4IjpbXSwiazY5IjpbXX0",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -594,7 +600,7 @@
       "exp_in_seconds": 1700003600
     },
     {
-      "name": "an escaped quote does not end the string it is inside",
+      "id": "base64-an-escaped-quote-does-not-end-the-string-it-is-inside",
       "header": "eyJhZ2VudF9pZCI6ImFcIltbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1siLCJleHAiOjE3MDAwMDM2MDB9",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -606,7 +612,7 @@
       "exp_in_seconds": 1700003600
     },
     {
-      "name": "the url-safe alphabet decodes",
+      "id": "base64-the-url-safe-alphabet-decodes",
       "header": "eyJhZ2VudF9pZCI6ImI-Ml4_NjdefTkzNyIsImV4cCI6MTcwMDAwMzYwMH0",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -618,7 +624,7 @@
       "exp_in_seconds": 1700003600
     },
     {
-      "name": "the standard alphabet decodes too",
+      "id": "base64-the-standard-alphabet-decodes-too",
       "header": "eyJhZ2VudF9pZCI6ImI+Ml4/NjdefTkzNyIsImV4cCI6MTcwMDAwMzYwMH0",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -630,33 +636,33 @@
       "exp_in_seconds": 1700003600
     },
     {
-      "name": "a leading '=' is a corrupted body, not a differently-padded one",
+      "id": "base64-a-leading-is-a-corrupted-body-not-a-differently-padded-one",
       "header": "=eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDM2MDB9",
       "now_in_seconds": 1700000000,
       "state": "undecodable",
       "note": "Padding comes off the end and nowhere else. Stripping every '=' instead would take this one too and hand back a usable ticket."
     },
     {
-      "name": "a trailing newline on the header is not trimmed away",
+      "id": "base64-a-trailing-newline-on-the-header-is-not-trimmed-away",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDM2MDB9\n",
       "now_in_seconds": 1700000000,
       "state": "undecodable",
       "note": "Normalising the header with `strip()` before reading it would turn this, and a leading space, back into a usable ticket. The alphabet is the whole of what is accepted; whitespace is not part of it."
     },
     {
-      "name": "a leading space on the header is not trimmed away",
+      "id": "base64-a-leading-space-on-the-header-is-not-trimmed-away",
       "header": " eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDM2MDB9",
       "now_in_seconds": 1700000000,
       "state": "undecodable"
     },
     {
-      "name": "a trailing tab on the header is not trimmed away",
+      "id": "base64-a-trailing-tab-on-the-header-is-not-trimmed-away",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDM2MDB9\t",
       "now_in_seconds": 1700000000,
       "state": "undecodable"
     },
     {
-      "name": "an empty agent_id is a present claim, not a missing one",
+      "id": "base64-an-empty-agent-id-is-a-present-claim-not-a-missing-one",
       "header": "eyJhZ2VudF9pZCI6IiIsImV4cCI6MTcwMDAwMzYwMH0",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -668,21 +674,21 @@
       "exp_in_seconds": 1700003600
     },
     {
-      "name": "an exp of zero is expired, not malformed",
+      "id": "base64-an-exp-of-zero-is-expired-not-malformed",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjB9",
       "now_in_seconds": 1700000000,
       "state": "expired",
       "note": "The one value where testing `exp is None` and testing its truth diverge, and the state is what a refusal is eventually reported as."
     },
     {
-      "name": "two padded tickets run together read as the first alone",
+      "id": "base64-two-padded-tickets-run-together-read-as-the-first-alone",
       "header": "eyJhZ2VudF9pZCI6ImF0dGFja2VyIiwiZXhwIjoxNzAwMDAzNjAwfQ==eyJhZ2VudF9pZCI6InZpY3RpbSIsImV4cCI6MTcwMDAwMzYwMH0=",
       "now_in_seconds": 1700000000,
       "state": "undecodable",
       "note": "Both decoders stop at the first payload's padding, so whoever concatenates them picks which ticket is honoured. Keeping '=' out of the alphabet is the only thing that refuses this."
     },
     {
-      "name": "sixty-five sibling objects nest two deep, not sixty-six",
+      "id": "base64-sixty-five-sibling-objects-nest-two-deep-not-sixty-six",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDM2MDAsImswIjp7fSwiazEiOnt9LCJrMiI6e30sImszIjp7fSwiazQiOnt9LCJrNSI6e30sIms2Ijp7fSwiazciOnt9LCJrOCI6e30sIms5Ijp7fSwiazEwIjp7fSwiazExIjp7fSwiazEyIjp7fSwiazEzIjp7fSwiazE0Ijp7fSwiazE1Ijp7fSwiazE2Ijp7fSwiazE3Ijp7fSwiazE4Ijp7fSwiazE5Ijp7fSwiazIwIjp7fSwiazIxIjp7fSwiazIyIjp7fSwiazIzIjp7fSwiazI0Ijp7fSwiazI1Ijp7fSwiazI2Ijp7fSwiazI3Ijp7fSwiazI4Ijp7fSwiazI5Ijp7fSwiazMwIjp7fSwiazMxIjp7fSwiazMyIjp7fSwiazMzIjp7fSwiazM0Ijp7fSwiazM1Ijp7fSwiazM2Ijp7fSwiazM3Ijp7fSwiazM4Ijp7fSwiazM5Ijp7fSwiazQwIjp7fSwiazQxIjp7fSwiazQyIjp7fSwiazQzIjp7fSwiazQ0Ijp7fSwiazQ1Ijp7fSwiazQ2Ijp7fSwiazQ3Ijp7fSwiazQ4Ijp7fSwiazQ5Ijp7fSwiazUwIjp7fSwiazUxIjp7fSwiazUyIjp7fSwiazUzIjp7fSwiazU0Ijp7fSwiazU1Ijp7fSwiazU2Ijp7fSwiazU3Ijp7fSwiazU4Ijp7fSwiazU5Ijp7fSwiazYwIjp7fSwiazYxIjp7fSwiazYyIjp7fSwiazYzIjp7fSwiazY0Ijp7fX0",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -759,7 +765,7 @@
       "exp_in_seconds": 1700003600
     },
     {
-      "name": "a header padded past what it needs still decodes",
+      "id": "base64-a-header-padded-past-what-it-needs-still-decodes",
       "header": "eyJhZ2VudF9pZCI6ImEwIiwiZXhwIjoxNzAwMDAzNjAwfQ===",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -771,28 +777,28 @@
       "exp_in_seconds": 1700003600
     },
     {
-      "name": "exp false is malformed, as exp true is",
+      "id": "base64-exp-false-is-malformed-as-exp-true-is",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOmZhbHNlfQ",
       "now_in_seconds": 1700000000,
       "state": "malformed",
       "note": "The other half of the boolean rule. abs(False) is zero, so a guard written as `exp is True` reads this as the epoch and reports expired -- a state that says the ticket was once good."
     },
     {
-      "name": "a raw control character inside a string is not JSON",
+      "id": "base64-a-raw-control-character-inside-a-string-is-not-json",
       "header": "eyJhZ2VudF9pZCI6ImEBYiIsImV4cCI6MTcwMDAwMzYwMH0",
       "now_in_seconds": 1700000000,
       "state": "undecodable",
       "note": "RFC 8259 requires escaping below U+0020 and JSON.parse refuses it. Python's json refuses it too unless asked not to."
     },
     {
-      "name": "a duplicate key takes the last value, as JSON.parse does",
+      "id": "base64-a-duplicate-key-takes-the-last-value-as-json-parse-does",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDM2MDAsImV4cCI6MX0",
       "now_in_seconds": 1700000000,
       "state": "expired",
       "note": "Unspecified by RFC 8259 and agreed by both runtimes. A first-wins reading would honour an expiry the sender wrote over."
     },
     {
-      "name": "a now of zero is an instant, not a missing argument",
+      "id": "base64-a-now-of-zero-is-an-instant-not-a-missing-argument",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDM2MDB9",
       "now_in_seconds": 0,
       "state": "valid",
@@ -804,21 +810,21 @@
       "exp_in_seconds": 1700003600
     },
     {
-      "name": "a lone surrogate is not UTF-8",
+      "id": "base64-a-lone-surrogate-is-not-utf-8",
       "header": "eyJhZ2VudF9pZCI6ImHtoIAiLCJleHAiOjE3MDAwMDM2MDB9",
       "now_in_seconds": 1700000000,
       "state": "undecodable",
       "note": "The contract names this one: a decoder configured to let surrogates through reads the ticket and a strict one refuses it, with every claim in it chosen by whoever sent it. Divergent for the first documented reason: Buffer.toString substitutes U+FFFD and never throws, so the reference admits an agent_id with a replacement character in it."
     },
     {
-      "name": "a non-ASCII letter is outside the alphabet",
+      "id": "base64-a-non-ascii-letter-is-outside-the-alphabet",
       "header": "eyJhZ2VuéééédF9pZCI6ImF0dGFja2VyIiwiZXhwIjoxNzAwMDAzNjAwfQ",
       "now_in_seconds": 1700000000,
       "state": "undecodable",
       "note": "Spliced into a good header. A character class written as \\w admits it, and the decoder then discards it and honours the ticket whole."
     },
     {
-      "name": "a complete ticket",
+      "id": "base64-a-complete-ticket",
       "header": "eyJjYXNlX2FnZW50X2lkIjoiYSIsImV4cCI6MTcwMDAwMDA2MCwiaWQiOiIxMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJzYW5kYm94X2lkIjoic2FuZGJveC0xIiwic2FuZGJveF90eXBlIjoia3ViZXJuZXRlcyIsImVudmlyb25tZW50X2ZpbmdlcnByaW50IjoiZmluZ2VycHJpbnQtMSIsInNraWxscyI6WyJmaW5yZXRhaWwjL21jcCN0b29scy9jYWxsI2dldF9vcmRlciJdLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoibG93In0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOjkuNSwiY2FwcGVkIjpmYWxzZX0sImRhdGFfcmVhY2giOnsic2NvcmUiOm51bGwsImNhcHBlZCI6ZmFsc2V9fX0sImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjMwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbXX0sImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIn0=",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -861,7 +867,7 @@
       "added": true
     },
     {
-      "name": "a claim Rail Center does not mint is still a ticket",
+      "id": "base64-a-claim-rail-center-does-not-mint-is-still-a-ticket",
       "header": "eyJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImFnZW50X2lkIjoiMjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJza2lsbHMiOlsiZmlucmV0YWlsIy9tY3AjdG9vbHMvY2FsbCNnZXRfb3JkZXIiXSwiZXhwIjoxNzAwMDAwMDYwLCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoic2V2ZXJlIn0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOjkuNSwiY2FwcGVkIjpmYWxzZX19fSwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOltdfX0=",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -899,7 +905,7 @@
       "added": true
     },
     {
-      "name": "non-zero trailing bits are accepted",
+      "id": "base64-non-zero-trailing-bits-are-accepted",
       "header": "eyJleHAiOiAxNzAwMDAwMDYwff",
       "now_in_seconds": 1700000000,
       "state": "valid",

@@ -12,7 +12,7 @@ use tokio::runtime::Handle;
 
 pub use crate::scripted::{Answer, Script, answer};
 
-const VECTORS: &str = include_str!("../../../vectors/parse_plan_conformance_cases.json");
+const VECTORS: &str = include_str!("../../../vectors/capture/plan.json");
 
 pub const MINUTE: Duration = Duration::from_secs(60);
 
