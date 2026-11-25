@@ -53,11 +53,11 @@ enum Message {
     Flush(oneshot::Sender<()>),
 }
 
-/// Sends each closed window to Rail Center as its document, oldest first, one at a time, retrying
-/// with a backoff from 5 s to 320 s; a document Rail Center refuses is dropped. Besides the oldest,
-/// it keeps up to the newest window's plan's `max_unsent_windows`, the oldest empty one dropped
-/// first, else the oldest; and up to two million records and steps, the oldest dropped. Each drop
-/// is counted in the next document. Dropping it stops the sending.
+/// Sends each closed window that holds a call or a drop to Rail Center as its document, oldest
+/// first, one at a time, retrying with a backoff from 5 s to 320 s; a document Rail Center refuses
+/// is dropped. Besides the oldest, it keeps up to the newest window's plan's `max_unsent_windows`
+/// and up to two million records and steps, the oldest dropped past either. Each drop is counted in
+/// the next document. Dropping it stops the sending.
 pub struct CallRecordReporter {
     // Its task ends once this is dropped.
     messages: mpsc::UnboundedSender<Message>,
@@ -76,8 +76,12 @@ impl CallRecordReporter {
         Self { messages }
     }
 
-    /// Queues `window`, never waiting.
+    /// Queues `window`, never waiting; an empty one isn't sent, nor counted as dropped.
     pub fn report(&self, window: ClosedWindow) {
+        if window.is_empty() {
+            tracing::debug!("a call record window with no call or drop, not sent");
+            return;
+        }
         let _ = self.messages.send(Message::Window(Box::new(window)));
     }
 
@@ -101,7 +105,6 @@ impl CallRecordReporter {
 struct Queued {
     content: Content,
     records_and_steps: usize,
-    empty: bool,
     // The drops written into its document, handed on if it's dropped too; 0 until written.
     windows_dropped: u64,
 }
@@ -192,45 +195,35 @@ impl Reporter {
         let limit = window.max_unsent_windows() as usize;
         self.queue.push_back(Queued {
             records_and_steps: window.records_and_steps(),
-            empty: window.is_empty(),
             windows_dropped: 0,
             content: Content::Window(window),
         });
         self.trim(limit, sending);
     }
 
-    // Past `limit` waiting besides the first, being sent or next, the oldest empty window goes
-    // first; past the records and steps cap, the oldest, since an empty one frees none.
+    // Past `limit` waiting besides the first, being sent or next, or past the records and steps
+    // cap, the oldest goes.
     fn trim(&mut self, limit: usize, sending: bool) {
         let mut records_and_steps: usize = self.queue.iter().map(|q| q.records_and_steps).sum();
         // The one in flight stays.
         let first = usize::from(sending);
         loop {
-            let too_many = self.queue.len() > limit + 1;
-            if !too_many && records_and_steps <= MAX_QUEUED_RECORDS_AND_STEPS {
+            if self.queue.len() <= limit + 1 && records_and_steps <= MAX_QUEUED_RECORDS_AND_STEPS {
                 return;
             }
-            let empty = (first..self.queue.len()).find(|&at| self.queue[at].empty);
-            let oldest = (first < self.queue.len()).then_some(first);
-            let Some(at) = empty.filter(|_| too_many).or(oldest) else {
+            let Some(dropped) = self.queue.remove(first) else {
                 return;
             };
-            let dropped = self.queue.remove(at).expect("an index in the queue");
             records_and_steps -= dropped.records_and_steps;
-            self.count_drop(
-                dropped.windows_dropped,
-                dropped.empty,
-                "the queue is past its limits",
-            );
+            self.count_drop(dropped.windows_dropped, "the queue is past its limits");
         }
     }
 
     // Counted in the next document, with the drops it carried.
-    fn count_drop(&mut self, carried: u64, empty: bool, why: &str) {
+    fn count_drop(&mut self, carried: u64, why: &str) {
         self.windows_dropped += carried + 1;
         tracing::warn!(
             why,
-            empty,
             queued = self.queue.len(),
             windows_dropped = self.windows_dropped,
             "dropping a call record window; Rail Center reads it as missing"
@@ -299,7 +292,7 @@ impl Reporter {
             // A clock outside years 0 to 9999: the document can't write its times.
             Err(error) => {
                 tracing::error!(%error, document_id = %id, "a call record document can't be written");
-                self.count_drop(0, head.empty, "it can't be written");
+                self.count_drop(0, "it can't be written");
                 self.next_attempt = Instant::now();
                 None
             }
@@ -349,7 +342,7 @@ impl Reporter {
         let head = self.queue.pop_front().expect("the document answered");
         self.next_attempt = Instant::now();
         if let Some(why) = dropped {
-            self.count_drop(head.windows_dropped, head.empty, why);
+            self.count_drop(head.windows_dropped, why);
         }
     }
 }

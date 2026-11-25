@@ -18,7 +18,7 @@ const LIMITS: Limits = Limits {
 
 const CAPTURE_PLAN_REFRESH_SECONDS: &str = "RAIL_CAPTURE_PLAN_REFRESH_SECONDS";
 
-// Every few minutes: a plan has no expiry, and a Rail Center without the route costs one quiet GET.
+// Every few minutes: a plan has no expiry.
 const DEFAULT_REFRESH_INTERVAL: Duration = Duration::from_secs(300);
 
 /// How often the capture plan is fetched again, before jitter; described as read.

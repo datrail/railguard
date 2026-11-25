@@ -50,16 +50,19 @@ pub fn no_plan() -> Answer {
 
 // With no jitter, so the times the fetches come are exact.
 pub fn start(script: &Script, refresh_interval: Duration) -> CapturePlanHolder {
+    start_on(&Handle::current(), script, refresh_interval)
+}
+
+pub fn start_on(
+    runtime: &Handle,
+    script: &Script,
+    refresh_interval: Duration,
+) -> CapturePlanHolder {
     let plans = Script {
         agent: agent(),
         ..script.clone()
     };
-    CapturePlanHolder::start(
-        &Handle::current(),
-        plans,
-        refresh_interval,
-        Jitter::new(|| 1.0),
-    )
+    CapturePlanHolder::start(runtime, plans, refresh_interval, Jitter::new(|| 1.0))
 }
 
 // The content_hash of the plan held, if one is.

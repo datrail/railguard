@@ -3,12 +3,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use rail_model::agent::AgentId;
-use rail_model::capture::{CompiledPlan, compile_plan, parse_plan};
+use rail_model::capture::{CompiledEntry, CompiledPlan, compile_plan, parse_plan};
 use rail_model::redaction::REDACTION_VERSION;
 use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::Value;
 use tokio::runtime::Handle;
+use tokio::sync::watch;
 
 use crate::capture_plan::CapturePlanSource;
 use crate::client::{FetchError, Response, Unread, read_ok};
@@ -54,6 +55,11 @@ impl CapturePlanHolder {
     /// plan changes, so `Windowing` tells a change by pointer.
     pub fn snapshot(&self) -> Option<Arc<CompiledPlan>> {
         self.holder.snapshot().as_ref().clone()
+    }
+
+    /// Changes each time another plan, or none, comes to be held; closed once the refreshes stop.
+    pub(crate) fn changes(&self) -> watch::Receiver<()> {
+        self.holder.changes()
     }
 }
 
@@ -139,6 +145,10 @@ impl<S: CapturePlanSource> Kind for CapturePlans<S> {
                     entries_skipped = plan.entries_skipped(),
                     "holding a capture plan"
                 );
+                // Once per plan: each calls for its own fix in the plan.
+                for entry in plan.refused() {
+                    log_refused_entry(entry);
+                }
             }
             Outcome::NoPlan { cleared } if cleared || first || after_failure => tracing::info!(
                 "Rail Center holds no capture plan for this agent; capturing nothing"
@@ -151,6 +161,21 @@ impl<S: CapturePlanSource> Kind for CapturePlans<S> {
             Outcome::Failed(Unread { reason, .. }) => log_fetch_failed(current, &reason, retry),
         }
     }
+}
+
+// Where in its `match` and why, as a plan writes them: the location a list, the refusal its name.
+fn log_refused_entry(entry: &CompiledEntry) {
+    let Some(refused) = entry.refusal() else {
+        return;
+    };
+    let location = serde_json::to_string(&refused.location).unwrap_or_default();
+    let refusal = serde_json::to_value(refused.refusal).unwrap_or_default();
+    tracing::warn!(
+        entry_id = entry.id(),
+        location,
+        refusal = refusal.as_str().unwrap_or_default(),
+        "a capture plan entry takes no call: a condition in it can't be evaluated"
+    );
 }
 
 // At `warn`, where the bundle's are at `error`: with no plan the proxy only captures nothing.

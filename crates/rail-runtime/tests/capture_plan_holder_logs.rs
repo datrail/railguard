@@ -32,6 +32,16 @@ async fn a_plan_applied_is_said_with_its_hash_version_window_and_refused_entries
     ] {
         assert!(line[0].contains(field), "{field}: {logs}");
     }
+    let refused = lines_with(&logs, "a capture plan entry takes no call");
+    assert_eq!(refused.len(), 1, "{logs}");
+    for field in [
+        "WARN",
+        r#"entry_id="e2""#,
+        r#"location="[0]""#,
+        r#"refusal="unknown_op""#,
+    ] {
+        assert!(refused[0].contains(field), "{field}: {logs}");
+    }
 }
 
 #[tokio::test(start_paused = true)]
