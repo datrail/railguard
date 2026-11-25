@@ -21,7 +21,8 @@ use crate::common::{TempSocket, rail_envoy, serve};
 const PLANS: &str = include_str!("../../../vectors/parse_plan_conformance_cases.json");
 
 // The parse vectors' plan: `e1` takes a `create_or_update_file` call to GitHub's `/mcp`, its
-// record keyed by the repository; its windows a day long, so a run straddles two only at midnight UTC.
+// record keyed by the repository; its windows a day long, so a run straddles two only at midnight
+// UTC.
 fn worked_example() -> &'static str {
     let vectors: Value = serde_json::from_str(PLANS).unwrap();
     let mut plan = vectors["plan"].clone();
@@ -34,7 +35,10 @@ fn mcp_call(repo: &str, content: &str) -> Vec<u8> {
         "jsonrpc": "2.0",
         "id": 1,
         "method": "tools/call",
-        "params": {"name": "create_or_update_file", "arguments": {"repo": repo, "content": content}},
+        "params": {
+            "name": "create_or_update_file",
+            "arguments": {"repo": repo, "content": content},
+        },
     })
     .to_string()
     .into_bytes()
@@ -114,6 +118,9 @@ async fn ext_authz_calls_are_counted_and_their_window_sent_when_stopped() {
     let within = mcp_call("uploads", &"w".repeat(3 * MIB / 2));
     let large = mcp_call("uploads", &"r".repeat(3 * MIB));
     let at_cap = vec![b' '; 2 * MIB];
+    let padding = 2 * MIB - mcp_call("exact", "").len();
+    let exact = mcp_call("exact", &"e".repeat(padding));
+    let lower = mcp_call("lower", "x");
 
     check(&callouts, post(&whole, Some(whole.len()))).await;
     // Sent as text, without `pack_as_bytes`.
@@ -124,6 +131,9 @@ async fn ext_authz_calls_are_counted_and_their_window_sent_when_stopped() {
     };
     check(&callouts, as_text).await;
     check(&callouts, post(&within, Some(within.len()))).await;
+    // Exactly at the cap; and declaring less than it sent, counted as sent.
+    check(&callouts, post(&exact, Some(exact.len()))).await;
+    check(&callouts, post(&lower, Some(1))).await;
     // Not sent: declared, or a POST of a size Envoy doesn't know.
     check(&callouts, post(b"", Some(whole.len()))).await;
     check(
@@ -171,6 +181,8 @@ async fn ext_authz_calls_are_counted_and_their_window_sent_when_stopped() {
     assert_eq!(e1("docs")["measures"]["call_count"], 2);
     assert_eq!(e1("docs")["measures"]["request_bytes"], 2 * whole.len());
     assert_eq!(e1("uploads")["measures"]["request_bytes"], within.len());
+    assert_eq!(e1("exact")["measures"]["request_bytes"], exact.len());
+    assert_eq!(e1("lower")["measures"]["request_bytes"], lower.len());
     let unread = &document["truncated"]["body_unread"];
     assert_eq!(
         (
@@ -193,8 +205,8 @@ fn documents(rail_center: &RailCenter) -> Vec<Value> {
         .collect()
 }
 
-// The binary's own wiring: its cap, the sender its ext_authz hands calls to, and the window sent
-// at SIGTERM.
+// The binary's own wiring: its cap, past the default and kept, the sender its ext_authz hands calls
+// to, and the window sent at SIGTERM.
 #[tokio::test(flavor = "multi_thread")]
 async fn the_binary_captures_within_its_cap_and_sends_the_window_at_sigterm() {
     let rail_center = RailCenter::start_with_plan(worked_example()).await;
@@ -204,24 +216,25 @@ async fn the_binary_captures_within_its_cap_and_sends_the_window_at_sigterm() {
     let mut server = tokio::task::block_in_place(|| serve(command, &socket.path));
     tokio::task::block_in_place(|| server.wait_for_log("holding a capture plan"));
     let within = mcp_call("uploads", &"w".repeat(3 * MIB / 2));
-    let request = CheckRequest {
-        attributes: Some(AttributeContext {
-            request: Some(Request {
-                http: Some(post(&within, Some(within.len()))),
-                ..Default::default()
-            }),
-            ..Default::default()
-        }),
-    };
+    let past = mcp_call("uploads", &"p".repeat(3 * MIB));
     let channel = Endpoint::from_shared(format!("unix:{}", socket.path.display()))
         .unwrap()
         .connect()
         .await
         .unwrap();
-    AuthorizationClient::new(channel)
-        .check(request)
-        .await
-        .unwrap();
+    let mut client = AuthorizationClient::new(channel);
+    for body in [&within, &past] {
+        let request = CheckRequest {
+            attributes: Some(AttributeContext {
+                request: Some(Request {
+                    http: Some(post(body, Some(body.len()))),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+        };
+        client.check(request).await.unwrap();
+    }
 
     server.terminate();
 
@@ -238,4 +251,5 @@ async fn the_binary_captures_within_its_cap_and_sends_the_window_at_sigterm() {
         document["records"][0]["measures"]["request_bytes"],
         within.len()
     );
+    assert_eq!(document["truncated"]["body_unread"]["past_cap"], 1);
 }

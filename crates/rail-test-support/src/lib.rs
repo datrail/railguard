@@ -2,7 +2,7 @@
 //! server, and a stub Rail Center for it.
 
 use std::ffi::OsStr;
-use std::io::Read;
+use std::io::{ErrorKind, Read};
 use std::net::{Ipv4Addr, SocketAddr, TcpListener as StdTcpListener};
 use std::process::{Child, Command, Output, Stdio};
 use std::sync::{Arc, Mutex};
@@ -118,8 +118,13 @@ impl Server {
         let kept = Arc::clone(&logs);
         let reader = std::thread::spawn(move || {
             let mut chunk = [0; 4096];
-            while let Ok(read @ 1..) = stderr.read(&mut chunk) {
-                kept.lock().unwrap().extend_from_slice(&chunk[..read]);
+            loop {
+                match stderr.read(&mut chunk) {
+                    Ok(0) => break,
+                    Ok(read) => kept.lock().unwrap().extend_from_slice(&chunk[..read]),
+                    Err(error) if error.kind() == ErrorKind::Interrupted => {}
+                    Err(error) => panic!("can't read the server's log: {error}"),
+                }
             }
         });
         Self {
@@ -185,8 +190,8 @@ impl Drop for Server {
 pub type Posted = (String, Vec<u8>);
 
 /// Rail Center, answering the bundle route with `bundle`, the key set with no keys, the capture
-/// plan route with its plan, or a 204 without one, and taking every report; `seen` holds each request line,
-/// `posted` each report's line and body.
+/// plan route with its plan, or a 204 without one, and taking every report; `seen` holds each
+/// request line, `posted` each report's line and body.
 pub struct RailCenter {
     address: SocketAddr,
     pub seen: Arc<Mutex<Vec<String>>>,
