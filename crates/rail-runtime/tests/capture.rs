@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use rail_runtime::{Capture, CapturePlanHolder, Jitter, RailCenterThread, WallClock};
 use tokio::runtime::Handle;
@@ -57,7 +57,7 @@ async fn a_call_the_full_queue_turns_away_is_counted_in_the_window() {
     let (_capture, sender) = capture(&clock, |_| a_plan(), &center);
 
     until(&clock, 1).await;
-    // Handed over before the task takes any, well past the queue.
+    // Handed over before the task takes any, well past the queue's 4 096.
     for _ in 0..5_000 {
         sender.send(to_catch_all());
     }
@@ -70,7 +70,7 @@ async fn a_call_the_full_queue_turns_away_is_counted_in_the_window() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn stopping_closes_the_window_and_sends_the_windows_waiting_at_once() {
+async fn stopping_counts_the_calls_handed_over_and_sends_every_window_at_once() {
     let clock = TestClock::new();
     // The first window's send fails at 900; the next would be at 905.
     let center = Center::new(&clock, |n| if n == 0 { failed() } else { accepted() });
@@ -79,27 +79,13 @@ async fn stopping_closes_the_window_and_sends_the_windows_waiting_at_once() {
     until(&clock, 1).await;
     sender.send(to_catch_all());
     until(&clock, 901).await;
-    sender.send(to_catch_all());
-    until(&clock, 902).await;
-    capture.stop().await;
-
-    assert_eq!(center.sent_at(), [900, 902, 902]);
-    assert_eq!(calls(&center.documents()[2]), 1);
-}
-
-#[tokio::test(start_paused = true)]
-async fn stopping_counts_the_calls_handed_over_but_not_taken() {
-    let clock = TestClock::new();
-    let center = Center::accepting(&clock);
-    let (capture, sender) = capture(&clock, |_| a_plan(), &center);
-
-    until(&clock, 1).await;
-    sender.send(to_catch_all());
+    // Handed over, but not yet taken when the stop comes.
     sender.send(to_catch_all());
     capture.stop().await;
 
     assert!(!sender.is_capturing());
-    assert_eq!(calls(&center.documents()[0]), 2);
+    assert_eq!(center.sent_at(), [900, 901, 901]);
+    assert_eq!(calls(&center.documents()[2]), 1);
 }
 
 #[tokio::test(start_paused = true)]
@@ -116,12 +102,9 @@ async fn the_plans_refreshes_ending_leaves_the_window_to_its_end() {
         CapturePlanHolder::start(rail_center.runtime(), source, MINUTE, Jitter::new(|| 1.0));
     let reporter = center.start(&clock);
     let (_capture, sender) = Capture::start(&Handle::current(), plans, reporter, clock.wall());
-    let fetched_by = std::time::Instant::now() + Duration::from_secs(10);
+    let fetched_by = Instant::now() + Duration::from_secs(10);
     while !sender.is_capturing() {
-        assert!(
-            std::time::Instant::now() < fetched_by,
-            "the plan never came"
-        );
+        assert!(Instant::now() < fetched_by, "the plan never came");
         thread::sleep(Duration::from_millis(5));
     }
     until(&clock, 1).await;
@@ -158,5 +141,8 @@ async fn a_clock_stepped_back_is_seen_within_a_minute_though_no_call_comes() {
 
     // Within a minute of the step, not at the window's end, 900 s on.
     let sent_at = center.sent_at();
-    assert!(matches!(sent_at[..], [at] if at <= 190), "{sent_at:?}");
+    assert!(
+        matches!(sent_at[..], [at] if (130..=190).contains(&at)),
+        "{sent_at:?}"
+    );
 }

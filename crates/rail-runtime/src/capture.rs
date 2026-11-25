@@ -81,6 +81,7 @@ impl Capture {
             reporter,
             dropped: Arc::clone(&dropped),
             said: Vec::new(),
+            panicked: false,
             now,
         };
         let task = runtime.spawn(task.run(queued, stopped));
@@ -96,7 +97,7 @@ impl Capture {
     /// for up to 2 s.
     pub async fn stop(self) {
         let _ = self.stop.send(());
-        // Cancelled by its runtime stopping first: what it held isn't sent.
+        // Cancelled by its runtime stopping first, or panicked: what it held isn't sent.
         if self.task.await.is_err() {
             tracing::warn!("capture stopped before it could close its window and send it");
         }
@@ -126,6 +127,8 @@ struct Task {
     dropped: Arc<AtomicU64>,
     // The body-unread reasons logged at `warn` so far.
     said: Vec<BodyUnreadReason>,
+    // Whether a call's recording panicked yet, logged at `error`.
+    panicked: bool,
     now: WallClock,
 }
 
@@ -151,7 +154,8 @@ impl Task {
                 _ = &mut stopped => {
                     // Closed first, so calls still coming can't keep the drain going.
                     queued.close();
-                    while let Ok(call) = queued.try_recv() {
+                    // After `close`, `recv` waits only for sends already under way.
+                    while let Some(call) = queued.recv().await {
                         self.record(&call);
                     }
                     let (_, now) = self.read();
@@ -173,8 +177,8 @@ impl Task {
         }
     }
 
-    // The plan held now: its change or going, the window's time over, or the clock stepped back
-    // closes the window.
+    // The plan held now: its change or going, the window's time over, or the clock stepped back more
+    // than a minute closes the window.
     fn hold(&mut self) {
         let (plan, now) = self.read();
         let gone = plan.is_none();
@@ -185,15 +189,16 @@ impl Task {
     fn record(&mut self, call: &ObservedCall) {
         let (plan, now) = self.read();
         let gone = plan.is_none();
-        // A call that panics its reading is dropped, so one odd call can't stop capture for good.
+        // The window the call's time closes handed over first, so a panic below can't lose it.
+        let closed = self.windowing.hold(plan.clone(), now);
+        self.hand_over(closed, gone);
+        // A call whose recording panics is dropped, so one odd call can't stop capture for good.
         let windowing = &mut self.windowing;
         let Ok(recorded) = catch_unwind(AssertUnwindSafe(|| windowing.record(plan, call, now)))
         else {
-            // Not the panic's message, which may quote the call.
-            tracing::error!("recording a call panicked; dropping it");
+            self.log_panicked();
             return;
         };
-        self.hand_over(recorded.closed, gone);
         match recorded.outcome {
             CallOutcome::Counted {
                 body_unread: Some(reason),
@@ -224,6 +229,17 @@ impl Task {
         self.reporter.report(closed);
         if gone {
             self.reporter.send_now();
+        }
+    }
+
+    // At `error` the first time, then at `debug`: one bug on a common path panics on every call.
+    // Not the panic's message, which may quote the call.
+    fn log_panicked(&mut self) {
+        if self.panicked {
+            tracing::debug!("recording a call panicked; dropping it");
+        } else {
+            self.panicked = true;
+            tracing::error!("recording a call panicked; dropping it, and each other that does");
         }
     }
 

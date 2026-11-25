@@ -110,7 +110,7 @@ pub fn window(max_unsent_windows: u32, paths: &[&str]) -> ClosedWindow {
 }
 
 // A window under the vectors' plan at the ceiling of steps, holding `calls` calls to one path:
-// one record and a step each.
+// one record, and a step per call.
 pub fn window_of(calls: u32) -> ClosedWindow {
     let mut plan = plan(&hash('a'), json!({}));
     plan["budget"]["max_steps_per_window"] = json!(1_000_000);

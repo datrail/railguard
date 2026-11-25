@@ -98,17 +98,17 @@ async fn past_two_million_records_and_steps_queued_the_oldest_not_in_flight_goes
     let center = Center::accepting(&clock).holding();
     let reporter = center.start(&clock);
 
-    // In flight, then a million and one records and steps, then a million: past the cap, the
-    // older goes, never the one in flight.
+    // In flight, 2 records and steps, then a million and one, then 999 999: past the cap only
+    // with the one in flight counted, the older goes, never the one in flight.
     reporter.report(window_of(1));
     until(&clock, 1).await;
     reporter.report(window_of(1_000_000));
-    reporter.report(window_of(999_999));
+    reporter.report(window_of(999_998));
     until(&clock, 2).await;
     center.release.add_permits(2);
     until(&clock, 3).await;
 
-    assert_eq!(windows(&center), [(1, 0), (999_999, 1)]);
+    assert_eq!(windows(&center), [(1, 0), (999_998, 1)]);
 }
 
 #[tokio::test(start_paused = true)]

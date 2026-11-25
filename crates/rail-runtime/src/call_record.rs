@@ -208,14 +208,12 @@ impl Reporter {
         // The one in flight stays.
         let first = usize::from(sending);
         loop {
-            let too_many = self.queue.len() > limit + 1;
-            if !too_many && records_and_steps <= MAX_QUEUED_RECORDS_AND_STEPS {
+            if self.queue.len() <= limit + 1 && records_and_steps <= MAX_QUEUED_RECORDS_AND_STEPS {
                 return;
             }
-            if first >= self.queue.len() {
+            let Some(dropped) = self.queue.remove(first) else {
                 return;
-            }
-            let dropped = self.queue.remove(first).expect("an index in the queue");
+            };
             records_and_steps -= dropped.records_and_steps;
             self.count_drop(dropped.windows_dropped, "the queue is past its limits");
         }
