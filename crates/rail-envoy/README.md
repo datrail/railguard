@@ -21,7 +21,7 @@ flowchart LR
   filter <-->|gRPC over a unix socket or TCP| ext[rail-envoy]
   tls --> server[MCP server]
   plain --> server
-  center[Rail Center] -->|ticket| ext
+  center[Rail Center] <-->|ticket, capture plan, call records| ext
 ```
 
 ext_authz and ext_proc over a unix socket, `RAIL_EXT_SOCKET`, or TCP, `RAIL_CALLOUT_PORT`: exactly one must be set.
@@ -42,6 +42,7 @@ has an `_`.
 - **The ticket never affects liveness,** only readiness. Without one, it fails closed by design, and a restart wouldn't
   help.
 - **Never logs the ticket,** only a fingerprint showing that it rotated.
+- **Captures what the agent calls,** under the plan Rail Center serves (see [Capture](#capture)), never changing a call.
 
 ## At startup
 
@@ -52,9 +53,9 @@ socket it can't listen on exits 2 too. A socket left by an earlier run is replac
 refused; the socket is made `0660`, since Envoy runs in its group as another user. Then it logs a `setting` line for
 each setting it uses, with its value and whether it came from the environment or the default, a secret only as `set` or
 `unset`. A value that weakens something is logged as a warning saying what (`RAIL_DISABLED=true`, an `http://` Rail
-Center), and so is a `RAIL_…` variable nothing reads, as a likely typo. It starts fetching the ticket, or as the gateway
-the bundle and the signing keys, then logs `serving Envoy`. Every line, `starting` included, is in the format
-`RAIL_LOG_FORMAT` names: JSON by default, Cloud Logging's on Cloud Run, or text.
+Center), and so is a `RAIL_…` variable nothing reads, as a likely typo. It starts fetching the ticket and the capture
+plan, or as the gateway the bundle and the signing keys, then logs `serving Envoy`. Every line, `starting` included, is
+in the format `RAIL_LOG_FORMAT` names: JSON by default, Cloud Logging's on Cloud Run, or text.
 
 ## When Rail Center is down
 
@@ -65,6 +66,22 @@ valid ticket, a protected host's calls carry `x-rail-status`:
 - `issuer-unreachable`: no answer yet, or the last one was a failure or a refusal, not "none", and none is held;
 - `expired`: the ticket held lapsed with no valid one to replace it;
 - `not-found`: Rail Center answered that this host and sandbox have no ticket.
+
+## Capture
+
+With Rail Center on, the proxy fetches this agent's capture plan (`GET /v1/capture-plan`, every
+`RAIL_CAPTURE_PLAN_REFRESH_SECONDS`) and, while it holds one, counts each call ext_authz sees in windows of the plan's
+length, grouped by the plan's entry taking it and the values its record keeps, such as a tool's repository. Each window
+holding a call is posted as a call record document (`POST /v1/call-records`), retried while Rail Center is down. A call
+is never delayed by it: it's handed to capture's own thread, and one past the 4096 waiting is dropped and counted.
+ext_proc's calls aren't captured yet.
+
+The body read is the one Envoy sends (`with_request_body`, with `pack_as_bytes: true`, so a body that isn't UTF-8
+arrives unchanged), up to `RAIL_MAX_BODY_MB` (1 by default). A body not sent, cut short of its `Content-Length`, or past
+the cap isn't read: the call is still counted, under the catch-all where an entry would have read its body, and the
+document counts it in `truncated.body_unread`. Envoy's `x-envoy-auth-partial-body` isn't read, since it stays `false`
+when Envoy stops at `max_request_bytes`; a chunked body cut there is told only by passing the cap, so set
+`max_request_bytes` above `RAIL_MAX_BODY_MB`.
 
 ## Run it beside Envoy
 
@@ -161,8 +178,9 @@ ticket is held, never to restart it: a ticket that lapses turns it not ready, an
 ## Shutdown
 
 On SIGTERM or Ctrl-C it reports NOT_SERVING and drains for at most 5 s, then cuts the connections still open: Envoy
-keeps them, and an ext_proc stream lasts as long as its request. With Rail Center on, its thread then has at most 1 s
-more to stop, so 6 s in all.
+keeps them, and an ext_proc stream lasts as long as its request. With Rail Center on, the proxy then counts the calls
+already handed to capture, closes the open window and sends the documents waiting, for at most 2 s, and its capture and
+Rail Center threads have at most 1 s each to stop, so 9 s in all; the gateway's Rail Center thread has 1 s, so 6 s.
 
 ## Caveats
 

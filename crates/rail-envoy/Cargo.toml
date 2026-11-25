@@ -21,6 +21,7 @@ path = "tests/main.rs"
 [dependencies]
 envoy-types = "0.7"
 rail-grpc-host = { path = "../rail-grpc-host" }
+rail-model = { path = "../rail-model" }
 rail-runtime = { path = "../rail-runtime" }
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync"] }
 tokio-stream = { version = "0.1", features = ["net"] }
@@ -29,10 +30,10 @@ tonic = { version = "0.14", default-features = false, features = ["codegen", "ro
 tonic-health = { version = "0.14", default-features = false }
 
 [dev-dependencies]
-# What a scripted ticket source answers, as rail-runtime reads it.
-rail-model = { path = "../rail-model" }
 rail-test-support = { path = "../rail-test-support" }
 reqwest = { version = "0.13", default-features = false }
+# The documents the proxy posts, read back.
+serde_json = "1"
 # The tests' client.
 tonic = { version = "0.14", default-features = false, features = ["channel"] }
 

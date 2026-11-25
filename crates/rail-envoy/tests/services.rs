@@ -45,6 +45,7 @@ async fn check(host: &str, protected: &str) -> (Vec<(String, String)>, Vec<Strin
     let allow = Callouts {
         tickets: None,
         protected_hosts: Arc::new(protect(protected)),
+        capture: None,
     };
     let headers: HashMap<String, String> = [("x-rail-upstream", "plain"), ("accept", "*/*")]
         .into_iter()
@@ -110,6 +111,7 @@ async fn send(phases: Vec<Phase>, protected: &str) -> Vec<Response> {
     let callouts = Callouts {
         tickets: None,
         protected_hosts: Arc::new(protect(protected)),
+        capture: None,
     };
     tokio::spawn(
         Server::builder()

@@ -106,10 +106,6 @@ The TCP port the callout and its health checks are served on, on every interface
 - **Read by:** both hosts; it's what `rail probe` judges to ask the server (with `RAIL_EXT_SOCKET` in `rail-envoy`).
 - Whatever reaches it reaches the callout: in `rail-envoy`'s proxy role, that's the ticket, so only Envoy may reach it.
 
-## The gateway
-
-Read by `rail-apigee`, and by `rail-envoy` as the gateway (`rail gateway`).
-
 ### `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`
 
 The largest gRPC message read, in MiB: from Apigee, a whole request; from Envoy, one ext_authz request, or one ext_proc
@@ -118,12 +114,32 @@ message, which holds a whole buffered body.
 - **Default:** `16`, above Apigee's 10 MB request limit.
 - **Accepted:** `1` to `100`, a whole number of MiB; the maximum is high enough that no limit a deployment already sets
   is refused.
-- **Read by:** both hosts' gateways.
+- **Read by:** every role.
 - **In `rail-apigee`, past 4 MiB less 1 KiB, a request is refused unjudged** (413, with a warning logged), whatever this
   allows: Apigee takes a callout's answer of at most 4 MiB, and the answer echoes the body. An answer may be up to 1 KiB
   larger than the request.
 - **In `rail-envoy`, a message past it** fails its stream while the call is unanswered, so Envoy fails closed
-  (`failure_mode_allow: false`).
+  (`failure_mode_allow: false`), or, as the proxy, forwards the call uncaptured if it fails open.
+
+### `RAIL_MAX_BODY_MB`
+
+The largest request body judged or captured, in MiB, as sent (an encoded body isn't decoded).
+
+- **Default:** `15` for the gateways; `1` for `rail-envoy`'s proxy, since most calls an agent makes are small.
+- **Accepted:** `1` to `100`, a whole number of MiB; in `rail-envoy`, below `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`, since a
+  buffered body arrives as one message, with the request's headers.
+- **Read by:** every role.
+- **Past it, a call is refused unjudged,** 413 `{"error": "request body too large"}`, with a warning logged, and isn't
+  reported; with `RAIL_DISABLED=true`, nothing is judged, and this isn't applied. Apigee's own limits come first: past 4
+  MiB less 1 KiB rail-apigee refuses a request (above), and past 10 MB Apigee answers 413 itself, so a value of 4 or
+  more is logged with the limit in force. In `rail-envoy`, a body streamed in full duplex is refused as soon as it's
+  past it.
+- **In `rail-envoy`'s proxy, past it, a body isn't read:** the call is forwarded as ever, and captured with its body
+  counted as past the cap (`truncated.body_unread.past_cap`).
+
+## The gateway
+
+Read by `rail-apigee`, and by `rail-envoy` as the gateway (`rail gateway`).
 
 ### `RAIL_GATEWAY_SLUG`
 
@@ -147,20 +163,6 @@ How often the bundle held is fetched again.
   status) would be repeated, so while a bundle is held it's asked again after the interval; while none is held, it's
   asked again as after a failure, so the first bundle comes soon after Rail Center can give it. The floor of 5 s isn't a
   setting: a lower one would let a fleet hammer Rail Center.
-
-### `RAIL_MAX_BODY_MB`
-
-The largest request body judged, in MiB, as sent (an encoded body isn't decoded).
-
-- **Default:** `15`.
-- **Accepted:** `1` to `100`, a whole number of MiB; in `rail-envoy`, below `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`, since a
-  buffered body arrives as one message, with the request's headers.
-- **Read by:** both hosts' gateways.
-- **Past it, a call is refused unjudged,** 413 `{"error": "request body too large"}`, with a warning logged, and isn't
-  reported; with `RAIL_DISABLED=true`, nothing is judged, and this isn't applied. Apigee's own limits come first: past 4
-  MiB less 1 KiB rail-apigee refuses a request (above), and past 10 MB Apigee answers 413 itself, so a value of 4 or
-  more is logged with the limit in force. In `rail-envoy`, a body streamed in full duplex is refused as soon as it's
-  past it.
 
 ## rail-envoy
 
@@ -190,7 +192,7 @@ The hosts the ticket is attached for, and how a request to each is routed.
 
 ### `RAIL_HOST_ID`
 
-Which host this proxy is in Rail Center, for the ticket fetch.
+Which host this proxy is in Rail Center, for the ticket and capture plan fetches.
 
 - **Required** unless `RAIL_DISABLED=true`.
 - **Accepted:** up to 64 characters, Rail Center's bound.
@@ -198,7 +200,7 @@ Which host this proxy is in Rail Center, for the ticket fetch.
 
 ### `RAIL_SANDBOX_NAME`
 
-The one sandbox this proxy serves, for the ticket fetch.
+The one sandbox this proxy serves, for the ticket and capture plan fetches.
 
 - **Required** unless `RAIL_DISABLED=true`.
 - **Accepted:** up to 255 characters, Rail Center's bound.
@@ -214,6 +216,17 @@ The longest a valid ticket goes without being fetched again.
 - A ticket is fetched again at half its remaining life when that comes sooner, so a short one is replaced before it
   lapses. The waits are scaled as the bundle's are (`RAIL_GATEWAY_BUNDLE_REFRESH_SECONDS`), and every answer but a valid
   ticket is backed off, a refusal too, since a ticket lapses and must be replaced in time.
+
+### `RAIL_CAPTURE_PLAN_REFRESH_SECONDS`
+
+How often the proxy's capture plan is fetched again, which says which calls it records and how.
+
+- **Default:** `300`: a plan has no expiry.
+- **Accepted:** `5` to `86400`, whole seconds.
+- **Read by:** `rail-envoy` as the proxy (`rail proxy`).
+- The waits are scaled as the bundle's are (`RAIL_GATEWAY_BUNDLE_REFRESH_SECONDS`). The plan held is kept through
+  failures and plans refused, until Rail Center sends another the proxy applies, or says there's none (a 204); while
+  none is held, a refusal is backed off as a failure is.
 
 ## Retired names
 

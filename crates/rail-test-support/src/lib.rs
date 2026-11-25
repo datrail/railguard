@@ -154,22 +154,32 @@ impl Drop for Server {
     }
 }
 
-/// Rail Center, answering the bundle route with `bundle`, the key set with no keys, and taking
-/// every denial report; `seen` holds each request line.
+/// A report's request line and body.
+pub type Posted = (String, Vec<u8>);
+
+/// Rail Center, answering the bundle route with `bundle`, the key set with no keys, the capture
+/// plan route with its plan, or none, and taking every report; `seen` holds each request line,
+/// `posted` each report's line and body.
 pub struct RailCenter {
     address: SocketAddr,
     pub seen: Arc<Mutex<Vec<String>>>,
+    pub posted: Arc<Mutex<Vec<Posted>>>,
     bundle_held: watch::Sender<bool>,
 }
 
 impl RailCenter {
     pub async fn start(bundle: &'static str) -> Self {
-        Self::start_with(bundle, false).await
+        Self::start_with(bundle, false, None).await
     }
 
     /// One that doesn't answer the bundle route until `release_bundle`.
     pub async fn start_holding_bundle(bundle: &'static str) -> Self {
-        Self::start_with(bundle, true).await
+        Self::start_with(bundle, true, None).await
+    }
+
+    /// One serving `plan` as the capture plan.
+    pub async fn start_with_plan(plan: &'static str) -> Self {
+        Self::start_with("{}", false, Some(plan)).await
     }
 
     pub fn url(&self) -> String {
@@ -180,16 +190,19 @@ impl RailCenter {
         self.bundle_held.send_replace(false);
     }
 
-    async fn start_with(bundle: &'static str, held: bool) -> Self {
+    async fn start_with(bundle: &'static str, held: bool, plan: Option<&'static str>) -> Self {
         let (bundle_held, released) = watch::channel(held);
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
         let address = listener.local_addr().unwrap();
         let seen = Arc::new(Mutex::new(Vec::new()));
+        let posted = Arc::new(Mutex::new(Vec::new()));
         let log = Arc::clone(&seen);
+        let reports = Arc::clone(&posted);
         tokio::spawn(async move {
             loop {
                 let (mut stream, _) = listener.accept().await.unwrap();
                 let log = Arc::clone(&log);
+                let reports = Arc::clone(&reports);
                 let mut released = released.clone();
                 tokio::spawn(async move {
                     let mut head = Vec::new();
@@ -217,8 +230,13 @@ impl RailCenter {
                         ("200 OK", bundle)
                     } else if line.starts_with("GET /v1/jwks.json") {
                         ("200 OK", r#"{"keys": []}"#)
+                    } else if line.starts_with("GET /v1/capture-plan") {
+                        plan.map_or(("204 No Content", ""), |plan| ("200 OK", plan))
                     } else {
-                        // A denial report, which Rail Center accepts.
+                        // A report, which Rail Center accepts; a ticket asked for gets the same.
+                        if line.starts_with("POST ") {
+                            reports.lock().unwrap().push((line.clone(), body.clone()));
+                        }
                         ("202 Accepted", "{}")
                     };
                     let response = format!(
@@ -234,6 +252,7 @@ impl RailCenter {
         Self {
             address,
             seen,
+            posted,
             bundle_held,
         }
     }

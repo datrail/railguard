@@ -89,6 +89,12 @@ fn disabled_describes_every_setting_set_though_its_group_is_incomplete() {
                 Level::Info
             ),
             (
+                "RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB",
+                "16".to_owned(),
+                Level::Info
+            ),
+            ("RAIL_MAX_BODY_MB", "1".to_owned(), Level::Info),
+            (
                 "RAIL_DISABLED",
                 "true".to_owned(),
                 Level::Warn("Rail Center isn't used: nothing is fetched from it")
@@ -117,7 +123,7 @@ fn without_a_credential_the_token_is_described_as_unset() {
     let entries = describe(&pairs);
 
     assert_eq!(
-        entries[6..8],
+        entries[8..10],
         [
             ("RAIL_AUTH_MODE", "none".to_owned(), Level::Info),
             ("RAIL_AUTH_TOKEN", "unset".to_owned(), Level::Info),
@@ -139,6 +145,8 @@ fn the_description_says_each_value_as_used_and_never_the_token() {
             ("RAIL_LOG_FORMAT", "json", Level::Info),
             ("RAIL_LOG_LEVEL", "info", Level::Info),
             ("RAIL_EXT_SOCKET", "/tmp/rail/ext.sock", Level::Info),
+            ("RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB", "16", Level::Info),
+            ("RAIL_MAX_BODY_MB", "1", Level::Info),
             ("RAIL_DISABLED", "false", Level::Info),
             (
                 "RAIL_CENTER_URL",
@@ -151,6 +159,7 @@ fn the_description_says_each_value_as_used_and_never_the_token() {
             ("RAIL_HOST_ID", "host-1", Level::Info),
             ("RAIL_SANDBOX_NAME", "sandbox-1", Level::Info),
             ("RAIL_TICKET_REFRESH_SECONDS", "600", Level::Info),
+            ("RAIL_CAPTURE_PLAN_REFRESH_SECONDS", "300", Level::Info),
             (
                 "RAIL_PROXY_PROTECTED_HOSTS",
                 "gw.internal, at the agent's port (HTTP)",
@@ -186,6 +195,13 @@ fn the_defaults_are_described_as_used_and_disabled_as_a_warning() {
                 Level::Info,
                 Source::Env
             ),
+            (
+                "RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB",
+                "16",
+                Level::Info,
+                Source::Default
+            ),
+            ("RAIL_MAX_BODY_MB", "1", Level::Info, Source::Default),
             (
                 "RAIL_DISABLED",
                 "true",
@@ -247,7 +263,8 @@ fn rail_center_and_the_ticket_are_read_together() {
         config.listener,
         Listener::Unix(PathBuf::from("/run/rail/ext.sock"))
     );
-    let (rail_center, ticket) = config.ticket.unwrap();
+    let (rail_center, proxy) = config.rail_center.unwrap();
+    let ticket = proxy.ticket;
     assert_eq!(rail_center.url.to_string(), "https://rail-center.example");
     assert_eq!(ticket.agent.host_id, "host-1");
     assert_eq!(ticket.agent.sandbox_name, "sandbox-1");
@@ -279,7 +296,7 @@ fn disabled_still_reads_the_protected_hosts() {
         ("RAIL_PROXY_PROTECTED_HOSTS", "http://gw.internal"),
     ])
     .unwrap();
-    assert!(config.ticket.is_none());
+    assert!(config.rail_center.is_none());
     assert!(!config.protected_hosts.get("gw.internal").unwrap().tls);
 
     let errors = read(&[
@@ -292,10 +309,15 @@ fn disabled_still_reads_the_protected_hosts() {
 
 #[test]
 fn disabled_reads_no_ticket_but_judges_what_is_set() {
-    assert!(read(&[("RAIL_DISABLED", "true")]).unwrap().ticket.is_none());
+    assert!(
+        read(&[("RAIL_DISABLED", "true")])
+            .unwrap()
+            .rail_center
+            .is_none()
+    );
     let mut set = ENABLED.to_vec();
     set.push(("RAIL_DISABLED", "true"));
-    assert!(read(&set).unwrap().ticket.is_none());
+    assert!(read(&set).unwrap().rail_center.is_none());
 
     let long = "s".repeat(256);
     let errors = read(&[

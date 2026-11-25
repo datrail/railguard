@@ -1023,6 +1023,7 @@ dependencies = [
  "rail-runtime",
  "rail-test-support",
  "reqwest",
+ "serde_json",
  "tokio",
  "tokio-stream",
  "tonic",

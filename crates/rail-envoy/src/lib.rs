@@ -27,9 +27,11 @@ use std::time::SystemTime;
 use envoy_types::ext_authz::v3::pb::AuthorizationServer;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
 use rail_grpc_host::{Address, Command, Role, Statuses, check_held};
+use rail_model::body::ByteBudget;
 use rail_runtime::{
-    Gateway, GatewaySettings, Jitter, RailCenterClient, RailCenterSettings, RailCenterThread,
-    RailCenterTickets, Settings, Startup, TicketHolder, TicketSettings, Variables, start_gateway,
+    CallRecordReporter, Capture, CapturePlanHolder, CaptureThread, Gateway, GatewaySettings,
+    Jitter, RailCenterCallRecords, RailCenterCapturePlans, RailCenterClient, RailCenterSettings,
+    RailCenterThread, RailCenterTickets, Settings, Startup, TicketHolder, Variables, start_gateway,
 };
 use tokio::net::{TcpListener, UnixListener};
 use tokio::signal::unix::{Signal, SignalKind, signal};
@@ -39,10 +41,13 @@ use tonic::transport::server::Router;
 use tonic_health::pb::health_server::HealthServer;
 
 use crate::config::read_listener;
-pub use crate::config::{GatewayConfig, Listener, ProxyConfig};
+pub use crate::config::{GatewayConfig, Listener, ProxyConfig, ProxySettings};
 use crate::gateway::GatewayCallouts;
 pub use crate::health::check_proxy;
-pub use crate::services::Callouts;
+pub use crate::services::{CalloutCapture, Callouts};
+
+// What every body the callouts keep for capture may take together.
+const BODY_BUDGET_BYTES: usize = 256 * 1024 * 1024;
 
 /// The binary: serves as the role named, or with `probe [--ready]`, asks the server where it's
 /// configured to listen.
@@ -94,16 +99,33 @@ async fn serve_proxy(config: ProxyConfig, startup: &Startup) -> ExitCode {
         Ok(prepared) => prepared,
         Err(code) => return code,
     };
-    let (rail_center, tickets) = match config.ticket.map(start_tickets).transpose() {
-        Ok(started) => started.unzip(),
+    let started = match config.rail_center.map(start_proxy).transpose() {
+        Ok(started) => started,
         Err(error) => {
-            tracing::error!(error = %error, "can't start fetching the ticket");
+            tracing::error!(error = %error, "can't start fetching from Rail Center");
             return ExitCode::FAILURE;
         }
+    };
+    let (stop, tickets, capture) = match started {
+        Some(started) => {
+            let capture = CalloutCapture {
+                sender: started.sender,
+                max_body_bytes: config.max_body_bytes,
+                budget: ByteBudget::new(BODY_BUDGET_BYTES),
+            };
+            let stop = Stop::Proxy {
+                capture: started.capture,
+                capture_thread: started.capture_thread,
+                rail_center: started.rail_center,
+            };
+            (Some(stop), Some(started.tickets), Some(capture))
+        }
+        None => (None, None, None),
     };
     let callouts = Callouts {
         tickets,
         protected_hosts: Arc::new(config.protected_hosts),
+        capture,
     };
     // Liveness never reads the ticket, so nothing restarts us for it; readiness does.
     let (statuses, readiness) = Statuses::start(
@@ -115,11 +137,12 @@ async fn serve_proxy(config: ProxyConfig, startup: &Startup) -> ExitCode {
     )
     .await;
     tracing::info!(listener = %config.listener, "serving Envoy");
+    let limit = config.max_message_bytes;
     let router = tonic::transport::Server::builder()
         .add_service(HealthServer::new(readiness))
-        .add_service(AuthorizationServer::new(callouts.clone()))
-        .add_service(ExternalProcessorServer::new(callouts));
-    serve_until_stopped(bound, router, statuses, terminate, rail_center).await
+        .add_service(AuthorizationServer::new(callouts.clone()).max_decoding_message_size(limit))
+        .add_service(ExternalProcessorServer::new(callouts).max_decoding_message_size(limit));
+    serve_until_stopped(bound, router, statuses, terminate, stop).await
 }
 
 async fn serve_gateway(config: GatewayConfig, startup: &Startup) -> ExitCode {
@@ -159,7 +182,36 @@ async fn serve_gateway(config: GatewayConfig, startup: &Startup) -> ExitCode {
         .add_service(HealthServer::new(readiness))
         .add_service(AuthorizationServer::new(callouts.clone()).max_decoding_message_size(limit))
         .add_service(ExternalProcessorServer::new(callouts).max_decoding_message_size(limit));
-    serve_until_stopped(bound, router, statuses, terminate, rail_center).await
+    let stop = rail_center.map(Stop::Gateway);
+    serve_until_stopped(bound, router, statuses, terminate, stop).await
+}
+
+// What's stopped once the server has drained, on a blocking thread.
+enum Stop {
+    Proxy {
+        capture: Capture,
+        capture_thread: CaptureThread,
+        rail_center: RailCenterThread,
+    },
+    Gateway(RailCenterThread),
+}
+
+impl Stop {
+    // The open window closed and sent before the threads go: its upload runs on Rail Center's.
+    fn run(self) {
+        match self {
+            Self::Proxy {
+                capture,
+                capture_thread,
+                rail_center,
+            } => {
+                capture_thread.runtime().clone().block_on(capture.stop());
+                capture_thread.stop();
+                rail_center.stop();
+            }
+            Self::Gateway(rail_center) => rail_center.stop(),
+        }
+    }
 }
 
 // The settings logged, SIGTERM handled and the listener bound, before anything starts.
@@ -184,9 +236,9 @@ async fn serve_until_stopped(
     router: Router,
     statuses: Statuses,
     terminate: Signal,
-    rail_center: Option<RailCenterThread>,
+    stop: Option<Stop>,
 ) -> ExitCode {
-    let stop = rail_center.map(|thread| move || thread.stop());
+    let stop = stop.map(|stop| move || stop.run());
     match bound {
         Bound::Unix(listener) => {
             let incoming = UnixListenerStream::new(listener);
@@ -199,24 +251,63 @@ async fn serve_until_stopped(
     }
 }
 
-// The ticket is fetched and refreshed on the Rail Center thread; calls only read it.
-fn start_tickets(
-    (rail_center, ticket): (RailCenterSettings, TicketSettings),
-) -> Result<(RailCenterThread, Arc<TicketHolder>), String> {
+// What the proxy runs when Rail Center is used.
+struct Started {
+    rail_center: RailCenterThread,
+    tickets: Arc<TicketHolder>,
+    capture_thread: CaptureThread,
+    capture: Capture,
+    sender: rail_runtime::CaptureSender,
+}
+
+// The ticket, the capture plan and the call records go through the Rail Center thread; calls
+// only read what's held, and capture counts them on its own thread.
+fn start_proxy(
+    (rail_center, proxy): (RailCenterSettings, ProxySettings),
+) -> Result<Started, String> {
     let client = RailCenterClient::new(&rail_center)?;
     let thread = RailCenterThread::start()?;
-    let source = RailCenterTickets {
-        client,
-        agent: ticket.agent,
-    };
+    let capture_thread = CaptureThread::start()?;
+    let runtime = thread.runtime();
+    let agent = proxy.ticket.agent;
     let tickets = TicketHolder::start(
-        thread.runtime(),
-        source,
-        ticket.refresh_interval,
+        runtime,
+        RailCenterTickets {
+            client: client.clone(),
+            agent: agent.clone(),
+        },
+        proxy.ticket.refresh_interval,
         Arc::new(SystemTime::now),
         Jitter::random(),
     );
-    Ok((thread, Arc::new(tickets)))
+    let plans = CapturePlanHolder::start(
+        runtime,
+        RailCenterCapturePlans {
+            client: client.clone(),
+            agent,
+        },
+        proxy.capture_plan_refresh,
+        Jitter::random(),
+    );
+    let reporter = CallRecordReporter::start(
+        runtime,
+        RailCenterCallRecords { client },
+        Arc::new(SystemTime::now),
+        Jitter::random(),
+    );
+    let (capture, sender) = Capture::start(
+        capture_thread.runtime(),
+        plans,
+        reporter,
+        Arc::new(SystemTime::now),
+    );
+    Ok(Started {
+        rail_center: thread,
+        tickets: Arc::new(tickets),
+        capture_thread,
+        capture,
+        sender,
+    })
 }
 
 enum Bound {

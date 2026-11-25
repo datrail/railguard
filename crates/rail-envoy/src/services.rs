@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use envoy_types::ext_authz::v3::CheckResponseExt;
 use envoy_types::ext_authz::v3::pb::{Authorization, CheckRequest, CheckResponse, OkHttpResponse};
+use envoy_types::pb::envoy::service::auth::v3::attribute_context::HttpRequest;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessor;
 use envoy_types::pb::envoy::service::ext_proc::v3::processing_request::Request;
 use envoy_types::pb::envoy::service::ext_proc::v3::processing_response::Response;
@@ -10,7 +11,9 @@ use envoy_types::pb::envoy::service::ext_proc::v3::{
     BodyResponse, CommonResponse, HeaderMutation, HeadersResponse, ProcessingRequest,
     ProcessingResponse, TrailersResponse,
 };
-use rail_runtime::{ProtectedHosts, Route, TicketHolder, XRailHeader, XRailHeaders};
+use rail_model::body::{BodyBuffer, BodyRead, ByteBudget, Unread};
+use rail_model::capture::ObservedCall;
+use rail_runtime::{CaptureSender, ProtectedHosts, Route, TicketHolder, XRailHeader, XRailHeaders};
 use tokio_stream::{Stream, StreamExt};
 use tonic::{Status, Streaming};
 
@@ -21,6 +24,18 @@ use crate::xrail::{as_raw_value, as_value};
 pub struct Callouts {
     pub tickets: Option<Arc<TicketHolder>>,
     pub protected_hosts: Arc<ProtectedHosts>,
+    /// Where calls are handed over, when Rail Center is used.
+    pub capture: Option<CalloutCapture>,
+}
+
+/// What the callouts hand calls over through, and how much of each body they keep.
+#[derive(Clone)]
+pub struct CalloutCapture {
+    pub sender: CaptureSender,
+    /// Past it, a body is handed over unread.
+    pub max_body_bytes: usize,
+    /// What every body kept may take together.
+    pub budget: Arc<ByteBudget>,
 }
 
 /// ext_authz: allows every request, with its x-rail headers and, to a protected host, its route.
@@ -49,6 +64,11 @@ impl Authorization for Callouts {
         let ticket = self.tickets.as_deref().map(TicketHolder::current);
         let headers = XRailHeaders::of(ticket, authority, &self.protected_hosts, sent);
         log_request("ext_authz", authority, &headers);
+        if let (Some(capture), Some(http)) = (&self.capture, http)
+            && capture.sender.is_capturing()
+        {
+            capture.sender.send(observe(http, capture));
+        }
         let mut response = CheckResponse::with_status(Status::ok(""));
         response.set_http_response(OkHttpResponse {
             headers: as_value(&headers),
@@ -57,6 +77,57 @@ impl Authorization for Callouts {
         });
         Ok(tonic::Response::new(response))
     }
+}
+
+// The call as Envoy sent it: the body is `raw_body` with `pack_as_bytes`, `body` without.
+fn observe(http: &HttpRequest, capture: &CalloutCapture) -> ObservedCall {
+    let sent = if http.raw_body.is_empty() {
+        http.body.as_bytes()
+    } else {
+        &http.raw_body
+    };
+    // Envoy's `size` and partial-body header tell the bytes sent, not the body's, once cut short.
+    let declared = declared_length(http);
+    let body_bytes = declared.unwrap_or(sent.len() as u64).max(sent.len() as u64);
+    let body = if sent.len() as u64 == body_bytes {
+        let mut buffer = BodyBuffer::new(capture.max_body_bytes, &capture.budget);
+        buffer.append(sent);
+        match buffer.finish() {
+            Ok(body) => BodyRead::Whole(Arc::new(body)),
+            Err(unkept) => BodyRead::Unread(unkept.into()),
+        }
+    } else if sent.is_empty() {
+        BodyRead::Unread(Unread::NotSent)
+    } else if sent.len() > capture.max_body_bytes {
+        BodyRead::Unread(Unread::PastCap)
+    } else {
+        BodyRead::Unread(Unread::CutShort)
+    };
+    ObservedCall {
+        authority: http.host.as_bytes().to_vec(),
+        method: http.method.as_bytes().to_vec(),
+        path: http.path.as_bytes().to_vec(),
+        body,
+        body_bytes,
+    }
+}
+
+// `Content-Length` as sent, from either header field; a chunked body declares none.
+fn declared_length(http: &HttpRequest) -> Option<u64> {
+    let raw = http
+        .header_map
+        .iter()
+        .flat_map(|map| &map.headers)
+        .find_map(|header| {
+            header.key.eq_ignore_ascii_case("content-length").then(|| {
+                match header.raw_value.as_slice() {
+                    [] => header.value.clone(),
+                    raw => String::from_utf8_lossy(raw).into_owned(),
+                }
+            })
+        });
+    raw.or_else(|| http.headers.get("content-length").cloned())
+        .and_then(|value| value.trim().parse().ok())
 }
 
 pub(crate) type ProcessStream =
