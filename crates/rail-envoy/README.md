@@ -112,7 +112,8 @@ Envoy's configuration is the customer's, so we can only recommend it. rail-envoy
   Envoy refuses a body past `max_request_bytes` with 413), and `max_request_bytes` above `RAIL_MAX_BODY_MB` and no more
   than Envoy's buffer limit (the listener's `per_connection_buffer_limit_bytes`, or a route's
   `request_body_buffer_limit`, whichever is larger), past which Envoy answers 413 too; with ext_proc, a
-  `request_body_mode` of `BUFFERED_PARTIAL` or `BUFFERED`. Without a body, every call is counted with its body not sent.
+  `request_body_mode` of `BUFFERED_PARTIAL`, or `BUFFERED`, past whose buffer limit Envoy answers 413. Without a body,
+  every call is counted with its body not sent.
 
 [`e2e/envoy-proxy/envoy-ext-authz.yaml`](../../e2e/envoy-proxy/envoy-ext-authz.yaml) and
 [`envoy-ext-proc.yaml`](../../e2e/envoy-proxy/envoy-ext-proc.yaml) are working examples; they fail open.
@@ -143,9 +144,9 @@ waits, deadline, posture, fallbacks, denial reports and answers. A call allowed 
   - **buffered:** the headers are answered at once, and the one body message judged; Envoy holds the body up to the
     listener's `per_connection_buffer_limit_bytes` (1 MiB by default), and answers 413 itself past it. Set
     `request_trailer_mode: SEND` too, or a request with trailers and no body goes on unjudged;
-  - **any other body mode** (`STREAMED`, Envoy's and the load balancer's default, `BUFFERED_PARTIAL`, `NONE`), or a
-    stream that doesn't say its mode, is refused with 503 and an error line naming it, since the whole body can't be
-    seen first. A stream in `observability_mode`, whose answers Envoy ignores, ends in a gRPC error instead.
+  - **any other body mode** (`STREAMED`, the load balancer's default, `BUFFERED_PARTIAL`, `NONE`, Envoy's), or a stream
+    that doesn't say its mode, is refused with 503 and an error line naming it, since the whole body can't be seen
+    first. A stream in `observability_mode`, whose answers Envoy ignores, ends in a gRPC error instead.
 - **ext_authz** must send the body: `with_request_body`, with `allow_partial_message: false`. A body cut short is
   refused 413, and a `POST` with none, unless its size is known to be 0, 503: never judged as if whole.
 - **Fail closed:** `failure_mode_allow: false`, on either filter, so a call the gateway didn't answer never reaches the

@@ -5,7 +5,12 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
+use rail_envoy::Callouts;
 use rail_test_support::{Server, isolate};
+use tokio::net::UnixListener;
+use tokio_stream::wrappers::UnixListenerStream;
+use tonic::transport::{Channel, Endpoint};
 
 // Every test runs in one process, so the pid alone doesn't keep their directories apart.
 static SOCKETS: AtomicUsize = AtomicUsize::new(0);
@@ -32,6 +37,23 @@ impl Drop for TempSocket {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.dir);
     }
+}
+
+/// `callouts`' ext_proc served in-process on a socket of its own, and a channel to it.
+pub async fn serve_ext_proc(test: &str, callouts: Callouts) -> (TempSocket, Channel) {
+    let socket = TempSocket::new(test);
+    let listener = UnixListener::bind(&socket.path).unwrap();
+    tokio::spawn(
+        tonic::transport::Server::builder()
+            .add_service(ExternalProcessorServer::new(callouts))
+            .serve_with_incoming(UnixListenerStream::new(listener)),
+    );
+    let channel = Endpoint::from_shared(format!("unix:{}", socket.path.display()))
+        .unwrap()
+        .connect()
+        .await
+        .unwrap();
+    (socket, channel)
 }
 
 /// The binary serving as the proxy on `socket`, with Rail Center disabled.

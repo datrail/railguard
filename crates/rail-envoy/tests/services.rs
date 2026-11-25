@@ -7,7 +7,6 @@ use envoy_types::pb::envoy::service::auth::v3::AttributeContext;
 use envoy_types::pb::envoy::service::auth::v3::attribute_context::{HttpRequest, Request};
 use envoy_types::pb::envoy::service::auth::v3::authorization_client::AuthorizationClient;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_client::ExternalProcessorClient;
-use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
 use envoy_types::pb::envoy::service::ext_proc::v3::processing_request::Request as Phase;
 use envoy_types::pb::envoy::service::ext_proc::v3::processing_response::Response;
 use envoy_types::pb::envoy::service::ext_proc::v3::{
@@ -15,13 +14,11 @@ use envoy_types::pb::envoy::service::ext_proc::v3::{
     TrailersResponse,
 };
 use rail_envoy::Callouts;
-use tokio::net::UnixListener;
-use tokio_stream::wrappers::UnixListenerStream;
-use tonic::transport::{Endpoint, Server};
+use tonic::transport::Endpoint;
 
 use rail_test_support::protect;
 
-use crate::common::{TempSocket, start_serving};
+use crate::common::{TempSocket, serve_ext_proc, start_serving};
 
 // Each header's name and value, from `value` or `raw_value`, whichever is set.
 fn read_set(options: &[HeaderValueOption]) -> Vec<(String, String)> {
@@ -107,23 +104,12 @@ async fn ext_authz_leaves_an_unprotected_host_unrouted() {
 
 // Each phase's reply from a served ext_proc, the phases sent on one stream as Envoy sends them.
 async fn send(phases: Vec<Phase>, protected: &str) -> Vec<Response> {
-    let socket = TempSocket::new("ext-proc");
-    let listener = UnixListener::bind(&socket.path).unwrap();
     let callouts = Callouts {
         tickets: None,
         protected_hosts: Arc::new(protect(protected)),
         capture: None,
     };
-    tokio::spawn(
-        Server::builder()
-            .add_service(ExternalProcessorServer::new(callouts))
-            .serve_with_incoming(UnixListenerStream::new(listener)),
-    );
-    let channel = Endpoint::from_shared(format!("unix:{}", socket.path.display()))
-        .unwrap()
-        .connect()
-        .await
-        .unwrap();
+    let (_socket, channel) = serve_ext_proc("ext-proc", callouts).await;
     let requests = phases.into_iter().map(|phase| ProcessingRequest {
         request: Some(phase),
         ..Default::default()

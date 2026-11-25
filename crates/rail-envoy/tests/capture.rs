@@ -12,7 +12,6 @@ use envoy_types::pb::envoy::service::auth::v3::AttributeContext;
 use envoy_types::pb::envoy::service::auth::v3::attribute_context::{HttpRequest, Request};
 use envoy_types::pb::envoy::service::auth::v3::authorization_client::AuthorizationClient;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_client::ExternalProcessorClient;
-use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
 use envoy_types::pb::envoy::service::ext_proc::v3::processing_request::Request as Phase;
 use envoy_types::pb::envoy::service::ext_proc::v3::{
     HttpBody, HttpHeaders, ProcessingRequest, ProtocolConfiguration,
@@ -21,11 +20,9 @@ use rail_envoy::{Callouts, ProxyConfig};
 use rail_runtime::{Proxy, start_proxy};
 use rail_test_support::{RailCenter, protect};
 use serde_json::Value;
-use tokio::net::UnixListener;
-use tokio_stream::wrappers::UnixListenerStream;
-use tonic::transport::{Channel, Endpoint, Server};
+use tonic::transport::{Channel, Endpoint};
 
-use crate::common::{TempSocket, rail_envoy, serve};
+use crate::common::{TempSocket, rail_envoy, serve, serve_ext_proc};
 
 const PLANS: &str = include_str!("../../../vectors/parse_plan_conformance_cases.json");
 
@@ -271,40 +268,29 @@ async fn ext_proc_calls_are_kept_from_their_buffered_body() {
         protected_hosts: Arc::new(protect("mcp.example.com")),
         capture: Some(capture),
     };
-    let socket = TempSocket::new("ext-proc-capture");
-    let listener = UnixListener::bind(&socket.path).unwrap();
-    let server = tokio::spawn(
-        Server::builder()
-            .add_service(ExternalProcessorServer::new(callouts))
-            .serve_with_incoming(UnixListenerStream::new(listener)),
-    );
-    let channel = Endpoint::from_shared(format!("unix:{}", socket.path.display()))
-        .unwrap()
-        .connect()
-        .await
-        .unwrap();
+    let (_socket, channel) = serve_ext_proc("ext-proc-capture", callouts).await;
     let whole = mcp_call("docs", "x");
     let large = mcp_call("uploads", &"r".repeat(3 * MIB));
     let partial = Some(BodySendMode::BufferedPartial);
     let buffered = Some(BodySendMode::Buffered);
     let sized = || headers(Some(whole.len()), false);
 
-    // Ended before its body: first, so it's handed over before the later streams end.
+    // Ended before its body, handed over when the server drops its stream: first, so well before
+    // capture stops.
     process(&channel, buffered, vec![sized()]).await;
     let ended = body(&whole, true);
     process(&channel, partial, vec![sized(), ended]).await;
-    // Buffered, the one message is the whole body, though trailers follow it.
+    // Buffered, the one message is the whole body, though it doesn't end the stream, as when
+    // trailers follow.
     let trailed = body(&whole, false);
     process(&channel, buffered, vec![headers(None, false), trailed]).await;
-    // Partial, trailers following, but whole by its `Content-Length`.
+    // Partial, not ending the stream, as when trailers follow, but whole by its `Content-Length`.
     let declared_whole = body(&whole, false);
     process(&channel, partial, vec![sized(), declared_whole]).await;
     // An empty body, ending the stream at its headers: counted, its body read.
     process(&channel, partial, vec![headers(Some(0), true)]).await;
-    // Partial: cut short of its `Content-Length`; chunked, within the cap and past it.
-    let short = body(&whole[..10], false);
-    process(&channel, partial, vec![sized(), short]).await;
-    let chunked = body(&whole[..10], false);
+    // Partial, chunked, not ending the stream: cut short at the cap, and past it.
+    let chunked = body(&[b' '; 2 * MIB], false);
     process(&channel, partial, vec![headers(None, false), chunked]).await;
     let past = body(&large, false);
     process(&channel, partial, vec![headers(None, false), past]).await;
@@ -313,7 +299,6 @@ async fn ext_proc_calls_are_kept_from_their_buffered_body() {
     let streamed = Some(BodySendMode::Streamed);
     let chunk = body(&whole, true);
     process(&channel, streamed, vec![sized(), chunk]).await;
-    server.abort();
     tokio::task::spawn_blocking(move || stop.stop())
         .await
         .unwrap();
@@ -333,7 +318,7 @@ async fn ext_proc_calls_are_kept_from_their_buffered_body() {
         .iter()
         .map(|record| record["measures"]["call_count"].as_u64().unwrap())
         .sum();
-    assert_eq!(calls, 10, "{document}");
+    assert_eq!(calls, 9, "{document}");
     let unread = &document["truncated"]["body_unread"];
     assert_eq!(
         (
@@ -341,7 +326,7 @@ async fn ext_proc_calls_are_kept_from_their_buffered_body() {
             &unread["cut_short"],
             &unread["past_cap"]
         ),
-        (&Value::from(2), &Value::from(3), &Value::from(1)),
+        (&Value::from(2), &Value::from(2), &Value::from(1)),
         "{document}"
     );
 }

@@ -23,7 +23,7 @@ use rail_runtime::{Answer, Call, Gateway, read_path, withheld_headers};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::services::{ProcessStream, continue_unchanged};
+use crate::services::{ProcessStream, continue_unchanged, value_of};
 use crate::xrail::{raw_value_option, value_option};
 use tokio_stream::StreamExt;
 use tonic::{Status, Streaming};
@@ -531,10 +531,6 @@ fn read_request(sent: impl Iterator<Item = (String, String)>) -> ReadRequest {
     request
 }
 
-// Envoy sends a value in `raw_value`, or in `value` when not asked for raw headers.
 fn read_value(header: &HeaderValue) -> String {
-    match header.raw_value.as_slice() {
-        [] => header.value.clone(),
-        raw => String::from_utf8_lossy(raw).into_owned(),
-    }
+    String::from_utf8_lossy(value_of(header)).into_owned()
 }

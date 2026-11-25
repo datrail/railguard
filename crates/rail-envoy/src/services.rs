@@ -102,21 +102,18 @@ fn observe(http: &HttpRequest) -> SentRequest<'_> {
 
 // `Content-Length` as sent, from either header field.
 fn declared_length(http: &HttpRequest) -> Option<u64> {
-    let raw = http
-        .header_map
-        .iter()
-        .flat_map(|map| &map.headers)
-        .find(|header| header.key.eq_ignore_ascii_case("content-length"))
-        .map(value_of);
-    raw.or_else(|| http.headers.get("content-length").map(String::as_bytes))
-        .and_then(read_length)
+    content_length(http.header_map.iter().flat_map(|map| &map.headers)).or_else(|| {
+        let value = http.headers.get("content-length")?;
+        read_length(value.as_bytes())
+    })
 }
 
 pub(crate) type ProcessStream =
     Pin<Box<dyn Stream<Item = Result<ProcessingResponse, Status>> + Send>>;
 
 /// ext_proc: lets every phase continue, changing the request's headers as ext_authz does; with a
-/// capture plan held at its headers, hands the call to capture once its body is sent.
+/// capture plan held at its headers, hands the call to capture once its body is sent, or at its
+/// headers when none will be kept.
 #[tonic::async_trait]
 impl ExternalProcessor for Callouts {
     type ProcessStream = ProcessStream;
@@ -244,7 +241,7 @@ impl StreamCapture {
         ) {
             self.held = Some(call);
         } else {
-            // `NONE` sends no body; the streamed modes' are kept from PR 8.
+            // `NONE` sends no body; the streamed modes' aren't kept yet.
             call.send(&self.sender, SentBody::NotSent { declared });
         }
     }
@@ -277,11 +274,13 @@ impl Drop for StreamCapture {
     fn drop(&mut self) {
         if let Some(call) = self.held.take() {
             let declared = call.declared;
-            let cut = SentBody::CutShort {
-                sent_bytes: 0,
-                declared,
-            };
-            call.send(&self.sender, cut);
+            call.send(
+                &self.sender,
+                SentBody::CutShort {
+                    sent_bytes: 0,
+                    declared,
+                },
+            );
         }
     }
 }
@@ -294,19 +293,15 @@ impl HeldCall {
                 .find(|header| header.key == name)
                 .map_or_else(Vec::new, |header| value_of(header).to_vec())
         };
-        let declared = sent
-            .clone()
-            .find(|header| header.key.eq_ignore_ascii_case("content-length"))
-            .and_then(|header| read_length(value_of(header)));
         Self {
             authority: find(":authority"),
             method: find(":method"),
             path: find(":path"),
-            declared,
+            declared: content_length(sent),
         }
     }
 
-    fn send(self, sender: &CaptureSender, body: SentBody<'_>) {
+    fn send(&self, sender: &CaptureSender, body: SentBody<'_>) {
         sender.send_request(SentRequest {
             authority: &self.authority,
             method: &self.method,
@@ -317,7 +312,7 @@ impl HeldCall {
 }
 
 // Envoy sends a value in `raw_value`, or in `value` when not asked for raw headers.
-fn value_of(header: &HeaderValue) -> &[u8] {
+pub(crate) fn value_of(header: &HeaderValue) -> &[u8] {
     match header.raw_value.as_slice() {
         [] => header.value.as_bytes(),
         raw => raw,
@@ -325,6 +320,13 @@ fn value_of(header: &HeaderValue) -> &[u8] {
 }
 
 // `Content-Length` as sent; a chunked body declares none.
+fn content_length<'a>(headers: impl IntoIterator<Item = &'a HeaderValue>) -> Option<u64> {
+    headers
+        .into_iter()
+        .find(|header| header.key.eq_ignore_ascii_case("content-length"))
+        .and_then(|header| read_length(value_of(header)))
+}
+
 fn read_length(value: &[u8]) -> Option<u64> {
     std::str::from_utf8(value).ok()?.trim().parse().ok()
 }
