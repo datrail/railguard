@@ -5,10 +5,13 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime};
 
-use rail_model::capture::{BodyUnreadReason, CallOutcome, ClosedWindow, ObservedCall, Windowing};
+use rail_model::capture::{
+    BodyUnreadReason, CallOutcome, ClosedWindow, CompiledPlan, ObservedCall, Windowing,
+};
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::{mpsc, oneshot};
+use tokio::task::JoinHandle;
 use tokio::time::sleep;
 
 use crate::call_record::CallRecordReporter;
@@ -45,8 +48,8 @@ impl CaptureThread {
 /// The capture task: it counts each call handed over in the window open under the plan `plans`
 /// holds, and hands each window closed to `reporter`, sent at once when the plan goes.
 pub struct Capture {
-    stop: oneshot::Sender<oneshot::Sender<()>>,
-    reporter: Arc<CallRecordReporter>,
+    stop: oneshot::Sender<()>,
+    task: JoinHandle<()>,
 }
 
 /// What the callouts hand calls over through, never waiting.
@@ -69,32 +72,29 @@ impl Capture {
         let (calls, queued) = mpsc::channel(QUEUE);
         let (stop, stopped) = oneshot::channel();
         let plans = Arc::new(plans);
-        let reporter = Arc::new(reporter);
         let dropped = Arc::new(AtomicU64::new(0));
         let task = Task {
             windowing: Windowing::default(),
             plans: Arc::clone(&plans),
-            reporter: Arc::clone(&reporter),
+            reporter,
             dropped: Arc::clone(&dropped),
             said: Vec::new(),
             now,
         };
-        runtime.spawn(task.run(queued, stopped));
+        let task = runtime.spawn(task.run(queued, stopped));
         let sender = CaptureSender {
             plans,
             calls,
             dropped,
         };
-        (Self { stop, reporter }, sender)
+        (Self { stop, task }, sender)
     }
 
-    /// Closes the open window and sends what's queued, for up to 2 s.
+    /// Counts the calls already handed over, closes the open window and sends the windows waiting,
+    /// for up to 2 s.
     pub async fn stop(self) {
-        let (done, closed) = oneshot::channel();
-        if self.stop.send(done).is_ok() {
-            let _ = closed.await;
-        }
-        self.reporter.flush().await;
+        let _ = self.stop.send(());
+        let _ = self.task.await;
     }
 }
 
@@ -116,7 +116,7 @@ impl CaptureSender {
 struct Task {
     windowing: Windowing,
     plans: Arc<CapturePlanHolder>,
-    reporter: Arc<CallRecordReporter>,
+    reporter: CallRecordReporter,
     dropped: Arc<AtomicU64>,
     // The body-unread reasons logged at `warn` so far.
     said: Vec<BodyUnreadReason>,
@@ -127,7 +127,7 @@ impl Task {
     async fn run(
         mut self,
         mut queued: mpsc::Receiver<ObservedCall>,
-        mut stopped: oneshot::Receiver<oneshot::Sender<()>>,
+        mut stopped: oneshot::Receiver<()>,
     ) {
         let mut changes = self.plans.changes();
         // Each closed for good once its other side is gone, so neither is waited on again.
@@ -141,11 +141,15 @@ impl Task {
             tokio::select! {
                 // A stop first, then a plan change before the calls taken under it.
                 biased;
-                done = &mut stopped => {
-                    self.close();
-                    if let Ok(done) = done {
-                        let _ = done.send(());
+                // Stopped, or `Capture` dropped: the calls handed over are counted, not lost.
+                _ = &mut stopped => {
+                    while let Ok(call) = queued.try_recv() {
+                        self.record(&call);
                     }
+                    let (_, now) = self.read();
+                    let closed = self.windowing.hold(None, now);
+                    self.hand_over(closed, false);
+                    self.reporter.flush().await;
                     return;
                 }
                 changed = changes.changed(), if plans_open => match changed {
@@ -161,24 +165,20 @@ impl Task {
         }
     }
 
-    // The plan held now: its change, its going, or the window's time over closes the window.
+    // The plan held now: its change or going, the window's time over, or the clock stepped back
+    // closes the window.
     fn hold(&mut self) {
-        let now = self.read_dropped();
-        let plan = self.plans.snapshot();
+        let (plan, now) = self.read();
         let gone = plan.is_none();
-        if let Some(closed) = self.windowing.hold(plan, now) {
-            self.hand_over(closed, gone);
-        }
+        let closed = self.windowing.hold(plan, now);
+        self.hand_over(closed, gone);
     }
 
     fn record(&mut self, call: &ObservedCall) {
-        let now = self.read_dropped();
-        let plan = self.plans.snapshot();
+        let (plan, now) = self.read();
         let gone = plan.is_none();
         let recorded = self.windowing.record(plan, call, now);
-        if let Some(closed) = recorded.closed {
-            self.hand_over(closed, gone);
-        }
+        self.hand_over(recorded.closed, gone);
         match recorded.outcome {
             CallOutcome::Counted {
                 body_unread: Some(reason),
@@ -190,23 +190,22 @@ impl Task {
         }
     }
 
-    // The window open closed for capture to stop, to send with what's queued.
-    fn close(&mut self) {
-        let now = self.read_dropped();
-        if let Some(closed) = self.windowing.hold(None, now) {
-            self.reporter.report(closed);
+    // The queue's drops told to the window open first, so they count where they were lost; the
+    // plan held and the time now.
+    fn read(&mut self) -> (Option<Arc<CompiledPlan>>, SystemTime) {
+        let dropped = self.dropped.swap(0, Ordering::Relaxed);
+        if dropped > 0 && self.windowing.end().is_none() {
+            tracing::debug!(calls = dropped, "calls dropped with no capture window open");
         }
-    }
-
-    // The queue's drops told to the window open before anything else; the time now.
-    fn read_dropped(&mut self) -> SystemTime {
-        self.windowing
-            .count_dropped(self.dropped.swap(0, Ordering::Relaxed));
-        (self.now)()
+        self.windowing.count_dropped(dropped);
+        (self.plans.snapshot(), (self.now)())
     }
 
     // Once the plan's gone, no later window comes to carry it, so it goes at once.
-    fn hand_over(&self, closed: ClosedWindow, gone: bool) {
+    fn hand_over(&self, closed: Option<ClosedWindow>, gone: bool) {
+        let Some(closed) = closed else {
+            return;
+        };
         self.reporter.report(closed);
         if gone {
             self.reporter.send_now();

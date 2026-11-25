@@ -57,7 +57,7 @@ impl CapturePlanHolder {
         self.holder.snapshot().as_ref().clone()
     }
 
-    /// Changes each time another plan is held, or none; closed once the refreshes stop.
+    /// Changes each time another plan, or none, comes to be held; closed once the refreshes stop.
     pub(crate) fn changes(&self) -> watch::Receiver<()> {
         self.holder.changes()
     }

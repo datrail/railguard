@@ -8,7 +8,7 @@ use tokio::sync::oneshot;
 // A fetch still resolving a name when the process stops isn't waited for any longer.
 const SHUTDOWN_GRACE: Duration = Duration::from_secs(1);
 
-/// A runtime on a thread of its own, named `name`; `what` names it in errors.
+/// A runtime on a thread of its own.
 pub(crate) struct RuntimeThread {
     runtime: Handle,
     stop: oneshot::Sender<()>,
@@ -16,6 +16,7 @@ pub(crate) struct RuntimeThread {
 }
 
 impl RuntimeThread {
+    /// The thread named `name`; `what` names it in errors.
     pub(crate) fn start(name: &str, what: &str) -> Result<Self, String> {
         let (stop, stopped) = oneshot::channel::<()>();
         let (started, handle) = mpsc::channel();

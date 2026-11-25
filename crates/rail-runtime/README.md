@@ -25,8 +25,8 @@ behave the same. See the [main README](../../README.md) for the system around it
   counted in the next document. `Capture`, a task on the `CaptureThread`'s runtime, counts the calls the callouts hand
   over through a `CaptureSender` in windows under the capture plan held, each closed window to the reporter, sent at
   once when the plan goes: `is_capturing` decides a call's capture at its headers, and `send` never waits, a call the
-  full queue of 4 096 turns away counted as dropped. Stopping it closes the window and sends what's queued, for up to 2
-  s.
+  full queue of 4 096 turns away counted as dropped. Stopping it counts the calls already handed over, closes the open
+  window and sends the windows waiting, for up to 2 s.
 - **The log:** `logging` writes both hosts' log to stderr as JSON lines, Cloud Logging's on Cloud Run, or as text under
   `RAIL_LOG_FORMAT=text`, each field quoted or a JSON string, with what hides escaped, so a call's text can't forge a
   line.

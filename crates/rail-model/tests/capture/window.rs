@@ -148,6 +148,18 @@ fn test_tells_why_a_body_went_unread() {
             BodyRead::Unread(Unread::PastCap),
             Some(BodyUnreadReason::PastCap),
         ),
+        (
+            BodyRead::Unread(Unread::PastBudget),
+            Some(BodyUnreadReason::PastBudget),
+        ),
+        (
+            BodyRead::Unread(Unread::NotSent),
+            Some(BodyUnreadReason::NotSent),
+        ),
+        (
+            BodyRead::Unread(Unread::CutShort),
+            Some(BodyUnreadReason::CutShort),
+        ),
         (keep_body(b"[]"), Some(BodyUnreadReason::Batch)),
         (keep_body(b"{"), Some(BodyUnreadReason::NotJson)),
         (keep_body(ambiguous), Some(BodyUnreadReason::Ambiguous)),

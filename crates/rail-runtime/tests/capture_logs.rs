@@ -1,7 +1,7 @@
 use rail_model::body::{BodyRead, Unread};
 
 use crate::call_record_center::Center;
-use crate::captures::{call, capture, held};
+use crate::captures::{a_plan, capture, post};
 use crate::holder::{TestClock, until};
 use crate::logs::{Logs, lines_with};
 
@@ -11,14 +11,14 @@ async fn each_reason_a_body_went_unread_is_warned_of_once() {
     let _logging = logs.capture();
     let clock = TestClock::new();
     let center = Center::accepting(&clock);
-    let (_capture, sender) = capture(&clock, |_| held(), &center);
+    let (_capture, sender) = capture(&clock, |_| a_plan(), &center);
 
     until(&clock, 1).await;
     // The plan's entry takes POST /mcp on its body, which these weren't kept.
     for _ in 0..2 {
-        sender.send(call("/mcp", BodyRead::Unread(Unread::PastCap)));
+        sender.send(post("/mcp", BodyRead::Unread(Unread::PastCap)));
     }
-    sender.send(call("/mcp", BodyRead::Unread(Unread::NotSent)));
+    sender.send(post("/mcp", BodyRead::Unread(Unread::NotSent)));
     until(&clock, 2).await;
 
     let logs = logs.text();
