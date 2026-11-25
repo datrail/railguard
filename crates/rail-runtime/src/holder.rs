@@ -109,6 +109,8 @@ enum Progress {
 /// A value fetched and refreshed on `runtime`; dropping it stops the refreshes.
 pub(crate) struct Holder<T> {
     held: Arc<ArcSwap<T>>,
+    // Marked each time another value is held.
+    stored: watch::Receiver<()>,
     progress: watch::Receiver<Progress>,
     // Weak, so the sender goes with the loop and a waiter sees the loop is gone.
     publish: Weak<watch::Sender<Progress>>,
@@ -126,14 +128,16 @@ impl<T: Send + Sync + 'static> Holder<T> {
         jitter: Jitter,
     ) -> Self {
         let held = Arc::new(ArcSwap::from_pointee(initial));
+        let (store, stored) = watch::channel(());
         let (publish, progress) = watch::channel(Progress::InFlight);
         let publish = Arc::new(publish);
         let weak = Arc::downgrade(&publish);
         let refresh = runtime
-            .spawn(run(kind, Arc::clone(&held), publish, period, jitter))
+            .spawn(run(kind, Arc::clone(&held), store, publish, period, jitter))
             .abort_handle();
         Self {
             held,
+            stored,
             progress,
             publish: weak,
             refresh,
@@ -143,6 +147,12 @@ impl<T: Send + Sync + 'static> Holder<T> {
     /// What's held now, never waiting.
     pub(crate) fn snapshot(&self) -> Arc<T> {
         self.held.load_full()
+    }
+
+    /// Changes each time another value is held, so a reader can wait for one rather than poll;
+    /// closed once the refreshes stop.
+    pub(crate) fn changes(&self) -> watch::Receiver<()> {
+        self.stored.clone()
     }
 
     /// What's held once `holds` it, or once `limit` has passed, or at once if no attempt is in
@@ -199,6 +209,7 @@ impl<T> Drop for Holder<T> {
 async fn run<K: Kind>(
     kind: K,
     held: Arc<ArcSwap<K::Held>>,
+    store: watch::Sender<()>,
     publish: Arc<watch::Sender<Progress>>,
     period: Duration,
     jitter: Jitter,
@@ -215,6 +226,7 @@ async fn run<K: Kind>(
             Some(step) => {
                 if let Some(next) = step.next {
                     held.store(Arc::new(next));
+                    store.send_replace(());
                 }
                 (Some(step.outcome), step.attempt)
             }

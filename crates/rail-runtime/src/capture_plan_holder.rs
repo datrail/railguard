@@ -9,6 +9,7 @@ use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::Value;
 use tokio::runtime::Handle;
+use tokio::sync::watch;
 
 use crate::capture_plan::CapturePlanSource;
 use crate::client::{FetchError, Response, Unread, read_ok};
@@ -54,6 +55,11 @@ impl CapturePlanHolder {
     /// plan changes, so `Windowing` tells a change by pointer.
     pub fn snapshot(&self) -> Option<Arc<CompiledPlan>> {
         self.holder.snapshot().as_ref().clone()
+    }
+
+    /// Changes each time another plan is held, or none; closed once the refreshes stop.
+    pub(crate) fn changes(&self) -> watch::Receiver<()> {
+        self.holder.changes()
     }
 }
 
