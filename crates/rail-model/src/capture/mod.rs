@@ -16,8 +16,8 @@ pub use compile::{CompiledEntry, CompiledPlan, EntryRefusal, compile_plan};
 
 pub use document::Document;
 pub use plan::{
-    CatchAll, Combine, ContextKey, Entry, InvalidPlan, Measure, MeasureFunction, OnMaxGroups, Plan,
-    PlanBudget, Record, parse_plan,
+    CatchAll, Combine, ContextKey, Entry, InvalidPlan, KeyFunction, Measure, MeasureFunction,
+    OnMaxGroups, Plan, PlanBudget, Record, parse_plan,
 };
 pub use window::{BodyUnreadReason, ClosedWindow, Window};
 pub use windowing::{CallOutcome, Recorded, Windowing};

@@ -97,6 +97,7 @@ pub enum ContextKey {
         path: Path,
         /// What the value is, copied into its entry's records' `field_types`, never interpreted.
         field_type: String,
+        function: KeyFunction,
     },
 }
 
@@ -120,6 +121,16 @@ pub enum Measure {
 #[serde(rename_all = "snake_case")]
 pub enum Combine {
     Sum,
+}
+
+/// What a context key keeps of a string found.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum KeyFunction {
+    /// The string, within the bounds on what leaves.
+    None,
+    /// The SHA-256 of the string as found, never the string.
+    Sha256,
 }
 
 /// What a call adds to a measure, from the values its paths find.
@@ -332,10 +343,16 @@ impl TryFrom<Fields> for ContextKey {
                     Value::String(field_type) if is_name(&field_type) => field_type,
                     _ => return Err(format!("{at}: its field_type isn't a name")),
                 };
+                let function = match fields.function {
+                    Some(function) => KeyFunction::deserialize(function)
+                        .map_err(|_| format!("{at}: its function isn't none or sha256"))?,
+                    None => KeyFunction::None,
+                };
                 Self::Named {
                     path: read_record_path(&path).map_err(|why| format!("{at}: {why}"))?,
                     name,
                     field_type,
+                    function,
                 }
             }
         })

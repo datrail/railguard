@@ -1052,6 +1052,7 @@ dependencies = [
  "indexmap",
  "serde",
  "serde_json",
+ "sha2",
  "time",
  "unicode-general-category",
  "uuid",

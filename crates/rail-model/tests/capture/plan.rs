@@ -1,6 +1,6 @@
 use rail_model::agent::AgentId;
 use rail_model::capture::{
-    Combine, ContextKey, Measure, MeasureFunction, OnMaxGroups, Plan, parse_plan,
+    Combine, ContextKey, KeyFunction, Measure, MeasureFunction, OnMaxGroups, Plan, parse_plan,
 };
 use rail_model::condition::{BodyPath, BodyStep, Condition, Path, RequestPath};
 use rail_model::schema_version::SchemaVersion;
@@ -125,6 +125,7 @@ fn test_reads_the_worked_example_as_written() {
             name: "destination".into(),
             path: body(&["params", "arguments", "repo"]),
             field_type: "repository".into(),
+            function: KeyFunction::None,
         }]
     );
     assert_eq!(
