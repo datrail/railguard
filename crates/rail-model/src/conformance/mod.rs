@@ -12,10 +12,12 @@ use serde_json::{Number, Value};
 mod condition;
 mod entry;
 mod environment;
+mod matching;
 mod mcp;
 mod op;
 mod path;
 mod plan;
+mod plans;
 mod record;
 mod request_line;
 mod value;
@@ -33,10 +35,12 @@ pub fn run_vectors(vectors: &Path, file: &str) -> Result<Vec<Outcome>, String> {
     let read =
         |name: &str| fs::read_to_string(vectors.join(name)).map_err(|e| format!("{name}: {e}"));
     let cases = read(file)?;
+    let read_plans = || plans::NamedPlans::read(&read("capture/plans.json")?);
     let read_environments = || environment::Named::read(&read("environments.json")?);
     let outcomes = match file {
         "request_line.json" => request_line::run_cases(&cases),
         "mcp.json" => mcp::run_cases(&cases),
+        "capture/matching.json" => matching::run_cases(&cases, &read_plans()?),
         "capture/entry.json" => entry::run_cases(&cases, &read_environments()?),
         "capture/record.json" => record::run_cases(&cases, &read_environments()?),
         "condition/condition.json" => condition::run_cases(&cases),

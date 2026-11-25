@@ -63,7 +63,7 @@ pub(super) fn encode_reported_method(method: ReportedMethod) -> Value {
     }
 }
 
-fn encode_unmatchable(why: Unmatchable) -> &'static str {
+pub(super) fn encode_unmatchable(why: Unmatchable) -> &'static str {
     match why {
         Unmatchable::NotUtf8 => "not_utf8",
         Unmatchable::Bracket => "bracket",

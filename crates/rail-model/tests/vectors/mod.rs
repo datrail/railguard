@@ -56,3 +56,8 @@ fn test_entry() {
 fn test_record() {
     check_vectors("capture/record.json");
 }
+
+#[test]
+fn test_matching() {
+    check_vectors("capture/matching.json");
+}
