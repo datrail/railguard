@@ -1,6 +1,6 @@
 use rail_runtime::{
-    BundleSettings, HostLimit, RailCenterSettings, Refused, Settings, read_bundle_settings,
-    read_callout_port, read_log_format, read_log_level, read_max_body_bytes,
+    BundleSettings, GATEWAY_MAX_BODY_MB, HostLimit, RailCenterSettings, Refused, Settings,
+    read_bundle_settings, read_callout_port, read_log_format, read_log_level, read_max_body_bytes,
     read_max_message_bytes, read_rail_center_with,
 };
 
@@ -51,7 +51,7 @@ impl Config {
         ];
         let port = read_port(settings);
         let max_message_bytes = read_max_message_bytes(settings);
-        let max_body_bytes = read_max_body_bytes(settings, Some(APIGEE_LIMIT));
+        let max_body_bytes = read_max_body_bytes(settings, GATEWAY_MAX_BODY_MB, Some(APIGEE_LIMIT));
         let (_, rail_center) = read_rail_center_with(settings, read_bundle_settings);
         retired.into_iter().try_for_each(|retired| retired)?;
         log_format?;

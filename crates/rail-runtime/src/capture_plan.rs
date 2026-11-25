@@ -21,13 +21,16 @@ const CAPTURE_PLAN_REFRESH_SECONDS: &str = "RAIL_CAPTURE_PLAN_REFRESH_SECONDS";
 // Every few minutes: a plan has no expiry.
 const DEFAULT_REFRESH_INTERVAL: Duration = Duration::from_secs(300);
 
-/// How often the capture plan is fetched again, before jitter; described as read.
-pub fn read_capture_plan_refresh(settings: &mut Settings) -> Result<Duration, Refused> {
+/// How often the capture plan is fetched again, before jitter; described as read if `used`,
+/// which is whether Rail Center is.
+pub fn read_capture_plan_refresh(settings: &mut Settings, used: bool) -> Result<Duration, Refused> {
     let refresh_interval = settings
         .get(CAPTURE_PLAN_REFRESH_SECONDS)
         .parsed(parse_refresh_interval)?
         .unwrap_or(DEFAULT_REFRESH_INTERVAL);
-    settings.describe(CAPTURE_PLAN_REFRESH_SECONDS, refresh_interval.as_secs());
+    if used {
+        settings.describe(CAPTURE_PLAN_REFRESH_SECONDS, refresh_interval.as_secs());
+    }
     Ok(refresh_interval)
 }
 

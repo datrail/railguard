@@ -12,7 +12,7 @@ use tokio::task::spawn_blocking;
 use tokio::time::{Instant, timeout_at};
 
 use crate::bundle_holder::{BundleHolder, HeldBundle};
-use crate::callout::{DEFAULT_MAX_BODY_MB, MB};
+use crate::callout::{GATEWAY_MAX_BODY_MB, MB};
 use crate::clock::WallClock;
 use crate::denial::DenialReporter;
 use crate::gateway::{Answer, Call, Unit, UnitSettings, decode_x_rail, judge_call};
@@ -46,7 +46,7 @@ impl Default for GatewaySettings {
             deadline: Duration::from_secs(5),
             max_concurrent_judgements: available_parallelism().unwrap_or(NonZeroUsize::MIN),
             no_bundle_fallback: Fallback::Pass,
-            max_body_bytes: DEFAULT_MAX_BODY_MB * MB,
+            max_body_bytes: GATEWAY_MAX_BODY_MB * MB,
             unit: UnitSettings::default(),
         }
     }
