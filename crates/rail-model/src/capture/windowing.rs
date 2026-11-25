@@ -46,9 +46,10 @@ pub enum CallOutcome {
 }
 
 impl Windowing {
-    /// When the open window ends, if one is: when to call `hold` next, if nothing comes sooner.
+    /// When the open window ends, if one is and its end is a time: when to call `hold` next, if
+    /// nothing comes sooner.
     pub fn end(&self) -> Option<SystemTime> {
-        self.open.as_ref().map(end_of)
+        self.open.as_ref().and_then(end_of)
     }
 
     /// The plan held at `now`, a new `Arc` being a new plan. The open window closes if the plan
@@ -113,14 +114,15 @@ impl Windowing {
         let keep = self.open.as_ref().is_some_and(|open| {
             plan.as_ref()
                 .is_some_and(|plan| Arc::ptr_eq(open.plan(), plan))
-                && (open.latest()..end_of(open)).contains(&at)
+                && open.latest() <= at
+                && end_of(open).is_none_or(|end| at < end)
         });
         if keep {
             return None;
         }
         let closed = self.open.take().map(|open| {
-            let end = end_of(&open);
-            open.close(at.min(end))
+            let end = end_of(&open).map_or(at, |end| at.min(end));
+            open.close(end)
         });
         if let Some(closed) = &closed {
             self.closed_end = Some(closed.end());
@@ -130,8 +132,9 @@ impl Windowing {
     }
 }
 
-// The first multiple of its plan's `window_seconds` since the epoch after its start.
-fn end_of(window: &Window) -> SystemTime {
+// The first multiple of its plan's `window_seconds` since the epoch after its start; none past
+// the latest time, so a clock that far ends a window only by the plan going or stepping back.
+fn end_of(window: &Window) -> Option<SystemTime> {
     let seconds = u64::from(window.plan().plan().window_seconds);
     // The proxy never runs before 1970, so such a time reads as the epoch.
     let since_epoch = window
@@ -139,5 +142,6 @@ fn end_of(window: &Window) -> SystemTime {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
-    UNIX_EPOCH + Duration::from_secs((since_epoch / seconds + 1) * seconds)
+    let end = (since_epoch / seconds + 1).checked_mul(seconds)?;
+    UNIX_EPOCH.checked_add(Duration::from_secs(end))
 }
