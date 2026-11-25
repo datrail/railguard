@@ -92,6 +92,7 @@ fn describe_reading<T>(reading: &PathReading<T>, found: impl Fn(&T) -> Value) ->
 fn describe_kept(value: &KeptValue) -> Value {
     match value {
         KeptValue::String(text) => json!({"string": text}),
+        KeptValue::Hashed(hex) => json!({"hashed": hex}),
         KeptValue::Replaced(Replacement::KeyShape) => json!({"replaced": "key_shape"}),
         KeptValue::Replaced(Replacement::PastLongest) => json!({"replaced": "past_longest"}),
         KeptValue::NotAString => json!({"not_a_string": null}),

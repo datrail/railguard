@@ -1,5 +1,5 @@
 {
-  "_comment": "Conformance cases for parse_plan, reading a capture plan Rail Center serves and checking it against the field reference, read as a policy bundle is: a field the reader doesn't know is passed over. `plan` is the worked example in railxia/docs' design/2026-11-10-rc-dg-capture-plan/design.md at 95b5c7b (its section 2), a record's `measure` named `measures`; its body paths under request, as are a query's and a path segment's (in place of the reference's body, query and path roots); each case is that plan with `patch` applied (RFC 6902: add, remove, replace). `expect.valid` is whether parse_plan accepts it; `conditions`, where given, are the first entry's as read (`valid`, `unknown`, `invalid`), each checked when compiled. Not here, since they're the caller's to check: the content_hash's form, the schema_version's major, the agent, the redaction_version. The proxy's ceilings: window_seconds 60 to 86400, max_groups_per_window up to 100000, max_steps_per_window up to 1000000, max_unsent_windows up to 1000.",
+  "_comment": "Conformance cases for parse_plan, reading a capture plan Rail Center serves and checking it against the field reference, read as a policy bundle is: a field the reader doesn't know is passed over. `plan` is the worked example in railxia/docs' design/2026-11-10-rc-dg-capture-plan/design.md at 95b5c7b (its section 2), a record's `measure` named `measures`; its body paths under request, as are a query's and a path segment's (in place of the reference's body, query and path roots); each case is that plan with `patch` applied (RFC 6902: add, remove, replace). `expect.valid` is whether parse_plan accepts it; `conditions`, where given, are the first entry's as read (`valid`, `unknown`, `invalid`), each checked when compiled. A named context key's `function` is `none` (also when absent or null) or `sha256`; a built-in key takes no function. Not here, since they're the caller's to check: the content_hash's form, the schema_version's major, the agent, the redaction_version. The proxy's ceilings: window_seconds 60 to 86400, max_groups_per_window up to 100000, max_steps_per_window up to 1000000, max_unsent_windows up to 1000.",
   "plan": {
     "schema_version": "1.0",
     "content_hash": "sha256:fb3733bbe47258024770ac2cc2521f60c5709ddc2a31b87744ed1c213229d77c",
@@ -469,6 +469,36 @@
     {
       "name": "a named key with no field_type",
       "patch": [{"op": "remove", "path": "/entries/0/record/context_keys/0/field_type"}],
+      "expect": {"valid": false}
+    },
+    {
+      "name": "a named key's function null, read as none",
+      "patch": [{"op": "add", "path": "/entries/0/record/context_keys/0/function", "value": null}],
+      "expect": {"valid": true}
+    },
+    {
+      "name": "a named key's function keyed_hash, not built",
+      "patch": [{"op": "add", "path": "/entries/0/record/context_keys/0/function", "value": "keyed_hash"}],
+      "expect": {"valid": false}
+    },
+    {
+      "name": "a built-in key with a function",
+      "patch": [{"op": "add", "path": "/catch_all/record/context_keys/3/function", "value": "none"}],
+      "expect": {"valid": false}
+    },
+    {
+      "name": "a named key's function as an object",
+      "patch": [{"op": "add", "path": "/entries/0/record/context_keys/0/function", "value": {"sha256": null}}],
+      "expect": {"valid": false}
+    },
+    {
+      "name": "a measure's function as an object",
+      "patch": [{"op": "replace", "path": "/entries/0/record/measures/3/function", "value": {"size": null}}],
+      "expect": {"valid": false}
+    },
+    {
+      "name": "a measure's type as an object",
+      "patch": [{"op": "replace", "path": "/entries/0/record/measures/3/type", "value": {"sum": null}}],
       "expect": {"valid": false}
     },
     {

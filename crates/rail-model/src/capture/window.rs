@@ -436,15 +436,15 @@ fn write(
     (values, written)
 }
 
-// A value found, kept or replaced; `null` for nothing found or a value a key doesn't keep, which
-// a plan path counts as unresolved.
+// A value found, kept, hashed or replaced; `null` for nothing found or a value a key doesn't
+// keep, which a plan path counts as unresolved.
 fn write_value(
     reading: &PathReading<KeptValue>,
     written: &mut Written,
     from_plan_path: bool,
 ) -> Option<String> {
     match reading {
-        PathReading::Found(KeptValue::String(text)) => Some(text.clone()),
+        PathReading::Found(KeptValue::String(text) | KeptValue::Hashed(text)) => Some(text.clone()),
         PathReading::Found(KeptValue::Replaced(_)) => {
             written.values_replaced += 1;
             Some(REDACTED.to_owned())

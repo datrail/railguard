@@ -1,14 +1,16 @@
 //! A call as the callout hands it over, matched against a compiled plan, and what the record
 //! counting it, an entry's or the catch-all's, reads of it.
 
+use sha2::{Digest, Sha256};
+
 use super::compile::{CompiledEntry, CompiledPlan, EntryRefusal};
-use super::plan::{CatchAll, ContextKey, Entry, Function, Measure, Record};
+use super::plan::{CatchAll, ContextKey, Entry, KeyFunction, Measure, MeasureFunction, Record};
 use crate::body::BodyRead;
 use crate::condition::{
     BodyPath, BodyUnread, Budget, Environment, Items, Lookup, Path, Refusal, RequestPath, Verdict,
     evaluate_condition, resolve_path,
 };
-use crate::redaction::is_secret_token;
+use crate::redaction::{REDACTED, is_secret_token};
 use crate::request_line::{HostReading, ReportedMethod, RequestLine, Unmatchable};
 
 // Past this, a kept value could carry data of any length.
@@ -119,6 +121,8 @@ pub enum PathReading<T> {
 #[derive(Debug, PartialEq)]
 pub enum KeptValue {
     String(String),
+    /// A string too, its SHA-256 kept, as 64 lower-case hex digits.
+    Hashed(String),
     /// A string too, not kept.
     Replaced(Replacement),
     /// Anything else, which a context key doesn't keep.
@@ -249,9 +253,11 @@ fn read_record(
             }
             ContextKey::Operation => {
                 let tool = Path::Request(RequestPath::McpTool);
-                KeyReading::Operation(read_key(&tool, environment, budget))
+                KeyReading::Operation(read_key(&tool, KeyFunction::None, environment, budget))
             }
-            ContextKey::Named { path, .. } => KeyReading::Path(read_key(path, environment, budget)),
+            ContextKey::Named { path, function, .. } => {
+                KeyReading::Path(read_key(path, *function, environment, budget))
+            }
         })
         .collect();
     let measures = record
@@ -262,7 +268,7 @@ fn read_record(
             Measure::ErrorCount => MeasureReading::ErrorCount,
             Measure::RequestBytes => MeasureReading::RequestBytes(body_bytes),
             Measure::Named {
-                function: Function::SizeInBytes,
+                function: MeasureFunction::SizeInBytes,
                 paths,
                 ..
             } => MeasureReading::SizeInBytes(
@@ -279,13 +285,29 @@ fn read_record(
     }
 }
 
-fn read_key(path: &Path, environment: &Environment, budget: &mut Budget) -> PathReading<KeptValue> {
+fn read_key(
+    path: &Path,
+    function: KeyFunction,
+    environment: &Environment,
+    budget: &mut Budget,
+) -> PathReading<KeptValue> {
     let lookup = match resolve_path(path, environment, budget) {
         Ok((lookup, _)) => lookup,
         Err(refusal) => return PathReading::Refused(refusal),
     };
     match lookup {
-        Lookup::String(text) => PathReading::Found(keep(&text)),
+        Lookup::String(text) => PathReading::Found(match function {
+            KeyFunction::None => keep(&text),
+            // The redaction's marker, kept so the loss still reads as one.
+            KeyFunction::Sha256
+                if text == REDACTED
+                    && matches!(path, Path::Request(RequestPath::RedactedPath(_))) =>
+            {
+                KeptValue::String(text.into_owned())
+            }
+            // Its bounds are on what leaves, and a hash leaves none of the string.
+            KeyFunction::Sha256 => KeptValue::Hashed(hash(&text)),
+        }),
         // A parameter sent several times: which one a server reads differs.
         Lookup::List(_)
             if matches!(path, Path::Request(RequestPath::Query { index: None, .. })) =>
@@ -309,6 +331,13 @@ fn keep(text: &str) -> KeptValue {
     } else {
         KeptValue::String(text.to_owned())
     }
+}
+
+fn hash(text: &str) -> String {
+    Sha256::digest(text.as_bytes())
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
 }
 
 // A body value as the body writes it, a string's quotes and escapes included; a query value or a

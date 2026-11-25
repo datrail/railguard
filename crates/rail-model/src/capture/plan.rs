@@ -6,6 +6,7 @@ use std::fmt;
 use std::ops::RangeInclusive;
 
 use serde::Deserialize;
+use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
 use crate::agent::AgentId;
@@ -97,6 +98,7 @@ pub enum ContextKey {
         path: Path,
         /// What the value is, copied into its entry's records' `field_types`, never interpreted.
         field_type: String,
+        function: KeyFunction,
     },
 }
 
@@ -110,7 +112,7 @@ pub enum Measure {
     Named {
         name: String,
         combine: Combine,
-        function: Function,
+        function: MeasureFunction,
         paths: Vec<Path>,
     },
 }
@@ -122,10 +124,20 @@ pub enum Combine {
     Sum,
 }
 
+/// What a context key keeps of a string found.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum KeyFunction {
+    /// The string, within the bounds on what leaves.
+    None,
+    /// The SHA-256 of the string as found, never the string.
+    Sha256,
+}
+
 /// What a call adds to a measure, from the values its paths find.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Function {
+pub enum MeasureFunction {
     /// The bytes the values take, as the call sends them.
     #[serde(rename = "size")]
     SizeInBytes,
@@ -312,7 +324,7 @@ impl TryFrom<Fields> for ContextKey {
     fn try_from(fields: Fields) -> Result<Self, String> {
         let name = read_name(fields.name, "context key")?;
         let at = format!("context key {name}");
-        Ok(match name.as_str() {
+        let built_in = match name.as_str() {
             "method" => Self::Method,
             "host" => Self::Host,
             "operation" => Self::Operation,
@@ -332,13 +344,24 @@ impl TryFrom<Fields> for ContextKey {
                     Value::String(field_type) if is_name(&field_type) => field_type,
                     _ => return Err(format!("{at}: its field_type isn't a name")),
                 };
-                Self::Named {
+                let function = match fields.function {
+                    Some(function) => read_listed(function)
+                        .ok_or_else(|| format!("{at}: its function isn't none or sha256"))?,
+                    None => KeyFunction::None,
+                };
+                return Ok(Self::Named {
                     path: read_record_path(&path).map_err(|why| format!("{at}: {why}"))?,
                     name,
                     field_type,
-                }
+                    function,
+                });
             }
-        })
+        };
+        // A built-in is sanitized its own way: a function given would be passed over.
+        if fields.function.is_some() {
+            return Err(format!("{at}: a built-in one takes no function"));
+        }
+        Ok(built_in)
     }
 }
 
@@ -367,8 +390,9 @@ impl TryFrom<Fields> for Measure {
             return Ok(Self::RequestBytes);
         }
         let unlisted = |field: &str| format!("{at}: its {field} is none the reference lists");
-        let combine = Combine::deserialize(combine).map_err(|_| unlisted("type"))?;
-        let function = Function::deserialize(function).map_err(|_| unlisted("function"))?;
+        let combine: Combine = read_listed(combine).ok_or_else(|| unlisted("type"))?;
+        let function: MeasureFunction =
+            read_listed(function).ok_or_else(|| unlisted("function"))?;
         let paths = match paths {
             Value::Array(paths) if !paths.is_empty() => paths,
             _ => return Err(format!("{at}: its paths aren't a list of one or more")),
@@ -398,6 +422,14 @@ fn read_name(name: Option<Value>, what: &str) -> Result<String, String> {
         Err(format!(
             "{what} {name}: its name isn't lowercase letters, digits and _, from a letter, up to {MAX_NAME_CHARS}"
         ))
+    }
+}
+
+// A value from a closed list, as its name: serde would read a one-key object as one too.
+fn read_listed<T: DeserializeOwned>(value: Value) -> Option<T> {
+    match value {
+        Value::String(_) => T::deserialize(value).ok(),
+        _ => None,
     }
 }
 

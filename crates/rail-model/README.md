@@ -55,21 +55,21 @@ By module:
   it, its path can't match one, or its walk stopped at an entry refused, one whose conditions read a body value that
   can't be told or a body unread, or one that spent the step budget); and what that record, the entry's or the
   catch-all's, reads of the call (**`RecordReading`**, each key and measure the plan lists, each path's finding kept
-  apart: a value, nothing, one that can't be told, a body unread, the step budget spent). A **`Window`** counts the
-  calls captured between two times: grouped into call records by their record and its context keys' values, up to the
-  plan's group ceiling (past it, an entry's new group in the catch-all, a catch-all's in its `[overflow]` record), with
-  each host's total (as many hosts as groups, a host first seen past either under `[overflow]`) and the calls' order, up
-  to the plan's `max_steps_per_window`. **`close`** gives a **`ClosedWindow`**, which tells its records and steps,
-  whether it's empty, for the sender to skip it, and its plan's `max_unsent_windows`, for its queue, and which the
-  sender makes the call record **`Document`**, given its id, when it was built and the windows dropped before it.
-  **`Windowing`** keeps the window open under the plan held, told the plan and the time at each **`hold`** and
-  **`record`**, and tells when the open window ends (**`end`**): each window ends at the next multiple of the plan's
-  `window_seconds` since the Unix epoch, in UTC, or sooner, when the plan changes or goes, the clock steps back more
-  than a minute, or capture stops, and starts when it's opened, never stretched back, so windows may leave gaps. A clock
-  stepped back up to a minute behind the latest time written reads as that time, so windows never overlap; further back,
-  it reads as it is, the open window closing at its latest time written and the next opening then, overlapping it.
-  **`record`** tells the window it closed, if any, and whether the call was counted or, with no plan held, dropped
-  (**`Recorded`**).
+  apart: a value, nothing, one that can't be told, a body unread, the step budget spent; a named key's string kept, or
+  its SHA-256, as its `function`, `none` or `sha256`, says). A **`Window`** counts the calls captured between two times:
+  grouped into call records by their record and its context keys' values, up to the plan's group ceiling (past it, an
+  entry's new group in the catch-all, a catch-all's in its `[overflow]` record), with each host's total (as many hosts
+  as groups, a host first seen past either under `[overflow]`) and the calls' order, up to the plan's
+  `max_steps_per_window`. **`close`** gives a **`ClosedWindow`**, which tells its records and steps, whether it's empty,
+  for the sender to skip it, and its plan's `max_unsent_windows`, for its queue, and which the sender makes the call
+  record **`Document`**, given its id, when it was built and the windows dropped before it. **`Windowing`** keeps the
+  window open under the plan held, told the plan and the time at each **`hold`** and **`record`**, and tells when the
+  open window ends (**`end`**): each window ends at the next multiple of the plan's `window_seconds` since the Unix
+  epoch, in UTC, or sooner, when the plan changes or goes, the clock steps back more than a minute, or capture stops,
+  and starts when it's opened, never stretched back, so windows may leave gaps. A clock stepped back up to a minute
+  behind the latest time written reads as that time, so windows never overlap; further back, it reads as it is, the open
+  window closing at its latest time written and the next opening then, overlapping it. **`record`** tells the window it
+  closed, if any, and whether the call was counted or, with no plan held, dropped (**`Recorded`**).
 - **`schema_version`:** **`SchemaVersion`**, a document's `MAJOR.MINOR`, a bundle's or a plan's.
 - **`timestamp`:** **`Timestamp`**, a moment as Rail Center's documents write one: RFC 3339 in UTC, `Z`, to the
   nanosecond the clock gives.
