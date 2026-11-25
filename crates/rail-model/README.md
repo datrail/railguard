@@ -64,11 +64,11 @@ By module:
   record **`Document`**, given its id, when it was built and the windows dropped before it. **`Windowing`** keeps the
   window open under the plan held, told the plan and the time at each **`hold`** and **`record`**, and tells when the
   open window ends (**`end`**): each window ends at the next multiple of the plan's `window_seconds` since the Unix
-  epoch, in UTC, or sooner, when the plan changes or goes or capture stops, and starts when it's opened, never stretched
-  back, so windows may leave gaps. A clock stepped back up to a minute behind the latest time written reads as that
-  time, so windows never overlap; further back, the next window opens at the clock's time, overlapping the last.
-  **`record`** tells the window it closed, if any, and whether the call was counted or, with no plan held, dropped
-  (**`Recorded`**).
+  epoch, in UTC, or sooner, when the plan changes or goes, the clock steps back more than a minute, or capture stops,
+  and starts when it's opened, never stretched back, so windows may leave gaps. A clock stepped back up to a minute
+  behind the latest time written reads as that time, so windows never overlap; further back, it reads as it is, the open
+  window closing at its latest time written and the next opening then, overlapping it. **`record`** tells the window it
+  closed, if any, and whether the call was counted or, with no plan held, dropped (**`Recorded`**).
 - **`schema_version`:** **`SchemaVersion`**, a document's `MAJOR.MINOR`, a bundle's or a plan's.
 - **`timestamp`:** **`Timestamp`**, a moment as Rail Center's documents write one: RFC 3339 in UTC, `Z`, to the
   nanosecond the clock gives.

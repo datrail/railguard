@@ -1,6 +1,7 @@
 //! Capture's windows over time: one open at a time, under the plan held, closed when its time ends,
-//! the plan changes or goes, or capture stops; the next opened when it's next told the time, while a
-//! plan is held. Its time never goes back, but in one reset, so neither do its windows.
+//! the plan changes or goes, the clock steps back more than a minute, or capture stops; the next
+//! opened when it's next told the time, while a plan is held. Its time, and so its windows, go back
+//! only when the clock steps back more than a minute.
 
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -10,8 +11,8 @@ use super::compile::CompiledPlan;
 use super::window::{BodyUnreadReason, ClosedWindow, Window};
 
 // A clock stepped back by up to this behind the latest time written is read as that time, so
-// windows never overlap; further back, it's read as it is, else nothing would close until the
-// clock caught up.
+// windows never overlap; further back, it's read as it is, else the open window would stay open
+// until the clock caught up.
 const ABSORBED_STEP_BACK: Duration = Duration::from_secs(60);
 
 /// The open window, if a plan is held; `hold` and `record` are each told the plan held and the
@@ -51,9 +52,10 @@ impl Windowing {
     }
 
     /// The plan held at `now`, a new `Arc` being a new plan. The open window closes if the plan
-    /// changed or went, or its time is over; then, while a plan is held, the next opens. A clock up
-    /// to a minute behind the latest time written reads as that time; one further back closes the
-    /// open window at its last call and opens the next at `now`, overlapping it.
+    /// changed or went, or its time is over, at the time read or its end if sooner; then, while a
+    /// plan is held, the next opens at the time read. A clock up to `ABSORBED_STEP_BACK` (60 s)
+    /// behind the latest time written reads as that time; one further back reads as it is, closing
+    /// the open window at its latest time written and opening the next then, overlapping it.
     #[must_use = "a window it closed is lost unless it's sent"]
     pub fn hold(
         &mut self,
@@ -64,7 +66,8 @@ impl Windowing {
         self.hold_at(plan, at)
     }
 
-    /// Counts `call`, received at `at` with `plan` held, in the window open then, if one is.
+    /// Holds `plan` at `at` as `hold` does, then counts `call` in the window open, if one is,
+    /// stamped at the time read.
     pub fn record(
         &mut self,
         plan: Option<Arc<CompiledPlan>>,
@@ -94,7 +97,13 @@ impl Windowing {
     fn read(&self, now: SystemTime) -> SystemTime {
         let latest = self.open.as_ref().map(Window::latest).or(self.closed_end);
         match latest {
-            Some(latest) if latest > now && latest <= now + ABSORBED_STEP_BACK => latest,
+            Some(latest)
+                if now
+                    .checked_add(ABSORBED_STEP_BACK)
+                    .is_some_and(|limit| (now..=limit).contains(&latest)) =>
+            {
+                latest
+            }
             _ => now,
         }
     }

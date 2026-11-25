@@ -11,6 +11,9 @@ use uuid::Uuid;
 
 const VECTORS: &str = include_str!("../../../../vectors/capture_window_conformance_cases.json");
 
+// Each plan's `window_seconds`, by index.
+const WINDOW_SECONDS: [u64; 2] = [60, 300];
+
 // What the capture task tells the windowing, in order: the plan held (by index, `None` for none)
 // at seconds after the epoch, a call received then, or calls lost before the queue.
 enum Event {
@@ -25,13 +28,13 @@ fn time(seconds: u64) -> SystemTime {
     UNIX_EPOCH + Duration::from_secs(seconds)
 }
 
-// Plans told apart by their version, each with 60 s windows.
+// Plans told apart by their version, one more than their index, with 60 s and 300 s windows.
 fn plans() -> [Arc<CompiledPlan>; 2] {
     let vectors: Value = serde_json::from_str(VECTORS).unwrap();
-    [1, 2].map(|version| {
+    [0, 1].map(|index| {
         let mut plan = vectors["plan"].clone();
-        plan["window_seconds"] = 60.into();
-        plan["plan_version"] = version.into();
+        plan["window_seconds"] = WINDOW_SECONDS[index].into();
+        plan["plan_version"] = (index + 1).into();
         Arc::new(compile_plan(parse_plan(&plan.to_string()).unwrap()))
     })
 }
@@ -50,24 +53,34 @@ fn get() -> ObservedCall {
     call("GET", "/a", Unread::NotSent)
 }
 
-fn write(closed: ClosedWindow) -> Value {
-    serde_json::to_value(closed.into_document(Uuid::nil(), time(0), 0)).unwrap()
+// Seconds since the epoch of a time in January 1970, as a document writes one.
+fn read_time(value: &Value) -> u64 {
+    let text = value.as_str().unwrap();
+    assert!(text.starts_with("1970-01-"), "{text}");
+    let field = |at: usize| text[at..at + 2].parse::<u64>().unwrap();
+    (field(8) - 1) * 86_400 + field(11) * 3_600 + field(14) * 60 + field(17)
 }
 
-// `v<plan_version> <start>-<end>, <calls> calls, <dropped> dropped`, times as minutes and seconds.
+// A closed window's plan index, start, end and steps' times, read from its document.
+fn read(closed: ClosedWindow) -> (usize, u64, u64, Vec<u64>, u64) {
+    let written = serde_json::to_value(closed.into_document(Uuid::nil(), time(0), 0)).unwrap();
+    let steps = written["sequence"].as_array().unwrap().iter();
+    (
+        written["plan_version"].as_u64().unwrap() as usize - 1,
+        read_time(&written["window"]["start"]),
+        read_time(&written["window"]["end"]),
+        steps.map(|step| read_time(&step["at"])).collect(),
+        written["truncated"]["calls_dropped"].as_u64().unwrap(),
+    )
+}
+
+// `v<plan_version> <start>-<end>, <calls> calls, <dropped> dropped`.
 fn describe(closed: ClosedWindow) -> String {
-    let written = write(closed);
-    let at = |key: &str| {
-        let text = written["window"][key].as_str().unwrap();
-        text["1970-01-01T00:".len()..text.len() - 1].to_owned()
-    };
+    let (plan, start, end, steps, dropped) = read(closed);
     format!(
-        "v{} {}-{}, {} calls, {} dropped",
-        written["plan_version"],
-        at("start"),
-        at("end"),
-        written["sequence"].as_array().unwrap().len(),
-        written["truncated"]["calls_dropped"],
+        "v{} {start}-{end}, {} calls, {dropped} dropped",
+        plan + 1,
+        steps.len()
     )
 }
 
@@ -105,34 +118,20 @@ fn test_windows_end_on_a_boundary_and_start_when_opened() {
                 Hold(None, 70),
             ],
             &[
-                "v1 00:20-01:00, 0 calls, 0 dropped",
-                "v2 01:01-01:10, 0 calls, 0 dropped",
+                "v1 20-60, 0 calls, 0 dropped",
+                "v2 61-70, 0 calls, 0 dropped",
             ],
         ),
         (
             "a call past the end closes the window first",
             &[Hold(Some(0), 0), Record(Some(0), 60), Hold(None, 70)],
             &[
-                "v1 00:00-01:00, 0 calls, 0 dropped",
-                "v1 01:00-01:10, 1 calls, 0 dropped",
+                "v1 0-60, 0 calls, 0 dropped",
+                "v1 60-70, 1 calls, 0 dropped",
             ],
         ),
         (
-            "a clock stepped back reads as the latest time written, across a plan change",
-            &[
-                Hold(Some(0), 0),
-                Record(Some(0), 50),
-                Hold(Some(1), 40),
-                Record(Some(1), 45),
-                Hold(None, 55),
-            ],
-            &[
-                "v1 00:00-00:50, 1 calls, 0 dropped",
-                "v2 00:50-00:55, 1 calls, 0 dropped",
-            ],
-        ),
-        (
-            "and across the plan gone",
+            "a clock stepped back reads as the latest time written, across the plan gone",
             &[
                 Hold(Some(0), 0),
                 Record(Some(0), 50),
@@ -141,24 +140,38 @@ fn test_windows_end_on_a_boundary_and_start_when_opened() {
                 Hold(None, 55),
             ],
             &[
-                "v1 00:00-00:50, 1 calls, 0 dropped",
+                "v1 0-50, 1 calls, 0 dropped",
                 "call dropped",
-                "v1 00:50-00:55, 1 calls, 0 dropped",
+                "v1 50-55, 1 calls, 0 dropped",
             ],
         ),
         (
-            "a minute back is absorbed; further back, the window closes at its last call and the next opens then",
+            "a minute back is absorbed, across a plan change; further back, the window closes at its latest time and the next opens then",
             &[
                 Hold(Some(0), 100),
                 Record(Some(0), 110),
                 Hold(Some(1), 50),
+                Record(Some(1), 52),
                 Hold(Some(1), 48),
                 Hold(None, 55),
             ],
             &[
-                "v1 01:40-01:50, 1 calls, 0 dropped",
-                "v2 01:50-01:50, 0 calls, 0 dropped",
-                "v2 00:48-00:55, 0 calls, 0 dropped",
+                "v1 100-110, 1 calls, 0 dropped",
+                "v2 110-110, 1 calls, 0 dropped",
+                "v2 48-55, 0 calls, 0 dropped",
+            ],
+        ),
+        (
+            "further back within the window's span, too",
+            &[
+                Hold(Some(1), 0),
+                Record(Some(1), 200),
+                Record(Some(1), 100),
+                Hold(None, 110),
+            ],
+            &[
+                "v2 0-200, 1 calls, 0 dropped",
+                "v2 100-110, 1 calls, 0 dropped",
             ],
         ),
         (
@@ -172,9 +185,9 @@ fn test_windows_end_on_a_boundary_and_start_when_opened() {
                 Hold(None, 140),
             ],
             &[
-                "v1 00:00-00:30, 0 calls, 2 dropped",
+                "v1 0-30, 0 calls, 2 dropped",
                 "call dropped",
-                "v1 02:10-02:20, 0 calls, 0 dropped",
+                "v1 130-140, 0 calls, 0 dropped",
             ],
         ),
     ];
@@ -213,78 +226,71 @@ impl Random {
     }
 }
 
-// Seconds since the epoch of a time in January 1970, as a document writes one.
-fn read_time(value: &Value) -> u64 {
-    let text = value.as_str().unwrap();
-    let field = |at: usize| text[at..at + 2].parse::<u64>().unwrap();
-    (field(8) - 1) * 86_400 + field(11) * 3_600 + field(14) * 60 + field(17)
-}
-
+// Over generated plans, calls and clocks stepped forward and back: each window's calls in order
+// within its span, no window longer than its plan's, none overlapping the one before unless the
+// clock stepped back more than a minute since, and each call counted under the plan held with it,
+// stamped at its clock or up to a minute later.
 #[test]
 fn test_windows_hold_every_call_in_order_within_their_span_whatever_the_clock_does() {
     let plans = plans();
-    // Clocks stepping back up to a minute behind the latest time seen, then up to two hours: each
-    // window's calls in order within its span, no longer than a window, overlapping only after a
-    // step back past a minute, and each call counted stamped at its clock, or up to a minute later.
-    for (seed, furthest_back) in (0..200).map(|seed| (seed, if seed % 2 == 0 { 60 } else { 7_200 }))
-    {
+    for seed in 0..50 {
         let mut random = Random(seed);
         let mut windowing = Windowing::default();
-        let (mut clock, mut latest_seen) = (200_000, 200_000);
-        // The clock each call counted was taken at, in order.
-        let (mut closed, mut taken) = (Vec::new(), Vec::new());
-        for _ in 0..500 {
+        let (mut clock, mut latest_seen, mut resets) = (200_000, 200_000, 0);
+        // Each window closed, with the steps back past a minute before and after its closing.
+        let mut closed = Vec::new();
+        // Each call counted: the clock it was taken at and its plan.
+        let mut taken = Vec::new();
+        for _ in 0..200 {
             clock = match random.below(10) {
-                0 => (clock - random.below(furthest_back + 1)).max(latest_seen - furthest_back),
-                1 => clock + random.below(7_200),
+                0 => clock - random.below(61),
+                1 => clock - random.below(7_200),
+                2 => clock + random.below(7_200),
                 _ => clock + random.below(90),
             };
+            let before = resets;
+            resets += usize::from(clock + 60 < latest_seen);
             latest_seen = latest_seen.max(clock);
-            let plan = match random.below(8) {
-                0 => None,
-                1 => Some(Arc::clone(&plans[1])),
-                _ => Some(Arc::clone(&plans[0])),
-            };
-            if random.below(2) == 0 {
-                closed.extend(windowing.hold(plan, time(clock)));
+            let plan = [None, Some(1), Some(0), Some(0)][random.below(4) as usize];
+            let held = plan.map(|plan: usize| Arc::clone(&plans[plan]));
+            let window = if random.below(2) == 0 {
+                windowing.hold(held, time(clock))
             } else {
-                let recorded = windowing.record(plan, &get(), time(clock));
-                closed.extend(recorded.closed);
-                if matches!(recorded.outcome, CallOutcome::Counted { .. }) {
-                    taken.push(clock);
+                let recorded = windowing.record(held, &get(), time(clock));
+                if let (CallOutcome::Counted { .. }, Some(plan)) = (recorded.outcome, plan) {
+                    taken.push((clock, plan));
                 }
-            }
+                recorded.closed
+            };
+            closed.extend(window.map(|window| (window, before, resets)));
         }
-        closed.extend(windowing.hold(None, time(clock)));
+        closed.extend(
+            windowing
+                .hold(None, time(clock))
+                .map(|window| (window, resets, resets)),
+        );
         let mut stamps = Vec::new();
-        let mut previous_end = 0;
-        for written in closed.into_iter().map(write) {
-            let (start, end) = (
-                read_time(&written["window"]["start"]),
-                read_time(&written["window"]["end"]),
-            );
-            let ats: Vec<u64> = written["sequence"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|step| read_time(&step["at"]))
-                .collect();
+        let mut previous: Option<(u64, usize)> = None;
+        for (window, before, after) in closed {
+            let (plan, start, end, steps, _) = read(window);
             assert!(
-                start <= end && end - start <= 60,
+                start <= end && end - start <= WINDOW_SECONDS[plan],
                 "seed {seed}: {start} to {end}"
             );
             assert!(
-                ats.is_sorted() && ats.iter().all(|at| (start..=end).contains(at)),
-                "seed {seed}: {ats:?} in {start} to {end}"
+                steps.is_sorted() && steps.iter().all(|at| (start..=end).contains(at)),
+                "seed {seed}: {steps:?} in {start} to {end}"
             );
-            if furthest_back <= 60 {
+            if let Some((previous_end, previous_before)) = previous
+                && after == previous_before
+            {
                 assert!(
                     start >= previous_end,
                     "seed {seed}: {start} overlaps {previous_end}"
                 );
             }
-            previous_end = end;
-            stamps.extend(ats);
+            previous = Some((end, before));
+            stamps.extend(steps.into_iter().map(|at| (at, plan)));
         }
         // Windows close in the order calls are taken, so their steps are the calls in order.
         assert_eq!(
@@ -292,9 +298,13 @@ fn test_windows_hold_every_call_in_order_within_their_span_whatever_the_clock_do
             taken.len(),
             "seed {seed}: every call counted is in a window"
         );
-        for (stamp, clock) in stamps.iter().zip(&taken) {
+        for ((stamp, plan), (clock, held)) in stamps.into_iter().zip(taken) {
+            assert_eq!(
+                plan, held,
+                "seed {seed}: a call taken at {clock} under the plan held"
+            );
             assert!(
-                (*clock..=clock + 60).contains(stamp),
+                (clock..=clock + 60).contains(&stamp),
                 "seed {seed}: a call taken at {clock} stamped {stamp}"
             );
         }
