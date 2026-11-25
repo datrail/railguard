@@ -1,5 +1,5 @@
 //! The settings every host serving a callout reads alike: the port, the largest gRPC message,
-//! and the largest body judged.
+//! and the largest body judged or captured.
 
 use rail_model::sanitize::sanitize;
 

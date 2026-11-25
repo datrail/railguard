@@ -1,6 +1,7 @@
 //! The Envoy host: ext_authz and ext_proc on a unix socket Envoy shares, or on a port. As the
-//! proxy, it allows every request, with this proxy's ticket in `x-rail` to a protected host; as
-//! the gateway, it judges each request against the policy bundle held.
+//! proxy, it allows every request, with this proxy's ticket in `x-rail` to a protected host, and
+//! hands each ext_authz call to capture under the plan held; as the gateway, it judges each
+//! request against the policy bundle held.
 //!
 //! `rail-envoy proxy` or `rail-envoy gateway` (`rail proxy`, `rail gateway` in its image)
 //! serves, with `grpc.health.v1` on the same listener; `rail-envoy probe [--ready]` asks it for
@@ -22,16 +23,12 @@ use std::os::unix::fs::{FileTypeExt, PermissionsExt};
 use std::path::Path;
 use std::process::ExitCode;
 use std::sync::Arc;
-use std::time::SystemTime;
 
 use envoy_types::ext_authz::v3::pb::AuthorizationServer;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
 use rail_grpc_host::{Address, Command, Role, Statuses, check_held};
-use rail_model::body::ByteBudget;
 use rail_runtime::{
-    CallRecordReporter, Capture, CapturePlanHolder, CaptureThread, Gateway, GatewaySettings,
-    Jitter, RailCenterCallRecords, RailCenterCapturePlans, RailCenterClient, RailCenterSettings,
-    RailCenterThread, RailCenterTickets, Settings, Startup, TicketHolder, Variables, start_gateway,
+    Gateway, GatewaySettings, Proxy, Settings, Startup, Variables, start_gateway, start_proxy,
 };
 use tokio::net::{TcpListener, UnixListener};
 use tokio::signal::unix::{Signal, SignalKind, signal};
@@ -41,13 +38,10 @@ use tonic::transport::server::Router;
 use tonic_health::pb::health_server::HealthServer;
 
 use crate::config::read_listener;
-pub use crate::config::{GatewayConfig, Listener, ProxyConfig, ProxySettings};
+pub use crate::config::{GatewayConfig, Listener, ProxyConfig};
 use crate::gateway::GatewayCallouts;
 pub use crate::health::check_proxy;
-pub use crate::services::{CalloutCapture, Callouts};
-
-// What every body the callouts keep for capture may take together.
-const BODY_BUDGET_BYTES: usize = 256 * 1024 * 1024;
+pub use crate::services::Callouts;
 
 /// The binary: serves as the role named, or with `probe [--ready]`, asks the server where it's
 /// configured to listen.
@@ -99,28 +93,21 @@ async fn serve_proxy(config: ProxyConfig, startup: &Startup) -> ExitCode {
         Ok(prepared) => prepared,
         Err(code) => return code,
     };
-    let started = match config.rail_center.map(start_proxy).transpose() {
-        Ok(started) => started,
+    let started = config
+        .rail_center
+        .map(|rail_center| start_proxy(rail_center, config.max_body_bytes))
+        .transpose();
+    let (stop, tickets, capture) = match started {
+        Ok(Some(Proxy {
+            tickets,
+            capture,
+            stop,
+        })) => (Some(move || stop.stop()), Some(tickets), Some(capture)),
+        Ok(None) => (None, None, None),
         Err(error) => {
             tracing::error!(error = %error, "can't start fetching from Rail Center");
             return ExitCode::FAILURE;
         }
-    };
-    let (stop, tickets, capture) = match started {
-        Some(started) => {
-            let capture = CalloutCapture {
-                sender: started.sender,
-                max_body_bytes: config.max_body_bytes,
-                budget: ByteBudget::new(BODY_BUDGET_BYTES),
-            };
-            let stop = Stop::Proxy {
-                capture: started.capture,
-                capture_thread: started.capture_thread,
-                rail_center: started.rail_center,
-            };
-            (Some(stop), Some(started.tickets), Some(capture))
-        }
-        None => (None, None, None),
     };
     let callouts = Callouts {
         tickets,
@@ -182,36 +169,8 @@ async fn serve_gateway(config: GatewayConfig, startup: &Startup) -> ExitCode {
         .add_service(HealthServer::new(readiness))
         .add_service(AuthorizationServer::new(callouts.clone()).max_decoding_message_size(limit))
         .add_service(ExternalProcessorServer::new(callouts).max_decoding_message_size(limit));
-    let stop = rail_center.map(Stop::Gateway);
+    let stop = rail_center.map(|thread| move || thread.stop());
     serve_until_stopped(bound, router, statuses, terminate, stop).await
-}
-
-// What's stopped once the server has drained, on a blocking thread.
-enum Stop {
-    Proxy {
-        capture: Capture,
-        capture_thread: CaptureThread,
-        rail_center: RailCenterThread,
-    },
-    Gateway(RailCenterThread),
-}
-
-impl Stop {
-    // The open window closed and sent before the threads go: its upload runs on Rail Center's.
-    fn run(self) {
-        match self {
-            Self::Proxy {
-                capture,
-                capture_thread,
-                rail_center,
-            } => {
-                capture_thread.runtime().clone().block_on(capture.stop());
-                capture_thread.stop();
-                rail_center.stop();
-            }
-            Self::Gateway(rail_center) => rail_center.stop(),
-        }
-    }
 }
 
 // The settings logged, SIGTERM handled and the listener bound, before anything starts.
@@ -236,9 +195,8 @@ async fn serve_until_stopped(
     router: Router,
     statuses: Statuses,
     terminate: Signal,
-    stop: Option<Stop>,
+    stop: Option<impl FnOnce() + Send + 'static>,
 ) -> ExitCode {
-    let stop = stop.map(|stop| move || stop.run());
     match bound {
         Bound::Unix(listener) => {
             let incoming = UnixListenerStream::new(listener);
@@ -249,65 +207,6 @@ async fn serve_until_stopped(
             rail_grpc_host::serve_until_stopped(router, incoming, statuses, terminate, stop).await
         }
     }
-}
-
-// What the proxy runs when Rail Center is used.
-struct Started {
-    rail_center: RailCenterThread,
-    tickets: Arc<TicketHolder>,
-    capture_thread: CaptureThread,
-    capture: Capture,
-    sender: rail_runtime::CaptureSender,
-}
-
-// The ticket, the capture plan and the call records go through the Rail Center thread; calls
-// only read what's held, and capture counts them on its own thread.
-fn start_proxy(
-    (rail_center, proxy): (RailCenterSettings, ProxySettings),
-) -> Result<Started, String> {
-    let client = RailCenterClient::new(&rail_center)?;
-    let thread = RailCenterThread::start()?;
-    let capture_thread = CaptureThread::start()?;
-    let runtime = thread.runtime();
-    let agent = proxy.ticket.agent;
-    let tickets = TicketHolder::start(
-        runtime,
-        RailCenterTickets {
-            client: client.clone(),
-            agent: agent.clone(),
-        },
-        proxy.ticket.refresh_interval,
-        Arc::new(SystemTime::now),
-        Jitter::random(),
-    );
-    let plans = CapturePlanHolder::start(
-        runtime,
-        RailCenterCapturePlans {
-            client: client.clone(),
-            agent,
-        },
-        proxy.capture_plan_refresh,
-        Jitter::random(),
-    );
-    let reporter = CallRecordReporter::start(
-        runtime,
-        RailCenterCallRecords { client },
-        Arc::new(SystemTime::now),
-        Jitter::random(),
-    );
-    let (capture, sender) = Capture::start(
-        capture_thread.runtime(),
-        plans,
-        reporter,
-        Arc::new(SystemTime::now),
-    );
-    Ok(Started {
-        rail_center: thread,
-        tickets: Arc::new(tickets),
-        capture_thread,
-        capture,
-        sender,
-    })
 }
 
 enum Bound {

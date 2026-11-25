@@ -101,7 +101,13 @@ async fn the_plans_refreshes_ending_leaves_the_window_to_its_end() {
     let plans =
         CapturePlanHolder::start(rail_center.runtime(), source, MINUTE, Jitter::new(|| 1.0));
     let reporter = center.start(&clock);
-    let (_capture, sender) = Capture::start(&Handle::current(), plans, reporter, clock.wall());
+    let (_capture, sender) = Capture::start(
+        &Handle::current(),
+        plans,
+        reporter,
+        clock.wall(),
+        usize::MAX,
+    );
     let fetched_by = Instant::now() + Duration::from_secs(10);
     while !sender.is_capturing() {
         assert!(Instant::now() < fetched_by, "the plan never came");
@@ -132,8 +138,13 @@ async fn a_clock_stepped_back_is_seen_within_a_minute_though_no_call_comes() {
         });
         wall() - back
     });
-    let (_capture, sender) =
-        Capture::start(&Handle::current(), plans, center.start(&clock), stepped);
+    let (_capture, sender) = Capture::start(
+        &Handle::current(),
+        plans,
+        center.start(&clock),
+        stepped,
+        usize::MAX,
+    );
 
     until(&clock, 1).await;
     sender.send(to_catch_all());

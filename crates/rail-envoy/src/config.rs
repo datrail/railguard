@@ -1,12 +1,11 @@
 use std::fmt;
 use std::path::PathBuf;
-use std::time::Duration;
 
 use rail_runtime::{
-    BundleSettings, GATEWAY_MAX_BODY_MB, ProtectedHosts, RailCenterSettings, Refused, Settings,
-    TicketSettings, read_bundle_settings, read_callout_port, read_capture_plan_refresh,
-    read_log_format, read_log_level, read_max_body_bytes, read_max_message_bytes,
-    read_protected_hosts, read_rail_center_with, read_ticket_settings,
+    BundleSettings, GATEWAY_MAX_BODY_MB, ProtectedHosts, ProxySettings, RailCenterSettings,
+    Refused, Settings, read_bundle_settings, read_callout_port, read_log_format, read_log_level,
+    read_max_body_bytes, read_max_message_bytes, read_protected_hosts, read_proxy_settings,
+    read_rail_center_with,
 };
 
 const EXT_SOCKET: &str = "RAIL_EXT_SOCKET";
@@ -46,14 +45,6 @@ pub struct ProxyConfig {
     pub rail_center: Option<(RailCenterSettings, ProxySettings)>,
     /// The hosts the ticket goes to, and how; routed even when Rail Center is disabled.
     pub protected_hosts: ProtectedHosts,
-}
-
-/// What the proxy reads from Rail Center, beside its settings.
-#[derive(Debug)]
-pub struct ProxySettings {
-    pub ticket: TicketSettings,
-    /// How often the capture plan is fetched again, before jitter.
-    pub capture_plan_refresh: Duration,
 }
 
 impl ProxyConfig {
@@ -146,21 +137,6 @@ fn check_reachable(
         )),
         _ => Ok(()),
     }
-}
-
-// The ticket's settings and the plan's refresh, judged whether or not Rail Center is used.
-fn read_proxy_settings(
-    settings: &mut Settings,
-    required: bool,
-) -> Result<Option<ProxySettings>, Refused> {
-    let ticket = read_ticket_settings(settings, required);
-    let used = matches!(ticket, Ok(Some(_)));
-    let capture_plan_refresh = read_capture_plan_refresh(settings, used);
-    let (ticket, capture_plan_refresh) = (ticket?, capture_plan_refresh?);
-    Ok(ticket.map(|ticket| ProxySettings {
-        ticket,
-        capture_plan_refresh,
-    }))
 }
 
 /// `RAIL_EXT_SOCKET` or `RAIL_CALLOUT_PORT`, exactly one, where the server listens: all

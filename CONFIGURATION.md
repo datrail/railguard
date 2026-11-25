@@ -18,8 +18,8 @@ Runs the host without Rail Center: nothing is fetched from it and nothing report
 - **Accepted:** a boolean.
 - **Read by:** both hosts.
 - Both hosts are then ready at once. `rail-apigee` allows every call it can answer. `rail-envoy`'s proxy still routes
-  the protected hosts, but sets neither `x-rail` nor `x-rail-status`; its gateway forwards every call, with `x-rail`,
-  `x-rail-*` and `_` headers removed.
+  the protected hosts, but sets neither `x-rail` nor `x-rail-status`, and captures nothing; its gateway forwards every
+  call, with `x-rail`, `x-rail-*` and `_` headers removed.
 - The other settings are still judged if they're set, so a mistake in one shows before Rail Center is turned on. It's
   logged as a warning when `true`.
 
@@ -114,12 +114,13 @@ message, which holds a whole buffered body.
 - **Default:** `16`, above Apigee's 10 MB request limit.
 - **Accepted:** `1` to `100`, a whole number of MiB; the maximum is high enough that no limit a deployment already sets
   is refused.
-- **Read by:** every role.
+- **Read by:** both hosts, `rail-envoy` in either role.
 - **In `rail-apigee`, past 4 MiB less 1 KiB, a request is refused unjudged** (413, with a warning logged), whatever this
   allows: Apigee takes a callout's answer of at most 4 MiB, and the answer echoes the body. An answer may be up to 1 KiB
   larger than the request.
-- **In `rail-envoy`, a message past it** fails its stream while the call is unanswered, so Envoy fails closed
-  (`failure_mode_allow: false`), or, as the proxy, forwards the call uncaptured if it fails open.
+- **In `rail-envoy`, a message past it** fails its stream while the call is unanswered, so Envoy applies its failure
+  mode: closed (`failure_mode_allow: false`), as the gateway must, it refuses the call; open, as the proxy may, it
+  forwards the call as the agent sent it, with no ticket, and uncaptured.
 
 ### `RAIL_MAX_BODY_MB`
 
@@ -128,12 +129,12 @@ The largest request body judged or captured, in MiB, as sent (an encoded body is
 - **Default:** `15` for the gateways; `1` for `rail-envoy`'s proxy, since most calls an agent makes are small.
 - **Accepted:** `1` to `100`, a whole number of MiB; in `rail-envoy`, below `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`, since a
   buffered body arrives as one message, with the request's headers.
-- **Read by:** every role.
-- **Past it, a call is refused unjudged,** 413 `{"error": "request body too large"}`, with a warning logged, and isn't
-  reported; with `RAIL_DISABLED=true`, nothing is judged, and this isn't applied. Apigee's own limits come first: past 4
-  MiB less 1 KiB rail-apigee refuses a request (above), and past 10 MB Apigee answers 413 itself, so a value of 4 or
-  more is logged with the limit in force. In `rail-envoy`, a body streamed in full duplex is refused as soon as it's
-  past it.
+- **Read by:** both hosts, `rail-envoy` in either role.
+- **In the gateways, past it, a call is refused unjudged,** 413 `{"error": "request body too large"}`, with a warning
+  logged, and isn't reported; with `RAIL_DISABLED=true`, nothing is judged, and this isn't applied. Apigee's own limits
+  come first: past 4 MiB less 1 KiB rail-apigee refuses a request (above), and past 10 MB Apigee answers 413 itself, so
+  a value of 4 or more is logged with the limit in force. In `rail-envoy`, a body streamed in full duplex is refused as
+  soon as it's past it.
 - **In `rail-envoy`'s proxy, past it, a body isn't read:** the call is forwarded as ever, and captured with its body
   counted as past the cap (`truncated.body_unread.past_cap`).
 

@@ -23,12 +23,13 @@ const COMPLETE: [(&str, &str); 10] = [
     ),
 ];
 
-const ENABLED: [(&str, &str); 5] = [
+const ENABLED: [(&str, &str); 6] = [
     ("RAIL_CENTER_URL", "https://rail-center.example"),
     ("RAIL_PROXY_PROTECTED_HOSTS", "mcp.example.com:8443"),
     ("RAIL_HOST_ID", "host-1"),
     ("RAIL_SANDBOX_NAME", "sandbox-1"),
     ("RAIL_TICKET_REFRESH_SECONDS", "600"),
+    ("RAIL_CAPTURE_PLAN_REFRESH_SECONDS", "120"),
 ];
 
 // Where a case names no listener, the socket: one is required.
@@ -122,8 +123,12 @@ fn without_a_credential_the_token_is_described_as_unset() {
 
     let entries = describe(&pairs);
 
+    let auth: Vec<_> = entries
+        .into_iter()
+        .filter(|(name, ..)| name.starts_with("RAIL_AUTH_"))
+        .collect();
     assert_eq!(
-        entries[8..10],
+        auth,
         [
             ("RAIL_AUTH_MODE", "none".to_owned(), Level::Info),
             ("RAIL_AUTH_TOKEN", "unset".to_owned(), Level::Info),
@@ -264,11 +269,12 @@ fn rail_center_and_the_ticket_are_read_together() {
         Listener::Unix(PathBuf::from("/run/rail/ext.sock"))
     );
     let (rail_center, proxy) = config.rail_center.unwrap();
-    let ticket = proxy.ticket;
+    let ticket = &proxy.ticket;
     assert_eq!(rail_center.url.to_string(), "https://rail-center.example");
     assert_eq!(ticket.agent.host_id, "host-1");
     assert_eq!(ticket.agent.sandbox_name, "sandbox-1");
     assert_eq!(ticket.refresh_interval, Duration::from_secs(600));
+    assert_eq!(proxy.capture_plan_refresh, Duration::from_secs(120));
     let protected = config.protected_hosts.get("mcp.example.com").unwrap();
     assert_eq!((protected.tls, protected.port), (true, Some(8443)));
 }
@@ -444,6 +450,17 @@ fn the_gateway_reads_its_own_settings_and_refuses_a_cap_past_the_message_limit()
 
     // At the limit, refused, naming both; the default above is below it.
     let errors = gateway(&[("RAIL_DISABLED", "true"), ("RAIL_MAX_BODY_MB", "16")]).unwrap_err();
+    assert_eq!(errors.len(), 1, "{errors:?}");
+    assert!(
+        errors[0].starts_with("RAIL_MAX_BODY_MB must be below RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB"),
+        "{errors:?}"
+    );
+}
+
+#[test]
+fn the_proxy_refuses_a_cap_past_the_message_limit_too() {
+    let errors = read(&[("RAIL_DISABLED", "true"), ("RAIL_MAX_BODY_MB", "16")]).unwrap_err();
+
     assert_eq!(errors.len(), 1, "{errors:?}");
     assert!(
         errors[0].starts_with("RAIL_MAX_BODY_MB must be below RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB"),

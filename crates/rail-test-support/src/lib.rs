@@ -158,7 +158,7 @@ impl Drop for Server {
 pub type Posted = (String, Vec<u8>);
 
 /// Rail Center, answering the bundle route with `bundle`, the key set with no keys, the capture
-/// plan route with its plan, or none, and taking every report; `seen` holds each request line,
+/// plan route with its plan, or a 204 without one, and taking every report; `seen` holds each request line,
 /// `posted` each report's line and body.
 pub struct RailCenter {
     address: SocketAddr,

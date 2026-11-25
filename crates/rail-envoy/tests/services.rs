@@ -20,7 +20,7 @@ use tonic::transport::{Endpoint, Server};
 
 use rail_test_support::protect;
 
-use crate::common::TempSocket;
+use crate::common::{TempSocket, start_serving};
 
 // Each header's name and value, from `value` or `raw_value`, whichever is set.
 fn read_set(options: &[HeaderValueOption]) -> Vec<(String, String)> {
@@ -233,5 +233,38 @@ async fn ext_proc_lets_every_other_phase_through_unchanged() {
             Response::RequestTrailers(TrailersResponse::default()),
             Response::ResponseTrailers(TrailersResponse::default()),
         ]
+    );
+}
+
+// As served by the binary, whose limit is `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`, 16 by default.
+#[tokio::test(flavor = "multi_thread")]
+async fn ext_proc_reads_a_body_past_grpcs_own_4_mib_default() {
+    let socket = TempSocket::new("large-body");
+    let _server = tokio::task::block_in_place(|| start_serving(&socket.path));
+    let channel = Endpoint::from_shared(format!("unix:{}", socket.path.display()))
+        .unwrap()
+        .connect()
+        .await
+        .unwrap();
+    let body = HttpBody {
+        body: vec![b' '; 5 * 1024 * 1024],
+        end_of_stream: true,
+        ..Default::default()
+    };
+    let requests = [Phase::RequestBody(body)].map(|phase| ProcessingRequest {
+        request: Some(phase),
+        ..Default::default()
+    });
+
+    let mut replies = ExternalProcessorClient::new(channel)
+        .process(tokio_stream::iter(requests))
+        .await
+        .unwrap()
+        .into_inner();
+
+    let reply = replies.message().await.unwrap().unwrap();
+    assert_eq!(
+        reply.response,
+        Some(Response::RequestBody(BodyResponse::default()))
     );
 }

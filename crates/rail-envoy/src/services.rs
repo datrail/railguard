@@ -11,9 +11,10 @@ use envoy_types::pb::envoy::service::ext_proc::v3::{
     BodyResponse, CommonResponse, HeaderMutation, HeadersResponse, ProcessingRequest,
     ProcessingResponse, TrailersResponse,
 };
-use rail_model::body::{BodyBuffer, BodyRead, ByteBudget, Unread};
-use rail_model::capture::ObservedCall;
-use rail_runtime::{CaptureSender, ProtectedHosts, Route, TicketHolder, XRailHeader, XRailHeaders};
+use rail_runtime::{
+    CaptureSender, ProtectedHosts, Route, SentBody, SentRequest, TicketHolder, XRailHeader,
+    XRailHeaders,
+};
 use tokio_stream::{Stream, StreamExt};
 use tonic::{Status, Streaming};
 
@@ -25,20 +26,11 @@ pub struct Callouts {
     pub tickets: Option<Arc<TicketHolder>>,
     pub protected_hosts: Arc<ProtectedHosts>,
     /// Where calls are handed over, when Rail Center is used.
-    pub capture: Option<CalloutCapture>,
+    pub capture: Option<CaptureSender>,
 }
 
-/// What the callouts hand calls over through, and how much of each body they keep.
-#[derive(Clone)]
-pub struct CalloutCapture {
-    pub sender: CaptureSender,
-    /// Past it, a body is handed over unread.
-    pub max_body_bytes: usize,
-    /// What every body kept may take together.
-    pub budget: Arc<ByteBudget>,
-}
-
-/// ext_authz: allows every request, with its x-rail headers and, to a protected host, its route.
+/// ext_authz: allows every request, with its x-rail headers and, to a protected host, its route;
+/// with a capture plan held, hands the call to capture.
 #[tonic::async_trait]
 impl Authorization for Callouts {
     async fn check(
@@ -65,9 +57,9 @@ impl Authorization for Callouts {
         let headers = XRailHeaders::of(ticket, authority, &self.protected_hosts, sent);
         log_request("ext_authz", authority, &headers);
         if let (Some(capture), Some(http)) = (&self.capture, http)
-            && capture.sender.is_capturing()
+            && capture.is_capturing()
         {
-            capture.sender.send(observe(http, capture));
+            capture.send_request(observe(http));
         }
         let mut response = CheckResponse::with_status(Status::ok(""));
         response.set_http_response(OkHttpResponse {
@@ -79,36 +71,30 @@ impl Authorization for Callouts {
     }
 }
 
-// The call as Envoy sent it: the body is `raw_body` with `pack_as_bytes`, `body` without.
-fn observe(http: &HttpRequest, capture: &CalloutCapture) -> ObservedCall {
+// The call as Envoy sent it: the body is `raw_body` with `pack_as_bytes`, `body` without. Envoy's
+// `size` and partial-body header tell the bytes sent, not the body's, once it's cut short.
+fn observe(http: &HttpRequest) -> SentRequest<'_> {
     let sent = if http.raw_body.is_empty() {
         http.body.as_bytes()
     } else {
         &http.raw_body
     };
-    // Envoy's `size` and partial-body header tell the bytes sent, not the body's, once cut short.
     let declared = declared_length(http);
-    let body_bytes = declared.unwrap_or(sent.len() as u64).max(sent.len() as u64);
-    let body = if sent.len() as u64 == body_bytes {
-        let mut buffer = BodyBuffer::new(capture.max_body_bytes, &capture.budget);
-        buffer.append(sent);
-        match buffer.finish() {
-            Ok(body) => BodyRead::Whole(Arc::new(body)),
-            Err(unkept) => BodyRead::Unread(unkept.into()),
-        }
-    } else if sent.is_empty() {
-        BodyRead::Unread(Unread::NotSent)
-    } else if sent.len() > capture.max_body_bytes {
-        BodyRead::Unread(Unread::PastCap)
+    // A POST sends a body: none, of a size not known to be 0, is one Envoy wasn't asked to send.
+    let unsent = sent.is_empty() && http.method == "POST" && http.size != 0 && declared != Some(0);
+    let body = if unsent {
+        SentBody::NotSent { declared }
     } else {
-        BodyRead::Unread(Unread::CutShort)
+        SentBody::Sent {
+            bytes: sent,
+            declared,
+        }
     };
-    ObservedCall {
-        authority: http.host.as_bytes().to_vec(),
-        method: http.method.as_bytes().to_vec(),
-        path: http.path.as_bytes().to_vec(),
+    SentRequest {
+        authority: http.host.as_bytes(),
+        method: http.method.as_bytes(),
+        path: http.path.as_bytes(),
         body,
-        body_bytes,
     }
 }
 
