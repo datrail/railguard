@@ -51,7 +51,7 @@ impl CapturePlanHolder {
     }
 
     /// The plan to capture under, or `None` if none is, never waiting; a new `Arc` only when the
-    /// plan changes, so a window tells a change by pointer.
+    /// plan changes, so `Windowing` tells a change by pointer.
     pub fn snapshot(&self) -> Option<Arc<CompiledPlan>> {
         self.holder.snapshot().as_ref().clone()
     }

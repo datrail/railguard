@@ -1,5 +1,6 @@
-//! Capture's windows over time: the one open under the plan held, each closed when its time ends,
-//! the plan changes or goes, or capture stops, and the next opened then.
+//! Capture's windows over time: one open at a time, under the plan held, closed when its time ends,
+//! the plan changes or goes, or capture stops; the next opened when it's next told the time, while a
+//! plan is held.
 
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -8,8 +9,8 @@ use super::call::ObservedCall;
 use super::compile::CompiledPlan;
 use super::window::{BodyUnreadReason, ClosedWindow, Window};
 
-/// The open window, if a plan is held, and when it ends; told the time at each call, so a time
-/// passed in any of them closes it.
+/// The open window, if a plan is held, and when it ends; each method is told the plan held and the
+/// time, so whichever sees the window's time over closes it.
 #[derive(Debug, Default)]
 pub struct Windowing {
     open: Option<Open>,
@@ -24,61 +25,54 @@ struct Open {
 /// A call counted in the open window.
 #[derive(Debug)]
 pub struct Counted {
-    /// The window that ended before the call, if one did.
+    /// The window closed before the call was counted, if one was.
     pub closed: Option<ClosedWindow>,
+    /// Why the call's body values weren't told, if an entry could have taken it.
     pub body_unread: Option<BodyUnreadReason>,
 }
 
 impl Windowing {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// When the open window ends, if one is: the time to call `advance` at.
+    /// When the open window ends, if one is: when to call `hold` next, if nothing comes sooner.
     pub fn end(&self) -> Option<SystemTime> {
         self.open.as_ref().map(|open| open.end)
     }
 
-    /// The plan held at `now`, told apart from the last by pointer: another closes the open window
-    /// at `now`, or its end if sooner, and opens one under it; none closes it, the last until one
-    /// is held.
+    /// The plan held at `now`, a new `Arc` being a new plan, as the holder hands them out. The open
+    /// window closes at `now`, or its end if sooner, if the plan changed or went (a 204, or capture
+    /// stopping), its time is over, or the clock stepped back before its start; then, while a plan
+    /// is held, the next opens at `now`.
     pub fn hold(
         &mut self,
         plan: Option<Arc<CompiledPlan>>,
         now: SystemTime,
     ) -> Option<ClosedWindow> {
-        let unchanged = match (&self.open, &plan) {
-            (Some(open), Some(plan)) => Arc::ptr_eq(open.window.plan(), plan),
-            (None, None) => true,
-            _ => false,
+        let closed = match self.open.take() {
+            Some(open) => {
+                let unchanged = plan
+                    .as_ref()
+                    .is_some_and(|plan| Arc::ptr_eq(open.window.plan(), plan));
+                if unchanged && (open.window.start()..open.end).contains(&now) {
+                    self.open = Some(open);
+                    return None;
+                }
+                // Past a step back, the window ends at its last call, so the next may overlap it.
+                Some(open.window.close(now.min(open.end)))
+            }
+            None => None,
         };
-        if unchanged {
-            return self.advance(now);
-        }
-        let closed = self
-            .open
-            .take()
-            .map(|open| open.window.close(now.min(open.end)));
-        // A clock stepped back mustn't open a window over the one closed.
-        let start = closed.as_ref().map_or(now, |closed| now.max(closed.end()));
-        self.open = plan.map(|plan| Open::new(plan, start));
+        self.open = plan.map(|plan| Open::new(plan, now));
         closed
     }
 
-    /// Closes the open window if it ended by `now`, and opens the next at `now`: a time not seen,
-    /// the process suspended or the clock stepped forward, is no window's.
-    pub fn advance(&mut self, now: SystemTime) -> Option<ClosedWindow> {
-        let open = self.open.take_if(|open| now >= open.end)?;
-        let plan = Arc::clone(open.window.plan());
-        let closed = open.window.close(open.end);
-        self.open = Some(Open::new(plan, now));
-        Some(closed)
-    }
-
-    /// Counts `call`, received at `at`, in the window open then; `None`, the call dropped, if no
-    /// plan is held.
-    pub fn record(&mut self, call: &ObservedCall, at: SystemTime) -> Option<Counted> {
-        let closed = self.advance(at);
+    /// Counts `call`, received at `at` with `plan` held, in the window open then; `None`, the call
+    /// dropped, if no plan is held.
+    pub fn record(
+        &mut self,
+        plan: Option<Arc<CompiledPlan>>,
+        call: &ObservedCall,
+        at: SystemTime,
+    ) -> Option<Counted> {
+        let closed = self.hold(plan, at);
         let open = self.open.as_mut()?;
         Some(Counted {
             closed,
@@ -86,16 +80,12 @@ impl Windowing {
         })
     }
 
-    /// Counts calls lost before reaching the open window; with none open, they're no window's.
+    /// Counts calls lost before reaching the open window: told before each `hold` or `record`, so
+    /// they count in the window open when they were lost; with none open, they're no window's.
     pub fn count_dropped(&mut self, calls: u64) {
         if let Some(open) = &mut self.open {
             open.window.count_dropped(calls);
         }
-    }
-
-    /// Closes the open window at `now`, or its end if sooner, for capture to stop.
-    pub fn close(self, now: SystemTime) -> Option<ClosedWindow> {
-        self.open.map(|open| open.window.close(now.min(open.end)))
     }
 }
 

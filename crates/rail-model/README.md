@@ -62,10 +62,11 @@ By module:
   to the plan's `max_steps_per_window`. **`close`** gives a **`ClosedWindow`**, which tells its records and steps,
   whether it's empty and its plan's `max_unsent_windows`, for the sender's queue, and which the sender makes the call
   record **`Document`**, given its id, when it was built and the windows dropped before it. **`Windowing`** keeps the
-  window open under the plan held, told the time at each call: each window ends at the next multiple of the plan's
-  `window_seconds` since the Unix epoch, in UTC, or sooner, when the plan changes or goes or capture stops, and starts
-  when it's opened, at a plan applied or the window before closed; a call with no plan held is dropped (**`Counted`**
-  otherwise, with the window it closed, if any).
+  window open under the plan held, told the plan and the time at each call and at the open window's **`end`**: each
+  window ends at the next multiple of the plan's `window_seconds` since the Unix epoch, in UTC, or sooner, when the plan
+  changes or goes or capture stops, and starts when it's opened, at a plan applied or the first time seen past the
+  window before, so windows may leave gaps; a call with no plan held is dropped (**`Counted`** otherwise, with the
+  window it closed, if any).
 - **`schema_version`:** **`SchemaVersion`**, a document's `MAJOR.MINOR`, a bundle's or a plan's.
 - **`timestamp`:** **`Timestamp`**, a moment as Rail Center's documents write one: RFC 3339 in UTC, `Z`, to the
   nanosecond the clock gives.

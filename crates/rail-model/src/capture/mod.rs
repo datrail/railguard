@@ -1,5 +1,5 @@
 //! The capture plan: which calls the proxy records, and what of them; and the windows those calls
-//! are counted in, one after another, each closed into a call record document.
+//! are counted in, one open at a time, each closed into a call record document.
 
 mod call;
 mod compile;
