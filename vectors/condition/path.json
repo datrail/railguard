@@ -2078,6 +2078,35 @@
       }
     },
     {
+      "id": "plan-body-past-the-byte-budget-unread",
+      "note": "The body itself, not only its tree, past the bytes every body shares.",
+      "environment": "capture-body-past-the-byte-budget",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "a"
+      ],
+      "expect": {
+        "body_unread": {
+          "unread": "past_budget"
+        }
+      }
+    },
+    {
+      "id": "plan-body-fraction",
+      "environment": "capture-body-written-forms",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "price"
+      ],
+      "expect": {
+        "number": 12.5
+      }
+    },
+    {
       "id": "plan-mcp-tool-of-a-batch",
       "environment": "capture-body-batch",
       "use": "capture_plan",

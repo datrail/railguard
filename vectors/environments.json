@@ -167,6 +167,15 @@
       "body_bytes": 8,
       "byte_budget": 8
     },
+    "capture-body-past-the-byte-budget": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": "{\"a\": 1}",
+      "body_bytes": 8,
+      "byte_budget": 4
+    },
     "capture-body-batch": {
       "for": "capture",
       "authority": "mcp.example.com",
@@ -236,8 +245,8 @@
       "authority": "mcp.example.com",
       "method": "POST",
       "path": "/finretail-production-mcp/mcp",
-      "body": "{\"sk_dash\": \"sk-abc_DEF-12\", \"sk_dash_short\": \"sk-abc1234\", \"stripe\": \"sk_live_a1a1a1a1a1a1a1a1a1a1\", \"stripe_underscore\": \"sk_live_aaaaaaaaaaaaaaaaaaa_\", \"github\": \"ghp_A1A1A1A1A1A1\", \"github_short\": \"ghp_A1A1A1A1A1A\", \"github_pat\": \"github_pat_a_a_a_a_a_a_a_a_a_a_\", \"github_pat_dash\": \"github_pat_a-a-a-a-a-a-a-a-a-a-\", \"gitlab\": \"glpat-a-b_c1\", \"slack\": \"xoxb-123-abc-de\", \"slack_underscore\": \"xoxb-123_abc_de\", \"slack_app\": \"xapp-1-A1B2-C3D4E\", \"npm\": \"npm_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"shopify\": \"shpat_0a0a0a0a0a0a0a0a0a0a\", \"shopify_upper_hex\": \"shpat_0A0A0A0A0A0A0A0A0A0A\", \"hugging_face\": \"hf_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"digital_ocean\": \"dop_v1_ffffffffffffffffffffffffffffffff\", \"digital_ocean_short\": \"dop_v1_fffffffffffffffffffffffffffffff\"}",
-      "body_bytes": 764
+      "body": "{\"sk_dash\": \"sk-abc_DEF-12\", \"sk_dash_short\": \"sk-abc1234\", \"stripe\": \"sk_live_a1a1a1a1a1a1a1a1a1a1\", \"stripe_underscore\": \"sk_live_aaaaaaaaaaaaaaaaaaa_\", \"github\": \"ghp_A1A1A1A1A1A1\", \"github_short\": \"ghp_A1A1A1A1A1A\", \"github_pat\": \"github_pat_a_a_a_a_a_a_a_a_a_a_\", \"github_pat_dash\": \"github_pat_a-a-a-a-a-a-a-a-a-a-\", \"gitlab\": \"glpat-a-b_c1\", \"slack\": \"xoxb-123-abc-de\", \"slack_underscore\": \"xoxb-123_abc_de\", \"slack_app\": \"xapp-1-A1B2-C3D4E\", \"npm\": \"npm_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"shopify\": \"shpat_0a0a0a0a0a0a0a0a0a0a\", \"shopify_upper_hex\": \"shpat_0A0A0A0A0A0A0A0A0A0A\", \"hugging_face\": \"hf_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"digital_ocean\": \"dop_v1_ffffffffffffffffffffffffffffffff\", \"digital_ocean_short\": \"dop_v1_fffffffffffffffffffffffffffffff\", \"google_api\": \"AIzaa_-1a_-1a_-1a_-1a_-1a_-1a_-1a_-1\", \"google_oauth\": \"ya29.a_-1a_-1a_-1a_-1a_-1\", \"aws\": \"AKIAABCD1234EFGH5678\", \"aws_one_more\": \"AKIAABCD1234EFGH56789\", \"aws_lower\": \"AKIAabcd1234efgh5678\"}",
+      "body_bytes": 972
     },
     "capture-body-not-sent": {
       "for": "capture",

@@ -996,6 +996,181 @@
           "judged": "unrecognised"
         }
       }
+    },
+    {
+      "id": "mcp-unescaped-space-in-a-string-read",
+      "body": "{\"method\": \"a b\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "a b",
+            "tool": null
+          }
+        },
+        "endpoint": {
+          "judged": "keyless"
+        }
+      }
+    },
+    {
+      "id": "mcp-control-byte-in-a-string-ambiguous",
+      "note": "A string with a raw control byte doesn't decode.",
+      "body": "{\"method\": \"tools\u0001/call\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-key-of-a-lone-surrogate-after-an-escape-read-past",
+      "note": "Still JSON, though no string holds it.",
+      "body": "{\"\\n\\ud800\": 1, \"method\": \"ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "ping",
+            "tool": null
+          }
+        },
+        "endpoint": "discovery"
+      }
+    },
+    {
+      "id": "mcp-key-with-a-space-and-a-lone-surrogate-read-past",
+      "body": "{\"a b\\ud800\": 1, \"method\": \"ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "ping",
+            "tool": null
+          }
+        },
+        "endpoint": "discovery"
+      }
+    },
+    {
+      "id": "mcp-key-with-a-bad-escape-ambiguous",
+      "note": "Not JSON, so a lenient reader may read it as any key.",
+      "body": "{\"\\uZZZZ\": 1, \"method\": \"ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-key-not-utf8-ambiguous",
+      "note": "{\"\\xff\": 1, \"method\": \"ping\"}",
+      "body": {
+        "hex": "7b22ff223a20312c20226d6574686f64223a202270696e67227d"
+      },
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-close-past-the-top-value-unparsed",
+      "body": "{\"method\": \"ping\"}]",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-list-closed-as-an-object-unparsed",
+      "body": "[1}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-object-closed-as-a-list-unparsed",
+      "body": "{\"method\": \"ping\"]",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-number-with-a-leading-zero-unparsed",
+      "body": "{\"method\": \"ping\", \"a\": 01}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-number-with-a-point-without-digits-unparsed",
+      "body": "{\"method\": \"ping\", \"a\": 1.}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-number-with-a-exponent-without-digits-unparsed",
+      "body": "{\"method\": \"ping\", \"a\": 1e}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-number-with-a-signed-exponent-read",
+      "body": "{\"method\": \"ping\", \"a\": 1E+5}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "ping",
+            "tool": null
+          }
+        },
+        "endpoint": "discovery"
+      }
     }
   ]
 }

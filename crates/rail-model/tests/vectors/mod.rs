@@ -78,3 +78,18 @@ fn test_every_file_of_cases() {
     }
     assert!(failures.is_empty(), "\n{}", failures.join("\n"));
 }
+
+// A case whose `expect` is wrong comes out unequal, so no outcome passes for being blank.
+#[test]
+fn test_a_wrong_expect_is_told() {
+    let mut texts = read_texts();
+    let case = r#"{"cases": [{"id": "a", "authority": "mcp.example.com", "method": "POST", "path": "/mcp",
+        "expect": {"host": {"read": "mcp.example.com"}, "method": "POST", "reported_method": "POST",
+        "path": "/mcp", "redacted_path": "/mcp", "segments": ["mcp"], "redacted_segments": ["mcp"],
+        "query": {}, "unmatchable": "bracket"}}]}"#;
+    texts.insert("request_line.json".to_owned(), case.to_owned());
+    let outcomes = run_vectors("request_line.json", &texts).unwrap();
+    assert_eq!(outcomes[0].expect["unmatchable"], "bracket");
+    assert_eq!(outcomes[0].got["unmatchable"], serde_json::Value::Null);
+    assert_eq!(outcomes[0].got["segments"], outcomes[0].expect["segments"]);
+}

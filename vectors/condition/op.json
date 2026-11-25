@@ -2225,6 +2225,29 @@
       "expect": "does_not_hold"
     },
     {
+      "id": "matches-a-value-shorter-than-both-ends-does-not-hold",
+      "value": {
+        "string": "a"
+      },
+      "op": "matches",
+      "operand": "a*a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-a-list-of-past-a-double-and-the-largest-double-does-not-hold",
+      "note": "A list's item past a double is read past it, as a body's is.",
+      "value": {
+        "list": [
+          {
+            "number": "inf"
+          }
+        ]
+      },
+      "op": "eq",
+      "operand": 1.7976931348623157e+308,
+      "expect": "does_not_hold"
+    },
+    {
       "id": "matches-on-a-list-holding-a-match-holds",
       "value": {
         "list": [

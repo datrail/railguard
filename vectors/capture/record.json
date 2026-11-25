@@ -3343,7 +3343,7 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 764
+            "request_bytes": 972
           }
         }
       }
@@ -3398,7 +3398,7 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 764
+            "request_bytes": 972
           }
         }
       }
@@ -3453,7 +3453,7 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 764
+            "request_bytes": 972
           }
         }
       }
@@ -3508,7 +3508,7 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 764
+            "request_bytes": 972
           }
         }
       }
@@ -3563,7 +3563,7 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 764
+            "request_bytes": 972
           }
         }
       }
@@ -3618,7 +3618,7 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 764
+            "request_bytes": 972
           }
         }
       }
@@ -3673,7 +3673,7 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 764
+            "request_bytes": 972
           }
         }
       }
@@ -3728,7 +3728,7 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 764
+            "request_bytes": 972
           }
         }
       }
@@ -3783,7 +3783,7 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 764
+            "request_bytes": 972
           }
         }
       }
@@ -3838,7 +3838,7 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 764
+            "request_bytes": 972
           }
         }
       }
@@ -3893,7 +3893,7 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 764
+            "request_bytes": 972
           }
         }
       }
@@ -3948,7 +3948,7 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 764
+            "request_bytes": 972
           }
         }
       }
@@ -4003,7 +4003,7 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 764
+            "request_bytes": 972
           }
         }
       }
@@ -4058,7 +4058,7 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 764
+            "request_bytes": 972
           }
         }
       }
@@ -4113,7 +4113,7 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 764
+            "request_bytes": 972
           }
         }
       }
@@ -4168,7 +4168,7 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 764
+            "request_bytes": 972
           }
         }
       }
@@ -4223,7 +4223,7 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 764
+            "request_bytes": 972
           }
         }
       }
@@ -4278,7 +4278,282 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 764
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-google-api-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "google_api"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-google-oauth-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "google_oauth"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-aws-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "aws"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-aws-one-more-kept",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "aws_one_more"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "AKIAABCD1234EFGH56789"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-aws-lower-kept",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "aws_lower"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "AKIAabcd1234efgh5678"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
           }
         }
       }
