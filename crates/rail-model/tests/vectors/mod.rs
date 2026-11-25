@@ -36,3 +36,13 @@ fn test_mcp() {
 fn test_path() {
     check_vectors("condition/path.json");
 }
+
+#[test]
+fn test_op() {
+    check_vectors("condition/op.json");
+}
+
+#[test]
+fn test_condition() {
+    check_vectors("condition/condition.json");
+}

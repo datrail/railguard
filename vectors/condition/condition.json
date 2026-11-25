@@ -1,0 +1,4206 @@
+{
+  "ticket_claims_schema": {
+    "agent_id": "string",
+    "sandbox_type": "string",
+    "skills": "list",
+    "posture": {
+      "overall": {
+        "score": "number",
+        "level": "string"
+      },
+      "admin": "bool"
+    },
+    "alignment": {
+      "drifted": "list"
+    }
+  },
+  "cases": [
+    {
+      "id": "reads-existing",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-not-existing",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": "not_existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-eq",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-ne",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-matches",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-in",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": "in",
+        "value": [
+          "a",
+          1
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-lt-on-a-number",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "lt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-lte-on-a-number",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "lte",
+        "value": 1.5
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-gt-on-a-number",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "gt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-gte-on-a-number",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "gte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-ne-on-a-number",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "ne",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-eq-on-a-number",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "eq",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-contains",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-not-contains",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-contains-a-number",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "contains",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-in-with-an-item-not-a-scalar",
+      "note": "An item that isn't a string or a number is a member of nothing.",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "in",
+        "value": [
+          "a",
+          1,
+          true
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-an-integer-past-u64-as-a-double",
+      "condition": {"path": "ticket.posture.overall.score", "op": "lt", "value": 18446744073709551616},
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-a-bare-source",
+      "condition": {
+        "path": "ticket",
+        "op": "not_existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-a-path-in-the-list-spelling",
+      "condition": {
+        "path": [
+          "ticket",
+          "posture"
+        ],
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-extra-keys-past",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": "existing",
+        "value": 1,
+        "note": "x"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-a-header-path",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "contains",
+        "value": "b"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-a-ticket-path-the-schema-lacks",
+      "note": "Any ticket path is evaluable; only Rail Center refuses one its schema lacks.",
+      "condition": {
+        "path": "ticket.posture_score.a",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unreadable-an-integer-past-a-double",
+      "note": "Not JSON serde_json holds; another reader may hold it.",
+      "condition": {"path": "ticket.posture.overall.score", "op": "lt", "value": 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [],
+            "code": "unreadable",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unreadable-a-negative-integer-past-a-double",
+      "condition": {"path": "ticket.posture.overall.score", "op": "lt", "value": -10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [],
+            "code": "unreadable",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unreadable-an-exponent-past-a-double",
+      "condition": {"path": "ticket.posture.overall.score", "op": "lt", "value": 1e400},
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [],
+            "code": "unreadable",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unreadable-a-list-item-past-a-double",
+      "condition": {"path": "ticket.skills", "op": "in", "value": [1, 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000]},
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [],
+            "code": "unreadable",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unreadable-nesting-past-what-it-holds",
+      "condition": {"path": "ticket.skills", "op": "in", "value": [[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[1]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]},
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [],
+            "code": "unreadable",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unreadable-a-lone-surrogate",
+      "condition": {"path": "ticket.sandbox_type", "op": "eq", "value": "\ud800"},
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [],
+            "code": "unreadable",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-op",
+      "note": "A newer Rail Center can publish it, so only the writer refuses it.",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": "unknown",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "unknown",
+        "compiled": {
+          "refused": "unknown_op"
+        },
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "unknown_op",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-op-on-an-unknown-source",
+      "condition": {
+        "path": "session.a",
+        "op": "unknown"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "unknown",
+        "compiled": {
+          "refused": "unknown_op"
+        },
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "unknown_op",
+            "scope": "authoring"
+          },
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-op-empty",
+      "condition": {
+        "op": ""
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "unknown",
+        "compiled": {
+          "refused": "unknown_op"
+        },
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "unknown_op",
+            "scope": "authoring"
+          },
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-op-on-an-unknown-path",
+      "note": "A newer reader's op may come with a path only it knows.",
+      "condition": {
+        "path": "request.method",
+        "op": "near"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "unknown",
+        "compiled": {
+          "refused": "unknown_op"
+        },
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "unknown_op",
+            "scope": "authoring"
+          },
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-op-on-a-path-not-a-string",
+      "condition": {
+        "path": 1,
+        "op": "near"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "unknown",
+        "compiled": {
+          "refused": "unknown_op"
+        },
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "unknown_op",
+            "scope": "authoring"
+          },
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-op-on-a-source-missing",
+      "condition": {
+        "path": "body.x",
+        "op": "near",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "unknown",
+        "compiled": {
+          "refused": "unknown_op"
+        },
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "unknown_op",
+            "scope": "authoring"
+          },
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-a-string",
+      "condition": "not an object",
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [],
+            "code": "not_an_object",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-a-list",
+      "condition": [
+        "lt",
+        "ticket.sandbox_type",
+        5
+      ],
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [],
+            "code": "not_an_object",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-a-list-of-one",
+      "condition": [
+        1
+      ],
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [],
+            "code": "not_an_object",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-null",
+      "condition": null,
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [],
+            "code": "not_an_object",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-an-empty-object",
+      "condition": {},
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "unknown_op",
+            "scope": "enforcement"
+          },
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-op-missing",
+      "condition": {
+        "path": "ticket.sandbox_type"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "unknown_op",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-path-missing",
+      "condition": {
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-path-a-number",
+      "condition": {
+        "path": 1,
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-op-a-number",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "unknown_op",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-op-a-bool",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": true
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "unknown_op",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-op-null",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": null
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "unknown_op",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-source-unknown",
+      "condition": {
+        "path": "session.a",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-source-missing-dotted",
+      "condition": {
+        "path": "body.x",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-source-missing-listed",
+      "condition": {
+        "path": [
+          "body",
+          "x"
+        ],
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-path-empty",
+      "condition": {
+        "path": "",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-request-field-unknown",
+      "condition": {
+        "path": "request.nothing",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-lt-a-string",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": "lt",
+        "value": "1"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "number"
+          },
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-lt-missing-its-operand",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": "lt"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "number"
+          },
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-eq-a-bool",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": "eq",
+        "value": true
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "scalar"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-eq-null",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": "eq",
+        "value": null
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "scalar"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-in-a-string",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "in",
+        "value": "x"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "list"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-matches-a-number",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": "matches",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "string"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-retired-field-key",
+      "condition": {
+        "field": "endpoint_key",
+        "operator": "eq",
+        "value": "x"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "unknown_op",
+            "scope": "enforcement"
+          },
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-for-use-request-field",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": {
+          "refused": "not_for_use"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-for-use-request-field-dotted",
+      "condition": {
+        "path": "request.method",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": {
+          "refused": "not_for_use"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-for-use-body",
+      "condition": {
+        "path": "request.body.x",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": {
+          "refused": "not_for_use"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-for-use-ticket-in-a-plan",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": {
+          "refused": "not_for_use"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-for-use-header-in-a-plan",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": {
+          "refused": "not_for_use"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-for-use-record-path-in-a-plan",
+      "condition": {
+        "path": [
+          "request",
+          "query",
+          "a"
+        ],
+        "op": "existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": {
+          "refused": "not_for_use"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "operand-shape-before-an-unknown-path",
+      "condition": {
+        "path": "ticket.nope",
+        "op": "lt",
+        "value": "x"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "number"
+          },
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "operand-shape-before-an-op-not-for-the-path",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "lt",
+        "value": "x"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "number"
+          },
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "authoring-ticket-path-not-in-the-schema",
+      "condition": {
+        "path": "ticket.posture.score",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "authoring-ticket-path-under-a-list",
+      "condition": {
+        "path": "ticket.skills.agent_id",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "authoring-header-name-upper-case",
+      "condition": {
+        "path": "request.headers.X-A",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "authoring-header-name-empty",
+      "condition": {
+        "path": "request.headers.",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "authoring-header-name-non-ascii-upper-case",
+      "condition": {
+        "path": "request.headers.É",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "authoring-op-not-for-a-string",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "lt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "authoring-op-not-for-a-bool",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "eq",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "authoring-nested-32-levels-accepted",
+      "note": "Rail Center renders a condition no deeper than 32 levels.",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "in",
+        "value": [
+          [
+            [
+              [
+                [
+                  [
+                    [
+                      [
+                        [
+                          [
+                            [
+                              [
+                                [
+                                  [
+                                    [
+                                      [
+                                        [
+                                          [
+                                            [
+                                              [
+                                                [
+                                                  [
+                                                    [
+                                                      [
+                                                        [
+                                                          [
+                                                            [
+                                                              [
+                                                                [
+                                                                  [
+                                                                    1
+                                                                  ]
+                                                                ]
+                                                              ]
+                                                            ]
+                                                          ]
+                                                        ]
+                                                      ]
+                                                    ]
+                                                  ]
+                                                ]
+                                              ]
+                                            ]
+                                          ]
+                                        ]
+                                      ]
+                                    ]
+                                  ]
+                                ]
+                              ]
+                            ]
+                          ]
+                        ]
+                      ]
+                    ]
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "authoring-nested-33-levels-too-deep",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "in",
+        "value": [
+          [
+            [
+              [
+                [
+                  [
+                    [
+                      [
+                        [
+                          [
+                            [
+                              [
+                                [
+                                  [
+                                    [
+                                      [
+                                        [
+                                          [
+                                            [
+                                              [
+                                                [
+                                                  [
+                                                    [
+                                                      [
+                                                        [
+                                                          [
+                                                            [
+                                                              [
+                                                                [
+                                                                  [
+                                                                    [
+                                                                      1
+                                                                    ]
+                                                                  ]
+                                                                ]
+                                                              ]
+                                                            ]
+                                                          ]
+                                                        ]
+                                                      ]
+                                                    ]
+                                                  ]
+                                                ]
+                                              ]
+                                            ]
+                                          ]
+                                        ]
+                                      ]
+                                    ]
+                                  ]
+                                ]
+                              ]
+                            ]
+                          ]
+                        ]
+                      ]
+                    ]
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [],
+            "code": "too_deep",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "authoring-empty-in-for-a-policy-accepted",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "in",
+        "value": []
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "existing-on-a-ticket-path-accepted",
+      "condition": {
+        "path": "ticket",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-existing-on-a-ticket-path-accepted",
+      "condition": {
+        "path": "ticket",
+        "op": "not_existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "eq-on-a-ticket-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket",
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ne-on-a-ticket-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket",
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lt-on-a-ticket-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket",
+        "op": "lt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lte-on-a-ticket-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket",
+        "op": "lte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gt-on-a-ticket-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket",
+        "op": "gt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gte-on-a-ticket-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket",
+        "op": "gte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "in-on-a-ticket-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket",
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "contains-on-a-ticket-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket",
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-contains-on-a-ticket-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket",
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "matches-on-a-ticket-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket",
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "existing-on-a-object-path-accepted",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-existing-on-a-object-path-accepted",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "not_existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "eq-on-a-object-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ne-on-a-object-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lt-on-a-object-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "lt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lte-on-a-object-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "lte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gt-on-a-object-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "gt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gte-on-a-object-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "gte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "in-on-a-object-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "contains-on-a-object-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-contains-on-a-object-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "matches-on-a-object-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "existing-on-a-bool-path-accepted",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-existing-on-a-bool-path-accepted",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "not_existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "eq-on-a-bool-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ne-on-a-bool-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lt-on-a-bool-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "lt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lte-on-a-bool-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "lte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gt-on-a-bool-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "gt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gte-on-a-bool-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "gte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "in-on-a-bool-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "contains-on-a-bool-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-contains-on-a-bool-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "matches-on-a-bool-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "existing-on-a-string-path-accepted",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-existing-on-a-string-path-accepted",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "not_existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "eq-on-a-string-path-accepted",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "ne-on-a-string-path-accepted",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "lt-on-a-string-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "lt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lte-on-a-string-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "lte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gt-on-a-string-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "gt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gte-on-a-string-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "gte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "in-on-a-string-path-accepted",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "contains-on-a-string-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-contains-on-a-string-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "matches-on-a-string-path-accepted",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "existing-on-a-number-path-accepted",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-existing-on-a-number-path-accepted",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "not_existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "eq-on-a-number-path-accepted",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "ne-on-a-number-path-accepted",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "lt-on-a-number-path-accepted",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "lt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "lte-on-a-number-path-accepted",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "lte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "gt-on-a-number-path-accepted",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "gt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "gte-on-a-number-path-accepted",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "gte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "in-on-a-number-path-accepted",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "contains-on-a-number-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-contains-on-a-number-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "matches-on-a-number-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "existing-on-a-list-path-accepted",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-existing-on-a-list-path-accepted",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "not_existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "eq-on-a-list-path-accepted",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "ne-on-a-list-path-accepted",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "lt-on-a-list-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "lt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lte-on-a-list-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "lte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gt-on-a-list-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "gt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gte-on-a-list-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "gte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "in-on-a-list-path-accepted",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "contains-on-a-list-path-accepted",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-contains-on-a-list-path-accepted",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "matches-on-a-list-path-accepted",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "existing-on-a-header-path-accepted",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-existing-on-a-header-path-accepted",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "not_existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "eq-on-a-header-path-accepted",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "ne-on-a-header-path-accepted",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "lt-on-a-header-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "lt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lte-on-a-header-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "lte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gt-on-a-header-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "gt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gte-on-a-header-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "gte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "in-on-a-header-path-accepted",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "contains-on-a-header-path-accepted",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-contains-on-a-header-path-accepted",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "matches-on-a-header-path-accepted",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "existing-on-a-endpoint-key-path-accepted",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-existing-on-a-endpoint-key-path-accepted",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "not_existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "eq-on-a-endpoint-key-path-accepted",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "ne-on-a-endpoint-key-path-accepted",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "lt-on-a-endpoint-key-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "lt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lte-on-a-endpoint-key-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "lte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gt-on-a-endpoint-key-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "gt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gte-on-a-endpoint-key-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "gte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "in-on-a-endpoint-key-path-accepted",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "contains-on-a-endpoint-key-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-contains-on-a-endpoint-key-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "matches-on-a-endpoint-key-path-accepted",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "existing-on-a-headers-path-accepted",
+      "condition": {
+        "path": "request.headers",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-existing-on-a-headers-path-accepted",
+      "condition": {
+        "path": "request.headers",
+        "op": "not_existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "eq-on-a-headers-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers",
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ne-on-a-headers-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers",
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lt-on-a-headers-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers",
+        "op": "lt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lte-on-a-headers-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers",
+        "op": "lte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gt-on-a-headers-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers",
+        "op": "gt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gte-on-a-headers-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers",
+        "op": "gte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "in-on-a-headers-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers",
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "contains-on-a-headers-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers",
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-contains-on-a-headers-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers",
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "matches-on-a-headers-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers",
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-host",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "eq",
+        "value": "api.github.com"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-body-any-op",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a",
+          0
+        ],
+        "op": "lt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-empty-in-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "in",
+        "value": []
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "authoring",
+            "expected_shape": "list"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-op-not-for-a-string",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "lt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-field-outside-the-table",
+      "condition": {
+        "path": "invented_field",
+        "op": "eq",
+        "value": "x"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-ordered-op-a-list-operand",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "gte",
+        "value": [
+          "40"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "number"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-ordered-op-a-bool-operand",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "gt",
+        "value": true
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "number"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-ordered-op-a-null-operand",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "lte",
+        "value": null
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "number"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-eq-a-list-operand",
+      "condition": {
+        "path": "ticket.posture.overall.level",
+        "op": "eq",
+        "value": [
+          "low"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "scalar"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-ne-a-bool-operand",
+      "condition": {
+        "path": "ticket.posture.overall.level",
+        "op": "ne",
+        "value": true
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "scalar"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-contains-a-list-operand",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "contains",
+        "value": [
+          "x"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "scalar"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-not-contains-a-list-operand",
+      "condition": {
+        "path": "ticket.alignment.drifted",
+        "op": "not_contains",
+        "value": [
+          "llm_model"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "scalar"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-matches-a-number-pattern",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "matches",
+        "value": 40
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "string"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-path-a-numeric-string",
+      "condition": {
+        "path": "17",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-path-without-a-source",
+      "condition": {
+        "path": "posture_score",
+        "op": "lt",
+        "value": 40
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-source-not-built",
+      "condition": {
+        "path": "response.status",
+        "op": "eq",
+        "value": "200"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-tier-no-longer-a-field",
+      "condition": {
+        "path": "tier",
+        "op": "eq",
+        "value": "critical"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-scored-at-no-longer-a-field",
+      "condition": {
+        "path": "scored_at",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-ticket-id-not-a-field",
+      "condition": {
+        "path": "id",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-op-outside-the-table",
+      "condition": {
+        "path": "ticket.posture.overall.level",
+        "op": "regex",
+        "value": "x"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "unknown",
+        "compiled": {
+          "refused": "unknown_op"
+        },
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "unknown_op",
+            "scope": "authoring"
+          }
+        ]
+      }
+    }
+  ]
+}

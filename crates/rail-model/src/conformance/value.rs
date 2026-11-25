@@ -1,11 +1,13 @@
 //! The vectors' encoding of this reader's values: a variant holding nothing as its snake-case
 //! name, one holding something as a one-key object of it.
 
+use std::borrow::Cow;
+
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use crate::body::{Unparsed, Unread};
-use crate::condition::{BodyUnread, Lookup, Refusal, Verdict};
+use crate::body::{BodyBuffer, ByteBudget, RequestBody, Unparsed, Unread};
+use crate::condition::{BodyUnread, Items, Lookup, Refusal, Verdict};
 use crate::request_line::HostReading;
 
 /// Bytes as a vector writes them: text, or `{"hex": …}` for bytes that aren't UTF-8.
@@ -109,4 +111,147 @@ pub(super) fn encode_host_reading(host: &HostReading) -> Value {
         HostReading::Refused => json!("refused"),
         HostReading::PastLongest => json!("past_longest"),
     }
+}
+
+/// A value as a vector writes it, decoded and held, for a `Lookup` to borrow.
+pub(super) struct HeldValue {
+    shape: Shape,
+    // A list's items, written as a body and read as one, so an item reads as a body's does.
+    list: Option<RequestBody>,
+}
+
+enum Shape {
+    Absent,
+    String(String),
+    Number(f64),
+    Bool(bool),
+    List,
+    Object,
+    Ambiguous,
+    BodyUnread(BodyUnread),
+}
+
+impl HeldValue {
+    pub(super) fn decode(value: &Value) -> Result<Self, String> {
+        let held = |shape| Self { shape, list: None };
+        Ok(match value {
+            Value::String(name) if name == "absent" => held(Shape::Absent),
+            Value::String(name) if name == "object" => held(Shape::Object),
+            Value::String(name) if name == "ambiguous" => held(Shape::Ambiguous),
+            Value::Object(fields) if fields.len() == 1 => {
+                let (kind, inner) = fields.iter().next().expect("one field");
+                match (kind.as_str(), inner) {
+                    ("string", Value::String(text)) => held(Shape::String(text.clone())),
+                    ("number", number) => held(Shape::Number(decode_number(number)?)),
+                    ("bool", Value::Bool(value)) => held(Shape::Bool(*value)),
+                    ("list", Value::Array(_)) => {
+                        let mut text = String::new();
+                        write_body_text(value, &mut text)?;
+                        let mut buffer = BodyBuffer::new(usize::MAX, &ByteBudget::new(usize::MAX));
+                        buffer.append(text.as_bytes());
+                        let body = buffer.finish().map_err(|why| format!("{why:?}"))?;
+                        Self {
+                            shape: Shape::List,
+                            list: Some(body),
+                        }
+                    }
+                    ("body_unread", why) => held(Shape::BodyUnread(decode_body_unread(why)?)),
+                    _ => return Err(format!("not a value: {value}")),
+                }
+            }
+            _ => return Err(format!("not a value: {value}")),
+        })
+    }
+
+    pub(super) fn lookup(&self) -> Lookup<'_> {
+        match &self.shape {
+            Shape::Absent => Lookup::Absent,
+            Shape::String(text) => Lookup::String(Cow::Borrowed(text)),
+            Shape::Number(number) => Lookup::Number(*number),
+            Shape::Bool(value) => Lookup::Bool(*value),
+            Shape::List => {
+                let body = self.list.as_ref().expect("a list holds its body");
+                Lookup::List(Items::Body(body.json().expect("a list written as JSON")))
+            }
+            Shape::Object => Lookup::Object,
+            Shape::Ambiguous => Lookup::Ambiguous,
+            Shape::BodyUnread(why) => Lookup::BodyUnread(*why),
+        }
+    }
+}
+
+fn decode_number(number: &Value) -> Result<f64, String> {
+    match number {
+        Value::String(text) if text == "inf" => Ok(f64::INFINITY),
+        Value::String(text) if text == "-inf" => Ok(f64::NEG_INFINITY),
+        number => number
+            .as_f64()
+            .ok_or_else(|| format!("not a number: {number}")),
+    }
+}
+
+fn decode_body_unread(why: &Value) -> Result<BodyUnread, String> {
+    let unread = |name: &str| match name {
+        "past_cap" => Some(Unread::PastCap),
+        "past_budget" => Some(Unread::PastBudget),
+        "not_sent" => Some(Unread::NotSent),
+        "cut_short" => Some(Unread::CutShort),
+        _ => None,
+    };
+    let unparsed = |name: &str| match name {
+        "malformed" => Some(Unparsed::Malformed),
+        "past_budget" => Some(Unparsed::PastBudget),
+        _ => None,
+    };
+    let decoded = match why {
+        Value::String(name) if name == "batch" => Some(BodyUnread::Batch),
+        Value::Object(fields) if fields.len() == 1 => match fields.iter().next() {
+            Some((kind, Value::String(name))) if kind == "unread" => {
+                unread(name).map(BodyUnread::Unread)
+            }
+            Some((kind, Value::String(name))) if kind == "unparsed" => {
+                unparsed(name).map(BodyUnread::Unparsed)
+            }
+            _ => None,
+        },
+        _ => None,
+    };
+    decoded.ok_or_else(|| format!("not a reason a body is unread: {why}"))
+}
+
+// A value as a body would write it: a number past a double as one, a value that can't be told as
+// a string that doesn't decode.
+fn write_body_text(value: &Value, text: &mut String) -> Result<(), String> {
+    match value {
+        Value::String(name) if name == "absent" => text.push_str("null"),
+        Value::String(name) if name == "object" => text.push_str("{}"),
+        Value::String(name) if name == "ambiguous" => text.push_str(r#""\ud800""#),
+        Value::Object(fields) if fields.len() == 1 => {
+            let (kind, inner) = fields.iter().next().expect("one field");
+            match (kind.as_str(), inner) {
+                ("string", Value::String(inner)) => {
+                    text.push_str(&Value::from(inner.as_str()).to_string())
+                }
+                ("number", Value::String(inf)) if inf == "inf" => text.push_str("1e400"),
+                ("number", Value::String(inf)) if inf == "-inf" => text.push_str("-1e400"),
+                ("number", number @ Value::Number(_)) => text.push_str(&number.to_string()),
+                ("bool", Value::Bool(inner)) => {
+                    text.push_str(if *inner { "true" } else { "false" })
+                }
+                ("list", Value::Array(items)) => {
+                    text.push('[');
+                    for (index, item) in items.iter().enumerate() {
+                        if index > 0 {
+                            text.push(',');
+                        }
+                        write_body_text(item, text)?;
+                    }
+                    text.push(']');
+                }
+                _ => return Err(format!("not a list's item: {value}")),
+            }
+        }
+        _ => return Err(format!("not a list's item: {value}")),
+    }
+    Ok(())
 }
