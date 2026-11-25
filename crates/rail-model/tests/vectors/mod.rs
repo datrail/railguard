@@ -46,3 +46,13 @@ fn test_op() {
 fn test_condition() {
     check_vectors("condition/condition.json");
 }
+
+#[test]
+fn test_entry() {
+    check_vectors("capture/entry.json");
+}
+
+#[test]
+fn test_record() {
+    check_vectors("capture/record.json");
+}

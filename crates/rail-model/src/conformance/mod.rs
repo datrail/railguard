@@ -10,10 +10,13 @@ use serde::de::DeserializeOwned;
 use serde_json::{Number, Value};
 
 mod condition;
+mod entry;
 mod environment;
 mod mcp;
 mod op;
 mod path;
+mod plan;
+mod record;
 mod request_line;
 mod value;
 
@@ -34,6 +37,8 @@ pub fn run_vectors(vectors: &Path, file: &str) -> Result<Vec<Outcome>, String> {
     let outcomes = match file {
         "request_line.json" => request_line::run_cases(&cases),
         "mcp.json" => mcp::run_cases(&cases),
+        "capture/entry.json" => entry::run_cases(&cases, &read_environments()?),
+        "capture/record.json" => record::run_cases(&cases, &read_environments()?),
         "condition/condition.json" => condition::run_cases(&cases),
         "condition/op.json" => op::run_cases(&cases),
         "condition/path.json" => path::run_cases(&cases, &read_environments()?),

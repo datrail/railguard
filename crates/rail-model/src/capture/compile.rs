@@ -75,6 +75,12 @@ impl CompiledPlan {
         self.entries_skipped
     }
 
+    /// The entry at `index`, compiled.
+    #[cfg(feature = "conformance")]
+    pub(crate) fn entry(&self, index: usize) -> Option<&CompiledEntry> {
+        self.entries.get(index)
+    }
+
     /// The entries a call to `host` is tried against, in plan order, the last refused if one is.
     pub(crate) fn entries_for<'a>(
         &'a self,

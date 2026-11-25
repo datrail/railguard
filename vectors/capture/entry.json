@@ -1,0 +1,483 @@
+{
+  "cases": [
+    {
+      "id": "one-condition-holding-holds",
+      "environment": "capture-sample",
+      "match": [
+        {
+          "path": [
+            "request",
+            "host"
+          ],
+          "op": "eq",
+          "value": "api.github.com"
+        }
+      ],
+      "expect": "holds"
+    },
+    {
+      "id": "every-condition-holding-holds",
+      "environment": "capture-sample",
+      "match": [
+        {
+          "path": [
+            "request",
+            "host"
+          ],
+          "op": "eq",
+          "value": "api.github.com"
+        },
+        {
+          "path": [
+            "request",
+            "method"
+          ],
+          "op": "eq",
+          "value": "POST"
+        },
+        {
+          "path": [
+            "request",
+            "mcp",
+            "tool"
+          ],
+          "op": "eq",
+          "value": "create_or_update_file"
+        }
+      ],
+      "expect": "holds"
+    },
+    {
+      "id": "one-condition-not-holding-does-not-hold",
+      "environment": "capture-sample",
+      "match": [
+        {
+          "path": [
+            "request",
+            "host"
+          ],
+          "op": "eq",
+          "value": "api.github.com"
+        },
+        {
+          "path": [
+            "request",
+            "mcp",
+            "tool"
+          ],
+          "op": "eq",
+          "value": "delete_file"
+        }
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "first-not-holding-does-not-hold",
+      "environment": "capture-sample",
+      "match": [
+        {
+          "path": [
+            "request",
+            "host"
+          ],
+          "op": "eq",
+          "value": "example.com"
+        },
+        {
+          "path": [
+            "request",
+            "mcp",
+            "tool"
+          ],
+          "op": "eq",
+          "value": "create_or_update_file"
+        }
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "ambiguous-and-the-rest-holding-is-ambiguous",
+      "environment": "capture-sample",
+      "match": [
+        {
+          "path": [
+            "request",
+            "host"
+          ],
+          "op": "eq",
+          "value": "api.github.com"
+        },
+        {
+          "path": [
+            "request",
+            "body",
+            "params",
+            "arguments",
+            "labels"
+          ],
+          "op": "existing"
+        }
+      ],
+      "expect": "ambiguous"
+    },
+    {
+      "id": "ambiguous-then-not-holding-does-not-hold",
+      "note": "A condition that doesn't hold decides, after one that can't be told.",
+      "environment": "capture-body-values",
+      "match": [
+        {
+          "path": [
+            "request",
+            "body",
+            "dup"
+          ],
+          "op": "eq",
+          "value": 1
+        },
+        {
+          "path": [
+            "request",
+            "body",
+            "esc"
+          ],
+          "op": "eq",
+          "value": "x"
+        }
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "not-holding-then-ambiguous-does-not-hold",
+      "environment": "capture-body-values",
+      "match": [
+        {
+          "path": [
+            "request",
+            "body",
+            "esc"
+          ],
+          "op": "eq",
+          "value": "x"
+        },
+        {
+          "path": [
+            "request",
+            "body",
+            "dup"
+          ],
+          "op": "eq",
+          "value": 1
+        }
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "body-ambiguous-before-a-request-line-not-holding-does-not-hold",
+      "note": "The request line's conditions are evaluated before the body's, each group in plan order.",
+      "environment": "capture-body-values",
+      "match": [
+        {
+          "path": [
+            "request",
+            "body",
+            "dup"
+          ],
+          "op": "eq",
+          "value": 1
+        },
+        {
+          "path": [
+            "request",
+            "method"
+          ],
+          "op": "eq",
+          "value": "GET"
+        }
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "body-unread-and-the-request-line-holding-is-body-unread",
+      "environment": "capture-body-not-sent",
+      "match": [
+        {
+          "path": [
+            "request",
+            "host"
+          ],
+          "op": "eq",
+          "value": "mcp.example.com"
+        },
+        {
+          "path": [
+            "request",
+            "mcp",
+            "tool"
+          ],
+          "op": "eq",
+          "value": "create_or_update_file"
+        }
+      ],
+      "expect": {
+        "body_unread": {
+          "unread": "not_sent"
+        }
+      }
+    },
+    {
+      "id": "body-unread-before-a-request-line-not-holding-does-not-hold",
+      "note": "The request line's conditions are evaluated before the body's, each group in plan order.",
+      "environment": "capture-body-not-sent",
+      "match": [
+        {
+          "path": [
+            "request",
+            "mcp",
+            "tool"
+          ],
+          "op": "eq",
+          "value": "create_or_update_file"
+        },
+        {
+          "path": [
+            "request",
+            "host"
+          ],
+          "op": "eq",
+          "value": "example.com"
+        }
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "first-untold-of-two-is-the-answer-unread",
+      "note": "Of conditions that can't be told, the first evaluated is the answer.",
+      "environment": "capture-body-batch-holding-what-cant-be-told",
+      "match": [
+        {
+          "path": [
+            "request",
+            "mcp",
+            "tool"
+          ],
+          "op": "existing"
+        },
+        {
+          "path": [
+            "request",
+            "body",
+            1
+          ],
+          "op": "existing"
+        }
+      ],
+      "expect": {
+        "body_unread": "batch"
+      }
+    },
+    {
+      "id": "first-untold-of-two-is-the-answer-ambiguous",
+      "environment": "capture-body-batch-holding-what-cant-be-told",
+      "match": [
+        {
+          "path": [
+            "request",
+            "body",
+            1
+          ],
+          "op": "existing"
+        },
+        {
+          "path": [
+            "request",
+            "mcp",
+            "tool"
+          ],
+          "op": "existing"
+        }
+      ],
+      "expect": "ambiguous"
+    },
+    {
+      "id": "unknown-op-refused",
+      "note": "A refused condition decides; in a plan it refuses its entry first.",
+      "environment": "capture-sample",
+      "match": [
+        {
+          "path": [
+            "request",
+            "host"
+          ],
+          "op": "eq",
+          "value": "api.github.com"
+        },
+        {
+          "path": [
+            "request",
+            "host"
+          ],
+          "op": "near",
+          "value": "x"
+        }
+      ],
+      "expect": {
+        "refused": "unknown_op"
+      }
+    },
+    {
+      "id": "not-holding-before-a-refused-does-not-hold",
+      "environment": "capture-sample",
+      "match": [
+        {
+          "path": [
+            "request",
+            "host"
+          ],
+          "op": "eq",
+          "value": "example.com"
+        },
+        {
+          "path": [
+            "request",
+            "host"
+          ],
+          "op": "near",
+          "value": "x"
+        }
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "refused-before-not-holding-refused",
+      "environment": "capture-sample",
+      "match": [
+        {
+          "path": [
+            "request",
+            "host"
+          ],
+          "op": "near",
+          "value": "x"
+        },
+        {
+          "path": [
+            "request",
+            "host"
+          ],
+          "op": "eq",
+          "value": "example.com"
+        }
+      ],
+      "expect": {
+        "refused": "unknown_op"
+      }
+    },
+    {
+      "id": "refused-body-condition-read-with-the-request-line",
+      "note": "A refused condition reads nothing, so it's evaluated with the request line's, before any body condition.",
+      "environment": "capture-sample",
+      "match": [
+        {
+          "path": [
+            "request",
+            "mcp",
+            "tool"
+          ],
+          "op": "eq",
+          "value": "delete_file"
+        },
+        {
+          "path": [
+            "request",
+            "body",
+            "a"
+          ],
+          "op": "near",
+          "value": "x"
+        }
+      ],
+      "expect": {
+        "refused": "unknown_op"
+      }
+    },
+    {
+      "id": "not-for-use-refused",
+      "environment": "capture-sample",
+      "match": [
+        {
+          "path": [
+            "request",
+            "host"
+          ],
+          "op": "eq",
+          "value": "api.github.com"
+        },
+        {
+          "path": [
+            "request",
+            "query",
+            "repo"
+          ],
+          "op": "eq",
+          "value": "docs"
+        }
+      ],
+      "expect": {
+        "refused": "not_for_use"
+      }
+    },
+    {
+      "id": "invalid-refused",
+      "environment": "capture-sample",
+      "match": [
+        {
+          "path": [
+            "request",
+            "host"
+          ],
+          "op": "eq",
+          "value": "api.github.com"
+        },
+        {
+          "path": [
+            "request",
+            "host"
+          ],
+          "op": "eq",
+          "value": true
+        }
+      ],
+      "expect": {
+        "refused": "invalid"
+      }
+    },
+    {
+      "id": "ambiguous-before-a-refused-request-condition-refused",
+      "note": "The request line's conditions are evaluated before the body's, each group in plan order.",
+      "environment": "capture-sample",
+      "match": [
+        {
+          "path": [
+            "request",
+            "body",
+            "params",
+            "arguments",
+            "labels"
+          ],
+          "op": "existing"
+        },
+        {
+          "path": [
+            "request",
+            "host"
+          ],
+          "op": "near",
+          "value": "x"
+        }
+      ],
+      "expect": {
+        "refused": "unknown_op"
+      }
+    }
+  ]
+}
