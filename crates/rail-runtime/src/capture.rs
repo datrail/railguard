@@ -88,6 +88,11 @@ pub enum SentBody<'a> {
     },
     /// What the callout's configuration kept from it.
     NotSent { declared: Option<u64> },
+    /// Its first `sent_bytes`, the callout told the rest wasn't sent.
+    CutShort {
+        sent_bytes: u64,
+        declared: Option<u64>,
+    },
 }
 
 impl Capture {
@@ -150,17 +155,29 @@ impl CaptureSender {
     }
 
     /// Hands `request` over, its body read whole if it was sent whole within the cap and the
-    /// budget, else unread: not sent, cut short of its declared length, or past either.
+    /// budget, else unread: not sent, cut short, of its declared length or as told, or past either.
     pub fn send_request(&self, request: SentRequest<'_>) {
+        let max_body_bytes = self.max_body_bytes as u64;
         let (body, body_bytes) = match request.body {
             SentBody::NotSent { declared } => {
                 (BodyRead::Unread(Unread::NotSent), declared.unwrap_or(0))
             }
+            SentBody::CutShort {
+                sent_bytes,
+                declared,
+            } => {
+                let body_bytes = body_length(sent_bytes, declared);
+                let unread = if body_bytes > max_body_bytes {
+                    Unread::PastCap
+                } else {
+                    Unread::CutShort
+                };
+                (BodyRead::Unread(unread), body_bytes)
+            }
             SentBody::Sent { bytes, declared } => {
                 let sent = bytes.len() as u64;
-                // A declared length below what was sent isn't the body's.
-                let body_bytes = declared.unwrap_or(sent).max(sent);
-                let body = if body_bytes > self.max_body_bytes as u64 {
+                let body_bytes = body_length(sent, declared);
+                let body = if body_bytes > max_body_bytes {
                     BodyRead::Unread(Unread::PastCap)
                 } else if sent < body_bytes {
                     let unread = if bytes.is_empty() {
@@ -188,6 +205,11 @@ impl CaptureSender {
             body_bytes,
         });
     }
+}
+
+// A declared length below what was sent isn't the body's.
+fn body_length(sent_bytes: u64, declared: Option<u64>) -> u64 {
+    declared.unwrap_or(sent_bytes).max(sent_bytes)
 }
 
 // The task's state: it owns the windowing, so nothing locks it.
