@@ -5,7 +5,8 @@ use std::hash::{BuildHasher, RandomState};
 use std::sync::Arc;
 use std::time::Duration;
 
-// The first step, before the jitter: a lower one would let a fleet hammer Rail Center.
+// The first step, before the jitter: a lower one would let a fleet hammer Rail Center. Apart from
+// `holder.rs`'s `MIN_REFRESH_INTERVAL`, the same 5 s, which floors a wait after the jitter.
 const FLOOR: Duration = Duration::from_secs(5);
 
 // Six doublings of the floor: 320 s.
@@ -69,7 +70,7 @@ impl Backoff {
         self.failures = 0;
     }
 
-    /// `wait`, jittered.
+    /// A duration, jittered.
     pub(crate) fn jittered(&self, wait: Duration) -> Duration {
         wait.mul_f64((self.jitter.0)())
     }
