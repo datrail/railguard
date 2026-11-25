@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use envoy_types::ext_authz::v3::CheckResponseExt;
 use envoy_types::ext_authz::v3::pb::{Authorization, CheckRequest, CheckResponse, OkHttpResponse};
-use envoy_types::pb::envoy::config::core::v3::HeaderValue;
 use envoy_types::pb::envoy::extensions::filters::http::ext_proc::v3::processing_mode::BodySendMode;
 use envoy_types::pb::envoy::service::auth::v3::attribute_context::HttpRequest;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessor;
@@ -20,6 +19,7 @@ use rail_runtime::{
 use tokio_stream::{Stream, StreamExt};
 use tonic::{Status, Streaming};
 
+use crate::headers::{find_value, read_length};
 use crate::xrail::{as_raw_value, as_value};
 
 /// Both callouts, which change a request alike: one clone serves each.
@@ -102,10 +102,10 @@ fn observe(http: &HttpRequest) -> SentRequest<'_> {
 
 // `Content-Length` as sent, from either header field.
 fn declared_length(http: &HttpRequest) -> Option<u64> {
-    content_length(http.header_map.iter().flat_map(|map| &map.headers)).or_else(|| {
-        let value = http.headers.get("content-length")?;
-        read_length(value.as_bytes())
-    })
+    let header_map = http.header_map.iter().flat_map(|map| &map.headers);
+    find_value(header_map, "content-length")
+        .or_else(|| http.headers.get("content-length").map(String::as_bytes))
+        .and_then(read_length)
 }
 
 pub(crate) type ProcessStream =
@@ -155,12 +155,8 @@ fn continue_after(
     match request {
         Request::RequestHeaders(request) => {
             let sent = request.headers.iter().flat_map(|map| &map.headers);
-            let authority = sent
-                .clone()
-                .find(|header| header.key == ":authority")
-                .map_or("", |header| {
-                    std::str::from_utf8(value_of(header)).unwrap_or_default()
-                });
+            let authority = find_value(sent.clone(), ":authority")
+                .map_or("", |value| std::str::from_utf8(value).unwrap_or_default());
             let headers = XRailHeaders::of(
                 tickets.map(TicketHolder::current),
                 authority,
@@ -217,6 +213,7 @@ impl StreamCapture {
         match request {
             Request::RequestHeaders(headers) => self.on_headers(headers),
             Request::RequestBody(body) => self.on_body(body),
+            Request::RequestTrailers(_) => self.on_trailers(),
             _ => {}
         }
     }
@@ -268,6 +265,17 @@ impl StreamCapture {
         };
         call.send(&self.sender, sent);
     }
+
+    // Trailers with the call still held: no body message came, so the body was empty.
+    fn on_trailers(&mut self) {
+        if let Some(call) = self.held.take() {
+            let empty = SentBody::Sent {
+                bytes: &[],
+                declared: call.declared,
+            };
+            call.send(&self.sender, empty);
+        }
+    }
 }
 
 impl Drop for StreamCapture {
@@ -285,16 +293,12 @@ impl Drop for StreamCapture {
 impl HeldCall {
     fn read(headers: &HttpHeaders) -> Self {
         let sent = headers.headers.iter().flat_map(|map| &map.headers);
-        let find = |name: &str| {
-            sent.clone()
-                .find(|header| header.key == name)
-                .map_or_else(Vec::new, |header| value_of(header).to_vec())
-        };
+        let find = |name| find_value(sent.clone(), name).unwrap_or_default().to_vec();
         Self {
             authority: find(":authority"),
             method: find(":method"),
             path: find(":path"),
-            declared: content_length(sent),
+            declared: find_value(sent, "content-length").and_then(read_length),
         }
     }
 
@@ -306,26 +310,6 @@ impl HeldCall {
             body,
         });
     }
-}
-
-// Envoy sends a value in `raw_value`, or in `value` when not asked for raw headers.
-pub(crate) fn value_of(header: &HeaderValue) -> &[u8] {
-    match header.raw_value.as_slice() {
-        [] => header.value.as_bytes(),
-        raw => raw,
-    }
-}
-
-// `Content-Length` as sent; a chunked body declares none.
-fn content_length<'a>(headers: impl IntoIterator<Item = &'a HeaderValue>) -> Option<u64> {
-    headers
-        .into_iter()
-        .find(|header| header.key.eq_ignore_ascii_case("content-length"))
-        .and_then(|header| read_length(value_of(header)))
-}
-
-fn read_length(value: &[u8]) -> Option<u64> {
-    std::str::from_utf8(value).ok()?.trim().parse().ok()
 }
 
 /// Lets a phase go on unchanged, with the empty response of its kind.

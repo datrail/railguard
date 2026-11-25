@@ -23,7 +23,8 @@ use rail_runtime::{Answer, Call, Gateway, read_path, withheld_headers};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::services::{ProcessStream, continue_unchanged, value_of};
+use crate::headers::value_of;
+use crate::services::{ProcessStream, continue_unchanged};
 use crate::xrail::{raw_value_option, value_option};
 use tokio_stream::StreamExt;
 use tonic::{Status, Streaming};

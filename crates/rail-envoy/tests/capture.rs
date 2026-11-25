@@ -14,7 +14,7 @@ use envoy_types::pb::envoy::service::auth::v3::authorization_client::Authorizati
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_client::ExternalProcessorClient;
 use envoy_types::pb::envoy::service::ext_proc::v3::processing_request::Request as Phase;
 use envoy_types::pb::envoy::service::ext_proc::v3::{
-    HttpBody, HttpHeaders, ProcessingRequest, ProtocolConfiguration,
+    HttpBody, HttpHeaders, HttpTrailers, ProcessingRequest, ProtocolConfiguration,
 };
 use rail_envoy::{Callouts, ProxyConfig};
 use rail_runtime::{Proxy, start_proxy};
@@ -278,8 +278,9 @@ async fn ext_proc_calls_are_kept_from_their_buffered_body() {
     // Ended before its body, handed over when the server drops its stream: first, so well before
     // capture stops.
     process(&channel, buffered, vec![sized()]).await;
+    // Partial, chunked, its message ending the stream: whole.
     let ended = body(&whole, true);
-    process(&channel, partial, vec![sized(), ended]).await;
+    process(&channel, partial, vec![headers(None, false), ended]).await;
     // Buffered, the one message is the whole body, though it doesn't end the stream, as when
     // trailers follow.
     let trailed = body(&whole, false);
@@ -287,8 +288,10 @@ async fn ext_proc_calls_are_kept_from_their_buffered_body() {
     // Partial, not ending the stream, as when trailers follow, but whole by its `Content-Length`.
     let declared_whole = body(&whole, false);
     process(&channel, partial, vec![sized(), declared_whole]).await;
-    // An empty body, ending the stream at its headers: counted, its body read.
+    // An empty body, ending the stream at its headers, or at its trailers: counted, its body read.
     process(&channel, partial, vec![headers(Some(0), true)]).await;
+    let trailers = Phase::RequestTrailers(HttpTrailers::default());
+    process(&channel, buffered, vec![headers(None, false), trailers]).await;
     // Partial, chunked, not ending the stream: cut short at the cap, and past it.
     let chunked = body(&[b' '; 2 * MIB], false);
     process(&channel, partial, vec![headers(None, false), chunked]).await;
@@ -318,7 +321,7 @@ async fn ext_proc_calls_are_kept_from_their_buffered_body() {
         .iter()
         .map(|record| record["measures"]["call_count"].as_u64().unwrap())
         .sum();
-    assert_eq!(calls, 9, "{document}");
+    assert_eq!(calls, 10, "{document}");
     let unread = &document["truncated"]["body_unread"];
     assert_eq!(
         (

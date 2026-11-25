@@ -155,7 +155,8 @@ impl CaptureSender {
     }
 
     /// Hands `request` over, its body read whole if it was sent whole within the cap and the
-    /// budget, else unread: not sent, cut short, of its declared length or as told, or past either.
+    /// budget, else unread: not sent, cut short (of its declared length, or as the callout tells),
+    /// or past either.
     pub fn send_request(&self, request: SentRequest<'_>) {
         let max_body_bytes = self.max_body_bytes as u64;
         let (body, body_bytes) = match request.body {

@@ -80,14 +80,14 @@ The body read is the one Envoy sends, up to `RAIL_MAX_BODY_MB` (1 MiB by default
 with `pack_as_bytes: true`, so a body that isn't UTF-8 arrives unchanged), or ext_proc's `BUFFERED` or
 `BUFFERED_PARTIAL` body message. A body not sent, cut short, past the cap, or past the 256 MiB every body kept shares
 isn't read: the call is still counted, under the catch-all where an entry would have read its body, and the document
-counts it in `truncated.body_unread`. ext_proc's `NONE` sends no body, and its streamed modes' bodies aren't kept yet. A
-body is cut short:
+counts it in `truncated.body_unread`. ext_proc's `NONE`, or no mode named, sends no body, and its streamed modes' bodies
+aren't kept yet. A body is cut short:
 
 - with ext_authz, of its `Content-Length`. Envoy's `x-envoy-auth-partial-body` isn't read, since it stays `false` when
   Envoy stops at `max_request_bytes`; a chunked body cut there is told only by passing the cap, so set
   `max_request_bytes` above `RAIL_MAX_BODY_MB`;
-- with ext_proc's `BUFFERED_PARTIAL`, of its `Content-Length`, or, chunked, when its message doesn't end the request, as
-  one followed by trailers doesn't either;
+- with ext_proc, of its `Content-Length`, or, in `BUFFERED_PARTIAL` and chunked, when its message doesn't end the
+  request, as one followed by trailers doesn't either;
 - with ext_proc, when its stream ends before its body is sent.
 
 ## Run it beside Envoy
@@ -112,8 +112,9 @@ Envoy's configuration is the customer's, so we can only recommend it. rail-envoy
   Envoy refuses a body past `max_request_bytes` with 413), and `max_request_bytes` above `RAIL_MAX_BODY_MB` and no more
   than Envoy's buffer limit (the listener's `per_connection_buffer_limit_bytes`, or a route's
   `request_body_buffer_limit`, whichever is larger), past which Envoy answers 413 too; with ext_proc, a
-  `request_body_mode` of `BUFFERED_PARTIAL`, or `BUFFERED`, past whose buffer limit Envoy answers 413. Without a body,
-  every call is counted with its body not sent.
+  `request_body_mode` of `BUFFERED_PARTIAL`, or `BUFFERED`, past whose buffer limit Envoy answers 413, and
+  `request_trailer_mode: SEND`, or a request with trailers and no body is counted as cut short. Without a body, every
+  call is counted with its body not sent.
 
 [`e2e/envoy-proxy/envoy-ext-authz.yaml`](../../e2e/envoy-proxy/envoy-ext-authz.yaml) and
 [`envoy-ext-proc.yaml`](../../e2e/envoy-proxy/envoy-ext-proc.yaml) are working examples; they fail open.
