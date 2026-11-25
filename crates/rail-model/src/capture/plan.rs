@@ -324,12 +324,7 @@ impl TryFrom<Fields> for ContextKey {
     fn try_from(fields: Fields) -> Result<Self, String> {
         let name = read_name(fields.name, "context key")?;
         let at = format!("context key {name}");
-        let built_in = ["method", "host", "operation", "path_prefix"].contains(&name.as_str());
-        // A built-in's value has a sanitizing of its own: a function given would be passed over.
-        if built_in && fields.function.is_some() {
-            return Err(format!("{at}: a built-in key takes no function"));
-        }
-        Ok(match name.as_str() {
+        let built_in = match name.as_str() {
             "method" => Self::Method,
             "host" => Self::Host,
             "operation" => Self::Operation,
@@ -354,14 +349,19 @@ impl TryFrom<Fields> for ContextKey {
                         .ok_or_else(|| format!("{at}: its function isn't none or sha256"))?,
                     None => KeyFunction::None,
                 };
-                Self::Named {
+                return Ok(Self::Named {
                     path: read_record_path(&path).map_err(|why| format!("{at}: {why}"))?,
                     name,
                     field_type,
                     function,
-                }
+                });
             }
-        })
+        };
+        // A built-in is sanitized its own way: a function given would be passed over.
+        if fields.function.is_some() {
+            return Err(format!("{at}: a built-in one takes no function"));
+        }
+        Ok(built_in)
     }
 }
 
