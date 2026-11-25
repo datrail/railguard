@@ -1,20 +1,17 @@
-//! The proxy's capture, served by the binary against a stub Rail Center serving a capture plan,
-//! called as Envoy calls it.
+//! The proxy's capture, started as the binary starts it against a stub Rail Center serving a
+//! capture plan, its ext_authz called as Envoy calls it.
 
 use std::collections::HashMap;
-use std::path::Path;
-use std::time::Duration;
+use std::sync::Arc;
 
-use envoy_types::ext_authz::v3::pb::CheckRequest;
+use envoy_types::ext_authz::v3::pb::{Authorization, CheckRequest};
 use envoy_types::pb::envoy::config::core::v3::{HeaderMap, HeaderValue};
 use envoy_types::pb::envoy::service::auth::v3::AttributeContext;
 use envoy_types::pb::envoy::service::auth::v3::attribute_context::{HttpRequest, Request};
-use envoy_types::pb::envoy::service::auth::v3::authorization_client::AuthorizationClient;
-use rail_test_support::{RailCenter, Server};
+use rail_envoy::{Callouts, ProxyConfig};
+use rail_runtime::{Proxy, start_proxy};
+use rail_test_support::{RailCenter, protect};
 use serde_json::Value;
-use tonic::transport::Endpoint;
-
-use crate::common::{TempSocket, rail_envoy};
 
 const PLANS: &str = include_str!("../../../vectors/parse_plan_conformance_cases.json");
 
@@ -38,19 +35,20 @@ fn mcp_call(repo: &str, content: &str) -> Vec<u8> {
     .into_bytes()
 }
 
-// The proxy for the worked example's agent, against `rail_center`, once it's serving.
-fn capturing(socket: &Path, rail_center: &RailCenter) -> Server {
-    let mut command = rail_envoy(socket);
-    command.envs([
-        ("RAIL_DISABLED", "false"),
-        ("RAIL_CENTER_URL", rail_center.url().as_str()),
+// The proxy for the worked example's agent, against `rail_center`, as its settings start it.
+fn start(rail_center: &RailCenter) -> Proxy {
+    let url = rail_center.url();
+    let pairs = [
+        ("RAIL_EXT_SOCKET", "/run/rail/ext.sock"),
+        ("RAIL_CENTER_URL", url.as_str()),
         ("RAIL_CENTER_ALLOW_HTTP", "true"),
         ("RAIL_HOST_ID", "host-7f3c"),
         ("RAIL_SANDBOX_NAME", "agent-finretail"),
         ("RAIL_PROXY_PROTECTED_HOSTS", "mcp.example.com"),
         ("RAIL_MAX_BODY_MB", "2"),
-    ]);
-    crate::common::serve(command, socket)
+    ];
+    let (config, _) = rail_test_support::read(&pairs, ProxyConfig::read).unwrap();
+    start_proxy(config.rail_center.unwrap(), config.max_body_bytes).unwrap()
 }
 
 // A POST of `sent` to GitHub's `/mcp`, as Envoy sends it with `pack_as_bytes`, declaring
@@ -71,7 +69,7 @@ fn post(sent: &[u8], declared: Option<usize>) -> HttpRequest {
     }
 }
 
-async fn check(socket: &Path, http: HttpRequest) {
+async fn check(callouts: &Callouts, http: HttpRequest) {
     let request = CheckRequest {
         attributes: Some(AttributeContext {
             request: Some(Request {
@@ -81,52 +79,44 @@ async fn check(socket: &Path, http: HttpRequest) {
             ..Default::default()
         }),
     };
-    let channel = Endpoint::from_shared(format!("unix:{}", socket.display()))
-        .unwrap()
-        .connect()
-        .await
-        .unwrap();
-    AuthorizationClient::new(channel)
-        .check(request)
-        .await
-        .unwrap();
+    callouts.check(tonic::Request::new(request)).await.unwrap();
 }
 
 const MIB: usize = 1024 * 1024;
 
 #[tokio::test(flavor = "multi_thread")]
-async fn ext_authz_calls_are_counted_and_their_window_sent_at_shutdown() {
+async fn ext_authz_calls_are_counted_and_their_window_sent_when_stopped() {
     let rail_center = RailCenter::start_with_plan(worked_example()).await;
-    let socket = TempSocket::new("capture");
-    let mut server = tokio::task::block_in_place(|| capturing(&socket.path, &rail_center));
-    tokio::task::block_in_place(|| {
-        rail_test_support::wait_until(|| {
-            let seen = rail_center.seen.lock().unwrap();
-            seen.iter()
-                .any(|line| line.starts_with("GET /v1/capture-plan"))
-        });
-    });
-    // The plan answered is applied on the holder's next step.
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    let Proxy {
+        tickets,
+        capture,
+        stop,
+    } = start(&rail_center);
+    // A call is handed over only once the plan is held.
+    tokio::task::block_in_place(|| rail_test_support::wait_until(|| capture.is_capturing()));
+    let callouts = Callouts {
+        tickets: Some(tickets),
+        protected_hosts: Arc::new(protect("mcp.example.com")),
+        capture: Some(capture),
+    };
     let whole = mcp_call("docs", "x");
-    // Within the 2 MiB cap; past gRPC's own 4 MiB default.
     let within = mcp_call("uploads", &"w".repeat(3 * MIB / 2));
     let large = mcp_call("uploads", &"r".repeat(5 * MIB));
     let at_cap = vec![b' '; 2 * MIB];
 
-    check(&socket.path, post(&whole, Some(whole.len()))).await;
+    check(&callouts, post(&whole, Some(whole.len()))).await;
     // Sent as text, without `pack_as_bytes`.
     let as_text = HttpRequest {
         raw_body: Vec::new(),
         body: String::from_utf8(whole.clone()).unwrap(),
         ..post(&whole, Some(whole.len()))
     };
-    check(&socket.path, as_text).await;
-    check(&socket.path, post(&within, Some(within.len()))).await;
+    check(&callouts, as_text).await;
+    check(&callouts, post(&within, Some(within.len()))).await;
     // Not sent: declared, or a POST of a size Envoy doesn't know.
-    check(&socket.path, post(b"", Some(whole.len()))).await;
+    check(&callouts, post(b"", Some(whole.len()))).await;
     check(
-        &socket.path,
+        &callouts,
         HttpRequest {
             size: -1,
             ..post(b"", None)
@@ -134,7 +124,7 @@ async fn ext_authz_calls_are_counted_and_their_window_sent_at_shutdown() {
     )
     .await;
     // Cut short of a `Content-Length` sent as a header, or raw in `header_map`.
-    check(&socket.path, post(&whole[..10], Some(whole.len()))).await;
+    check(&callouts, post(&whole[..10], Some(whole.len()))).await;
     let raw_length = HeaderMap {
         headers: vec![HeaderValue {
             key: "content-length".to_owned(),
@@ -146,14 +136,16 @@ async fn ext_authz_calls_are_counted_and_their_window_sent_at_shutdown() {
         header_map: Some(raw_length),
         ..post(&whole[..10], None)
     };
-    check(&socket.path, in_header_map).await;
+    check(&callouts, in_header_map).await;
     // Past the cap: sent whole, cut short, and cut at the cap of a longer body.
-    check(&socket.path, post(&large, None)).await;
-    check(&socket.path, post(&large, Some(large.len() + 1))).await;
-    check(&socket.path, post(&at_cap, Some(at_cap.len() + 1))).await;
-    server.terminate();
+    check(&callouts, post(&large, None)).await;
+    check(&callouts, post(&large, Some(large.len() + 1))).await;
+    check(&callouts, post(&at_cap, Some(at_cap.len() + 1))).await;
+    // As the binary stops it, once its server has drained.
+    tokio::task::spawn_blocking(move || stop.stop())
+        .await
+        .unwrap();
 
-    assert_eq!(server.wait_for_exit(Duration::from_secs(5)), Some(Some(0)));
     let posted = rail_center.posted.lock().unwrap();
     let documents: Vec<Value> = posted
         .iter()

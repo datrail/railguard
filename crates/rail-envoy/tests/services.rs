@@ -5,6 +5,7 @@ use envoy_types::ext_authz::v3::pb::{Authorization, CheckRequest, HttpResponse};
 use envoy_types::pb::envoy::config::core::v3::{HeaderMap, HeaderValue, HeaderValueOption};
 use envoy_types::pb::envoy::service::auth::v3::AttributeContext;
 use envoy_types::pb::envoy::service::auth::v3::attribute_context::{HttpRequest, Request};
+use envoy_types::pb::envoy::service::auth::v3::authorization_client::AuthorizationClient;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_client::ExternalProcessorClient;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
 use envoy_types::pb::envoy::service::ext_proc::v3::processing_request::Request as Phase;
@@ -267,4 +268,38 @@ async fn ext_proc_reads_a_body_past_grpcs_own_4_mib_default() {
         reply.response,
         Some(Response::RequestBody(BodyResponse::default()))
     );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn ext_authz_reads_a_request_past_grpcs_own_4_mib_default() {
+    let socket = TempSocket::new("large-check");
+    let _server = tokio::task::block_in_place(|| start_serving(&socket.path));
+    let channel = Endpoint::from_shared(format!("unix:{}", socket.path.display()))
+        .unwrap()
+        .connect()
+        .await
+        .unwrap();
+    let request = CheckRequest {
+        attributes: Some(AttributeContext {
+            request: Some(Request {
+                http: Some(HttpRequest {
+                    raw_body: vec![b' '; 5 * 1024 * 1024],
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+    };
+
+    let response = AuthorizationClient::new(channel)
+        .check(request)
+        .await
+        .unwrap()
+        .into_inner();
+
+    assert!(matches!(
+        response.http_response,
+        Some(HttpResponse::OkResponse(_))
+    ));
 }
