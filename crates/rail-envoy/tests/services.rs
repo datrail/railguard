@@ -270,6 +270,7 @@ async fn ext_proc_reads_a_body_past_grpcs_own_4_mib_default() {
     );
 }
 
+// As served by the binary, whose limit is `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`, 16 by default.
 #[tokio::test(flavor = "multi_thread")]
 async fn ext_authz_reads_a_request_past_grpcs_own_4_mib_default() {
     let socket = TempSocket::new("large-check");
