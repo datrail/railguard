@@ -5,7 +5,8 @@ use std::time::Duration;
 use tokio::runtime::{Builder, Handle};
 use tokio::sync::oneshot;
 
-// A fetch still resolving a name when the process stops isn't waited for any longer.
+// A task still running when the thread stops, such as a fetch resolving a name, isn't waited for
+// any longer.
 const SHUTDOWN_GRACE: Duration = Duration::from_secs(1);
 
 /// A runtime on a thread of its own.
