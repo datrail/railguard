@@ -27,6 +27,24 @@ mod _native {
     #[pymodule_export]
     const DEFAULT_STEP_LIMIT: u64 = rail_model::condition::DEFAULT_STEP_LIMIT;
 
+    /// Every case of `file`, a path under `vectors`, run: each its id, its `expect` and what was
+    /// found, the last two as JSON.
+    #[pyfunction]
+    fn run_vectors(vectors: &str, file: &str) -> PyResult<Vec<(String, String, String)>> {
+        let outcomes = rail_model::conformance::run_vectors(std::path::Path::new(vectors), file)
+            .map_err(PyValueError::new_err)?;
+        Ok(outcomes
+            .into_iter()
+            .map(|outcome| {
+                (
+                    outcome.id,
+                    outcome.expect.to_string(),
+                    outcome.got.to_string(),
+                )
+            })
+            .collect())
+    }
+
     /// Why the bundle can't be used, or `None` when it can.
     #[pyfunction]
     fn validate_bundle(json: &str) -> Option<String> {

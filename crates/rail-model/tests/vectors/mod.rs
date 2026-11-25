@@ -1,10 +1,40 @@
 //! Every conformance vector, run by its layer; `-- vectors::` runs them alone.
 
+use std::collections::HashSet;
 use std::path::Path;
 
 use rail_model::conformance::run_vectors;
 
 const VECTORS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../vectors");
+
+// Every file the runner reads.
+const FILES: [&str; 10] = [
+    "request_line.json",
+    "mcp.json",
+    "condition/path.json",
+    "condition/condition.json",
+    "condition/op.json",
+    "capture/entry.json",
+    "capture/record.json",
+    "capture/matching.json",
+    "capture/window.json",
+    "capture/windowing.json",
+];
+
+// So a doc or a proposal can name a case by its id alone.
+#[test]
+fn test_ids_are_unique_across_files() {
+    let mut seen = HashSet::new();
+    for file in FILES {
+        for outcome in run_vectors(Path::new(VECTORS), file).unwrap() {
+            assert!(
+                seen.insert(outcome.id.clone()),
+                "{file}: {} repeated",
+                outcome.id
+            );
+        }
+    }
+}
 
 fn check_vectors(file: &str) {
     let outcomes = run_vectors(Path::new(VECTORS), file).unwrap();
