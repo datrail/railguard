@@ -226,15 +226,12 @@ impl StreamCapture {
             return;
         }
         let call = HeldCall::read(headers);
-        let declared = call.declared;
         if headers.end_of_stream {
-            call.send(
-                &self.sender,
-                SentBody::Sent {
-                    bytes: &[],
-                    declared,
-                },
-            );
+            let empty = SentBody::Sent {
+                bytes: &[],
+                declared: call.declared,
+            };
+            call.send(&self.sender, empty);
         } else if matches!(
             self.mode,
             BodySendMode::Buffered | BodySendMode::BufferedPartial
@@ -242,7 +239,10 @@ impl StreamCapture {
             self.held = Some(call);
         } else {
             // `NONE` sends no body; the streamed modes' aren't kept yet.
-            call.send(&self.sender, SentBody::NotSent { declared });
+            let unsent = SentBody::NotSent {
+                declared: call.declared,
+            };
+            call.send(&self.sender, unsent);
         }
     }
 
@@ -273,14 +273,11 @@ impl StreamCapture {
 impl Drop for StreamCapture {
     fn drop(&mut self) {
         if let Some(call) = self.held.take() {
-            let declared = call.declared;
-            call.send(
-                &self.sender,
-                SentBody::CutShort {
-                    sent_bytes: 0,
-                    declared,
-                },
-            );
+            let ended = SentBody::CutShort {
+                sent_bytes: 0,
+                declared: call.declared,
+            };
+            call.send(&self.sender, ended);
         }
     }
 }
