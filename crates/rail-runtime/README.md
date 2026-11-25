@@ -28,9 +28,9 @@ behave the same. See the [main README](../../README.md) for the system around it
   headers, and `send` never waits, a call the full queue of 4 096 turns away counted as dropped. `send_request` reads a
   request's body as a callout was sent it: whole within its cap and the 256 MiB every body kept shares, else unread, as
   not sent, cut short (of its declared length, or as the callout tells), or past either. Stopping it counts the calls
-  already handed over, closes the open window and sends the windows waiting, for up to 2 s. Dropping it does the same,
-  unawaited. `start_proxy` starts them all, with the ticket, as `start_gateway` starts the gateway's: `ProxyStop` stops
-  capture, then its threads.
+  already handed over (at most 4 096 waiting, untimed), closes the open window and sends the windows waiting, waiting up
+  to 2 s for them. Dropping it does the same, unawaited. `start_proxy` starts them all, with the ticket, as
+  `start_gateway` starts the gateway's: `ProxyStop` stops capture, then its threads.
 - **The log:** `logging` writes both hosts' log to stderr as JSON lines, Cloud Logging's on Cloud Run, or as text under
   `RAIL_LOG_FORMAT=text`, each field quoted or a JSON string, with what hides escaped, so a call's text can't forge a
   line.
