@@ -15,7 +15,9 @@ for CPython 3.12 or later.
   `use_case="capture_plan"`, a capture plan entry's match, and whether every reader refuses it or only Rail Center;
 - **`compile_bundle`** and **`judge_sample`** judge a sample call against a bundle and trace the policies evaluated; a
   refusal names its cause: `unknown_op`, `invalid`, `not_for_use` (a path a policy doesn't read) or `budget_exceeded`;
-- **`read_ticket`** reads an `x-rail` value into the claims `judge_sample` takes.
+- **`read_ticket`** reads an `x-rail` value into the claims `judge_sample` takes;
+- **`datrail_model.conformance.run_vectors`** runs a file of the [conformance vectors](../../vectors/README.md), given
+  its text and the texts of the files it names inputs from, as the Rust tests do.
 
 Each result but the compiled bundle is a frozen dataclass with a tag field (`kind`, `decision`, `verdict`), and fields
 that don't apply are `None`.

@@ -1,4 +1,4 @@
-.PHONY: build test test-py fmt fmt-py fmt-md lint lint-py lint-md check coverage proto notices e2e-envoy-proxy-images e2e-envoy-proxy e2e-envoy-gateway-images e2e-envoy-gateway e2e-apigee-images e2e-apigee e2e-down
+.PHONY: build test test-py fmt fmt-py fmt-md lint lint-py lint-md check coverage coverage-vectors proto notices e2e-envoy-proxy-images e2e-envoy-proxy e2e-envoy-gateway-images e2e-envoy-gateway e2e-apigee-images e2e-apigee e2e-down
 
 build:
 	cargo build --locked
@@ -45,6 +45,11 @@ check: lint lint-py test test-py
 coverage:
 	cargo llvm-cov --html
 	cargo llvm-cov report
+	@echo "Report: target/llvm-cov/html/index.html"
+
+# What rail-model's vectors alone cover.
+coverage-vectors:
+	cargo llvm-cov -p rail-model --test rail-model --html -- vectors::
 	@echo "Report: target/llvm-cov/html/index.html"
 
 # Regenerates apigee-callout-proto's committed code, after its .proto changes.

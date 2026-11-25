@@ -3294,6 +3294,996 @@
       }
     },
     {
+      "id": "key-shape-sk-dash-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "sk_dash"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 764
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-sk-dash-short-kept",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "sk_dash_short"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "sk-abc1234"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 764
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-stripe-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "stripe"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 764
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-stripe-underscore-kept",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "stripe_underscore"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "sk_live_aaaaaaaaaaaaaaaaaaa_"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 764
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-github-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "github"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 764
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-github-short-kept",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "github_short"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "ghp_A1A1A1A1A1A"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 764
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-github-pat-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "github_pat"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 764
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-github-pat-dash-kept",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "github_pat_dash"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "github_pat_a-a-a-a-a-a-a-a-a-a-"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 764
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-gitlab-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "gitlab"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 764
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-slack-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "slack"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 764
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-slack-underscore-kept",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "slack_underscore"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "xoxb-123_abc_de"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 764
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-slack-app-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "slack_app"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 764
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-npm-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "npm"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 764
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-shopify-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "shopify"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 764
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-shopify-upper-hex-kept",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "shopify_upper_hex"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "shpat_0A0A0A0A0A0A0A0A0A0A"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 764
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-hugging-face-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "hugging_face"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 764
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-digital-ocean-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "digital_ocean"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 764
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-digital-ocean-short-kept",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "digital_ocean_short"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "dop_v1_fffffffffffffffffffffffffffffff"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 764
+          }
+        }
+      }
+    },
+    {
       "id": "built-in-keys-of-the-sample",
       "environment": "capture-sample",
       "record_of": "catch_all",
