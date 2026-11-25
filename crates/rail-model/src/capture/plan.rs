@@ -110,7 +110,7 @@ pub enum Measure {
     Named {
         name: String,
         combine: Combine,
-        function: Function,
+        function: MeasureFunction,
         paths: Vec<Path>,
     },
 }
@@ -125,7 +125,7 @@ pub enum Combine {
 /// What a call adds to a measure, from the values its paths find.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Function {
+pub enum MeasureFunction {
     /// The bytes the values take, as the call sends them.
     #[serde(rename = "size")]
     SizeInBytes,
@@ -368,7 +368,7 @@ impl TryFrom<Fields> for Measure {
         }
         let unlisted = |field: &str| format!("{at}: its {field} is none the reference lists");
         let combine = Combine::deserialize(combine).map_err(|_| unlisted("type"))?;
-        let function = Function::deserialize(function).map_err(|_| unlisted("function"))?;
+        let function = MeasureFunction::deserialize(function).map_err(|_| unlisted("function"))?;
         let paths = match paths {
             Value::Array(paths) if !paths.is_empty() => paths,
             _ => return Err(format!("{at}: its paths aren't a list of one or more")),

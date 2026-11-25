@@ -2,7 +2,7 @@
 //! counting it, an entry's or the catch-all's, reads of it.
 
 use super::compile::{CompiledEntry, CompiledPlan, EntryRefusal};
-use super::plan::{CatchAll, ContextKey, Entry, Function, Measure, Record};
+use super::plan::{CatchAll, ContextKey, Entry, Measure, MeasureFunction, Record};
 use crate::body::BodyRead;
 use crate::condition::{
     BodyPath, BodyUnread, Budget, Environment, Items, Lookup, Path, Refusal, RequestPath, Verdict,
@@ -262,7 +262,7 @@ fn read_record(
             Measure::ErrorCount => MeasureReading::ErrorCount,
             Measure::RequestBytes => MeasureReading::RequestBytes(body_bytes),
             Measure::Named {
-                function: Function::SizeInBytes,
+                function: MeasureFunction::SizeInBytes,
                 paths,
                 ..
             } => MeasureReading::SizeInBytes(
