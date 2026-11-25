@@ -1,8 +1,6 @@
-//! One shape for what Rail Center hands out: a value read lock-free, replaced by one refresh loop;
-//! and the backoff and jitter every retry of a Rail Center call waits by.
+//! One shape for what Rail Center hands out: a value read lock-free, replaced by one refresh loop.
 
 use std::future::{Future, poll_fn};
-use std::hash::{BuildHasher, RandomState};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::pin::pin;
 use std::sync::{Arc, Weak};
@@ -17,21 +15,14 @@ use tokio::task::AbortHandle;
 use tokio::time::{Instant, timeout_at};
 
 use crate::client::Unread;
+use crate::retry::{Backoff, Jitter, round_to_seconds};
 
-// Not settings: a lower floor would let a fleet hammer Rail Center.
+// The lowest interval accepted and the shortest wait, not settings: a lower one would let a fleet
+// hammer Rail Center.
 const MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(5);
-
-// Six doublings of the 5 s floor; a holder's refresh interval caps it too.
-const MAX_BACKOFF: Duration = Duration::from_secs(320);
 
 // A day: a ticket lives no longer, and a bundle polled less often is surely a mistake.
 const MAX_REFRESH_INTERVAL: Duration = Duration::from_secs(86_400);
-
-// 5 s doubled 15 times is far past the 320 s cap, and the power can't overflow.
-const MAX_DOUBLINGS: u32 = 15;
-
-const MIN_JITTER: f64 = 0.8;
-const MAX_JITTER: f64 = 1.2;
 
 /// One kind of value: how it's fetched, and what an answer makes of what's held.
 pub(crate) trait Kind: Send + Sync + 'static {
@@ -104,31 +95,6 @@ pub(crate) fn parse_refresh_interval(text: &str) -> Result<Duration, String> {
             MAX_REFRESH_INTERVAL.as_secs(),
             sanitize(text)
         )),
-    }
-}
-
-/// The factor every wait is scaled by, from 0.8 to 1.2, so a fleet doesn't call Rail Center in
-/// lockstep.
-#[derive(Clone)]
-pub struct Jitter(Arc<dyn Fn() -> f64 + Send + Sync>);
-
-impl Jitter {
-    /// A random factor each time, from `std`'s per-process random keys.
-    pub fn random() -> Self {
-        Self::new(|| {
-            // The top 53 bits, a uniform fraction in [0, 1).
-            let fraction = (RandomState::new().hash_one(()) >> 11) as f64 / (1_u64 << 53) as f64;
-            MIN_JITTER + (MAX_JITTER - MIN_JITTER) * fraction
-        })
-    }
-
-    /// The factor `factor` returns.
-    pub fn new(factor: impl Fn() -> f64 + Send + Sync + 'static) -> Self {
-        Self(Arc::new(factor))
-    }
-
-    pub(crate) fn factor(&self) -> f64 {
-        (self.0)()
     }
 }
 
@@ -238,8 +204,7 @@ async fn run<K: Kind>(
     jitter: Jitter,
 ) {
     let mut progress = publish.subscribe();
-    // Attempts in a row that back off: failures, and the refusals `refusal_backs_off` says do.
-    let mut failures: u32 = 0;
+    let mut backoff = Backoff::new(jitter);
     let mut after_failure = false;
     loop {
         publish.send_replace(Progress::InFlight);
@@ -263,30 +228,26 @@ async fn run<K: Kind>(
             }
         };
         let current = held.load();
-        failures = match attempted {
-            Attempt::Failed => failures + 1,
-            Attempt::Refused if kind.refusal_backs_off(&current) => failures + 1,
-            Attempt::Succeeded | Attempt::Refused => 0,
+        let backs_off = match attempted {
+            Attempt::Failed => true,
+            Attempt::Refused => kind.refusal_backs_off(&current),
+            Attempt::Succeeded => false,
         };
-        let wait = {
-            let wait = next_wait(period, failures, jitter.factor());
-            // A period runs from the start of the attempt, so a slow fetch doesn't shift the cadence.
-            let wait = if failures == 0 {
-                // A fetch may outlast a short period: then the floor below applies.
-                wait.saturating_sub(took)
-            } else {
-                wait
-            };
-            // After the jitter, so a kind's cap is never exceeded.
-            let wait = kind
-                .wait_at_most(&current)
-                .map_or(wait, |at_most| wait.min(at_most))
-                .max(MIN_REFRESH_INTERVAL);
-            if let Some(outcome) = outcome {
-                kind.report(outcome, &current, after_failure, round_to_seconds(wait));
-            }
-            wait
+        let scheduled = if backs_off {
+            backoff.count_failure();
+            backoff.wait_at_most(period)
+        } else {
+            backoff.reset();
+            // A period runs from the start of the attempt, so a slow fetch doesn't shift the
+            // cadence.
+            backoff.jittered(period).saturating_sub(took)
         };
+        // The kind's cap after the jitter, so it's never exceeded; then the floor.
+        let at_most = kind.wait_at_most(&current).unwrap_or(Duration::MAX);
+        let wait = scheduled.min(at_most).max(MIN_REFRESH_INTERVAL);
+        if let Some(outcome) = outcome {
+            kind.report(outcome, &current, after_failure, round_to_seconds(wait));
+        }
         // Not held across the sleep below.
         drop(current);
         after_failure = attempted != Attempt::Succeeded;
@@ -323,24 +284,4 @@ async fn attempt<K: Kind>(kind: &K, held: &ArcSwap<K::Held>) -> Option<Step<K::H
         )
         .await?;
     catch_unwind(AssertUnwindSafe(|| kind.step(&held.load(), answer))).ok()
-}
-
-// The period when nothing backs off, else the backoff; jittered.
-fn next_wait(period: Duration, failures: u32, factor: f64) -> Duration {
-    let wait = match failures {
-        0 => period,
-        _ => backoff(failures).min(period),
-    };
-    wait.mul_f64(factor)
-}
-
-/// The wait after `failures` failures in a row (none counts as one): 5 s doubling to 320 s.
-pub(crate) fn backoff(failures: u32) -> Duration {
-    (MIN_REFRESH_INTERVAL * 2_u32.pow(failures.saturating_sub(1).min(MAX_DOUBLINGS)))
-        .min(MAX_BACKOFF)
-}
-
-/// Whole seconds, rounded: a jittered 5.9 s reads as 6.
-pub(crate) fn round_to_seconds(wait: Duration) -> u64 {
-    wait.as_secs() + u64::from(wait.subsec_millis() >= 500)
 }

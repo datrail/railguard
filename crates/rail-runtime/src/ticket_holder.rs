@@ -12,8 +12,9 @@ use tokio::runtime::Handle;
 use crate::client::{FetchError, Response, Unread, read_ok};
 use crate::clock::WallClock;
 use crate::config::Secret;
-use crate::holder::{Attempt, Holder, Jitter, Kind, Step};
+use crate::holder::{Attempt, Holder, Kind, Step};
 use crate::peek::locate;
+use crate::retry::Jitter;
 use crate::ticket::{OpaqueTicket, TicketSource};
 use crate::xrail::Unavailable;
 
