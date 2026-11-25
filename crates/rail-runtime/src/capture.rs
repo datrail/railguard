@@ -308,7 +308,7 @@ impl Task {
     }
 
     // `Windowing::hold`, a panic in it caught as one in `record` is, so it can't stop capture for
-    // good: the window it was closing is lost, and the next opens when it's next told the time.
+    // good: the window it was closing is lost.
     fn close_window(
         &mut self,
         plan: Option<Arc<CompiledPlan>>,
@@ -361,7 +361,7 @@ impl Task {
         } else {
             self.window_panicked = true;
             tracing::error!(
-                "closing a capture window panicked; its calls are lost, and each other's that does"
+                "closing a capture window panicked; its calls are lost, and each other window's that does"
             );
         }
     }

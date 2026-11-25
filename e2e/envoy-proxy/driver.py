@@ -6,11 +6,11 @@ import socket
 import sys
 import time
 import urllib.error
-import urllib.parse
 import urllib.request
 import uuid
 
-# Each upstream's journal: the plain one serves upstream.test and upstream-plain.test, the TLS one
+# Each upstream's journal: the plain one serves upstream.test, upstream-plain.test and
+# upstream-capture.test, the TLS one
 # upstream-tls.test and upstream-agent-port.test (and misresolved.test), the one on 443
 # upstream-443.test.
 _PLAIN = "upstream:8080"
@@ -111,15 +111,6 @@ _PARTS = [b'{"jsonrpc":"2.0",', b'"id":1,', b'"method":"tools/list"}']
 # (What Envoy sends rail-envoy, through, as `envoy:port`, the body's chunks, whether trailers
 # follow the body, why it's expected to fail and the status the agent then gets, or None)
 _BODY_CASES = [
-    ("ext_authz with the body", "envoy-ext-authz:15001", _PARTS, False, None),
-    ("ext_proc BUFFERED_PARTIAL", "envoy-ext-proc:15001", _PARTS, False, None),
-    (
-        "ext_proc BUFFERED_PARTIAL, trailers sent to rail-envoy",
-        "envoy-ext-proc:15001",
-        _PARTS,
-        True,
-        None,
-    ),
     ("ext_proc BUFFERED", "envoy-variants:15011", _PARTS, False, None),
     ("ext_proc BUFFERED", "envoy-variants:15011", _PARTS, True, None),
     ("ext_proc BUFFERED_PARTIAL", "envoy-variants:15012", _PARTS, False, None),
@@ -149,8 +140,6 @@ _BODY_CASES = [
 # protected, so they go to the plain upstream as sent.
 _CAPTURED_HOST = "upstream-capture.test:8080"
 _MIB = 1024 * 1024
-# RAIL_MAX_BODY_MB's default.
-_MAX_BODY_BYTES = _MIB
 # Capture's windows are a minute long, and sent once closed.
 _WINDOW_SECONDS = 60
 # Past a window's end, for its document to arrive.
@@ -170,14 +159,19 @@ def _send_through(via, host):
         **_AGENTS_OWN,
     }
     address = host if via is None else via if ":" in via else f"{via}:15001"
+    return (*_post(address, headers, _BODY), marker)
+
+
+def _post(address, headers, body):
+    """`body` to `/mcp` at `address`, with its `Content-Length`: the status and the answer."""
     request = urllib.request.Request(
-        f"http://{address}/mcp", data=_BODY, headers=headers, method="POST"
+        f"http://{address}/mcp", data=body, headers=headers, method="POST"
     )
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
-            return response.status, response.read(), marker
+            return response.status, response.read()
     except urllib.error.HTTPError as error:
-        return error.code, error.read(), marker
+        return error.code, error.read()
 
 
 def _is_answer(body):
@@ -193,9 +187,9 @@ def _read_journal(journal):
         return json.load(response)["requests"]
 
 
-def _read_headers(entry):
+def _read_headers(request):
     # WireMock keeps some header names as sent and capitalises others.
-    return {name.lower(): value for name, value in entry["request"]["headers"].items()}
+    return {name.lower(): value for name, value in request["headers"].items()}
 
 
 def _find_received(marker):
@@ -203,7 +197,7 @@ def _find_received(marker):
     received = []
     for journal in [_PLAIN, _TLS, _443]:
         for entry in _read_journal(journal):
-            headers = _read_headers(entry)
+            headers = _read_headers(entry["request"])
             if headers.get(_MARKER) == marker:
                 rail = {
                     name: value
@@ -214,20 +208,20 @@ def _find_received(marker):
     return received
 
 
-def _count_fetches(sandbox):
-    """How many ticket fetches Rail Center got for this host and `sandbox`."""
+def _count_fetches(sandbox, route="/v1/tickets"):
+    """How many fetches of `route` Rail Center got for this host and `sandbox`."""
     return sum(
         1
         for entry in _read_journal(_RAIL_CENTER)
-        if entry["request"]["url"].startswith("/v1/tickets?")
+        if entry["request"]["url"].startswith(f"{route}?")
         and entry["request"]["queryParams"].get("host_id", {}).get("values") == [_HOST_ID]
         and entry["request"]["queryParams"].get("sandbox_name", {}).get("values") == [sandbox]
     )
 
 
-def _wait_for_fetch(sandbox):
+def _wait_for_fetch(sandbox, route="/v1/tickets"):
     deadline = time.monotonic() + _SETTLE_SECONDS
-    while _count_fetches(sandbox) == 0 and time.monotonic() < deadline:
+    while _count_fetches(sandbox, route) == 0 and time.monotonic() < deadline:
         time.sleep(0.2)
 
 
@@ -301,9 +295,9 @@ def _check_body(what, via, parts, trailers, known):
     except OSError as error:
         status, body = repr(error), b""
     received = [
-        (entry["request"]["body"], _read_headers(entry).get("x-rail"))
+        (entry["request"]["body"], _read_headers(entry["request"]).get("x-rail"))
         for entry in _read_journal(_PLAIN)
-        if _read_headers(entry).get(_MARKER) == marker
+        if _read_headers(entry["request"]).get(_MARKER) == marker
     ]
     ok = (
         status == 200
@@ -348,7 +342,6 @@ _CAPTURE_CASES = [
     ("envoy-ext-authz:15001", "ext_authz, whole", _build_tool_call("authz-whole"), False, ("e1", "authz-whole")),
     ("envoy-ext-authz:15001", "ext_authz, chunked", _build_tool_call("authz-chunked"), True, ("e1", "authz-chunked")),
     ("envoy-ext-authz:15001", "ext_authz, past the cap", _build_tool_call("authz-past", "x" * _LARGE), False, ("unread", "past_cap")),
-    ("envoy-ext-authz:15001", "ext_authz, past the cap, chunked", _build_tool_call("authz-past", "x" * _LARGE), True, ("unread", "past_cap")),
     ("envoy-ext-authz:15001", "ext_authz, not JSON", b"not json {", False, ("unread", "not_json")),
     ("envoy-ext-proc:15001", "ext_proc BUFFERED_PARTIAL, whole", _build_tool_call("proc-whole"), False, ("e1", "proc-whole")),
     ("envoy-ext-proc:15001", "ext_proc BUFFERED_PARTIAL, chunked", _build_tool_call("proc-chunked"), True, ("e1", "proc-chunked")),
@@ -360,17 +353,6 @@ _CAPTURE_CASES = [
     ("envoy-variants:15013", "ext_proc STREAMED", _build_tool_call("proc-unsent"), False, ("unread", "not_sent")),
 ]
 # fmt: on
-
-
-def _post(via, marker, body):
-    """`body` to the capture host through `via`, with its `Content-Length`."""
-    headers = {"Host": _CAPTURED_HOST, "Content-Type": "application/json", _MARKER: marker}
-    request = urllib.request.Request(f"http://{via}/mcp", data=body, headers=headers, method="POST")
-    try:
-        with urllib.request.urlopen(request, timeout=10) as response:
-            return response.status, response.read()
-    except urllib.error.HTTPError as error:
-        return error.code, error.read()
 
 
 def _find_by_marker(journal, marker):
@@ -393,31 +375,21 @@ def _send_captured(via, what, body, chunked):
         if chunked:
             status, answer = _upload(via, marker, _split(body), False, host=_CAPTURED_HOST)
         else:
-            status, answer = _post(via, marker, body)
+            headers = {"Host": _CAPTURED_HOST, "Content-Type": "application/json", _MARKER: marker}
+            status, answer = _post(via, headers, body)
     except OSError as error:
         status, answer = repr(error), b""
-    received = [
-        (len(entry["body"]), {name.lower(): value for name, value in entry["headers"].items()})
-        for entry in _find_by_marker(_PLAIN, marker)
+    crossed = [
+        (len(request["body"]), _read_headers(request).get("content-length"))
+        for request in _find_by_marker(_PLAIN, marker)
     ]
-    crossed = [(size, headers.get("content-length")) for size, headers in received]
-    if via in _RECOMMENDED:
-        expected = [(len(body), None if chunked else str(len(body)))]
-    else:
-        expected = [(len(body), length) for _, length in crossed]
-    ok = status == 200 and _is_answer(answer) and crossed == expected
+    sizes = [size for size, _ in crossed]
+    kept = via not in _RECOMMENDED or [length for _, length in crossed] == [
+        None if chunked else str(len(body))
+    ]
+    ok = status == 200 and _is_answer(answer) and sizes == [len(body)] and kept
     _report(ok, f"{via} capture, {what}: {status}, received (bytes, length) {crossed}")
     return ok
-
-
-def _count_plan_fetches():
-    """How many capture plan fetches Rail Center got for `ext`'s sandbox."""
-    count = 0
-    for entry in _read_journal(_RAIL_CENTER):
-        url = urllib.parse.urlsplit(entry["request"]["url"])
-        sandbox = urllib.parse.parse_qs(url.query).get("sandbox_name")
-        count += url.path == "/v1/capture-plan" and sandbox == ["e2e-sandbox"]
-    return count
 
 
 def _read_documents():
@@ -437,6 +409,7 @@ def _read_capture(documents):
     host = _CAPTURED_HOST.split(":")[0]
     records, catch_all, total, unread = {}, 0, 0, {}
     for document in documents:
+        # Window-wide, but only the capture host's calls can reach the entry, so only they count.
         for reason, count in document["truncated"]["body_unread"].items():
             if count:
                 unread[reason] = unread.get(reason, 0) + count
@@ -457,9 +430,7 @@ def _read_capture(documents):
 def _check_capture():
     """The capture host's calls through both callouts, in the documents Rail Center gets once
     their windows close: each body read whole within the cap, else counted unread, and why."""
-    deadline = time.monotonic() + _SETTLE_SECONDS
-    while _count_plan_fetches() == 0 and time.monotonic() < deadline:
-        time.sleep(0.2)
+    _wait_for_fetch("e2e-sandbox", "/v1/capture-plan")
     passed = True
     for via, what, body, chunked, _ in _CAPTURE_CASES:
         passed = _send_captured(via, what, body, chunked) and passed

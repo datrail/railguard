@@ -223,7 +223,7 @@ ticket is held, never to restart it: a ticket that lapses turns it not ready, an
 
 On SIGTERM or Ctrl-C it reports NOT_SERVING and drains for at most 5 s, then cuts the connections still open: Envoy
 keeps them, and an ext_proc stream lasts as long as its request. With Rail Center on, the proxy then counts the calls
-already handed to capture (at most 4 096 waiting, untimed), closes the open window and sends the documents waiting,
+already handed to capture (at most 4096 waiting, untimed), closes the open window and sends the documents waiting,
 waiting at most 2 s for them, and its capture and Rail Center threads have at most 1 s each to stop, so 9 s in all
 beside counting those calls; the gateway's Rail Center thread has 1 s, so 6 s.
 

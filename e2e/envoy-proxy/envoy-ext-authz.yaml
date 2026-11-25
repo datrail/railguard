@@ -76,7 +76,7 @@ static_resources:
                       # crosses, as above.
                       failure_mode_allow: true
                       # The body, for capture: as bytes, so one that isn't UTF-8 arrives
-                      # unchanged; a larger one cut at the buffer limit, never refused.
+                      # unchanged; a larger one cut at `max_request_bytes`, never refused.
                       with_request_body:
                         max_request_bytes: 2097152
                         allow_partial_message: true
