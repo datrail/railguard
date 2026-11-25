@@ -57,7 +57,15 @@ pub(super) struct CallSpec {
 #[derive(Deserialize)]
 #[serde(untagged, deny_unknown_fields)]
 enum BodySpec {
-    Unread { unread: UnreadSpec },
+    Unread {
+        unread: UnreadSpec,
+    },
+    /// `<N bytes>` standing for N bytes of `x`, as the capture design writes a body, padded with
+    /// spaces, which JSON allows after its value, to `bytes`.
+    Shorthand {
+        text: String,
+        bytes: Option<usize>,
+    },
     Sent(Bytes),
 }
 
@@ -71,6 +79,16 @@ enum UnreadSpec {
 }
 
 impl CallSpec {
+    fn keep(&self, bytes: &[u8]) -> BodyRead {
+        let budget = ByteBudget::new(self.byte_budget.unwrap_or(usize::MAX));
+        let mut buffer = BodyBuffer::new(usize::MAX, &budget);
+        buffer.append(bytes);
+        match buffer.finish() {
+            Ok(body) => BodyRead::Whole(Arc::new(body)),
+            Err(why) => BodyRead::Unread(why.into()),
+        }
+    }
+
     pub(super) fn to_call(&self) -> Result<ObservedCall, String> {
         let body = match &self.body {
             BodySpec::Unread { unread } => BodyRead::Unread(match unread {
@@ -79,15 +97,8 @@ impl CallSpec {
                 UnreadSpec::NotSent => Unread::NotSent,
                 UnreadSpec::CutShort => Unread::CutShort,
             }),
-            BodySpec::Sent(bytes) => {
-                let budget = ByteBudget::new(self.byte_budget.unwrap_or(usize::MAX));
-                let mut buffer = BodyBuffer::new(usize::MAX, &budget);
-                buffer.append(&bytes.to_bytes()?);
-                match buffer.finish() {
-                    Ok(body) => BodyRead::Whole(Arc::new(body)),
-                    Err(why) => BodyRead::Unread(why.into()),
-                }
-            }
+            BodySpec::Shorthand { text, bytes } => self.keep(&expand(text, *bytes)?),
+            BodySpec::Sent(bytes) => self.keep(&bytes.to_bytes()?),
         };
         Ok(ObservedCall {
             authority: self.authority.to_bytes()?,
@@ -97,6 +108,31 @@ impl CallSpec {
             body_bytes: self.body_bytes,
         })
     }
+}
+
+fn expand(text: &str, bytes: Option<usize>) -> Result<Vec<u8>, String> {
+    let mut expanded = String::new();
+    let mut rest = text;
+    while let Some(at) = rest.find('<') {
+        let (before, marker) = rest.split_at(at);
+        expanded.push_str(before);
+        let end = marker
+            .find(" bytes>")
+            .ok_or_else(|| format!("a < not starting <N bytes> in {text:?}"))?;
+        let count: usize = marker[1..end]
+            .parse()
+            .map_err(|_| format!("not a count of bytes in {text:?}"))?;
+        expanded.push_str(&"x".repeat(count));
+        rest = &marker[end + " bytes>".len()..];
+    }
+    expanded.push_str(rest);
+    let padding = match bytes {
+        Some(bytes) => bytes
+            .checked_sub(expanded.len())
+            .ok_or_else(|| format!("{text:?} is past its {bytes} bytes"))?,
+        None => 0,
+    };
+    Ok((expanded + &" ".repeat(padding)).into_bytes())
 }
 
 /// An environment's sources, owned, for an `Environment` to borrow.

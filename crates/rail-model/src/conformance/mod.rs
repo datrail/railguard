@@ -21,6 +21,8 @@ mod plans;
 mod record;
 mod request_line;
 mod value;
+mod window;
+mod windowing;
 
 /// One case run: what its `expect` says, and what this reader found.
 #[derive(Debug)]
@@ -41,6 +43,8 @@ pub fn run_vectors(vectors: &Path, file: &str) -> Result<Vec<Outcome>, String> {
         "request_line.json" => request_line::run_cases(&cases),
         "mcp.json" => mcp::run_cases(&cases),
         "capture/matching.json" => matching::run_cases(&cases, &read_plans()?),
+        "capture/windowing.json" => windowing::run_cases(&cases, &read_plans()?),
+        "capture/window.json" => window::run_cases(&cases, &read_plans()?),
         "capture/entry.json" => entry::run_cases(&cases, &read_environments()?),
         "capture/record.json" => record::run_cases(&cases, &read_environments()?),
         "condition/condition.json" => condition::run_cases(&cases),

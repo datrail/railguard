@@ -1,0 +1,641 @@
+{
+  "cases": [
+    {
+      "id": "first-window-from-the-plan-applied-to-the-next-boundary",
+      "note": "The same plan keeps its window; a plan changed past the boundary opens no window for the old plan.",
+      "plans": [
+        "sixty-seconds",
+        "five-minutes"
+      ],
+      "events": [
+        {
+          "hold": {
+            "plan": "sixty-seconds",
+            "at": 20
+          }
+        },
+        {
+          "hold": {
+            "plan": "sixty-seconds",
+            "at": 30
+          }
+        },
+        {
+          "hold": {
+            "plan": "five-minutes",
+            "at": 61
+          }
+        },
+        {
+          "hold": {
+            "plan": null,
+            "at": 70
+          }
+        }
+      ],
+      "expect": [
+        {
+          "closed": null,
+          "open_until": 60
+        },
+        {
+          "closed": null,
+          "open_until": 60
+        },
+        {
+          "closed": {
+            "plan": "sixty-seconds",
+            "start": 20,
+            "end": 60,
+            "calls_at": [],
+            "calls_dropped": 0
+          },
+          "open_until": 300
+        },
+        {
+          "closed": {
+            "plan": "five-minutes",
+            "start": 61,
+            "end": 70,
+            "calls_at": [],
+            "calls_dropped": 0
+          },
+          "open_until": null
+        }
+      ]
+    },
+    {
+      "id": "a-call-past-the-end-closes-the-window-first",
+      "plans": [
+        "sixty-seconds",
+        "five-minutes"
+      ],
+      "events": [
+        {
+          "hold": {
+            "plan": "sixty-seconds",
+            "at": 0
+          }
+        },
+        {
+          "record": {
+            "plan": "sixty-seconds",
+            "at": 60,
+            "call": {
+              "authority": "api.github.com",
+              "method": "GET",
+              "path": "/a",
+              "body": {
+                "unread": "not_sent"
+              },
+              "body_bytes": 0
+            }
+          }
+        },
+        {
+          "hold": {
+            "plan": null,
+            "at": 70
+          }
+        }
+      ],
+      "expect": [
+        {
+          "closed": null,
+          "open_until": 60
+        },
+        {
+          "closed": {
+            "plan": "sixty-seconds",
+            "start": 0,
+            "end": 60,
+            "calls_at": [],
+            "calls_dropped": 0
+          },
+          "outcome": {
+            "counted": {
+              "body_unread": null
+            }
+          },
+          "open_until": 120
+        },
+        {
+          "closed": {
+            "plan": "sixty-seconds",
+            "start": 60,
+            "end": 70,
+            "calls_at": [
+              60
+            ],
+            "calls_dropped": 0
+          },
+          "open_until": null
+        }
+      ]
+    },
+    {
+      "id": "a-clock-stepped-back-reads-as-the-latest-time-written",
+      "note": "Across the plan gone too.",
+      "plans": [
+        "sixty-seconds",
+        "five-minutes"
+      ],
+      "events": [
+        {
+          "hold": {
+            "plan": "sixty-seconds",
+            "at": 0
+          }
+        },
+        {
+          "record": {
+            "plan": "sixty-seconds",
+            "at": 50,
+            "call": {
+              "authority": "api.github.com",
+              "method": "GET",
+              "path": "/a",
+              "body": {
+                "unread": "not_sent"
+              },
+              "body_bytes": 0
+            }
+          }
+        },
+        {
+          "record": {
+            "plan": null,
+            "at": 40,
+            "call": {
+              "authority": "api.github.com",
+              "method": "GET",
+              "path": "/a",
+              "body": {
+                "unread": "not_sent"
+              },
+              "body_bytes": 0
+            }
+          }
+        },
+        {
+          "record": {
+            "plan": "sixty-seconds",
+            "at": 45,
+            "call": {
+              "authority": "api.github.com",
+              "method": "GET",
+              "path": "/a",
+              "body": {
+                "unread": "not_sent"
+              },
+              "body_bytes": 0
+            }
+          }
+        },
+        {
+          "hold": {
+            "plan": null,
+            "at": 55
+          }
+        }
+      ],
+      "expect": [
+        {
+          "closed": null,
+          "open_until": 60
+        },
+        {
+          "closed": null,
+          "outcome": {
+            "counted": {
+              "body_unread": null
+            }
+          },
+          "open_until": 60
+        },
+        {
+          "closed": {
+            "plan": "sixty-seconds",
+            "start": 0,
+            "end": 50,
+            "calls_at": [
+              50
+            ],
+            "calls_dropped": 0
+          },
+          "outcome": "dropped",
+          "open_until": null
+        },
+        {
+          "closed": null,
+          "outcome": {
+            "counted": {
+              "body_unread": null
+            }
+          },
+          "open_until": 60
+        },
+        {
+          "closed": {
+            "plan": "sixty-seconds",
+            "start": 50,
+            "end": 55,
+            "calls_at": [
+              50
+            ],
+            "calls_dropped": 0
+          },
+          "open_until": null
+        }
+      ]
+    },
+    {
+      "id": "a-minute-back-absorbed-further-back-read-as-it-is",
+      "note": "Further back than a minute, the open window closes at its latest time written and the next opens then, overlapping it.",
+      "plans": [
+        "sixty-seconds",
+        "five-minutes"
+      ],
+      "events": [
+        {
+          "hold": {
+            "plan": "sixty-seconds",
+            "at": 100
+          }
+        },
+        {
+          "record": {
+            "plan": "sixty-seconds",
+            "at": 110,
+            "call": {
+              "authority": "api.github.com",
+              "method": "GET",
+              "path": "/a",
+              "body": {
+                "unread": "not_sent"
+              },
+              "body_bytes": 0
+            }
+          }
+        },
+        {
+          "hold": {
+            "plan": "five-minutes",
+            "at": 50
+          }
+        },
+        {
+          "record": {
+            "plan": "five-minutes",
+            "at": 52,
+            "call": {
+              "authority": "api.github.com",
+              "method": "GET",
+              "path": "/a",
+              "body": {
+                "unread": "not_sent"
+              },
+              "body_bytes": 0
+            }
+          }
+        },
+        {
+          "hold": {
+            "plan": "five-minutes",
+            "at": 48
+          }
+        },
+        {
+          "hold": {
+            "plan": null,
+            "at": 55
+          }
+        }
+      ],
+      "expect": [
+        {
+          "closed": null,
+          "open_until": 120
+        },
+        {
+          "closed": null,
+          "outcome": {
+            "counted": {
+              "body_unread": null
+            }
+          },
+          "open_until": 120
+        },
+        {
+          "closed": {
+            "plan": "sixty-seconds",
+            "start": 100,
+            "end": 110,
+            "calls_at": [
+              110
+            ],
+            "calls_dropped": 0
+          },
+          "open_until": 300
+        },
+        {
+          "closed": null,
+          "outcome": {
+            "counted": {
+              "body_unread": null
+            }
+          },
+          "open_until": 300
+        },
+        {
+          "closed": {
+            "plan": "five-minutes",
+            "start": 110,
+            "end": 110,
+            "calls_at": [
+              110
+            ],
+            "calls_dropped": 0
+          },
+          "open_until": 300
+        },
+        {
+          "closed": {
+            "plan": "five-minutes",
+            "start": 48,
+            "end": 55,
+            "calls_at": [],
+            "calls_dropped": 0
+          },
+          "open_until": null
+        }
+      ]
+    },
+    {
+      "id": "further-back-within-the-windows-span",
+      "plans": [
+        "sixty-seconds",
+        "five-minutes"
+      ],
+      "events": [
+        {
+          "hold": {
+            "plan": "five-minutes",
+            "at": 0
+          }
+        },
+        {
+          "record": {
+            "plan": "five-minutes",
+            "at": 200,
+            "call": {
+              "authority": "api.github.com",
+              "method": "GET",
+              "path": "/a",
+              "body": {
+                "unread": "not_sent"
+              },
+              "body_bytes": 0
+            }
+          }
+        },
+        {
+          "record": {
+            "plan": "five-minutes",
+            "at": 100,
+            "call": {
+              "authority": "api.github.com",
+              "method": "GET",
+              "path": "/a",
+              "body": {
+                "unread": "not_sent"
+              },
+              "body_bytes": 0
+            }
+          }
+        },
+        {
+          "hold": {
+            "plan": null,
+            "at": 110
+          }
+        }
+      ],
+      "expect": [
+        {
+          "closed": null,
+          "open_until": 300
+        },
+        {
+          "closed": null,
+          "outcome": {
+            "counted": {
+              "body_unread": null
+            }
+          },
+          "open_until": 300
+        },
+        {
+          "closed": {
+            "plan": "five-minutes",
+            "start": 0,
+            "end": 200,
+            "calls_at": [
+              200
+            ],
+            "calls_dropped": 0
+          },
+          "outcome": {
+            "counted": {
+              "body_unread": null
+            }
+          },
+          "open_until": 300
+        },
+        {
+          "closed": {
+            "plan": "five-minutes",
+            "start": 100,
+            "end": 110,
+            "calls_at": [
+              100
+            ],
+            "calls_dropped": 0
+          },
+          "open_until": null
+        }
+      ]
+    },
+    {
+      "id": "the-plan-gone-closes-the-window-drops-with-none-open-are-no-windows",
+      "plans": [
+        "sixty-seconds",
+        "five-minutes"
+      ],
+      "events": [
+        {
+          "hold": {
+            "plan": "sixty-seconds",
+            "at": 0
+          }
+        },
+        {
+          "count_dropped": 2
+        },
+        {
+          "record": {
+            "plan": null,
+            "at": 30,
+            "call": {
+              "authority": "api.github.com",
+              "method": "GET",
+              "path": "/a",
+              "body": {
+                "unread": "not_sent"
+              },
+              "body_bytes": 0
+            }
+          }
+        },
+        {
+          "count_dropped": 3
+        },
+        {
+          "hold": {
+            "plan": "sixty-seconds",
+            "at": 130
+          }
+        },
+        {
+          "hold": {
+            "plan": null,
+            "at": 140
+          }
+        }
+      ],
+      "expect": [
+        {
+          "closed": null,
+          "open_until": 60
+        },
+        {
+          "open_until": 60
+        },
+        {
+          "closed": {
+            "plan": "sixty-seconds",
+            "start": 0,
+            "end": 30,
+            "calls_at": [],
+            "calls_dropped": 2
+          },
+          "outcome": "dropped",
+          "open_until": null
+        },
+        {
+          "open_until": null
+        },
+        {
+          "closed": null,
+          "open_until": 180
+        },
+        {
+          "closed": {
+            "plan": "sixty-seconds",
+            "start": 130,
+            "end": 140,
+            "calls_at": [],
+            "calls_dropped": 0
+          },
+          "open_until": null
+        }
+      ]
+    },
+    {
+      "id": "no-window-before-a-plan-is-held",
+      "plans": [
+        "sixty-seconds",
+        "five-minutes"
+      ],
+      "events": [
+        {
+          "record": {
+            "plan": null,
+            "at": 10,
+            "call": {
+              "authority": "api.github.com",
+              "method": "GET",
+              "path": "/a",
+              "body": {
+                "unread": "not_sent"
+              },
+              "body_bytes": 0
+            }
+          }
+        },
+        {
+          "hold": {
+            "plan": null,
+            "at": 20
+          }
+        }
+      ],
+      "expect": [
+        {
+          "closed": null,
+          "outcome": "dropped",
+          "open_until": null
+        },
+        {
+          "closed": null,
+          "open_until": null
+        }
+      ]
+    },
+    {
+      "id": "a-body-unread-for-an-entry-that-could-take-the-call-told",
+      "plans": [
+        "sixty-seconds",
+        "five-minutes"
+      ],
+      "events": [
+        {
+          "hold": {
+            "plan": "sixty-seconds",
+            "at": 60
+          }
+        },
+        {
+          "record": {
+            "plan": "sixty-seconds",
+            "at": 70,
+            "call": {
+              "authority": "api.github.com",
+              "method": "POST",
+              "path": "/mcp",
+              "body": {
+                "unread": "past_cap"
+              },
+              "body_bytes": 70000
+            }
+          }
+        }
+      ],
+      "expect": [
+        {
+          "closed": null,
+          "open_until": 120
+        },
+        {
+          "closed": null,
+          "outcome": {
+            "counted": {
+              "body_unread": "past_cap"
+            }
+          },
+          "open_until": 120
+        }
+      ]
+    }
+  ]
+}

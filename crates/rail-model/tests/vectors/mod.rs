@@ -61,3 +61,13 @@ fn test_record() {
 fn test_matching() {
     check_vectors("capture/matching.json");
 }
+
+#[test]
+fn test_window() {
+    check_vectors("capture/window.json");
+}
+
+#[test]
+fn test_windowing() {
+    check_vectors("capture/windowing.json");
+}
