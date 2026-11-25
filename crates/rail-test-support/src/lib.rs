@@ -6,6 +6,7 @@ use std::io::Read;
 use std::net::{Ipv4Addr, SocketAddr, TcpListener as StdTcpListener};
 use std::process::{Child, Command, Output, Stdio};
 use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use rail_runtime::{
@@ -97,17 +98,35 @@ fn poll(mut condition: impl FnMut() -> bool, failure: &str) {
 }
 
 /// The server, killed if the test ends before it exits.
-pub struct Server(Child);
+pub struct Server {
+    child: Child,
+    // Its log so far, read as it's written, so a test can wait on a line.
+    logs: Arc<Mutex<Vec<u8>>>,
+    reader: Option<JoinHandle<()>>,
+}
 
 impl Server {
     /// `command` spawned, its log kept.
     pub fn spawn(mut command: Command) -> Self {
-        let child = command
+        let mut child = command
             .stdout(Stdio::null())
             .stderr(Stdio::piped())
             .spawn()
             .unwrap();
-        Self(child)
+        let mut stderr = child.stderr.take().unwrap();
+        let logs = Arc::new(Mutex::new(Vec::new()));
+        let kept = Arc::clone(&logs);
+        let reader = std::thread::spawn(move || {
+            let mut chunk = [0; 4096];
+            while let Ok(read @ 1..) = stderr.read(&mut chunk) {
+                kept.lock().unwrap().extend_from_slice(&chunk[..read]);
+            }
+        });
+        Self {
+            child,
+            logs,
+            reader: Some(reader),
+        }
     }
 
     /// `command` spawned, once `serving` holds; it must hold within 10 s.
@@ -120,7 +139,7 @@ impl Server {
     /// Sends SIGTERM.
     pub fn terminate(&self) {
         let status = Command::new("kill")
-            .args(["-TERM", &self.0.id().to_string()])
+            .args(["-TERM", &self.child.id().to_string()])
             .status()
             .unwrap();
         assert!(status.success());
@@ -130,7 +149,7 @@ impl Server {
     pub fn wait_for_exit(&mut self, deadline: Duration) -> Option<Option<i32>> {
         let until = Instant::now() + deadline;
         while Instant::now() < until {
-            if let Some(status) = self.0.try_wait().unwrap() {
+            if let Some(status) = self.child.try_wait().unwrap() {
                 return Some(status.code());
             }
             std::thread::sleep(Duration::from_millis(20));
@@ -138,19 +157,27 @@ impl Server {
         None
     }
 
+    /// Once it has logged `text`; it must within 10 s.
+    pub fn wait_for_log(&self, text: &str) {
+        poll(
+            || String::from_utf8_lossy(&self.logs.lock().unwrap()).contains(text),
+            "never logged",
+        );
+    }
+
     /// What it logged, once it has exited.
     pub fn read_logs(&mut self) -> String {
-        let mut logs = String::new();
-        let mut stderr = self.0.stderr.take().unwrap();
-        stderr.read_to_string(&mut logs).unwrap();
-        logs
+        if let Some(reader) = self.reader.take() {
+            reader.join().unwrap();
+        }
+        String::from_utf8_lossy(&self.logs.lock().unwrap()).into_owned()
     }
 }
 
 impl Drop for Server {
     fn drop(&mut self) {
-        let _ = self.0.kill();
-        let _ = self.0.wait();
+        let _ = self.child.kill();
+        let _ = self.child.wait();
     }
 }
 

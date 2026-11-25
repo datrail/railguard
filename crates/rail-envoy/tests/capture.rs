@@ -1,17 +1,22 @@
-//! The proxy's capture, started as the binary starts it against a stub Rail Center serving a
-//! capture plan, its ext_authz called as Envoy calls it.
+//! The proxy's capture, started as the binary starts it, and by the binary, against a stub Rail
+//! Center serving a capture plan, its ext_authz called as Envoy calls it.
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use envoy_types::ext_authz::v3::pb::{Authorization, CheckRequest};
 use envoy_types::pb::envoy::config::core::v3::{HeaderMap, HeaderValue};
 use envoy_types::pb::envoy::service::auth::v3::AttributeContext;
 use envoy_types::pb::envoy::service::auth::v3::attribute_context::{HttpRequest, Request};
+use envoy_types::pb::envoy::service::auth::v3::authorization_client::AuthorizationClient;
 use rail_envoy::{Callouts, ProxyConfig};
 use rail_runtime::{Proxy, start_proxy};
 use rail_test_support::{RailCenter, protect};
 use serde_json::Value;
+use tonic::transport::Endpoint;
+
+use crate::common::{TempSocket, rail_envoy, serve};
 
 const PLANS: &str = include_str!("../../../vectors/parse_plan_conformance_cases.json");
 
@@ -35,18 +40,24 @@ fn mcp_call(repo: &str, content: &str) -> Vec<u8> {
     .into_bytes()
 }
 
-// The proxy for the worked example's agent, against `rail_center`, as its settings start it.
-fn start(rail_center: &RailCenter) -> Proxy {
-    let url = rail_center.url();
-    let pairs = [
-        ("RAIL_EXT_SOCKET", "/run/rail/ext.sock"),
-        ("RAIL_CENTER_URL", url.as_str()),
+// The worked example's agent's settings, against `url`, with a 2 MiB cap.
+fn settings(url: &str) -> [(&str, &str); 7] {
+    [
+        ("RAIL_DISABLED", "false"),
+        ("RAIL_CENTER_URL", url),
         ("RAIL_CENTER_ALLOW_HTTP", "true"),
         ("RAIL_HOST_ID", "host-7f3c"),
         ("RAIL_SANDBOX_NAME", "agent-finretail"),
         ("RAIL_PROXY_PROTECTED_HOSTS", "mcp.example.com"),
         ("RAIL_MAX_BODY_MB", "2"),
-    ];
+    ]
+}
+
+// The proxy for the worked example's agent, against `rail_center`, as its settings start it.
+fn start(rail_center: &RailCenter) -> Proxy {
+    let url = rail_center.url();
+    let mut pairs = settings(&url).to_vec();
+    pairs.push(("RAIL_EXT_SOCKET", "/run/rail/ext.sock"));
     let (config, _) = rail_test_support::read(&pairs, ProxyConfig::read).unwrap();
     start_proxy(config.rail_center.unwrap(), config.max_body_bytes).unwrap()
 }
@@ -145,12 +156,7 @@ async fn ext_authz_calls_are_counted_and_their_window_sent_when_stopped() {
         .await
         .unwrap();
 
-    let posted = rail_center.posted.lock().unwrap();
-    let documents: Vec<Value> = posted
-        .iter()
-        .filter(|(line, _)| line.starts_with("POST /v1/call-records"))
-        .map(|(_, body)| serde_json::from_slice(body).unwrap())
-        .collect();
+    let documents = documents(&rail_center);
     let [document] = documents.as_slice() else {
         panic!("{documents:?}");
     };
@@ -174,5 +180,62 @@ async fn ext_authz_calls_are_counted_and_their_window_sent_when_stopped() {
         ),
         (&Value::from(2), &Value::from(2), &Value::from(2)),
         "{document}"
+    );
+}
+
+// Each call record document Rail Center was sent.
+fn documents(rail_center: &RailCenter) -> Vec<Value> {
+    let posted = rail_center.posted.lock().unwrap();
+    posted
+        .iter()
+        .filter(|(line, _)| line.starts_with("POST /v1/call-records"))
+        .map(|(_, body)| serde_json::from_slice(body).unwrap())
+        .collect()
+}
+
+// The binary's own wiring: its cap, the sender its ext_authz hands calls to, and the window sent
+// at SIGTERM.
+#[tokio::test(flavor = "multi_thread")]
+async fn the_binary_captures_within_its_cap_and_sends_the_window_at_sigterm() {
+    let rail_center = RailCenter::start_with_plan(worked_example()).await;
+    let socket = TempSocket::new("capture");
+    let mut command = rail_envoy(&socket.path);
+    command.envs(settings(&rail_center.url()));
+    let mut server = tokio::task::block_in_place(|| serve(command, &socket.path));
+    tokio::task::block_in_place(|| server.wait_for_log("holding a capture plan"));
+    let within = mcp_call("uploads", &"w".repeat(3 * MIB / 2));
+    let request = CheckRequest {
+        attributes: Some(AttributeContext {
+            request: Some(Request {
+                http: Some(post(&within, Some(within.len()))),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+    };
+    let channel = Endpoint::from_shared(format!("unix:{}", socket.path.display()))
+        .unwrap()
+        .connect()
+        .await
+        .unwrap();
+    AuthorizationClient::new(channel)
+        .check(request)
+        .await
+        .unwrap();
+
+    server.terminate();
+
+    assert_eq!(server.wait_for_exit(Duration::from_secs(5)), Some(Some(0)));
+    let documents = documents(&rail_center);
+    let [document] = documents.as_slice() else {
+        panic!("{documents:?}");
+    };
+    assert_eq!(
+        document["records"][0]["context_keys"]["destination"],
+        "uploads"
+    );
+    assert_eq!(
+        document["records"][0]["measures"]["request_bytes"],
+        within.len()
     );
 }
