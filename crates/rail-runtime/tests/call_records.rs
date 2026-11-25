@@ -78,22 +78,16 @@ async fn a_refused_document_is_dropped_counted_in_the_next_and_leaves_the_backof
 }
 
 #[tokio::test(start_paused = true)]
-async fn past_the_plans_limit_the_oldest_empty_window_goes_first() {
+async fn an_empty_window_is_never_sent_nor_counted_as_dropped() {
     let clock = TestClock::new();
-    let center = Center::accepting(&clock).holding();
+    let center = Center::accepting(&clock);
     let reporter = center.start(&clock);
 
-    // Besides the first, in flight, 2 are kept: the empty third goes, not the older second.
-    reporter.report(window(2, &["/a"]));
+    reporter.report(window(8, &[]));
+    reporter.report(window(8, &["/a"]));
     until(&clock, 1).await;
-    reporter.report(window(2, &["/b"]));
-    reporter.report(window(2, &[]));
-    reporter.report(window(2, &["/c", "/c"]));
-    until(&clock, 2).await;
-    center.release.add_permits(3);
-    until(&clock, 3).await;
 
-    assert_eq!(windows(&center), [(1, 0), (1, 1), (2, 0)]);
+    assert_eq!(windows(&center), [(1, 0)]);
 }
 
 #[tokio::test(start_paused = true)]

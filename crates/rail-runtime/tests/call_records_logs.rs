@@ -71,7 +71,7 @@ async fn a_window_dropped_past_the_limit_is_warned_of() {
 
     reporter.report(window(0, &["/a"]));
     until(&clock, 1).await;
-    reporter.report(window(0, &[]));
+    reporter.report(window(0, &["/b"]));
     until(&clock, 2).await;
 
     let logs = logs.text();
@@ -80,7 +80,6 @@ async fn a_window_dropped_past_the_limit_is_warned_of() {
     for field in [
         "WARN",
         r#"why="the queue is past its limits""#,
-        "empty=true",
         "windows_dropped=1",
     ] {
         assert!(dropped[0].contains(field), "{field}: {logs}");
