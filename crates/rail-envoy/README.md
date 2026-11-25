@@ -78,10 +78,10 @@ dropped and counted.
 
 The body read is the one Envoy sends, up to `RAIL_MAX_BODY_MB` (1 MiB by default): ext_authz's (`with_request_body`,
 with `pack_as_bytes: true`, so a body that isn't UTF-8 arrives unchanged), or ext_proc's `BUFFERED` or
-`BUFFERED_PARTIAL` body message. A body not sent, cut short, past the cap, or past the 256 MiB every body kept shares
-isn't read: the call is still counted, under the catch-all where an entry would have read its body, and the document
-counts it in `truncated.body_unread`. ext_proc's `NONE`, or no mode named, sends no body, and its streamed modes' bodies
-aren't kept yet. A body is cut short:
+`BUFFERED_PARTIAL` body message, as [recommended](#the-body-for-capture). A body not sent, cut short, past the cap, or
+past the 256 MiB every body kept shares isn't read: the call is still counted, under the catch-all where an entry would
+have read its body, and the document counts it in `truncated.body_unread`. ext_proc's `NONE`, or no mode named, sends no
+body, and its streamed modes' bodies aren't kept yet. A body is cut short:
 
 - with ext_authz, of its `Content-Length`. Envoy's `x-envoy-auth-partial-body` isn't read, since it stays `false` when
   Envoy stops at `max_request_bytes`; a chunked body cut there is told only by passing the cap, so set
@@ -108,16 +108,46 @@ Envoy's configuration is the customer's, so we can only recommend it. rail-envoy
 - the route picked again after the callout: `clear_route_cache: true` on ext_authz; ext_proc's answer asks for it;
 - routes on `x-rail-upstream` to an HTTPS and a plain dynamic forward proxy cluster, each removing the header before the
   upstream;
-- for capture, with ext_authz, `with_request_body` with `pack_as_bytes: true`, `allow_partial_message: true` (otherwise
-  Envoy refuses a body past `max_request_bytes` with 413), and `max_request_bytes` above `RAIL_MAX_BODY_MB` and no more
-  than Envoy's buffer limit (the listener's `per_connection_buffer_limit_bytes`, or a route's
-  `request_body_buffer_limit`, whichever is larger), past which Envoy answers 413 too; with ext_proc, a
-  `request_body_mode` of `BUFFERED_PARTIAL`, or `BUFFERED`, past whose buffer limit Envoy answers 413, and
-  `request_trailer_mode: SEND`, or a request with trailers and no body is counted as cut short. Without a body, every
-  call is counted with its body not sent.
+- for capture, the request's body, as below. Without it, every call is counted with its body not sent.
 
 [`e2e/envoy-proxy/envoy-ext-authz.yaml`](../../e2e/envoy-proxy/envoy-ext-authz.yaml) and
 [`envoy-ext-proc.yaml`](../../e2e/envoy-proxy/envoy-ext-proc.yaml) are working examples; they fail open.
+
+### The body, for capture
+
+Recommended: a body within `RAIL_MAX_BODY_MB` sent whole, a larger one cut short, and no call ever refused for its size.
+With the default cap, 1 MiB:
+
+```yaml
+# The listener: Envoy's buffer limit (1 MiB by default) above RAIL_MAX_BODY_MB. A route's
+# `request_body_buffer_limit` raises it too, the larger of the two applying.
+per_connection_buffer_limit_bytes: 2097152
+
+# ext_authz: as bytes, so one that isn't UTF-8 arrives unchanged; cut at `max_request_bytes`,
+# above RAIL_MAX_BODY_MB and no more than the buffer limit.
+with_request_body:
+  max_request_bytes: 2097152
+  allow_partial_message: true
+  pack_as_bytes: true
+
+# Or ext_proc: the body held up to the buffer limit, then sent on; the trailers sent too.
+processing_mode:
+  request_header_mode: SEND
+  response_header_mode: SKIP
+  request_body_mode: BUFFERED_PARTIAL
+  request_trailer_mode: SEND
+allow_content_length_header: true
+```
+
+Past these, Envoy answers 413 itself, in front of rail-envoy:
+
+- ext_authz without `allow_partial_message`, to a body past `max_request_bytes`; with it, to one past the buffer limit
+  if `max_request_bytes` is above it;
+- ext_proc `BUFFERED`, which works too, to a body past the buffer limit.
+
+`BUFFERED_PARTIAL` drops `Content-Length` without `allow_content_length_header`, so the upstream gets the body chunked;
+without `request_trailer_mode: SEND`, a request with trailers and no body is counted as cut short. ext_proc's other
+modes send no body capture reads yet.
 
 ## As the gateway
 
@@ -193,8 +223,9 @@ ticket is held, never to restart it: a ticket that lapses turns it not ready, an
 
 On SIGTERM or Ctrl-C it reports NOT_SERVING and drains for at most 5 s, then cuts the connections still open: Envoy
 keeps them, and an ext_proc stream lasts as long as its request. With Rail Center on, the proxy then counts the calls
-already handed to capture, closes the open window and sends the documents waiting, for at most 2 s, and its capture and
-Rail Center threads have at most 1 s each to stop, so 9 s in all; the gateway's Rail Center thread has 1 s, so 6 s.
+already handed to capture (at most 4 096 waiting, untimed), closes the open window and sends the documents waiting,
+waiting at most 2 s for them, and its capture and Rail Center threads have at most 1 s each to stop, so 9 s in all
+beside counting those calls; the gateway's Rail Center thread has 1 s, so 6 s.
 
 ## Caveats
 

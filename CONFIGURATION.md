@@ -136,7 +136,8 @@ The largest request body judged or captured, in MiB, as sent (an encoded body is
   a value of 4 or more is logged with the limit in force. In `rail-envoy`, a body streamed in full duplex is refused as
   soon as it's past it.
 - **In `rail-envoy`'s proxy, past it, a body isn't read:** the call is forwarded as ever, and captured with its body
-  counted as past the cap (`truncated.body_unread.past_cap`).
+  counted as past the cap (`truncated.body_unread.past_cap`). Envoy's limits go above it, as its README
+  [recommends](crates/rail-envoy/README.md#the-body-for-capture).
 
 ## The gateway
 

@@ -6,6 +6,7 @@ import socket
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 
@@ -106,30 +107,54 @@ _FULL_DUPLEX_UNSUPPORTED = ("rail-envoy doesn't send a full-duplex body back", 5
 
 # The body, as the agent's chunks.
 _PARTS = [b'{"jsonrpc":"2.0",', b'"id":1,', b'"method":"tools/list"}']
-# Past 15016's `max_request_bytes` (1024), so ext_authz sees only its start.
-_OVERSIZED_PARTS = [
-    b'{"jsonrpc":"2.0","id":1,',
-    b'"method":"tools/list","params":{"pad":"' + b"x" * 1500,
-    b'"}}',
-]
 
-# (What Envoy sends rail-envoy, its listener on envoy-variants, the body's chunks, whether trailers
+# (What Envoy sends rail-envoy, through, as `envoy:port`, the body's chunks, whether trailers
 # follow the body, why it's expected to fail and the status the agent then gets, or None)
 _BODY_CASES = [
-    ("ext_proc BUFFERED", 15011, _PARTS, False, None),
-    ("ext_proc BUFFERED", 15011, _PARTS, True, None),
-    ("ext_proc BUFFERED_PARTIAL", 15012, _PARTS, False, None),
-    ("ext_proc BUFFERED_PARTIAL", 15012, _PARTS, True, None),
-    ("ext_proc STREAMED", 15013, _PARTS, False, None),
-    ("ext_proc STREAMED", 15013, _PARTS, True, None),
-    ("ext_proc STREAMED, without waiting", 15014, _PARTS, False, None),
-    ("ext_proc STREAMED, without waiting", 15014, _PARTS, True, None),
-    ("ext_proc FULL_DUPLEX_STREAMED", 15015, _PARTS, False, _FULL_DUPLEX_UNSUPPORTED),
-    ("ext_proc FULL_DUPLEX_STREAMED", 15015, _PARTS, True, _FULL_DUPLEX_UNSUPPORTED),
-    ("ext_proc BUFFERED, trailers sent to rail-envoy", 15017, _PARTS, True, None),
-    ("ext_authz with the body", 15016, _PARTS, False, None),
-    ("ext_authz with the body, past max_request_bytes", 15016, _OVERSIZED_PARTS, False, None),
+    ("ext_authz with the body", "envoy-ext-authz:15001", _PARTS, False, None),
+    ("ext_proc BUFFERED_PARTIAL", "envoy-ext-proc:15001", _PARTS, False, None),
+    (
+        "ext_proc BUFFERED_PARTIAL, trailers sent to rail-envoy",
+        "envoy-ext-proc:15001",
+        _PARTS,
+        True,
+        None,
+    ),
+    ("ext_proc BUFFERED", "envoy-variants:15011", _PARTS, False, None),
+    ("ext_proc BUFFERED", "envoy-variants:15011", _PARTS, True, None),
+    ("ext_proc BUFFERED_PARTIAL", "envoy-variants:15012", _PARTS, False, None),
+    ("ext_proc BUFFERED_PARTIAL", "envoy-variants:15012", _PARTS, True, None),
+    ("ext_proc STREAMED", "envoy-variants:15013", _PARTS, False, None),
+    ("ext_proc STREAMED", "envoy-variants:15013", _PARTS, True, None),
+    ("ext_proc STREAMED, without waiting", "envoy-variants:15014", _PARTS, False, None),
+    ("ext_proc STREAMED, without waiting", "envoy-variants:15014", _PARTS, True, None),
+    (
+        "ext_proc FULL_DUPLEX_STREAMED",
+        "envoy-variants:15015",
+        _PARTS,
+        False,
+        _FULL_DUPLEX_UNSUPPORTED,
+    ),
+    (
+        "ext_proc FULL_DUPLEX_STREAMED",
+        "envoy-variants:15015",
+        _PARTS,
+        True,
+        _FULL_DUPLEX_UNSUPPORTED,
+    ),
+    ("ext_proc BUFFERED, trailers sent to rail-envoy", "envoy-variants:15017", _PARTS, True, None),
 ]
+
+# Only its calls can match the capture plan's entry (rail-center's capture-plan.json); not
+# protected, so they go to the plain upstream as sent.
+_CAPTURED_HOST = "upstream-capture.test:8080"
+_MIB = 1024 * 1024
+# RAIL_MAX_BODY_MB's default.
+_MAX_BODY_BYTES = _MIB
+# Capture's windows are a minute long, and sent once closed.
+_WINDOW_SECONDS = 60
+# Past a window's end, for its document to arrive.
+_SEND_SECONDS = 30
 
 
 def _send_through(via, host):
@@ -246,12 +271,13 @@ def _check_redirect():
     return ok
 
 
-def _upload(port, marker, parts, trailers):
-    """`parts` to upstream-plain.test, chunked and a moment apart, then a trailer if asked."""
-    with socket.create_connection(("envoy-variants", port), timeout=10) as connection:
+def _upload(via, marker, parts, trailers, host="upstream-plain.test:8080"):
+    """`parts` to `host` through `via`, chunked and a moment apart, then a trailer if asked."""
+    address, port = via.split(":")
+    with socket.create_connection((address, int(port)), timeout=10) as connection:
         connection.sendall(
             "POST /mcp HTTP/1.1\r\n"
-            "Host: upstream-plain.test:8080\r\n"
+            f"Host: {host}\r\n"
             "Content-Type: application/json\r\n"
             f"{_MARKER}: {marker}\r\n"
             "Transfer-Encoding: chunked\r\n"
@@ -266,12 +292,12 @@ def _upload(port, marker, parts, trailers):
         return response.status, response.read()
 
 
-def _check_body(what, port, parts, trailers, known):
+def _check_body(what, via, parts, trailers, known):
     """A body Envoy sends rail-envoy reaches the upstream whole, with the ticket, and the upstream's
     answer reaches the agent; or, if `known`, it fails only as known."""
     marker = str(uuid.uuid4())
     try:
-        status, body = _upload(port, marker, parts, trailers)
+        status, body = _upload(via, marker, parts, trailers)
     except OSError as error:
         status, body = repr(error), b""
     received = [
@@ -286,14 +312,176 @@ def _check_body(what, port, parts, trailers, known):
     )
     with_trailers = ", with trailers" if trailers else ""
     if known is None:
-        _report(ok, f"envoy-variants:{port} {what}{with_trailers}: {status}, received {received}")
+        _report(ok, f"{via} {what}{with_trailers}: {status}, received {received}")
         return ok
     why, known_status = known
     # Any other failure is a broken listener, not the known gap.
     verdict = "XPASS" if ok else "xfail" if (status, received) == (known_status, []) else "FAIL"
-    case = f"envoy-variants:{port} {what}{with_trailers} ({why})"
+    case = f"{via} {what}{with_trailers} ({why})"
     print(f"{verdict} {case}: {status}, received {received}")
     return verdict == "xfail"
+
+
+def _build_tool_call(repo, content=""):
+    """A `create_or_update_file` call to `repo`, which the capture plan's entry takes."""
+    arguments = {"repo": repo, "content": content}
+    params = {"name": "create_or_update_file", "arguments": arguments}
+    return json.dumps(
+        {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": params}
+    ).encode()
+
+
+# Past the cap, and past Envoy's buffer limit (2 MiB), where both callouts cut it short.
+_LARGE = 3 * _MIB
+
+
+def _split(body):
+    """`body` as three chunks."""
+    third = len(body) // 3 + 1
+    return [body[start : start + third] for start in range(0, len(body), third)]
+
+
+# (Through, as `envoy:port`, what Envoy sends rail-envoy, the body, whether it's sent chunked, and
+# how capture reads it: ("e1", the repository its record is keyed by) or ("unread", why))
+# fmt: off
+_CAPTURE_CASES = [
+    ("envoy-ext-authz:15001", "ext_authz, whole", _build_tool_call("authz-whole"), False, ("e1", "authz-whole")),
+    ("envoy-ext-authz:15001", "ext_authz, chunked", _build_tool_call("authz-chunked"), True, ("e1", "authz-chunked")),
+    ("envoy-ext-authz:15001", "ext_authz, past the cap", _build_tool_call("authz-past", "x" * _LARGE), False, ("unread", "past_cap")),
+    ("envoy-ext-authz:15001", "ext_authz, past the cap, chunked", _build_tool_call("authz-past", "x" * _LARGE), True, ("unread", "past_cap")),
+    ("envoy-ext-authz:15001", "ext_authz, not JSON", b"not json {", False, ("unread", "not_json")),
+    ("envoy-ext-proc:15001", "ext_proc BUFFERED_PARTIAL, whole", _build_tool_call("proc-whole"), False, ("e1", "proc-whole")),
+    ("envoy-ext-proc:15001", "ext_proc BUFFERED_PARTIAL, chunked", _build_tool_call("proc-chunked"), True, ("e1", "proc-chunked")),
+    ("envoy-ext-proc:15001", "ext_proc BUFFERED_PARTIAL, past the cap", _build_tool_call("proc-past", "x" * _LARGE), False, ("unread", "past_cap")),
+    ("envoy-ext-proc:15001", "ext_proc BUFFERED_PARTIAL, past the cap, chunked", _build_tool_call("proc-past", "x" * _LARGE), True, ("unread", "past_cap")),
+    ("envoy-ext-proc:15001", "ext_proc BUFFERED_PARTIAL, not JSON", b"not json {", False, ("unread", "not_json")),
+    # Without the body: ext_authz not asked for it, ext_proc's streamed mode not read yet.
+    ("envoy-variants:15002", "ext_authz without the body", _build_tool_call("authz-unsent"), False, ("unread", "not_sent")),
+    ("envoy-variants:15013", "ext_proc STREAMED", _build_tool_call("proc-unsent"), False, ("unread", "not_sent")),
+]
+# fmt: on
+
+
+def _post(via, marker, body):
+    """`body` to the capture host through `via`, with its `Content-Length`."""
+    headers = {"Host": _CAPTURED_HOST, "Content-Type": "application/json", _MARKER: marker}
+    request = urllib.request.Request(f"http://{via}/mcp", data=body, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            return response.status, response.read()
+    except urllib.error.HTTPError as error:
+        return error.code, error.read()
+
+
+def _find_by_marker(journal, marker):
+    """The requests `journal` got with `marker`, asked for, since its bodies run to MiBs."""
+    query = json.dumps({"headers": {_MARKER: {"equalTo": marker}}}).encode()
+    request = urllib.request.Request(f"http://{journal}/__admin/requests/find", data=query)
+    with urllib.request.urlopen(request, timeout=10) as response:
+        return json.load(response)["requests"]
+
+
+# The recommended configurations, which keep a body's `Content-Length`, as some others don't.
+_RECOMMENDED = ["envoy-ext-authz:15001", "envoy-ext-proc:15001"]
+
+
+def _send_captured(via, what, body, chunked):
+    """`body` crosses whole, its `Content-Length` kept by the recommended configurations, and the
+    upstream's answer comes back."""
+    marker = str(uuid.uuid4())
+    try:
+        if chunked:
+            status, answer = _upload(via, marker, _split(body), False, host=_CAPTURED_HOST)
+        else:
+            status, answer = _post(via, marker, body)
+    except OSError as error:
+        status, answer = repr(error), b""
+    received = [
+        (len(entry["body"]), {name.lower(): value for name, value in entry["headers"].items()})
+        for entry in _find_by_marker(_PLAIN, marker)
+    ]
+    crossed = [(size, headers.get("content-length")) for size, headers in received]
+    if via in _RECOMMENDED:
+        expected = [(len(body), None if chunked else str(len(body)))]
+    else:
+        expected = [(len(body), length) for _, length in crossed]
+    ok = status == 200 and _is_answer(answer) and crossed == expected
+    _report(ok, f"{via} capture, {what}: {status}, received (bytes, length) {crossed}")
+    return ok
+
+
+def _count_plan_fetches():
+    """How many capture plan fetches Rail Center got for `ext`'s sandbox."""
+    count = 0
+    for entry in _read_journal(_RAIL_CENTER):
+        url = urllib.parse.urlsplit(entry["request"]["url"])
+        sandbox = urllib.parse.parse_qs(url.query).get("sandbox_name")
+        count += url.path == "/v1/capture-plan" and sandbox == ["e2e-sandbox"]
+    return count
+
+
+def _read_documents():
+    """The call record documents Rail Center got, each once: a retry sends the same one."""
+    documents = {}
+    for entry in _read_journal(_RAIL_CENTER):
+        request = entry["request"]
+        if request["method"] == "POST" and request["url"] == "/v1/call-records":
+            document = json.loads(request["body"])
+            documents[document["document_id"]] = document
+    return list(documents.values())
+
+
+def _read_capture(documents):
+    """What `documents` say of the capture host's calls: the entry's records' calls and bytes by
+    repository, the catch-all's calls, the host's total, and the bodies unread by why."""
+    host = _CAPTURED_HOST.split(":")[0]
+    records, catch_all, total, unread = {}, 0, 0, {}
+    for document in documents:
+        for reason, count in document["truncated"]["body_unread"].items():
+            if count:
+                unread[reason] = unread.get(reason, 0) + count
+        total += sum(hosts["count"] for hosts in document["hosts"] if hosts["host"] == host)
+        for record in document["records"]:
+            keys, measures = record["context_keys"], record["measures"]
+            if record["entry_id"] == "e1":
+                calls, size = records.get(keys["destination"], (0, 0))
+                records[keys["destination"]] = (
+                    calls + measures["call_count"],
+                    size + measures["request_bytes"],
+                )
+            elif keys.get("host") == host:
+                catch_all += measures["call_count"]
+    return records, catch_all, total, unread
+
+
+def _check_capture():
+    """The capture host's calls through both callouts, in the documents Rail Center gets once
+    their windows close: each body read whole within the cap, else counted unread, and why."""
+    deadline = time.monotonic() + _SETTLE_SECONDS
+    while _count_plan_fetches() == 0 and time.monotonic() < deadline:
+        time.sleep(0.2)
+    passed = True
+    for via, what, body, chunked, _ in _CAPTURE_CASES:
+        passed = _send_captured(via, what, body, chunked) and passed
+    records, unread = {}, {}
+    for _, _, body, _, (kind, value) in _CAPTURE_CASES:
+        if kind == "e1":
+            records[value] = (1, len(body))
+        else:
+            unread[value] = unread.get(value, 0) + 1
+    expected = (records, sum(unread.values()), len(_CAPTURE_CASES), unread)
+    # The last call's window closes at the next boundary, and its document is sent then.
+    until = (time.time() // _WINDOW_SECONDS + 1) * _WINDOW_SECONDS + _SEND_SECONDS
+    while True:
+        read = _read_capture(_read_documents())
+        if read == expected or time.time() > until:
+            break
+        time.sleep(2)
+    ok = read == expected
+    _report(ok, f"capture's documents: (records, catch-all calls, host total, unread) {read}")
+    if not ok:
+        print(f"     expected {expected}")
+    return passed and ok
 
 
 def _main():
@@ -308,8 +496,9 @@ def _main():
         passed = passed and ok
         _report(ok, f"{via or 'direct'} {host}: {status}, received {received}, {fetches} fetches")
     passed = _check_redirect() and passed
-    for what, port, parts, trailers, known in _BODY_CASES:
-        passed = _check_body(what, port, parts, trailers, known) and passed
+    for what, via, parts, trailers, known in _BODY_CASES:
+        passed = _check_body(what, via, parts, trailers, known) and passed
+    passed = _check_capture() and passed
     return 0 if passed else 1
 
 

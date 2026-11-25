@@ -1,0 +1,10 @@
+{
+  "priority": 1,
+  "request": {
+    "method": "POST",
+    "urlPath": "/v1/call-records"
+  },
+  "response": {
+    "status": 202
+  }
+}
