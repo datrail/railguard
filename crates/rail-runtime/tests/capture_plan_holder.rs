@@ -135,6 +135,21 @@ async fn only_a_plan_applied_or_a_204_replaces_the_plan_held() {
 }
 
 #[tokio::test(start_paused = true)]
+async fn with_none_held_a_refusal_backs_off_as_a_failure_does() {
+    let clock = TestClock::new();
+    let script = Script::new(&clock, |n| match n {
+        0 | 1 => answer(StatusCode::NOT_FOUND, b""),
+        _ => ok(&plan(&a(), json!({}))),
+    });
+
+    let holder = start(&script, MINUTE);
+    until(&clock, 15).await;
+
+    assert_eq!(script.fetched_at(), [0, 5, 15]);
+    assert_eq!(held(&holder), Some(a()));
+}
+
+#[tokio::test(start_paused = true)]
 async fn the_plan_held_is_replaced_only_when_it_changes() {
     let clock = TestClock::new();
     let answers = vec![

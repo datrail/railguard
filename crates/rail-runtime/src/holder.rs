@@ -42,14 +42,14 @@ pub(crate) trait Kind: Send + Sync + 'static {
     /// Names the kind in the loop's own log lines.
     const WHAT: &'static str;
 
-    /// Whether what's held lapses, so a refusal is asked again sooner, as a failure is, to replace
-    /// it in time; a value that doesn't is asked again after the period.
-    const EXPIRES: bool;
-
     fn fetch(&self) -> impl Future<Output = Self::Answer> + Send;
 
     /// What `answer` does to `held`. A panic here, or polling `fetch`, is a failed attempt.
     fn step(&self, held: &Self::Held, answer: Self::Answer) -> Step<Self::Held, Self::Outcome>;
+
+    /// Whether a refusal, with `held` held, is asked again sooner, as a failure is; else after the
+    /// period, since asking sooner can't change Rail Center's answer.
+    fn refusal_backs_off(&self, held: &Self::Held) -> bool;
 
     /// A cap on the wait before the next attempt, from what's held, after a panic too.
     fn wait_at_most(&self, _held: &Self::Held) -> Option<Duration> {
@@ -73,8 +73,8 @@ pub(crate) struct Step<T, O> {
 #[derive(PartialEq)]
 pub(crate) enum Attempt {
     Succeeded,
-    /// Rail Center's answer, with nothing usable: asking sooner can't change it, so it backs off
-    /// only for a kind that expires.
+    /// Rail Center's answer, with nothing usable: it backs off only where the kind's
+    /// `refusal_backs_off` says so.
     Refused,
     /// No answer, or one that may pass: backs off.
     Failed,
@@ -238,7 +238,7 @@ async fn run<K: Kind>(
     jitter: Jitter,
 ) {
     let mut progress = publish.subscribe();
-    // Attempts in a row that back off: failures, and refusals for a kind that expires.
+    // Attempts in a row that back off: failures, and the refusals `refusal_backs_off` says do.
     let mut failures: u32 = 0;
     let mut after_failure = false;
     loop {
@@ -262,13 +262,13 @@ async fn run<K: Kind>(
                 (None, Attempt::Failed)
             }
         };
+        let current = held.load();
         failures = match attempted {
             Attempt::Failed => failures + 1,
-            Attempt::Refused if K::EXPIRES => failures + 1,
+            Attempt::Refused if kind.refusal_backs_off(&current) => failures + 1,
             Attempt::Succeeded | Attempt::Refused => 0,
         };
         let wait = {
-            let held = held.load();
             let wait = next_wait(period, failures, jitter.factor());
             // A period runs from the start of the attempt, so a slow fetch doesn't shift the cadence.
             let wait = if failures == 0 {
@@ -279,14 +279,16 @@ async fn run<K: Kind>(
             };
             // After the jitter, so a kind's cap is never exceeded.
             let wait = kind
-                .wait_at_most(&held)
+                .wait_at_most(&current)
                 .map_or(wait, |at_most| wait.min(at_most))
                 .max(MIN_REFRESH_INTERVAL);
             if let Some(outcome) = outcome {
-                kind.report(outcome, &held, after_failure, round_to_seconds(wait));
+                kind.report(outcome, &current, after_failure, round_to_seconds(wait));
             }
             wait
         };
+        // Not held across the sleep below.
+        drop(current);
         after_failure = attempted != Attempt::Succeeded;
         publish.send_replace(Progress::NextAt {
             next: Instant::now() + wait,

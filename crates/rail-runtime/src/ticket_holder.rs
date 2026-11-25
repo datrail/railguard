@@ -85,7 +85,11 @@ impl<S: TicketSource> Kind for Tickets<S> {
     type Outcome = Outcome;
 
     const WHAT: &'static str = "ticket";
-    const EXPIRES: bool = true;
+
+    // What's held lapses, so it's replaced as soon as Rail Center can.
+    fn refusal_backs_off(&self, _held: &Self::Held) -> bool {
+        true
+    }
 
     fn fetch(&self) -> impl Future<Output = Self::Answer> + Send {
         let sent_at = (self.now)();

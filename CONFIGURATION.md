@@ -144,8 +144,9 @@ How often the bundle held is fetched again.
 - Each wait is scaled by 0.8 to 1.2, so a fleet doesn't poll in step. After a failure that may pass (no answer, a
   timeout, a 408, 429 or 5xx), the next attempt comes in 5 s, doubling to at most 320 s or the interval, whichever is
   less. Any other answer that isn't held (a bundle refused, a body not JSON or too large, a 401, 403, 404 or another
-  status) would be repeated, so it's asked again after the interval. The 5 s floor isn't a setting: a lower one would
-  let a fleet hammer Rail Center.
+  status) would be repeated, so while a bundle is held it's asked again after the interval; while none is held, it's
+  asked again as after a failure, so the first bundle comes soon after Rail Center can give it. The floor of 5 s isn't a
+  setting: a lower one would let a fleet hammer Rail Center.
 
 ### `RAIL_MAX_BODY_MB`
 

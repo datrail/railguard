@@ -13,7 +13,8 @@ use crate::scripted::Answering;
 
 const LIMIT: Duration = Duration::from_secs(2);
 
-// Asked again 5 s after an answer that may pass, the period after one Rail Center would repeat.
+// Asked again 5 s after an answer that may pass, the period after one Rail Center would repeat
+// while a bundle is held.
 const SOONER: u64 = 5;
 const PERIOD: u64 = 60;
 
@@ -63,18 +64,36 @@ async fn only_a_usable_answer_is_held_and_only_one_that_may_pass_is_retried_soon
     for (label, retry, unusable) in unusable_answers() {
         let clock = TestClock::new();
         let script = Script::new(&clock, move |n| match n {
-            1 => ok(&bundle("v1", json!({}))),
-            _ => unusable(),
+            0 => ok(&bundle("v1", json!({}))),
+            1 => unusable(),
+            _ => ok(&bundle("v2", json!({}))),
         });
 
         let holder = start(&script, MINUTE);
-        until(&clock, 0).await;
-        assert_eq!(held_hash(&holder), None, "{label}");
-        until(&clock, retry + 60).await;
-
-        assert_eq!(script.fetched_at(), [0, retry, retry + 60], "{label}");
+        until(&clock, 60).await;
         assert_eq!(held_hash(&holder).as_deref(), Some("v1"), "{label}");
+        until(&clock, 60 + retry).await;
+
+        assert_eq!(script.fetched_at(), [0, 60, 60 + retry], "{label}");
+        assert_eq!(held_hash(&holder).as_deref(), Some("v2"), "{label}");
     }
+}
+
+#[tokio::test(start_paused = true)]
+async fn with_none_held_a_refusal_backs_off_as_a_failure_does() {
+    let clock = TestClock::new();
+    let script = Script::new(&clock, |n| match n {
+        0 | 1 => answer(StatusCode::NOT_FOUND, b""),
+        _ => ok(&bundle("v1", json!({}))),
+    });
+
+    let holder = start(&script, MINUTE);
+    until(&clock, 0).await;
+    assert_eq!(held_hash(&holder), None);
+    until(&clock, 15).await;
+
+    assert_eq!(script.fetched_at(), [0, 5, 15]);
+    assert_eq!(held_hash(&holder).as_deref(), Some("v1"));
 }
 
 #[tokio::test(start_paused = true)]
