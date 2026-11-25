@@ -1,14 +1,97 @@
 {
   "plans": {
-    "two-hosts": {
+    "one-entry": {
       "schema_version": "1.0",
-      "content_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "content_hash": "sha256:0",
       "generated_at": "2026-11-10T09:58:02Z",
       "agent": {
-        "host_id": "host-7f3c",
-        "sandbox_name": "agent-finretail"
+        "host_id": "host-1",
+        "sandbox_name": "agent-1"
       },
-      "plan_version": 7,
+      "plan_version": 1,
+      "redaction_version": 1,
+      "window_seconds": 900,
+      "budget": {
+        "max_groups_per_window": 1000,
+        "max_steps_per_window": 10000,
+        "on_max_groups": "coarsen_to_catch_all",
+        "max_unsent_windows": 8
+      },
+      "entries": [
+        {
+          "id": "entry",
+          "match": [
+            {
+              "path": [
+                "request",
+                "host"
+              ],
+              "op": "existing"
+            }
+          ],
+          "record": {
+            "context_keys": [],
+            "measures": [
+              {
+                "name": "call_count"
+              },
+              {
+                "name": "error_count"
+              },
+              {
+                "name": "request_bytes",
+                "type": "sum",
+                "function": "size",
+                "paths": [
+                  [
+                    "request",
+                    "body"
+                  ]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "catch_all": {
+        "id": "catch_all",
+        "record": {
+          "context_keys": [
+            {
+              "name": "host"
+            }
+          ],
+          "measures": [
+            {
+              "name": "call_count"
+            },
+            {
+              "name": "error_count"
+            },
+            {
+              "name": "request_bytes",
+              "type": "sum",
+              "function": "size",
+              "paths": [
+                [
+                  "request",
+                  "body"
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "matching": {
+      "schema_version": "1.0",
+      "content_hash": "sha256:0",
+      "generated_at": "2026-11-10T09:58:02Z",
+      "agent": {
+        "host_id": "host-1",
+        "sandbox_name": "agent-1"
+      },
+      "plan_version": 1,
       "redaction_version": 1,
       "window_seconds": 900,
       "budget": {
@@ -118,19 +201,7 @@
             }
           ],
           "record": {
-            "context_keys": [
-              {
-                "name": "repo",
-                "path": [
-                  "request",
-                  "body",
-                  "params",
-                  "arguments",
-                  "repo"
-                ],
-                "field_type": "string"
-              }
-            ],
+            "context_keys": [],
             "measures": [
               {
                 "name": "call_count"
@@ -146,19 +217,6 @@
                   [
                     "request",
                     "body"
-                  ]
-                ]
-              },
-              {
-                "name": "arguments_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body",
-                    "params",
-                    "arguments"
                   ]
                 ]
               }
@@ -194,57 +252,7 @@
             }
           ],
           "record": {
-            "context_keys": [
-              {
-                "name": "method"
-              },
-              {
-                "name": "team",
-                "path": [
-                  "request",
-                  "path",
-                  1
-                ],
-                "field_type": "string"
-              },
-              {
-                "name": "secret",
-                "path": [
-                  "request",
-                  "redacted_path",
-                  3
-                ],
-                "field_type": "string"
-              },
-              {
-                "name": "channel",
-                "path": [
-                  "request",
-                  "query",
-                  "channel"
-                ],
-                "field_type": "string"
-              },
-              {
-                "name": "page",
-                "path": [
-                  "request",
-                  "query",
-                  "page",
-                  1
-                ],
-                "field_type": "string"
-              },
-              {
-                "name": "user",
-                "path": [
-                  "request",
-                  "body",
-                  "user"
-                ],
-                "field_type": "string"
-              }
-            ],
+            "context_keys": [],
             "measures": [
               {
                 "name": "call_count"
@@ -262,70 +270,6 @@
                     "body"
                   ]
                 ]
-              },
-              {
-                "name": "text_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body",
-                    "text"
-                  ]
-                ]
-              },
-              {
-                "name": "blocks_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body",
-                    "blocks"
-                  ]
-                ]
-              },
-              {
-                "name": "channel_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "query",
-                    "channel"
-                  ]
-                ]
-              },
-              {
-                "name": "body_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              },
-              {
-                "name": "both_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body",
-                    "text"
-                  ],
-                  [
-                    "request",
-                    "query",
-                    "channel"
-                  ]
-                ]
               }
             ]
           }
@@ -337,16 +281,6 @@
           "context_keys": [
             {
               "name": "host"
-            },
-            {
-              "name": "path_prefix",
-              "segments": 1
-            },
-            {
-              "name": "method"
-            },
-            {
-              "name": "operation"
             }
           ],
           "measures": [
@@ -677,6 +611,152 @@
       "budget": {
         "max_groups_per_window": 1000,
         "max_steps_per_window": 10000,
+        "on_max_groups": "coarsen_to_catch_all",
+        "max_unsent_windows": 8
+      },
+      "entries": [
+        {
+          "id": "e1",
+          "match": [
+            {
+              "path": [
+                "request",
+                "host"
+              ],
+              "op": "eq",
+              "value": "api.github.com"
+            },
+            {
+              "path": [
+                "request",
+                "redacted_path"
+              ],
+              "op": "eq",
+              "value": "/mcp"
+            },
+            {
+              "path": [
+                "request",
+                "mcp",
+                "method"
+              ],
+              "op": "eq",
+              "value": "tools/call"
+            },
+            {
+              "path": [
+                "request",
+                "mcp",
+                "tool"
+              ],
+              "op": "eq",
+              "value": "create_or_update_file"
+            }
+          ],
+          "record": {
+            "context_keys": [
+              {
+                "name": "destination",
+                "path": [
+                  "request",
+                  "body",
+                  "params",
+                  "arguments",
+                  "repo"
+                ],
+                "field_type": "repository"
+              }
+            ],
+            "measures": [
+              {
+                "name": "call_count"
+              },
+              {
+                "name": "error_count"
+              },
+              {
+                "name": "request_bytes",
+                "type": "sum",
+                "function": "size",
+                "paths": [
+                  [
+                    "request",
+                    "body"
+                  ]
+                ]
+              },
+              {
+                "name": "argument_bytes",
+                "type": "sum",
+                "function": "size",
+                "paths": [
+                  [
+                    "request",
+                    "body",
+                    "params",
+                    "arguments",
+                    "content"
+                  ]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "catch_all": {
+        "id": "catch_all",
+        "record": {
+          "context_keys": [
+            {
+              "name": "host"
+            },
+            {
+              "name": "path_prefix",
+              "segments": 1
+            },
+            {
+              "name": "method"
+            },
+            {
+              "name": "operation"
+            }
+          ],
+          "measures": [
+            {
+              "name": "call_count"
+            },
+            {
+              "name": "error_count"
+            },
+            {
+              "name": "request_bytes",
+              "type": "sum",
+              "function": "size",
+              "paths": [
+                [
+                  "request",
+                  "body"
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "two-groups": {
+      "schema_version": "1.0",
+      "content_hash": "sha256:fb3733bbe47258024770ac2cc2521f60c5709ddc2a31b87744ed1c213229d77c",
+      "generated_at": "2026-11-10T09:58:02Z",
+      "agent": {
+        "host_id": "host-7f3c",
+        "sandbox_name": "agent-finretail"
+      },
+      "plan_version": 7,
+      "redaction_version": 1,
+      "window_seconds": 900,
+      "budget": {
+        "max_groups_per_window": 2,
+        "max_steps_per_window": 10,
         "on_max_groups": "coarsen_to_catch_all",
         "max_unsent_windows": 8
       },

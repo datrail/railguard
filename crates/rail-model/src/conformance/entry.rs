@@ -2,12 +2,11 @@
 
 use serde::Deserialize;
 use serde_json::Value;
-use serde_json::value::RawValue;
 
 use super::environment::Named;
-use super::plan::OneEntry;
+use super::plans::{NamedPlans, compile_written};
 use super::value::encode_verdict;
-use super::{Outcome, create_outcome, read_cases};
+use super::{Outcome, read_cases, run_each};
 use crate::capture::answer;
 use crate::condition::Budget;
 
@@ -19,28 +18,31 @@ struct Case {
     _note: Option<String>,
     environment: String,
     #[serde(rename = "match")]
-    entry_match: Box<RawValue>,
+    entry_match: Value,
     expect: Value,
 }
 
-pub(super) fn run_cases(text: &str, environments: &Named) -> Result<Vec<Outcome>, String> {
-    read_cases::<Case>(text)?
-        .into_iter()
-        .map(|case| {
-            let sources = environments.build(&case.environment)?;
-            let plan = OneEntry {
-                entry_match: Some(case.entry_match.get()),
-                ..OneEntry::default()
-            }
-            .compile()
-            .map_err(|e| format!("{}: {e}", case.id))?;
-            let entry = plan.entry(0).expect("one entry");
-            let verdict = answer(entry, &sources.environment(), &mut Budget::default());
-            Ok(create_outcome(
-                &case.id,
-                case.expect,
-                encode_verdict(verdict),
-            ))
-        })
-        .collect()
+pub(super) fn run_cases(
+    text: &str,
+    environments: &Named,
+    plans: &NamedPlans,
+) -> Result<Vec<Outcome>, String> {
+    run_each(read_cases::<Case>(text)?, |case| {
+        let got = run_case(&case, environments, plans);
+        (case.id, case.expect, got)
+    })
+}
+
+fn run_case(case: &Case, environments: &Named, plans: &NamedPlans) -> Result<Value, String> {
+    let sources = environments.build(&case.environment)?;
+    let mut plan = plans.get("one-entry")?;
+    plan["entries"][0]["match"] = case.entry_match.clone();
+    let plan = compile_written(&plan)?;
+    let entry = plan.entry(0).ok_or("the plan has no entry")?;
+    // A walk never answers it: the entry's refusal is matching's layer.
+    if entry.refusal().is_some() {
+        return Err("an entry its plan's compiling refuses".into());
+    }
+    let verdict = answer(entry, &sources.environment(), &mut Budget::default());
+    Ok(encode_verdict(verdict))
 }

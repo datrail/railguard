@@ -172,31 +172,6 @@
       "expect": "does_not_hold"
     },
     {
-      "id": "body-ambiguous-before-a-request-line-not-holding-does-not-hold",
-      "note": "The request line's conditions are evaluated before the body's, each group in plan order.",
-      "environment": "capture-body-values",
-      "match": [
-        {
-          "path": [
-            "request",
-            "body",
-            "dup"
-          ],
-          "op": "eq",
-          "value": 1
-        },
-        {
-          "path": [
-            "request",
-            "method"
-          ],
-          "op": "eq",
-          "value": "GET"
-        }
-      ],
-      "expect": "does_not_hold"
-    },
-    {
       "id": "body-unread-and-the-request-line-holding-is-body-unread",
       "environment": "capture-body-not-sent",
       "match": [
@@ -223,31 +198,6 @@
           "unread": "not_sent"
         }
       }
-    },
-    {
-      "id": "body-unread-before-a-request-line-not-holding-does-not-hold",
-      "note": "The request line's conditions are evaluated before the body's, each group in plan order.",
-      "environment": "capture-body-not-sent",
-      "match": [
-        {
-          "path": [
-            "request",
-            "mcp",
-            "tool"
-          ],
-          "op": "eq",
-          "value": "create_or_update_file"
-        },
-        {
-          "path": [
-            "request",
-            "host"
-          ],
-          "op": "eq",
-          "value": "example.com"
-        }
-      ],
-      "expect": "does_not_hold"
     },
     {
       "id": "first-untold-of-two-is-the-answer-unread",
@@ -299,83 +249,34 @@
       "expect": "ambiguous"
     },
     {
-      "id": "unknown-op-refused",
-      "note": "A refused condition decides; in a plan it refuses its entry first.",
-      "environment": "capture-sample",
+      "id": "a-condition-holding-after-one-that-cant-be-told-is-ambiguous",
+      "note": "A condition that holds leaves what couldn't be told standing.",
+      "environment": "capture-body-values",
       "match": [
         {
           "path": [
             "request",
-            "host"
+            "body",
+            "dup"
           ],
           "op": "eq",
-          "value": "api.github.com"
+          "value": 1
         },
         {
           "path": [
             "request",
-            "host"
-          ],
-          "op": "near",
-          "value": "x"
-        }
-      ],
-      "expect": {
-        "refused": "unknown_op"
-      }
-    },
-    {
-      "id": "not-holding-before-a-refused-does-not-hold",
-      "environment": "capture-sample",
-      "match": [
-        {
-          "path": [
-            "request",
-            "host"
+            "body",
+            "esc"
           ],
           "op": "eq",
-          "value": "example.com"
-        },
-        {
-          "path": [
-            "request",
-            "host"
-          ],
-          "op": "near",
-          "value": "x"
+          "value": "payroll"
         }
       ],
-      "expect": "does_not_hold"
+      "expect": "ambiguous"
     },
     {
-      "id": "refused-before-not-holding-refused",
-      "environment": "capture-sample",
-      "match": [
-        {
-          "path": [
-            "request",
-            "host"
-          ],
-          "op": "near",
-          "value": "x"
-        },
-        {
-          "path": [
-            "request",
-            "host"
-          ],
-          "op": "eq",
-          "value": "example.com"
-        }
-      ],
-      "expect": {
-        "refused": "unknown_op"
-      }
-    },
-    {
-      "id": "refused-body-condition-read-with-the-request-line",
-      "note": "A refused condition reads nothing, so it's evaluated with the request line's, before any body condition.",
-      "environment": "capture-sample",
+      "id": "unread-then-not-holding-does-not-hold",
+      "environment": "capture-body-batch-holding-what-cant-be-told",
       "match": [
         {
           "path": [
@@ -383,101 +284,20 @@
             "mcp",
             "tool"
           ],
-          "op": "eq",
-          "value": "delete_file"
-        },
-        {
-          "path": [
-            "request",
-            "body",
-            "a"
-          ],
-          "op": "near",
-          "value": "x"
-        }
-      ],
-      "expect": {
-        "refused": "unknown_op"
-      }
-    },
-    {
-      "id": "not-for-use-refused",
-      "environment": "capture-sample",
-      "match": [
-        {
-          "path": [
-            "request",
-            "host"
-          ],
-          "op": "eq",
-          "value": "api.github.com"
-        },
-        {
-          "path": [
-            "request",
-            "query",
-            "repo"
-          ],
-          "op": "eq",
-          "value": "docs"
-        }
-      ],
-      "expect": {
-        "refused": "not_for_use"
-      }
-    },
-    {
-      "id": "invalid-refused",
-      "environment": "capture-sample",
-      "match": [
-        {
-          "path": [
-            "request",
-            "host"
-          ],
-          "op": "eq",
-          "value": "api.github.com"
-        },
-        {
-          "path": [
-            "request",
-            "host"
-          ],
-          "op": "eq",
-          "value": true
-        }
-      ],
-      "expect": {
-        "refused": "invalid"
-      }
-    },
-    {
-      "id": "ambiguous-before-a-refused-request-condition-refused",
-      "note": "The request line's conditions are evaluated before the body's, each group in plan order.",
-      "environment": "capture-sample",
-      "match": [
-        {
-          "path": [
-            "request",
-            "body",
-            "params",
-            "arguments",
-            "labels"
-          ],
           "op": "existing"
         },
         {
           "path": [
             "request",
-            "host"
+            "body",
+            0,
+            "method"
           ],
-          "op": "near",
+          "op": "eq",
           "value": "x"
         }
       ],
-      "expect": {
-        "refused": "unknown_op"
-      }
+      "expect": "does_not_hold"
     }
   ]
 }

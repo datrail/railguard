@@ -1,7 +1,7 @@
 {
   "cases": [
     {
-      "id": "window-the-capture-designs-worked-example",
+      "id": "the-worked-example-closed-into-its-document",
       "plan": "worked-example",
       "start": 1794304800,
       "end": 1794305700,
@@ -259,10 +259,11 @@
             "record_id": "r5"
           }
         ]
-      }
+      },
+      "note": "The capture design's worked example (section 3), but where the proxy departs from it: error_count is 0, a string's size counts its quotes, and truncated adds values_replaced and values_ambiguous."
     },
     {
-      "id": "window-the-worked-example-its-destination-hashed",
+      "id": "a-hashed-key-written-as-its-hash",
       "plan": "worked-example",
       "entries": [
         {
@@ -613,7 +614,7 @@
       }
     },
     {
-      "id": "window-max-steps-per-window-0-an-empty-sequence-every-calls-step-dropped",
+      "id": "no-steps-asked-for-an-empty-sequence-every-step-dropped",
       "plan": {
         "schema_version": "1.0",
         "content_hash": "sha256:fb3733bbe47258024770ac2cc2521f60c5709ddc2a31b87744ed1c213229d77c",
@@ -846,7 +847,7 @@
       }
     },
     {
-      "id": "window-steps-past-max-steps-per-window-dropped-their-calls-still-counted",
+      "id": "steps-past-the-plans-most-dropped-their-calls-still-counted",
       "plan": {
         "schema_version": "1.0",
         "content_hash": "sha256:fb3733bbe47258024770ac2cc2521f60c5709ddc2a31b87744ed1c213229d77c",
@@ -1112,140 +1113,70 @@
       }
     },
     {
-      "id": "window-past-the-group-ceiling-an-entrys-new-group-in-the-catch-alls-open-group-the-entrys-losses-not-counted",
-      "plan": {
-        "schema_version": "1.0",
-        "content_hash": "sha256:fb3733bbe47258024770ac2cc2521f60c5709ddc2a31b87744ed1c213229d77c",
-        "generated_at": "2026-11-10T09:58:02Z",
-        "agent": {
-          "host_id": "host-7f3c",
-          "sandbox_name": "agent-finretail"
-        },
-        "plan_version": 7,
-        "redaction_version": 1,
-        "window_seconds": 900,
-        "budget": {
-          "max_groups_per_window": 2,
-          "max_steps_per_window": 10,
-          "on_max_groups": "coarsen_to_catch_all",
-          "max_unsent_windows": 8
-        },
-        "entries": [
-          {
-            "id": "e1",
-            "match": [
+      "id": "past-the-group-ceiling-an-entrys-new-group-joins-the-catch-alls",
+      "plan": "two-groups",
+      "entries": [
+        {
+          "id": "e1",
+          "match": [
+            {
+              "path": [
+                "request",
+                "host"
+              ],
+              "op": "eq",
+              "value": "api.github.com"
+            },
+            {
+              "path": [
+                "request",
+                "redacted_path"
+              ],
+              "op": "eq",
+              "value": "/mcp"
+            },
+            {
+              "path": [
+                "request",
+                "mcp",
+                "method"
+              ],
+              "op": "eq",
+              "value": "tools/call"
+            },
+            {
+              "path": [
+                "request",
+                "mcp",
+                "tool"
+              ],
+              "op": "eq",
+              "value": "create_or_update_file"
+            },
+            {
+              "path": [
+                "request",
+                "body",
+                "params",
+                "arguments",
+                "path"
+              ],
+              "op": "matches",
+              "value": "*.csv"
+            }
+          ],
+          "record": {
+            "context_keys": [
               {
-                "path": [
-                  "request",
-                  "host"
-                ],
-                "op": "eq",
-                "value": "api.github.com"
-              },
-              {
-                "path": [
-                  "request",
-                  "redacted_path"
-                ],
-                "op": "eq",
-                "value": "/mcp"
-              },
-              {
-                "path": [
-                  "request",
-                  "mcp",
-                  "method"
-                ],
-                "op": "eq",
-                "value": "tools/call"
-              },
-              {
-                "path": [
-                  "request",
-                  "mcp",
-                  "tool"
-                ],
-                "op": "eq",
-                "value": "create_or_update_file"
-              },
-              {
+                "name": "destination",
                 "path": [
                   "request",
                   "body",
                   "params",
                   "arguments",
-                  "path"
+                  "repo"
                 ],
-                "op": "matches",
-                "value": "*.csv"
-              }
-            ],
-            "record": {
-              "context_keys": [
-                {
-                  "name": "destination",
-                  "path": [
-                    "request",
-                    "body",
-                    "params",
-                    "arguments",
-                    "repo"
-                  ],
-                  "field_type": "repository"
-                }
-              ],
-              "measures": [
-                {
-                  "name": "call_count"
-                },
-                {
-                  "name": "error_count"
-                },
-                {
-                  "name": "request_bytes",
-                  "type": "sum",
-                  "function": "size",
-                  "paths": [
-                    [
-                      "request",
-                      "body"
-                    ]
-                  ]
-                },
-                {
-                  "name": "argument_bytes",
-                  "type": "sum",
-                  "function": "size",
-                  "paths": [
-                    [
-                      "request",
-                      "body",
-                      "params",
-                      "arguments",
-                      "content"
-                    ]
-                  ]
-                }
-              ]
-            }
-          }
-        ],
-        "catch_all": {
-          "id": "catch_all",
-          "record": {
-            "context_keys": [
-              {
-                "name": "host"
-              },
-              {
-                "name": "path_prefix",
-                "segments": 1
-              },
-              {
-                "name": "method"
-              },
-              {
-                "name": "operation"
+                "field_type": "repository"
               }
             ],
             "measures": [
@@ -1265,11 +1196,25 @@
                     "body"
                   ]
                 ]
+              },
+              {
+                "name": "argument_bytes",
+                "type": "sum",
+                "function": "size",
+                "paths": [
+                  [
+                    "request",
+                    "body",
+                    "params",
+                    "arguments",
+                    "content"
+                  ]
+                ]
               }
             ]
           }
         }
-      },
+      ],
       "start": 1794304800,
       "end": 1794305700,
       "calls": [
@@ -1408,7 +1353,7 @@
       }
     },
     {
-      "id": "window-an-empty-window-closed-early-with-calls-and-windows-dropped-before-it",
+      "id": "an-empty-window-written-with-its-drops",
       "plan": "worked-example",
       "start": 1794304800,
       "end": 1794305070,
@@ -1460,7 +1405,7 @@
       }
     },
     {
-      "id": "window-a-wall-clock-stepped-back-no-step-before-the-one-received-earlier-nor-a-window-ending-before-its-last-call",
+      "id": "a-clock-stepped-back-writes-no-time-before-the-latest",
       "plan": "worked-example",
       "start": 1794304800,
       "end": 1794304805,
@@ -1585,7 +1530,7 @@
       }
     },
     {
-      "id": "window-past-the-group-ceiling-new-groups-in-the-catch-alls-overflow-its-keys-losses-not-counted-a-host-first-seen-there-under-the-overflow-marker",
+      "id": "past-the-group-ceiling-new-groups-go-to-the-overflow",
       "plan": {
         "schema_version": "1.0",
         "content_hash": "sha256:fb3733bbe47258024770ac2cc2521f60c5709ddc2a31b87744ed1c213229d77c",
@@ -1967,121 +1912,51 @@
       }
     },
     {
-      "id": "window-at-the-group-ceiling-a-call-joining-an-open-group-with-a-host-first-seen-there-counted-under-the-overflow-marker",
-      "plan": {
-        "schema_version": "1.0",
-        "content_hash": "sha256:fb3733bbe47258024770ac2cc2521f60c5709ddc2a31b87744ed1c213229d77c",
-        "generated_at": "2026-11-10T09:58:02Z",
-        "agent": {
-          "host_id": "host-7f3c",
-          "sandbox_name": "agent-finretail"
-        },
-        "plan_version": 7,
-        "redaction_version": 1,
-        "window_seconds": 900,
-        "budget": {
-          "max_groups_per_window": 2,
-          "max_steps_per_window": 10,
-          "on_max_groups": "coarsen_to_catch_all",
-          "max_unsent_windows": 8
-        },
-        "entries": [
-          {
-            "id": "e1",
-            "match": [
-              {
-                "path": [
-                  "request",
-                  "redacted_path"
-                ],
-                "op": "eq",
-                "value": "/mcp"
-              },
-              {
-                "path": [
-                  "request",
-                  "mcp",
-                  "method"
-                ],
-                "op": "eq",
-                "value": "tools/call"
-              },
-              {
-                "path": [
-                  "request",
-                  "mcp",
-                  "tool"
-                ],
-                "op": "eq",
-                "value": "create_or_update_file"
-              }
-            ],
-            "record": {
-              "context_keys": [
-                {
-                  "name": "destination",
-                  "path": [
-                    "request",
-                    "body",
-                    "params",
-                    "arguments",
-                    "repo"
-                  ],
-                  "field_type": "repository"
-                }
+      "id": "at-the-group-ceiling-a-host-first-seen-is-written-as-overflow",
+      "plan": "two-groups",
+      "entries": [
+        {
+          "id": "e1",
+          "match": [
+            {
+              "path": [
+                "request",
+                "redacted_path"
               ],
-              "measures": [
-                {
-                  "name": "call_count"
-                },
-                {
-                  "name": "error_count"
-                },
-                {
-                  "name": "request_bytes",
-                  "type": "sum",
-                  "function": "size",
-                  "paths": [
-                    [
-                      "request",
-                      "body"
-                    ]
-                  ]
-                },
-                {
-                  "name": "argument_bytes",
-                  "type": "sum",
-                  "function": "size",
-                  "paths": [
-                    [
-                      "request",
-                      "body",
-                      "params",
-                      "arguments",
-                      "content"
-                    ]
-                  ]
-                }
-              ]
+              "op": "eq",
+              "value": "/mcp"
+            },
+            {
+              "path": [
+                "request",
+                "mcp",
+                "method"
+              ],
+              "op": "eq",
+              "value": "tools/call"
+            },
+            {
+              "path": [
+                "request",
+                "mcp",
+                "tool"
+              ],
+              "op": "eq",
+              "value": "create_or_update_file"
             }
-          }
-        ],
-        "catch_all": {
-          "id": "catch_all",
+          ],
           "record": {
             "context_keys": [
               {
-                "name": "host"
-              },
-              {
-                "name": "path_prefix",
-                "segments": 1
-              },
-              {
-                "name": "method"
-              },
-              {
-                "name": "operation"
+                "name": "destination",
+                "path": [
+                  "request",
+                  "body",
+                  "params",
+                  "arguments",
+                  "repo"
+                ],
+                "field_type": "repository"
               }
             ],
             "measures": [
@@ -2101,11 +1976,25 @@
                     "body"
                   ]
                 ]
+              },
+              {
+                "name": "argument_bytes",
+                "type": "sum",
+                "function": "size",
+                "paths": [
+                  [
+                    "request",
+                    "body",
+                    "params",
+                    "arguments",
+                    "content"
+                  ]
+                ]
               }
             ]
           }
         }
-      },
+      ],
       "start": 1794304800,
       "end": 1794305700,
       "calls": [
@@ -2254,121 +2143,51 @@
       }
     },
     {
-      "id": "window-below-the-group-ceiling-a-host-first-seen-past-as-many-hosts-as-groups-counted-under-the-overflow-marker",
-      "plan": {
-        "schema_version": "1.0",
-        "content_hash": "sha256:fb3733bbe47258024770ac2cc2521f60c5709ddc2a31b87744ed1c213229d77c",
-        "generated_at": "2026-11-10T09:58:02Z",
-        "agent": {
-          "host_id": "host-7f3c",
-          "sandbox_name": "agent-finretail"
-        },
-        "plan_version": 7,
-        "redaction_version": 1,
-        "window_seconds": 900,
-        "budget": {
-          "max_groups_per_window": 2,
-          "max_steps_per_window": 10,
-          "on_max_groups": "coarsen_to_catch_all",
-          "max_unsent_windows": 8
-        },
-        "entries": [
-          {
-            "id": "e1",
-            "match": [
-              {
-                "path": [
-                  "request",
-                  "redacted_path"
-                ],
-                "op": "eq",
-                "value": "/mcp"
-              },
-              {
-                "path": [
-                  "request",
-                  "mcp",
-                  "method"
-                ],
-                "op": "eq",
-                "value": "tools/call"
-              },
-              {
-                "path": [
-                  "request",
-                  "mcp",
-                  "tool"
-                ],
-                "op": "eq",
-                "value": "create_or_update_file"
-              }
-            ],
-            "record": {
-              "context_keys": [
-                {
-                  "name": "destination",
-                  "path": [
-                    "request",
-                    "body",
-                    "params",
-                    "arguments",
-                    "repo"
-                  ],
-                  "field_type": "repository"
-                }
+      "id": "past-as-many-hosts-as-groups-a-host-first-seen-is-written-as-overflow",
+      "plan": "two-groups",
+      "entries": [
+        {
+          "id": "e1",
+          "match": [
+            {
+              "path": [
+                "request",
+                "redacted_path"
               ],
-              "measures": [
-                {
-                  "name": "call_count"
-                },
-                {
-                  "name": "error_count"
-                },
-                {
-                  "name": "request_bytes",
-                  "type": "sum",
-                  "function": "size",
-                  "paths": [
-                    [
-                      "request",
-                      "body"
-                    ]
-                  ]
-                },
-                {
-                  "name": "argument_bytes",
-                  "type": "sum",
-                  "function": "size",
-                  "paths": [
-                    [
-                      "request",
-                      "body",
-                      "params",
-                      "arguments",
-                      "content"
-                    ]
-                  ]
-                }
-              ]
+              "op": "eq",
+              "value": "/mcp"
+            },
+            {
+              "path": [
+                "request",
+                "mcp",
+                "method"
+              ],
+              "op": "eq",
+              "value": "tools/call"
+            },
+            {
+              "path": [
+                "request",
+                "mcp",
+                "tool"
+              ],
+              "op": "eq",
+              "value": "create_or_update_file"
             }
-          }
-        ],
-        "catch_all": {
-          "id": "catch_all",
+          ],
           "record": {
             "context_keys": [
               {
-                "name": "host"
-              },
-              {
-                "name": "path_prefix",
-                "segments": 1
-              },
-              {
-                "name": "method"
-              },
-              {
-                "name": "operation"
+                "name": "destination",
+                "path": [
+                  "request",
+                  "body",
+                  "params",
+                  "arguments",
+                  "repo"
+                ],
+                "field_type": "repository"
               }
             ],
             "measures": [
@@ -2388,11 +2207,25 @@
                     "body"
                   ]
                 ]
+              },
+              {
+                "name": "argument_bytes",
+                "type": "sum",
+                "function": "size",
+                "paths": [
+                  [
+                    "request",
+                    "body",
+                    "params",
+                    "arguments",
+                    "content"
+                  ]
+                ]
               }
             ]
           }
         }
-      },
+      ],
       "start": 1794304800,
       "end": 1794305700,
       "calls": [
@@ -2542,7 +2375,7 @@
       }
     },
     {
-      "id": "window-bodies-an-entry-could-have-read-each-reason-counted-in-the-total",
+      "id": "bodies-an-entry-could-have-read-counted-by-reason",
       "plan": "worked-example",
       "start": 1794304800,
       "end": 1794305700,
@@ -2650,7 +2483,7 @@
       }
     },
     {
-      "id": "window-a-value-that-cant-be-told-written-as-the-ambiguous-marker-each-loss-counted-once-per-call",
+      "id": "a-value-that-cant-be-told-written-as-the-marker-a-loss-counted-once-per-call",
       "plan": "worked-example",
       "start": 1794304800,
       "end": 1794305700,
@@ -2807,7 +2640,7 @@
       }
     },
     {
-      "id": "window-values-replaced-a-keys-shape-a-method-outside-the-nine-a-host-past-its-longest-each-counted",
+      "id": "values-replaced-each-counted",
       "plan": "worked-example",
       "start": 1794304800,
       "end": 1794305700,
@@ -2966,7 +2799,7 @@
       }
     },
     {
-      "id": "window-two-entries-records-apart-though-their-keys-values-are-the-same",
+      "id": "two-entries-records-apart-whatever-their-keys",
       "plan": "worked-example",
       "entries": [
         {
@@ -3250,7 +3083,7 @@
       }
     },
     {
-      "id": "window-a-refused-entry-counted-in-entries-skipped",
+      "id": "a-refused-entry-counted-in-entries-skipped",
       "plan": "worked-example",
       "entries": [
         {
@@ -3429,6 +3262,189 @@
           }
         ]
       }
+    },
+    {
+      "id": "each-reason-a-body-went-unread-written-under-its-name",
+      "plan": "worked-example",
+      "start": 1794304800,
+      "end": 1794305700,
+      "calls": [
+        {
+          "at": 1794304801,
+          "call": {
+            "authority": "api.github.com",
+            "method": "POST",
+            "path": "/mcp",
+            "body": {
+              "unread": "past_cap"
+            },
+            "body_bytes": 70000
+          }
+        },
+        {
+          "at": 1794304802,
+          "call": {
+            "authority": "api.github.com",
+            "method": "POST",
+            "path": "/mcp",
+            "body": {
+              "unread": "past_budget"
+            },
+            "body_bytes": 100
+          }
+        },
+        {
+          "at": 1794304803,
+          "call": {
+            "authority": "api.github.com",
+            "method": "POST",
+            "path": "/mcp",
+            "body": {
+              "unread": "cut_short"
+            },
+            "body_bytes": 50
+          }
+        },
+        {
+          "at": 1794304804,
+          "call": {
+            "authority": "api.github.com",
+            "method": "POST",
+            "path": "/mcp",
+            "body": "not json",
+            "body_bytes": 8
+          }
+        },
+        {
+          "at": 1794304805,
+          "call": {
+            "authority": "api.github.com",
+            "method": "POST",
+            "path": "/mcp",
+            "body": "{\"a\": 1}",
+            "body_bytes": 8,
+            "byte_budget": 8
+          }
+        },
+        {
+          "at": 1794304806,
+          "call": {
+            "authority": "api.github.com",
+            "method": "POST",
+            "path": "/mcp",
+            "body": "{\"method\": \"tools/call\", \"params\": {\"name\": \"a\", \"NAME\": \"b\"}}",
+            "body_bytes": 62
+          }
+        }
+      ],
+      "calls_dropped": 0,
+      "sent": {
+        "document_id": "5f0c2a9e-3b1d-4c7a-9e2f-8d6b1a4c3e70",
+        "generated_at": 1794305701,
+        "windows_dropped": 0
+      },
+      "expect": {
+        "agent": {
+          "host_id": "host-7f3c",
+          "sandbox_name": "agent-finretail"
+        },
+        "document_id": "5f0c2a9e-3b1d-4c7a-9e2f-8d6b1a4c3e70",
+        "generated_at": "2026-11-10T10:15:01Z",
+        "hosts": [
+          {
+            "count": 6,
+            "error_count": 0,
+            "host": "api.github.com"
+          }
+        ],
+        "plan_hash": "sha256:fb3733bbe47258024770ac2cc2521f60c5709ddc2a31b87744ed1c213229d77c",
+        "plan_version": 7,
+        "records": [
+          {
+            "context_keys": {
+              "host": "api.github.com",
+              "method": "POST",
+              "operation": null,
+              "path_prefix": "/mcp"
+            },
+            "entry_id": "catch_all",
+            "measures": {
+              "call_count": 5,
+              "error_count": 0,
+              "request_bytes": 70166
+            },
+            "record_id": "r1"
+          },
+          {
+            "context_keys": {
+              "host": "api.github.com",
+              "method": "POST",
+              "operation": "[ambiguous]",
+              "path_prefix": "/mcp"
+            },
+            "entry_id": "catch_all",
+            "measures": {
+              "call_count": 1,
+              "error_count": 0,
+              "request_bytes": 62
+            },
+            "record_id": "r2"
+          }
+        ],
+        "redaction_version": 1,
+        "schema_version": "1.0",
+        "sequence": [
+          {
+            "at": "2026-11-10T10:00:01Z",
+            "record_id": "r1"
+          },
+          {
+            "at": "2026-11-10T10:00:02Z",
+            "record_id": "r1"
+          },
+          {
+            "at": "2026-11-10T10:00:03Z",
+            "record_id": "r1"
+          },
+          {
+            "at": "2026-11-10T10:00:04Z",
+            "record_id": "r1"
+          },
+          {
+            "at": "2026-11-10T10:00:05Z",
+            "record_id": "r1"
+          },
+          {
+            "at": "2026-11-10T10:00:06Z",
+            "record_id": "r2"
+          }
+        ],
+        "truncated": {
+          "body_unread": {
+            "ambiguous": 1,
+            "batch": 0,
+            "cut_short": 1,
+            "not_json": 1,
+            "not_sent": 0,
+            "past_budget": 2,
+            "past_cap": 1,
+            "step_budget": 0
+          },
+          "calls_coarsened": 0,
+          "calls_dropped": 0,
+          "entries_skipped": 0,
+          "path_unresolved": 0,
+          "steps_dropped": 0,
+          "values_ambiguous": 1,
+          "values_replaced": 0,
+          "windows_dropped": 0
+        },
+        "window": {
+          "end": "2026-11-10T10:15:00Z",
+          "start": "2026-11-10T10:00:00Z"
+        }
+      },
+      "note": "A body past the budget and a tree past it are both past_budget."
     }
   ]
 }

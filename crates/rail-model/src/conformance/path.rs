@@ -5,9 +5,9 @@ use serde_json::{Value, json};
 
 use super::environment::Named;
 use super::value::{encode_lookup, encode_refusal};
-use super::{Outcome, create_outcome, read_cases};
+use super::{Outcome, Use, read_cases, run_each};
 use crate::capture::read_record_path;
-use crate::condition::{Budget, ConditionUse, DEFAULT_STEP_LIMIT, Path, Refusal, resolve_path};
+use crate::condition::{Budget, DEFAULT_STEP_LIMIT, Path, resolve_path};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -23,32 +23,27 @@ struct Case {
     expect: Value,
 }
 
-#[derive(Clone, Copy, Deserialize)]
-#[serde(rename_all = "snake_case")]
-enum Use {
-    GatewayPolicy,
-    CapturePlan,
-    Record,
+pub(super) fn run_cases(text: &str, environments: &Named) -> Result<Vec<Outcome>, String> {
+    run_each(read_cases::<Case>(text)?, |case| {
+        let got = run_case(&case, environments);
+        (case.id, case.expect, got)
+    })
 }
 
-pub(super) fn run_cases(text: &str, environments: &Named) -> Result<Vec<Outcome>, String> {
-    read_cases::<Case>(text)?
-        .into_iter()
-        .map(|case| {
-            let sources = environments.build(&case.environment)?;
-            let got = match read_path(&case.path, case.use_case) {
-                Err(refused) => json!({"refused": refused}),
-                Ok(path) => {
-                    let mut budget = Budget::new(case.step_limit.unwrap_or(DEFAULT_STEP_LIMIT));
-                    match resolve_path(&path, &sources.environment(), &mut budget) {
-                        Ok((lookup, _)) => encode_lookup(&lookup),
-                        Err(refusal) => encode_refusal(refusal),
-                    }
-                }
-            };
-            Ok(create_outcome(&case.id, case.expect, got))
-        })
-        .collect()
+fn run_case(case: &Case, environments: &Named) -> Result<Value, String> {
+    let sources = environments.build(&case.environment)?;
+    // Refused as read, its use never resolving it; or as resolved, in the environment.
+    let path = match read_path(&case.path, case.use_case) {
+        Err(refused) => return Ok(json!({"refused_reading": refused})),
+        Ok(path) => path,
+    };
+    let mut budget = Budget::new(case.step_limit.unwrap_or(DEFAULT_STEP_LIMIT));
+    Ok(
+        match resolve_path(&path, &sources.environment(), &mut budget) {
+            Ok((lookup, _)) => encode_lookup(&lookup),
+            Err(refusal) => encode_refusal(refusal),
+        },
+    )
 }
 
 // The path as its use reads it, or why it doesn't.
@@ -59,23 +54,10 @@ fn read_path(spelled: &Value, use_case: Use) -> Result<Path, &'static str> {
         _ => None,
     }
     .ok_or("invalid")?;
-    let reads = match use_case {
-        Use::GatewayPolicy => ConditionUse::GatewayPolicy.reads(&path),
-        Use::CapturePlan => ConditionUse::CapturePlan.reads(&path),
+    match use_case.condition_use() {
+        Some(use_case) if use_case.reads(&path) => Ok(path),
+        Some(_) => Err("not_for_use"),
         // A plan's record reads only a path spelled as a list.
-        Use::Record => return read_record_path(spelled).map_err(|_| "not_for_record"),
-    };
-    if !reads {
-        return Err(refusal_name(Refusal::NotForUse));
-    }
-    Ok(path)
-}
-
-fn refusal_name(refusal: Refusal) -> &'static str {
-    match refusal {
-        Refusal::UnknownOp => "unknown_op",
-        Refusal::Invalid => "invalid",
-        Refusal::NotForUse => "not_for_use",
-        Refusal::BudgetExceeded => "budget_exceeded",
+        None => read_record_path(spelled).map_err(|_| "not_for_record"),
     }
 }

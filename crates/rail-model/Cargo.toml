@@ -15,8 +15,8 @@ name = "rail-model"
 path = "tests/main.rs"
 
 [features]
-# The conformance vectors' runner, for the tests and the binding; in no production build.
-conformance = []
+# The conformance vectors' runner, for the tests and the binding's wheel; in no gateway or proxy.
+conformance = ["time/parsing"]
 
 [dependencies]
 base64 = { version = "0.22", default-features = false, features = ["alloc"] }

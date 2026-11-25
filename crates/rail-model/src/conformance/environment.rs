@@ -6,8 +6,9 @@ use std::sync::Arc;
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
-use super::value::Bytes;
-use crate::body::{BodyBuffer, BodyRead, ByteBudget, Unread};
+use super::read_written;
+use super::value::{Bytes, decode_unread, keep};
+use crate::body::BodyRead;
 use crate::capture::ObservedCall;
 use crate::condition::{Environment, Headers};
 use crate::endpoint::Endpoint;
@@ -23,6 +24,8 @@ struct Environments {
 #[serde(tag = "for", rename_all = "snake_case", deny_unknown_fields)]
 enum Spec {
     Judging {
+        /// `null` for no usable ticket.
+        #[serde(deserialize_with = "read_written")]
         ticket: Option<Map<String, Value>>,
         endpoint: EndpointSpec,
         headers: Vec<(String, String)>,
@@ -57,8 +60,9 @@ pub(super) struct CallSpec {
 #[derive(Deserialize)]
 #[serde(untagged, deny_unknown_fields)]
 enum BodySpec {
+    /// Why it isn't read: `past_cap`, `past_budget`, `not_sent`, `cut_short`.
     Unread {
-        unread: UnreadSpec,
+        unread: String,
     },
     /// `<N bytes>` standing for N bytes of `x`, as the capture design writes a body, padded with
     /// spaces, which JSON allows after its value, to `bytes`.
@@ -69,36 +73,22 @@ enum BodySpec {
     Sent(Bytes),
 }
 
-#[derive(Clone, Copy, Deserialize)]
-#[serde(rename_all = "snake_case")]
-enum UnreadSpec {
-    PastCap,
-    PastBudget,
-    NotSent,
-    CutShort,
-}
-
 impl CallSpec {
-    fn keep(&self, bytes: &[u8]) -> BodyRead {
-        let budget = ByteBudget::new(self.byte_budget.unwrap_or(usize::MAX));
-        let mut buffer = BodyBuffer::new(usize::MAX, &budget);
-        buffer.append(bytes);
-        match buffer.finish() {
-            Ok(body) => BodyRead::Whole(Arc::new(body)),
-            Err(why) => BodyRead::Unread(why.into()),
-        }
-    }
-
     pub(super) fn to_call(&self) -> Result<ObservedCall, String> {
+        let sent = |bytes: &[u8]| match keep(bytes, self.byte_budget.unwrap_or(usize::MAX)) {
+            Ok(body) => BodyRead::Whole(Arc::new(body)),
+            Err(why) => BodyRead::Unread(why),
+        };
         let body = match &self.body {
-            BodySpec::Unread { unread } => BodyRead::Unread(match unread {
-                UnreadSpec::PastCap => Unread::PastCap,
-                UnreadSpec::PastBudget => Unread::PastBudget,
-                UnreadSpec::NotSent => Unread::NotSent,
-                UnreadSpec::CutShort => Unread::CutShort,
-            }),
-            BodySpec::Shorthand { text, bytes } => self.keep(&expand(text, *bytes)?),
-            BodySpec::Sent(bytes) => self.keep(&bytes.to_bytes()?),
+            BodySpec::Unread { .. } if self.byte_budget.is_some() => {
+                return Err("a byte_budget beside a body not read".into());
+            }
+            BodySpec::Unread { unread } => BodyRead::Unread(
+                decode_unread(unread)
+                    .ok_or_else(|| format!("not a reason a body is unread: {unread}"))?,
+            ),
+            BodySpec::Shorthand { text, bytes } => sent(&expand(text, *bytes)?),
+            BodySpec::Sent(bytes) => sent(&bytes.to_bytes()?),
         };
         Ok(ObservedCall {
             authority: self.authority.to_bytes()?,

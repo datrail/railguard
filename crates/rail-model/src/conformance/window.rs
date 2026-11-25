@@ -1,7 +1,6 @@
 //! Layer 9: a window's calls, closed into its call record document.
 
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::Deserialize;
 use serde_json::Value;
@@ -9,7 +8,7 @@ use uuid::Uuid;
 
 use super::environment::CallSpec;
 use super::plans::{NamedPlans, PlanSpec};
-use super::{Outcome, create_outcome, read_cases};
+use super::{Outcome, read_cases, run_each, time};
 use crate::capture::Window;
 
 #[derive(Deserialize)]
@@ -45,30 +44,25 @@ struct Sent {
     windows_dropped: u64,
 }
 
-pub(super) fn time(seconds: u64) -> SystemTime {
-    UNIX_EPOCH + Duration::from_secs(seconds)
+pub(super) fn run_cases(text: &str, plans: &NamedPlans) -> Result<Vec<Outcome>, String> {
+    run_each(read_cases::<Case>(text)?, |case| {
+        let got = run_case(&case, plans);
+        (case.id, case.expect, got)
+    })
 }
 
-pub(super) fn run_cases(text: &str, plans: &NamedPlans) -> Result<Vec<Outcome>, String> {
-    read_cases::<Case>(text)?
-        .into_iter()
-        .map(|case| {
-            let plan = plans
-                .compile(&case.plan, case.entries.as_ref())
-                .map_err(|e| format!("{}: {e}", case.id))?;
-            let mut window = Window::open(Arc::new(plan), time(case.start));
-            window.count_dropped(case.calls_dropped);
-            for received in &case.calls {
-                // What it says of the call is the windowing's layer.
-                let _ = window.record(&received.call.to_call()?, time(received.at));
-            }
-            let document = window.close(time(case.end)).into_document(
-                case.sent.document_id,
-                time(case.sent.generated_at),
-                case.sent.windows_dropped,
-            );
-            let got = serde_json::to_value(&document).map_err(|e| e.to_string())?;
-            Ok(create_outcome(&case.id, case.expect, got))
-        })
-        .collect()
+fn run_case(case: &Case, plans: &NamedPlans) -> Result<Value, String> {
+    let plan = plans.compile(&case.plan, case.entries.as_ref())?;
+    let mut window = Window::open(Arc::new(plan), time(case.start));
+    window.count_dropped(case.calls_dropped);
+    for received in &case.calls {
+        // What it says of the call is the windowing's layer.
+        let _ = window.record(&received.call.to_call()?, time(received.at));
+    }
+    let document = window.close(time(case.end)).into_document(
+        case.sent.document_id,
+        time(case.sent.generated_at),
+        case.sent.windows_dropped,
+    );
+    serde_json::to_value(&document).map_err(|e| e.to_string())
 }

@@ -17,7 +17,7 @@
         "ticket"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -41,7 +41,7 @@
         "team"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -63,7 +63,7 @@
         "Team"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -94,7 +94,7 @@
         "roles"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -120,7 +120,7 @@
         "daily"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -138,7 +138,7 @@
       "use": "capture_plan",
       "path": "ticket.limits.daily",
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -160,7 +160,7 @@
         "note"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -184,7 +184,7 @@
         "name"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -197,7 +197,7 @@
         0
       ],
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -210,7 +210,7 @@
         0
       ],
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -226,7 +226,7 @@
       "use": "capture_plan",
       "path": "ticket.roles.0",
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -246,7 +246,7 @@
         "request"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -270,7 +270,7 @@
         "endpoint_key"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -292,7 +292,7 @@
         "headers"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -318,7 +318,7 @@
         "content-type"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -351,7 +351,7 @@
         "accept"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -384,7 +384,7 @@
         "x-trace"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -408,7 +408,7 @@
         "Content-Type"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -420,7 +420,7 @@
         "host"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -444,7 +444,7 @@
         "method"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -468,7 +468,7 @@
         "path"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -492,7 +492,7 @@
         "redacted_path"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -517,7 +517,7 @@
         "method"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -543,7 +543,7 @@
         "tool"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -568,7 +568,7 @@
         "body"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -592,7 +592,7 @@
         "name"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -623,7 +623,7 @@
         "path"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -655,7 +655,7 @@
         "size"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -679,7 +679,7 @@
       "use": "gateway_policy",
       "path": "request.body.params.arguments.files.0",
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -699,7 +699,7 @@
         0
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -712,7 +712,7 @@
         0
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -725,7 +725,7 @@
         0
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -738,7 +738,7 @@
         0
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -751,7 +751,7 @@
         "tag"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -764,7 +764,7 @@
         "tag"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -778,7 +778,7 @@
         1
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -792,7 +792,7 @@
         1
       ],
       "expect": {
-        "refused": "not_for_use"
+        "refused_reading": "not_for_use"
       }
     },
     {
@@ -806,7 +806,7 @@
         "1"
       ],
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -820,7 +820,7 @@
         "1"
       ],
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -832,7 +832,7 @@
         "mcp"
       ],
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -844,7 +844,7 @@
         "mcp"
       ],
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -857,7 +857,7 @@
         -1
       ],
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -870,7 +870,7 @@
         -1
       ],
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -883,7 +883,7 @@
         1.5
       ],
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -896,7 +896,7 @@
         1.5
       ],
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -908,7 +908,7 @@
         "params"
       ],
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -920,57 +920,7 @@
         "params"
       ],
       "expect": {
-        "refused": "invalid"
-      }
-    },
-    {
-      "id": "policy-source-missing-query",
-      "environment": "judging-sample",
-      "use": "gateway_policy",
-      "path": [
-        "query",
-        "repo",
-        0
-      ],
-      "expect": {
-        "refused": "invalid"
-      }
-    },
-    {
-      "id": "plan-source-missing-query",
-      "environment": "capture-sample",
-      "use": "capture_plan",
-      "path": [
-        "query",
-        "repo",
-        0
-      ],
-      "expect": {
-        "refused": "invalid"
-      }
-    },
-    {
-      "id": "policy-source-missing-path",
-      "environment": "judging-sample",
-      "use": "gateway_policy",
-      "path": [
-        "path",
-        0
-      ],
-      "expect": {
-        "refused": "invalid"
-      }
-    },
-    {
-      "id": "plan-source-missing-path",
-      "environment": "capture-sample",
-      "use": "capture_plan",
-      "path": [
-        "path",
-        0
-      ],
-      "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -982,7 +932,7 @@
         "status"
       ],
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -994,7 +944,7 @@
         "status"
       ],
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -1003,7 +953,7 @@
       "use": "gateway_policy",
       "path": [],
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -1012,7 +962,7 @@
       "use": "capture_plan",
       "path": [],
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -1021,7 +971,7 @@
       "use": "gateway_policy",
       "path": "",
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -1030,7 +980,7 @@
       "use": "capture_plan",
       "path": "",
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -1039,7 +989,7 @@
       "use": "gateway_policy",
       "path": 5,
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -1048,7 +998,7 @@
       "use": "capture_plan",
       "path": 5,
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -1060,7 +1010,7 @@
         true
       ],
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -1072,7 +1022,7 @@
         true
       ],
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -1095,7 +1045,7 @@
       "expect": "absent"
     },
     {
-      "id": "policy-ticket-missing-object-absent",
+      "id": "policy-ticket-missing-key-absent",
       "environment": "judging-ticket-leaving-out",
       "use": "gateway_policy",
       "path": "ticket.alignment.baseline",
@@ -1233,7 +1183,7 @@
       "use": "gateway_policy",
       "path": "request.headers.x-a.b",
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -1317,6 +1267,167 @@
       "expect": {
         "refused": "not_for_use"
       }
+    },
+    {
+      "id": "plan-dotted-segment-invalid",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": "request.path.0",
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-dotted-redacted-segment-invalid",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": "request.redacted_path.2",
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-query-name-not-a-string-invalid",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "query",
+        0
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-query-step-past-its-index-invalid",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "query",
+        "repo",
+        0,
+        1
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-segment-index-negative-invalid",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "path",
+        -1
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-segment-index-a-string-invalid",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "path",
+        "0"
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-redacted-segment-step-past-its-index-invalid",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "redacted_path",
+        0,
+        1
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-request-field-unknown-invalid",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "nothing"
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "record-dotted-query-parsed-not-for-a-record",
+      "note": "Read as a query, but a record reads only a path spelled as a list.",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": "request.query.repo",
+      "expect": {
+        "refused_reading": "not_for_record"
+      }
+    },
+    {
+      "id": "plan-dotted-query-parsed-not-for-a-match",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": "request.query.repo",
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "plan-body-empty-key-absent",
+      "note": "Only a record refuses an empty key.",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        ""
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "policy-ticket-claim-zero-not-missing",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": "ticket.zero",
+      "expect": {
+        "number": 0
+      }
+    },
+    {
+      "id": "policy-ticket-claim-empty-string-not-missing",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": "ticket.empty",
+      "expect": {
+        "string": ""
+      }
+    },
+    {
+      "id": "policy-ticket-key-under-a-list-holding-it-absent",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": "ticket.roles.writer",
+      "expect": "absent"
+    },
+    {
+      "id": "policy-ticket-key-under-a-string-holding-it-absent",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": "ticket.team.pay",
+      "expect": "absent"
     },
     {
       "id": "plan-host-unparseable",
@@ -1700,20 +1811,6 @@
       }
     },
     {
-      "id": "plan-body-whole-of-a-body-not-sent",
-      "environment": "capture-body-not-sent",
-      "use": "capture_plan",
-      "path": [
-        "request",
-        "body"
-      ],
-      "expect": {
-        "body_unread": {
-          "unread": "not_sent"
-        }
-      }
-    },
-    {
       "id": "plan-mcp-tool-of-a-body-not-sent",
       "environment": "capture-body-not-sent",
       "use": "capture_plan",
@@ -1729,7 +1826,8 @@
       }
     },
     {
-      "id": "plan-host-of-a-body-not-sent-read",
+      "id": "plan-host-of-a-body-unread-read",
+      "note": "The request line is read whatever the body.",
       "environment": "capture-body-not-sent",
       "use": "capture_plan",
       "path": [
@@ -1756,20 +1854,6 @@
       }
     },
     {
-      "id": "plan-body-whole-of-a-body-past-cap",
-      "environment": "capture-body-past-cap",
-      "use": "capture_plan",
-      "path": [
-        "request",
-        "body"
-      ],
-      "expect": {
-        "body_unread": {
-          "unread": "past_cap"
-        }
-      }
-    },
-    {
       "id": "plan-mcp-tool-of-a-body-past-cap",
       "environment": "capture-body-past-cap",
       "use": "capture_plan",
@@ -1785,18 +1869,6 @@
       }
     },
     {
-      "id": "plan-host-of-a-body-past-cap-read",
-      "environment": "capture-body-past-cap",
-      "use": "capture_plan",
-      "path": [
-        "request",
-        "host"
-      ],
-      "expect": {
-        "string": "mcp.example.com"
-      }
-    },
-    {
       "id": "plan-body-key-of-a-body-past-budget",
       "environment": "capture-body-past-budget",
       "use": "capture_plan",
@@ -1804,20 +1876,6 @@
         "request",
         "body",
         "method"
-      ],
-      "expect": {
-        "body_unread": {
-          "unread": "past_budget"
-        }
-      }
-    },
-    {
-      "id": "plan-body-whole-of-a-body-past-budget",
-      "environment": "capture-body-past-budget",
-      "use": "capture_plan",
-      "path": [
-        "request",
-        "body"
       ],
       "expect": {
         "body_unread": {
@@ -1841,18 +1899,6 @@
       }
     },
     {
-      "id": "plan-host-of-a-body-past-budget-read",
-      "environment": "capture-body-past-budget",
-      "use": "capture_plan",
-      "path": [
-        "request",
-        "host"
-      ],
-      "expect": {
-        "string": "mcp.example.com"
-      }
-    },
-    {
       "id": "plan-body-key-of-a-body-cut-short",
       "environment": "capture-body-cut-short",
       "use": "capture_plan",
@@ -1860,20 +1906,6 @@
         "request",
         "body",
         "method"
-      ],
-      "expect": {
-        "body_unread": {
-          "unread": "cut_short"
-        }
-      }
-    },
-    {
-      "id": "plan-body-whole-of-a-body-cut-short",
-      "environment": "capture-body-cut-short",
-      "use": "capture_plan",
-      "path": [
-        "request",
-        "body"
       ],
       "expect": {
         "body_unread": {
@@ -1894,18 +1926,6 @@
         "body_unread": {
           "unread": "cut_short"
         }
-      }
-    },
-    {
-      "id": "plan-host-of-a-body-cut-short-read",
-      "environment": "capture-body-cut-short",
-      "use": "capture_plan",
-      "path": [
-        "request",
-        "host"
-      ],
-      "expect": {
-        "string": "mcp.example.com"
       }
     },
     {
@@ -2384,7 +2404,7 @@
         "host"
       ],
       "expect": {
-        "refused": "not_for_record"
+        "refused_reading": "not_for_record"
       }
     },
     {
@@ -2396,7 +2416,7 @@
         "method"
       ],
       "expect": {
-        "refused": "not_for_record"
+        "refused_reading": "not_for_record"
       }
     },
     {
@@ -2408,7 +2428,7 @@
         "path"
       ],
       "expect": {
-        "refused": "not_for_record"
+        "refused_reading": "not_for_record"
       }
     },
     {
@@ -2420,7 +2440,7 @@
         "redacted_path"
       ],
       "expect": {
-        "refused": "not_for_record"
+        "refused_reading": "not_for_record"
       }
     },
     {
@@ -2433,7 +2453,7 @@
         "tool"
       ],
       "expect": {
-        "refused": "not_for_record"
+        "refused_reading": "not_for_record"
       }
     },
     {
@@ -2445,7 +2465,7 @@
         "team"
       ],
       "expect": {
-        "refused": "not_for_record"
+        "refused_reading": "not_for_record"
       }
     },
     {
@@ -2458,7 +2478,7 @@
         "accept"
       ],
       "expect": {
-        "refused": "not_for_record"
+        "refused_reading": "not_for_record"
       }
     },
     {
@@ -2470,7 +2490,7 @@
         "endpoint_key"
       ],
       "expect": {
-        "refused": "not_for_record"
+        "refused_reading": "not_for_record"
       }
     },
     {
@@ -2481,7 +2501,7 @@
         "request"
       ],
       "expect": {
-        "refused": "not_for_record"
+        "refused_reading": "not_for_record"
       }
     },
     {
@@ -2490,7 +2510,7 @@
       "use": "record",
       "path": "request.body.params",
       "expect": {
-        "refused": "not_for_record"
+        "refused_reading": "not_for_record"
       }
     },
     {
@@ -2504,7 +2524,7 @@
         ""
       ],
       "expect": {
-        "refused": "not_for_record"
+        "refused_reading": "not_for_record"
       }
     },
     {
@@ -2517,7 +2537,7 @@
         ""
       ],
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {
@@ -2526,7 +2546,7 @@
       "use": "record",
       "path": "nothing",
       "expect": {
-        "refused": "invalid"
+        "refused_reading": "invalid"
       }
     },
     {

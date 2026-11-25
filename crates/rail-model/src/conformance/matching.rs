@@ -5,9 +5,8 @@ use serde_json::{Value, json};
 
 use super::environment::CallSpec;
 use super::plans::{NamedPlans, PlanSpec};
-use super::request_line::encode_unmatchable;
-use super::value::encode_body_unread;
-use super::{Outcome, create_outcome, read_cases};
+use super::value::{encode_body_unread, encode_unmatchable};
+use super::{Outcome, read_cases, run_each};
 use crate::capture::{CompiledPlan, EntryRefusal, Taken, Untaken};
 
 #[derive(Deserialize)]
@@ -23,22 +22,20 @@ struct Case {
 }
 
 pub(super) fn run_cases(text: &str, plans: &NamedPlans) -> Result<Vec<Outcome>, String> {
-    read_cases::<Case>(text)?
-        .into_iter()
-        .map(|case| {
-            let plan = plans
-                .compile(&case.plan, case.entries.as_ref())
-                .map_err(|e| format!("{}: {e}", case.id))?;
-            let call = case.call.to_call()?;
-            let captured = plan.capture(&call);
-            let got = json!({
-                "refused": encode_refused(&plan),
-                "entries_skipped": plan.entries_skipped(),
-                "taken": encode_taken(&captured.taken),
-            });
-            Ok(create_outcome(&case.id, case.expect, got))
-        })
-        .collect()
+    run_each(read_cases::<Case>(text)?, |case| {
+        let got = run_case(&case, plans);
+        (case.id, case.expect, got)
+    })
+}
+
+fn run_case(case: &Case, plans: &NamedPlans) -> Result<Value, String> {
+    let plan = plans.compile(&case.plan, case.entries.as_ref())?;
+    let captured = plan.capture(&case.call.to_call()?);
+    Ok(json!({
+        "refused": encode_refused(&plan),
+        "entries_skipped": plan.entries_skipped(),
+        "taken": encode_taken(&captured.taken),
+    }))
 }
 
 fn encode_refused(plan: &CompiledPlan) -> Vec<Value> {
@@ -52,7 +49,7 @@ fn encode_entry_refusal(id: &str, refusal: &EntryRefusal) -> Value {
     json!({"entry": id, "location": refusal.location, "refusal": refusal.refusal})
 }
 
-pub(super) fn encode_taken(taken: &Taken) -> Value {
+fn encode_taken(taken: &Taken) -> Value {
     match taken {
         Taken::Entry(entry) => json!({"entry": entry.id}),
         Taken::CatchAll(catch_all, why) => {

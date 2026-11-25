@@ -4,7 +4,7 @@ use pyo3::pymodule;
 
 #[pymodule]
 mod _native {
-    use std::collections::HashMap;
+    use std::collections::{BTreeMap, HashMap};
 
     use ed25519_dalek::VerifyingKey;
     use pyo3::exceptions::PyValueError;
@@ -27,19 +27,31 @@ mod _native {
     #[pymodule_export]
     const DEFAULT_STEP_LIMIT: u64 = rail_model::condition::DEFAULT_STEP_LIMIT;
 
-    /// Every case of `file`, a path under `vectors`, run: each its id, its `expect` and what was
-    /// found, the last two as JSON.
+    #[pymodule_export]
+    const FILES: [&str; 10] = rail_model::conformance::FILES;
+
+    #[pymodule_export]
+    const SHARED: [&str; 2] = rail_model::conformance::SHARED;
+
+    /// Every case of `file` run, `texts` holding each file it reads by its path under `vectors/`:
+    /// each case's id, and its `expect` and what was found, as JSON, and whether the two are equal
+    /// as Rust compares them, so a number's kind counts.
     #[pyfunction]
-    fn run_vectors(vectors: &str, file: &str) -> PyResult<Vec<(String, String, String)>> {
-        let outcomes = rail_model::conformance::run_vectors(std::path::Path::new(vectors), file)
-            .map_err(PyValueError::new_err)?;
+    fn run_vectors(
+        file: &str,
+        texts: BTreeMap<String, String>,
+    ) -> PyResult<Vec<(String, String, String, bool)>> {
+        let outcomes =
+            rail_model::conformance::run_vectors(file, &texts).map_err(PyValueError::new_err)?;
         Ok(outcomes
             .into_iter()
             .map(|outcome| {
+                let equal = outcome.expect == outcome.got;
                 (
                     outcome.id,
                     outcome.expect.to_string(),
                     outcome.got.to_string(),
+                    equal,
                 )
             })
             .collect())

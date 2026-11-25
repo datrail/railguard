@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 
 use crate::body::{BodyBuffer, ByteBudget, RequestBody, Unparsed, Unread};
 use crate::condition::{BodyUnread, Items, Lookup, Refusal, Verdict};
-use crate::request_line::HostReading;
+use crate::request_line::{HostReading, ReportedMethod, Unmatchable};
 
 /// Bytes as a vector writes them: text, or `{"hex": …}` for bytes that aren't UTF-8.
 #[derive(Deserialize)]
@@ -58,11 +58,15 @@ pub(super) fn encode_lookup(lookup: &Lookup) -> Value {
     }
 }
 
-// Past a double, as a body's number saturates.
-pub(super) fn encode_number(number: f64) -> Value {
+// Past a double as a body's number saturates; a whole number as one, so `1` and `1.0` are one.
+fn encode_number(number: f64) -> Value {
     match number {
         f64::INFINITY => json!("inf"),
         f64::NEG_INFINITY => json!("-inf"),
+        whole if whole.fract() == 0.0 && whole.abs() < 2f64.powi(53) && whole != 0.0 => {
+            json!(whole as i64)
+        }
+        zero if zero == 0.0 && zero.is_sign_positive() => json!(0),
         number => json!(number),
     }
 }
@@ -75,7 +79,7 @@ pub(super) fn encode_body_unread(why: BodyUnread) -> Value {
     }
 }
 
-pub(super) fn encode_unread(why: Unread) -> &'static str {
+fn encode_unread(why: Unread) -> &'static str {
     match why {
         Unread::PastCap => "past_cap",
         Unread::PastBudget => "past_budget",
@@ -113,19 +117,48 @@ pub(super) fn encode_host_reading(host: &HostReading) -> Value {
     }
 }
 
-/// A value as a vector writes it, decoded and held, for a `Lookup` to borrow.
-pub(super) struct HeldValue {
-    shape: Shape,
-    // A list's items, written as a body and read as one, so an item reads as a body's does.
-    list: Option<RequestBody>,
+pub(super) fn encode_reported_method(method: ReportedMethod) -> Value {
+    match method {
+        ReportedMethod::Standard(method) => json!(method),
+        ReportedMethod::Other => json!("other"),
+    }
 }
 
-enum Shape {
+pub(super) fn encode_unmatchable(why: Unmatchable) -> &'static str {
+    match why {
+        Unmatchable::NotUtf8 => "not_utf8",
+        Unmatchable::Bracket => "bracket",
+        Unmatchable::EncodedSlash => "encoded_slash",
+        Unmatchable::DotSegment => "dot_segment",
+        Unmatchable::EmptySegment => "empty_segment",
+    }
+}
+
+pub(super) fn decode_unread(name: &str) -> Option<Unread> {
+    match name {
+        "past_cap" => Some(Unread::PastCap),
+        "past_budget" => Some(Unread::PastBudget),
+        "not_sent" => Some(Unread::NotSent),
+        "cut_short" => Some(Unread::CutShort),
+        _ => None,
+    }
+}
+
+/// `bytes` kept whole, within a budget shared with its tree.
+pub(super) fn keep(bytes: &[u8], budget_bytes: usize) -> Result<RequestBody, Unread> {
+    let mut buffer = BodyBuffer::new(usize::MAX, &ByteBudget::new(budget_bytes));
+    buffer.append(bytes);
+    buffer.finish().map_err(Unread::from)
+}
+
+/// A value as a vector writes it, decoded and held, for a `Lookup` to borrow.
+pub(super) enum HeldValue {
     Absent,
     String(String),
     Number(f64),
     Bool(bool),
-    List,
+    /// Its items written as a body and read as one, so an item reads as a body's does.
+    List(RequestBody),
     Object,
     Ambiguous,
     BodyUnread(BodyUnread),
@@ -133,29 +166,24 @@ enum Shape {
 
 impl HeldValue {
     pub(super) fn decode(value: &Value) -> Result<Self, String> {
-        let held = |shape| Self { shape, list: None };
         Ok(match value {
-            Value::String(name) if name == "absent" => held(Shape::Absent),
-            Value::String(name) if name == "object" => held(Shape::Object),
-            Value::String(name) if name == "ambiguous" => held(Shape::Ambiguous),
+            Value::String(name) if name == "absent" => Self::Absent,
+            Value::String(name) if name == "object" => Self::Object,
+            Value::String(name) if name == "ambiguous" => Self::Ambiguous,
             Value::Object(fields) if fields.len() == 1 => {
                 let (kind, inner) = fields.iter().next().expect("one field");
                 match (kind.as_str(), inner) {
-                    ("string", Value::String(text)) => held(Shape::String(text.clone())),
-                    ("number", number) => held(Shape::Number(decode_number(number)?)),
-                    ("bool", Value::Bool(value)) => held(Shape::Bool(*value)),
+                    ("string", Value::String(text)) => Self::String(text.clone()),
+                    ("number", number) => Self::Number(decode_number(number)?),
+                    ("bool", Value::Bool(value)) => Self::Bool(*value),
                     ("list", Value::Array(_)) => {
                         let mut text = String::new();
                         write_body_text(value, &mut text)?;
-                        let mut buffer = BodyBuffer::new(usize::MAX, &ByteBudget::new(usize::MAX));
-                        buffer.append(text.as_bytes());
-                        let body = buffer.finish().map_err(|why| format!("{why:?}"))?;
-                        Self {
-                            shape: Shape::List,
-                            list: Some(body),
-                        }
+                        Self::List(
+                            keep(text.as_bytes(), usize::MAX).map_err(|why| format!("{why:?}"))?,
+                        )
                     }
-                    ("body_unread", why) => held(Shape::BodyUnread(decode_body_unread(why)?)),
+                    ("body_unread", why) => Self::BodyUnread(decode_body_unread(why)?),
                     _ => return Err(format!("not a value: {value}")),
                 }
             }
@@ -164,18 +192,17 @@ impl HeldValue {
     }
 
     pub(super) fn lookup(&self) -> Lookup<'_> {
-        match &self.shape {
-            Shape::Absent => Lookup::Absent,
-            Shape::String(text) => Lookup::String(Cow::Borrowed(text)),
-            Shape::Number(number) => Lookup::Number(*number),
-            Shape::Bool(value) => Lookup::Bool(*value),
-            Shape::List => {
-                let body = self.list.as_ref().expect("a list holds its body");
+        match self {
+            Self::Absent => Lookup::Absent,
+            Self::String(text) => Lookup::String(Cow::Borrowed(text)),
+            Self::Number(number) => Lookup::Number(*number),
+            Self::Bool(value) => Lookup::Bool(*value),
+            Self::List(body) => {
                 Lookup::List(Items::Body(body.json().expect("a list written as JSON")))
             }
-            Shape::Object => Lookup::Object,
-            Shape::Ambiguous => Lookup::Ambiguous,
-            Shape::BodyUnread(why) => Lookup::BodyUnread(*why),
+            Self::Object => Lookup::Object,
+            Self::Ambiguous => Lookup::Ambiguous,
+            Self::BodyUnread(why) => Lookup::BodyUnread(*why),
         }
     }
 }
@@ -191,13 +218,6 @@ fn decode_number(number: &Value) -> Result<f64, String> {
 }
 
 fn decode_body_unread(why: &Value) -> Result<BodyUnread, String> {
-    let unread = |name: &str| match name {
-        "past_cap" => Some(Unread::PastCap),
-        "past_budget" => Some(Unread::PastBudget),
-        "not_sent" => Some(Unread::NotSent),
-        "cut_short" => Some(Unread::CutShort),
-        _ => None,
-    };
     let unparsed = |name: &str| match name {
         "malformed" => Some(Unparsed::Malformed),
         "past_budget" => Some(Unparsed::PastBudget),
@@ -207,7 +227,7 @@ fn decode_body_unread(why: &Value) -> Result<BodyUnread, String> {
         Value::String(name) if name == "batch" => Some(BodyUnread::Batch),
         Value::Object(fields) if fields.len() == 1 => match fields.iter().next() {
             Some((kind, Value::String(name))) if kind == "unread" => {
-                unread(name).map(BodyUnread::Unread)
+                decode_unread(name).map(BodyUnread::Unread)
             }
             Some((kind, Value::String(name))) if kind == "unparsed" => {
                 unparsed(name).map(BodyUnread::Unparsed)

@@ -31,6 +31,13 @@ impl NamedPlans {
         Ok(Self(file.plans))
     }
 
+    pub(super) fn get(&self, name: &str) -> Result<Value, String> {
+        self.0
+            .get(name)
+            .cloned()
+            .ok_or_else(|| format!("no plan {name:?}"))
+    }
+
     /// `spec`'s plan, `entries` in place of a named plan's, compiled.
     pub(super) fn compile(
         &self,
@@ -38,11 +45,7 @@ impl NamedPlans {
         entries: Option<&Value>,
     ) -> Result<CompiledPlan, String> {
         let mut plan = match spec {
-            PlanSpec::Named(name) => self
-                .0
-                .get(name)
-                .cloned()
-                .ok_or_else(|| format!("no plan {name:?}"))?,
+            PlanSpec::Named(name) => self.get(name)?,
             PlanSpec::Whole(_) if entries.is_some() => {
                 return Err("entries beside a plan written whole".into());
             }
@@ -51,7 +54,11 @@ impl NamedPlans {
         if let Some(entries) = entries {
             plan["entries"] = entries.clone();
         }
-        let plan = parse_plan(&plan.to_string()).map_err(|e| format!("the plan: {e}"))?;
-        Ok(compile_plan(plan))
+        compile_written(&plan)
     }
+}
+
+pub(super) fn compile_written(plan: &Value) -> Result<CompiledPlan, String> {
+    let plan = parse_plan(&plan.to_string()).map_err(|e| format!("the plan: {e}"))?;
+    Ok(compile_plan(plan))
 }

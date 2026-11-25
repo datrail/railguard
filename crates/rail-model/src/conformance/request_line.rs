@@ -3,9 +3,9 @@
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use super::value::{Bytes, encode_host_reading};
-use super::{Outcome, create_outcome, read_cases};
-use crate::request_line::{ReportedMethod, RequestLine, Unmatchable};
+use super::value::{Bytes, encode_host_reading, encode_reported_method, encode_unmatchable};
+use super::{Outcome, read_cases, run_each};
+use crate::request_line::RequestLine;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -20,30 +20,24 @@ struct Case {
 }
 
 pub(super) fn run_cases(text: &str) -> Result<Vec<Outcome>, String> {
-    read_cases::<Case>(text)?
-        .into_iter()
-        .map(|case| {
-            let line = RequestLine::read(
-                &case.authority.to_bytes()?,
-                &case.method.to_bytes()?,
-                &case.path.to_bytes()?,
-            );
-            Ok(create_outcome(
-                &case.id,
-                case.expect,
-                encode_request_line(&line),
-            ))
-        })
-        .collect()
+    run_each(read_cases::<Case>(text)?, |case| {
+        let got = run_case(&case);
+        (case.id, case.expect, got)
+    })
 }
 
-pub(super) fn encode_request_line(line: &RequestLine) -> Value {
+fn run_case(case: &Case) -> Result<Value, String> {
+    let line = RequestLine::read(
+        &case.authority.to_bytes()?,
+        &case.method.to_bytes()?,
+        &case.path.to_bytes()?,
+    );
     let segments = |read: fn(&RequestLine, usize) -> Option<&str>| {
         (0..)
-            .map_while(|index| read(line, index))
+            .map_while(|index| read(&line, index))
             .collect::<Vec<_>>()
     };
-    json!({
+    Ok(json!({
         "host": encode_host_reading(line.host_reading()),
         "method": line.method(),
         "reported_method": encode_reported_method(line.reported_method()),
@@ -53,22 +47,5 @@ pub(super) fn encode_request_line(line: &RequestLine) -> Value {
         "redacted_segments": segments(RequestLine::redacted_path_segment),
         "query": line.query(),
         "unmatchable": line.unmatchable().map(encode_unmatchable),
-    })
-}
-
-pub(super) fn encode_reported_method(method: ReportedMethod) -> Value {
-    match method {
-        ReportedMethod::Standard(method) => json!(method),
-        ReportedMethod::Other => json!("other"),
-    }
-}
-
-pub(super) fn encode_unmatchable(why: Unmatchable) -> &'static str {
-    match why {
-        Unmatchable::NotUtf8 => "not_utf8",
-        Unmatchable::Bracket => "bracket",
-        Unmatchable::EncodedSlash => "encoded_slash",
-        Unmatchable::DotSegment => "dot_segment",
-        Unmatchable::EmptySegment => "empty_segment",
-    }
+    }))
 }

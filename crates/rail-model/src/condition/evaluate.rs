@@ -247,12 +247,9 @@ pub fn evaluate_condition<'a>(
         resolved: None,
         verdict: Verdict::Refused(refusal),
     };
-    if let Err(refusal) = budget.charge(1) {
-        return refuse(refusal);
-    }
-    let (path, test) = match &condition.0 {
-        Node::Refused(refusal) => return refuse(*refusal),
-        Node::Test(path, test) => (path, test),
+    let (path, test) = match start(condition, budget) {
+        Ok(started) => started,
+        Err(refusal) => return refuse(refusal),
     };
     let value = match resolve(path, environment, budget) {
         Ok(value) => value,
@@ -273,12 +270,21 @@ pub(crate) fn apply_condition(
     value: &Lookup,
     budget: &mut Budget,
 ) -> Verdict {
-    if let Err(refusal) = budget.charge(1) {
-        return Verdict::Refused(refusal);
+    match start(condition, budget) {
+        Ok((_, test)) => apply(test, value, budget),
+        Err(refusal) => Verdict::Refused(refusal),
     }
+}
+
+// One step for the condition, then its path and test, or why it's refused.
+fn start<'c>(
+    condition: &'c CompiledCondition,
+    budget: &mut Budget,
+) -> Result<(&'c Path, &'c Test), Refusal> {
+    budget.charge(1)?;
     match &condition.0 {
-        Node::Refused(refusal) => Verdict::Refused(*refusal),
-        Node::Test(_, test) => apply(test, value, budget),
+        Node::Refused(refusal) => Err(*refusal),
+        Node::Test(path, test) => Ok((path, test)),
     }
 }
 

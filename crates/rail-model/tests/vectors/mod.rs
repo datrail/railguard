@@ -1,9 +1,10 @@
 //! Every conformance vector, run by its layer; `-- vectors::` runs them alone.
 
-use std::collections::HashSet;
-use std::path::Path;
+use std::collections::{BTreeMap, HashSet};
+use std::fs;
 
-use rail_model::conformance::run_vectors;
+use rail_model::conformance::{FILES, SHARED, run_vectors};
+use serde::Deserialize;
 
 mod bundle;
 mod check;
@@ -14,97 +15,66 @@ mod ticket;
 
 const VECTORS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../vectors");
 
-// Every file the runner reads.
-const FILES: [&str; 10] = [
-    "request_line.json",
-    "mcp.json",
-    "condition/path.json",
-    "condition/condition.json",
-    "condition/op.json",
-    "capture/entry.json",
-    "capture/record.json",
-    "capture/matching.json",
-    "capture/window.json",
-    "capture/windowing.json",
+// The files whose cases their own tests read, in the same format.
+const OWN_TESTS: [&str; 6] = [
+    "redaction.json",
+    "policy/bundle.json",
+    "policy/judge.json",
+    "policy/base64_ticket.json",
+    "policy/jwt_ticket.json",
+    "capture/plan.json",
 ];
+
+fn read_texts() -> BTreeMap<String, String> {
+    (FILES.iter().chain(&SHARED).chain(&OWN_TESTS))
+        .map(|name| {
+            let text = fs::read_to_string(format!("{VECTORS}/{name}")).unwrap();
+            ((*name).to_owned(), text)
+        })
+        .collect()
+}
+
+#[derive(Deserialize)]
+struct Ids {
+    cases: Vec<Id>,
+}
+
+// Only the id read; the rest, some of it past what a `Value` holds, skipped unread.
+#[derive(Deserialize)]
+struct Id {
+    id: String,
+}
 
 // So a doc or a proposal can name a case by its id alone.
 #[test]
 fn test_ids_are_unique_across_files() {
+    let texts = read_texts();
     let mut seen = HashSet::new();
-    for file in FILES {
-        for outcome in run_vectors(Path::new(VECTORS), file).unwrap() {
-            assert!(
-                seen.insert(outcome.id.clone()),
-                "{file}: {} repeated",
-                outcome.id
-            );
+    for file in FILES.iter().chain(&OWN_TESTS) {
+        let ids: Ids = serde_json::from_str(&texts[*file]).unwrap();
+        for case in ids.cases {
+            assert!(seen.insert(case.id.clone()), "{file}: {} repeated", case.id);
         }
     }
 }
 
-fn check_vectors(file: &str) {
-    let outcomes = run_vectors(Path::new(VECTORS), file).unwrap();
-    assert!(!outcomes.is_empty(), "{file}: no cases");
-    let failures: Vec<String> = outcomes
-        .iter()
-        .filter(|outcome| outcome.got != outcome.expect)
-        .map(|outcome| {
-            format!(
-                "{}:\n  want {}\n  got  {}",
-                outcome.id, outcome.expect, outcome.got
-            )
-        })
-        .collect();
-    assert!(failures.is_empty(), "{file}:\n{}", failures.join("\n"));
-}
-
 #[test]
-fn test_request_line() {
-    check_vectors("request_line.json");
-}
-
-#[test]
-fn test_mcp() {
-    check_vectors("mcp.json");
-}
-
-#[test]
-fn test_path() {
-    check_vectors("condition/path.json");
-}
-
-#[test]
-fn test_op() {
-    check_vectors("condition/op.json");
-}
-
-#[test]
-fn test_condition() {
-    check_vectors("condition/condition.json");
-}
-
-#[test]
-fn test_entry() {
-    check_vectors("capture/entry.json");
-}
-
-#[test]
-fn test_record() {
-    check_vectors("capture/record.json");
-}
-
-#[test]
-fn test_matching() {
-    check_vectors("capture/matching.json");
-}
-
-#[test]
-fn test_window() {
-    check_vectors("capture/window.json");
-}
-
-#[test]
-fn test_windowing() {
-    check_vectors("capture/windowing.json");
+fn test_every_file_of_cases() {
+    let texts = read_texts();
+    let mut failures = Vec::new();
+    for file in FILES {
+        let outcomes = run_vectors(file, &texts).unwrap();
+        assert!(!outcomes.is_empty(), "{file}: no cases");
+        failures.extend(
+            (outcomes.iter())
+                .filter(|outcome| outcome.got != outcome.expect)
+                .map(|outcome| {
+                    format!(
+                        "{file} {}:\n  want {}\n  got  {}",
+                        outcome.id, outcome.expect, outcome.got
+                    )
+                }),
+        );
+    }
+    assert!(failures.is_empty(), "\n{}", failures.join("\n"));
 }

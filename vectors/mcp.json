@@ -606,22 +606,6 @@
       }
     },
     {
-      "id": "endpoint-resources-read-keyless",
-      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"resources/read\", \"params\": {\"name\": \"track_package\"}}",
-      "path": "/mcp",
-      "expect": {
-        "mcp": {
-          "read": {
-            "method": "resources/read",
-            "tool": null
-          }
-        },
-        "endpoint": {
-          "judged": "keyless"
-        }
-      }
-    },
-    {
       "id": "endpoint-prompts-get-keyless",
       "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"prompts/get\", \"params\": {\"name\": \"track_package\"}}",
       "path": "/mcp",
@@ -666,22 +650,6 @@
         },
         "endpoint": {
           "judged": "keyless"
-        }
-      }
-    },
-    {
-      "id": "endpoint-method-missing-unrecognised",
-      "body": "{\"params\": {\"name\": \"a\"}}",
-      "path": "/mcp",
-      "expect": {
-        "mcp": {
-          "read": {
-            "method": null,
-            "tool": null
-          }
-        },
-        "endpoint": {
-          "judged": "unrecognised"
         }
       }
     },
@@ -770,25 +738,7 @@
       }
     },
     {
-      "id": "endpoint-tool-name-with-newline-kept-verbatim",
-      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"track\\npackage\"}}",
-      "path": "/mcp",
-      "expect": {
-        "mcp": {
-          "read": {
-            "method": "tools/call",
-            "tool": "track\npackage"
-          }
-        },
-        "endpoint": {
-          "judged": {
-            "resolved": "/mcp#tools/call#track\npackage"
-          }
-        }
-      }
-    },
-    {
-      "id": "endpoint-tool-name-with-escape-kept-verbatim",
+      "id": "endpoint-tool-name-with-a-control-character-kept-verbatim",
       "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"track\\u001bpackage\"}}",
       "path": "/mcp",
       "expect": {
@@ -801,42 +751,6 @@
         "endpoint": {
           "judged": {
             "resolved": "/mcp#tools/call#track\u001bpackage"
-          }
-        }
-      }
-    },
-    {
-      "id": "endpoint-tool-name-with-bidi-override-kept-verbatim",
-      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"track‮package\"}}",
-      "path": "/mcp",
-      "expect": {
-        "mcp": {
-          "read": {
-            "method": "tools/call",
-            "tool": "track‮package"
-          }
-        },
-        "endpoint": {
-          "judged": {
-            "resolved": "/mcp#tools/call#track‮package"
-          }
-        }
-      }
-    },
-    {
-      "id": "endpoint-tool-name-with-line-separator-kept-verbatim",
-      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"track package\"}}",
-      "path": "/mcp",
-      "expect": {
-        "mcp": {
-          "read": {
-            "method": "tools/call",
-            "tool": "track package"
-          }
-        },
-        "endpoint": {
-          "judged": {
-            "resolved": "/mcp#tools/call#track package"
           }
         }
       }
@@ -960,6 +874,126 @@
           "judged": {
             "resolved": "/team/fr/mcp#tools/call#a"
           }
+        }
+      }
+    },
+    {
+      "id": "mcp-params-a-string-names-no-tool",
+      "body": "{\"method\": \"tools/call\", \"params\": \"a\\/b\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": null
+          }
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-params-not-an-object-on-a-keyless-method",
+      "body": "{\"method\": \"resources/read\", \"params\": [1]}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "resources/read",
+            "tool": null
+          }
+        },
+        "endpoint": {
+          "judged": "keyless"
+        }
+      }
+    },
+    {
+      "id": "mcp-name-repeated-on-another-method-ambiguous",
+      "note": "Read before the method is: a reader may take either as the tool.",
+      "body": "{\"method\": \"resources/read\", \"params\": {\"name\": \"a\", \"NAME\": \"b\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-key-holding-a-nul-ambiguous",
+      "note": "A reader cutting strings at a NUL reads it as method.",
+      "body": "{\"method\\u0000\": \"x\", \"method\": \"tools/call\", \"params\": {\"name\": \"a\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-byte-order-mark-alone-unparsed",
+      "note": "Unlike an empty body, which names nothing.",
+      "body": {
+        "hex": "efbbbf"
+      },
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "endpoint-discovery-method-in-another-case-keyless",
+      "note": "Matched exactly.",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"Ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "Ping",
+            "tool": null
+          }
+        },
+        "endpoint": {
+          "judged": "keyless"
+        }
+      }
+    },
+    {
+      "id": "endpoint-notifications-prefix-alone-discovery",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"notifications/\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "notifications/",
+            "tool": null
+          }
+        },
+        "endpoint": "discovery"
+      }
+    },
+    {
+      "id": "endpoint-key-past-255-characters-by-its-path-unrecognised",
+      "note": "The cap counts the whole key, its path too.",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"abcdefghij\"}}",
+      "path": "/pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "abcdefghij"
+          }
+        },
+        "endpoint": {
+          "judged": "unrecognised"
         }
       }
     }

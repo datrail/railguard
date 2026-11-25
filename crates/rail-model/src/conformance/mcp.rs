@@ -4,7 +4,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use super::value::{Bytes, encode_unparsed};
-use super::{Outcome, create_outcome, read_cases};
+use super::{Outcome, read_cases, run_each};
 use crate::body::mcp::{McpReading, read_endpoint};
 use crate::endpoint::{Endpoint, Resolution};
 
@@ -20,17 +20,16 @@ struct Case {
 }
 
 pub(super) fn run_cases(text: &str) -> Result<Vec<Outcome>, String> {
-    read_cases::<Case>(text)?
-        .into_iter()
-        .map(|case| {
-            let mcp = McpReading::read(&case.body.to_bytes()?);
-            let got = json!({
+    run_each(read_cases::<Case>(text)?, |case| {
+        let got = case.body.to_bytes().map(|body| {
+            let mcp = McpReading::read(&body);
+            json!({
                 "mcp": encode_mcp_reading(&mcp),
                 "endpoint": encode_resolution(&read_endpoint(&case.path, &mcp)),
-            });
-            Ok(create_outcome(&case.id, case.expect, got))
-        })
-        .collect()
+            })
+        });
+        (case.id, case.expect, got)
+    })
 }
 
 fn encode_mcp_reading(mcp: &McpReading) -> Value {

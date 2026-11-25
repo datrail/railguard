@@ -1,17 +1,18 @@
 //! Layer 10: what windowing does with the plan held, calls and drops at chosen times.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
 use serde::Deserialize;
 use serde_json::{Value, json};
+use time::OffsetDateTime;
+use time::format_description::well_known::Rfc3339;
 use uuid::Uuid;
 
 use super::environment::CallSpec;
 use super::plans::{NamedPlans, PlanSpec};
-use super::window::time;
-use super::{Outcome, create_outcome, read_cases};
+use super::{Outcome, read_cases, read_written, run_each, time};
 use crate::capture::{BodyUnreadReason, CallOutcome, ClosedWindow, CompiledPlan, Windowing};
 
 #[derive(Deserialize)]
@@ -20,8 +21,8 @@ struct Case {
     id: String,
     #[serde(rename = "note")]
     _note: Option<String>,
-    /// Plans named in plans.json, each held as one plan however often it's named; their versions
-    /// tell their windows apart.
+    /// The plans its events name, from `capture/plans.json`, each held as one plan however often
+    /// it's named; their versions tell their windows apart.
     plans: Vec<String>,
     events: Vec<Event>,
     expect: Value,
@@ -31,9 +32,14 @@ struct Case {
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 enum Event {
     /// The plan held, or none, at `at`.
-    Hold { plan: Option<String>, at: u64 },
+    Hold {
+        #[serde(deserialize_with = "read_written")]
+        plan: Option<String>,
+        at: u64,
+    },
     /// A call received at `at`, the plan held then.
     Record {
+        #[serde(deserialize_with = "read_written")]
         plan: Option<String>,
         at: u64,
         call: CallSpec,
@@ -43,17 +49,22 @@ enum Event {
 }
 
 pub(super) fn run_cases(text: &str, plans: &NamedPlans) -> Result<Vec<Outcome>, String> {
-    read_cases::<Case>(text)?
-        .into_iter()
-        .map(|case| {
-            run_case(&case, plans)
-                .map(|got| create_outcome(&case.id, case.expect.clone(), got))
-                .map_err(|e| format!("{}: {e}", case.id))
-        })
-        .collect()
+    run_each(read_cases::<Case>(text)?, |case| {
+        let got = run_case(&case, plans);
+        (case.id, case.expect, got)
+    })
 }
 
 fn run_case(case: &Case, plans: &NamedPlans) -> Result<Value, String> {
+    let named: BTreeSet<&str> = (case.events.iter())
+        .filter_map(|event| match event {
+            Event::Hold { plan, .. } | Event::Record { plan, .. } => plan.as_deref(),
+            Event::CountDropped(_) => None,
+        })
+        .collect();
+    if named != case.plans.iter().map(String::as_str).collect() {
+        return Err("its plans aren't those its events name".into());
+    }
     let mut held: BTreeMap<&str, Arc<CompiledPlan>> = BTreeMap::new();
     let mut names: BTreeMap<u64, &str> = BTreeMap::new();
     for name in &case.plans {
@@ -121,20 +132,8 @@ fn summarize(closed: ClosedWindow, names: &BTreeMap<u64, &str>) -> Value {
     })
 }
 
-// Whole seconds since the epoch of `YYYY-MM-DDTHH:MM:SSZ`, as a document writes a whole second.
+// Whole seconds since the epoch, as the vectors write a time.
 fn read_seconds(text: &str) -> Option<i64> {
-    let field = |range: std::ops::Range<usize>| text.get(range)?.parse::<i64>().ok();
-    if text.len() != 20 || !text.ends_with('Z') {
-        return None;
-    }
-    let (year, month, day) = (field(0..4)?, field(5..7)?, field(8..10)?);
-    let (hour, minute, second) = (field(11..13)?, field(14..16)?, field(17..19)?);
-    // Days from the civil date, as Howard Hinnant's `days_from_civil`.
-    let year = if month <= 2 { year - 1 } else { year };
-    let era = year.div_euclid(400);
-    let year_of_era = year - era * 400;
-    let day_of_year = (153 * ((month + 9) % 12) + 2) / 5 + day - 1;
-    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
-    let days = era * 146_097 + day_of_era - 719_468;
-    Some(days * 86_400 + hour * 3_600 + minute * 60 + second)
+    let read = OffsetDateTime::parse(text, &Rfc3339).ok()?;
+    (read.nanosecond() == 0).then(|| read.unix_timestamp())
 }
