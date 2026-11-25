@@ -265,6 +265,23 @@ pub fn evaluate_condition<'a>(
     }
 }
 
+/// `condition`'s verdict on `value`, as `evaluate_condition` gives it where its path resolves to
+/// `value`.
+#[cfg(feature = "conformance")]
+pub(crate) fn apply_condition(
+    condition: &CompiledCondition,
+    value: &Lookup,
+    budget: &mut Budget,
+) -> Verdict {
+    if let Err(refusal) = budget.charge(1) {
+        return Verdict::Refused(refusal);
+    }
+    match &condition.0 {
+        Node::Refused(refusal) => Verdict::Refused(*refusal),
+        Node::Test(_, test) => apply(test, value, budget),
+    }
+}
+
 fn read_scalars(items: &[Value]) -> Vec<Scalar> {
     items
         .iter()

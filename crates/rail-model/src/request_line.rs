@@ -158,6 +158,12 @@ impl RequestLine {
         self.query.get(name).map_or(&[], Vec::as_slice)
     }
 
+    /// Every query parameter's values, by name.
+    #[cfg(feature = "conformance")]
+    pub(crate) fn query(&self) -> &BTreeMap<String, Vec<Value>> {
+        &self.query
+    }
+
     /// Why the path matches no plan entry, if it can't. On the path as received, before redaction.
     pub fn unmatchable(&self) -> Option<Unmatchable> {
         if self.path_lossy {

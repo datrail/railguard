@@ -1051,6 +1051,7 @@ dependencies = [
  "ed25519-dalek",
  "form_urlencoded",
  "indexmap",
+ "rail-model",
  "serde",
  "serde_json",
  "sha2",

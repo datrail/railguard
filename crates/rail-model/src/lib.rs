@@ -6,6 +6,8 @@ pub mod authority;
 pub mod body;
 pub mod capture;
 pub mod condition;
+#[cfg(feature = "conformance")]
+pub mod conformance;
 pub mod endpoint;
 pub mod policy;
 pub mod redaction;

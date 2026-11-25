@@ -11,6 +11,8 @@ pub use check::{
 };
 pub(crate) use environment::TicketClaims;
 pub use environment::{Environment, Headers};
+#[cfg(feature = "conformance")]
+pub(crate) use evaluate::apply_condition;
 pub(crate) use evaluate::resolve_path;
 pub use evaluate::{
     BodyUnread, Budget, CompiledCondition, DEFAULT_STEP_LIMIT, Evaluation, Items, Lookup, Refusal,

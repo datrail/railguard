@@ -219,7 +219,11 @@ impl<'c> CallReader<'c> {
 
 // The entry's "and": a condition that doesn't hold, or a refusal, decides it; else the first that
 // can't be told.
-fn answer(entry: &CompiledEntry, environment: &Environment, budget: &mut Budget) -> Verdict {
+pub(crate) fn answer(
+    entry: &CompiledEntry,
+    environment: &Environment,
+    budget: &mut Budget,
+) -> Verdict {
     let mut answer = Verdict::Holds;
     for condition in entry.conditions() {
         match evaluate_condition(condition, environment, budget).verdict {
@@ -235,7 +239,7 @@ fn answer(entry: &CompiledEntry, environment: &Environment, budget: &mut Budget)
     answer
 }
 
-fn read_record(
+pub(crate) fn read_record(
     record: &Record,
     request_line: &RequestLine,
     environment: &Environment,

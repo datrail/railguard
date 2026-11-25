@@ -1,0 +1,259 @@
+{
+  "environments": {
+    "judging-sample": {
+      "for": "judging",
+      "ticket": {
+        "team": "payments",
+        "roles": [
+          "writer",
+          "reviewer"
+        ],
+        "limits": {
+          "daily": 100
+        },
+        "note": null
+      },
+      "endpoint": {
+        "resolved": "/finretail-production-mcp/mcp#tools/call#create_or_update_file"
+      },
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "Accept",
+          "application/json, text/event-stream"
+        ],
+        [
+          "X-Trace",
+          "a"
+        ],
+        [
+          "x-trace",
+          "b"
+        ]
+      ]
+    },
+    "judging-sample-without-a-ticket": {
+      "for": "judging",
+      "ticket": null,
+      "endpoint": {
+        "resolved": "/finretail-production-mcp/mcp#tools/call#create_or_update_file"
+      },
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "Accept",
+          "application/json, text/event-stream"
+        ],
+        [
+          "X-Trace",
+          "a"
+        ],
+        [
+          "x-trace",
+          "b"
+        ]
+      ]
+    },
+    "judging-keyless": {
+      "for": "judging",
+      "ticket": null,
+      "endpoint": "keyless",
+      "headers": []
+    },
+    "judging-unrecognised": {
+      "for": "judging",
+      "ticket": null,
+      "endpoint": "unrecognised",
+      "headers": []
+    },
+    "judging-headers-folded": {
+      "for": "judging",
+      "ticket": null,
+      "endpoint": "keyless",
+      "headers": [
+        [
+          "X-A",
+          "1, 2"
+        ],
+        [
+          "x-a",
+          "3"
+        ],
+        [
+          "x-b",
+          "a,,b "
+        ],
+        [
+          "x-c",
+          "acme"
+        ],
+        [
+          "x-d",
+          "a,a,a"
+        ]
+      ]
+    },
+    "judging-ticket-leaving-out": {
+      "for": "judging",
+      "ticket": {
+        "posture": {
+          "categories": {
+            "identity": {
+              "score": null,
+              "capped": true
+            }
+          }
+        },
+        "alignment": {
+          "drifted": []
+        },
+        "skills": [
+          "acme",
+          null,
+          {},
+          true,
+          1
+        ]
+      },
+      "endpoint": "keyless",
+      "headers": []
+    },
+    "capture-sample": {
+      "for": "capture",
+      "authority": "API.GitHub.com.:443",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp/?repo=docs&tag=a&tag=b+c&empty=#top",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 7, \"method\": \"tools/call\", \"params\": {\"name\": \"create_or_update_file\", \"arguments\": {\"repo\": \"payments-internal\", \"message\": \"café\", \"files\": [{\"path\": \"a.txt\"}, {\"path\": \"b.txt\"}], \"draft\": false, \"size\": 12, \"note\": null, \"Labels\": [\"x\"], \"labels\": [\"y\"]}}}",
+      "body_bytes": 285
+    },
+    "capture-body-values": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": "{\"esc\": \"payroll\", \"items\": [\"a\", \"b\"], \"big\": 1e400, \"small\": -1e400, \"dup\": 1, \"Dup\": 2, \"bad\": \"\\ud800\", \"mixed\": [\"a\", \"\\ud800\"], \"nul\": \"a\\u0000b\", \"deep\": {\"a\": {\"b\": [null, {\"c\": true}]}}}",
+      "body_bytes": 195
+    },
+    "capture-body-empty": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": "",
+      "body_bytes": 0
+    },
+    "capture-body-not-json": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": "not json",
+      "body_bytes": 8
+    },
+    "capture-body-tree-past-budget": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": "{\"a\": 1}",
+      "body_bytes": 8,
+      "byte_budget": 8
+    },
+    "capture-body-batch": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": "[{\"method\": \"tools/call\", \"params\": {\"name\": \"a\"}}]",
+      "body_bytes": 51
+    },
+    "capture-body-mcp-ambiguous": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": "{\"method\": \"tools/call\", \"params\": {\"name\": \"a\", \"Name\": \"b\"}}",
+      "body_bytes": 62
+    },
+    "capture-body-ten-items": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": "{\"items\": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]}",
+      "body_bytes": 41
+    },
+    "capture-body-ten-members": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": "{\"a\": 0, \"b\": 1, \"c\": 2, \"d\": 3, \"e\": 4, \"f\": 5, \"g\": 6, \"h\": 7, \"i\": 8, \"j\": 9}",
+      "body_bytes": 80
+    },
+    "capture-body-not-sent": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": {
+        "unread": "not_sent"
+      },
+      "body_bytes": 120
+    },
+    "capture-body-past-cap": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": {
+        "unread": "past_cap"
+      },
+      "body_bytes": 70000
+    },
+    "capture-body-past-budget": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": {
+        "unread": "past_budget"
+      },
+      "body_bytes": 120
+    },
+    "capture-body-cut-short": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": {
+        "unread": "cut_short"
+      },
+      "body_bytes": 60
+    },
+    "capture-host-unparseable": {
+      "for": "capture",
+      "authority": "user@mcp.example.com",
+      "method": "POST",
+      "path": "/mcp",
+      "body": "{}",
+      "body_bytes": 2
+    },
+    "capture-path-not-utf8": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": {
+        "hex": "2f6d63702fff"
+      },
+      "body": "{}",
+      "body_bytes": 2
+    }
+  }
+}

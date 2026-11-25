@@ -14,6 +14,10 @@ doctest = false
 name = "rail-model"
 path = "tests/main.rs"
 
+[features]
+# The conformance vectors' runner, for the tests and the binding; in no production build.
+conformance = []
+
 [dependencies]
 base64 = { version = "0.22", default-features = false, features = ["alloc"] }
 ed25519-dalek = { version = "3", default-features = false }
@@ -26,6 +30,10 @@ sha2 = "0.11"
 time = { version = "0.3", default-features = false, features = ["formatting", "std"] }
 unicode-general-category = "1"
 uuid = { version = "1", default-features = false, features = ["serde"] }
+
+[dev-dependencies]
+# The tests run the vectors through the runner.
+rail-model = { path = ".", features = ["conformance"] }
 
 [lints.rust]
 unsafe_code = "forbid"

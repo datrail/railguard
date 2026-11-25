@@ -1,0 +1,1742 @@
+{
+  "cases": [
+    {
+      "id": "host-read-as-sent",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-lowercased",
+      "authority": "MCP.Example.COM",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-trailing-dot-dropped",
+      "authority": "mcp.example.com.",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-port-dropped",
+      "authority": "mcp.example.com:8443",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-highest-port-dropped",
+      "authority": "mcp.example.com:65535",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-trailing-dot-and-port-dropped",
+      "authority": "MCP.Example.com.:8443",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-underscore-and-hyphen-kept",
+      "authority": "my_host-1",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "my_host-1"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-ipv4-port-dropped",
+      "authority": "10.0.0.7:80",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "10.0.0.7"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-ipv6-brackets-dropped-lowercased",
+      "authority": "[2001:DB8::1]",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "2001:db8::1"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-ipv6-port-dropped",
+      "authority": "[2001:db8::1]:8443",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "2001:db8::1"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-of-253-characters-read",
+      "note": "DNS's longest name.",
+      "authority": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-of-253-characters-and-a-dot-read",
+      "authority": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-of-254-characters-past-longest",
+      "note": "Reported as [unparseable], so its length can't carry data.",
+      "authority": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": "past_longest",
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-empty-refused",
+      "authority": "",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": "refused",
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-dot-alone-refused",
+      "authority": ".",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": "refused",
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-port-alone-refused",
+      "authority": ":8443",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": "refused",
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-empty-port-refused",
+      "authority": "mcp.example.com:",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": "refused",
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-port-zero-refused",
+      "authority": "mcp.example.com:0",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": "refused",
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-port-past-65535-refused",
+      "authority": "mcp.example.com:65536",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": "refused",
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-signed-port-refused",
+      "authority": "mcp.example.com:+80",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": "refused",
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-two-trailing-dots-refused",
+      "authority": "mcp.example.com..",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": "refused",
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-empty-label-refused",
+      "authority": "mcp..example.com",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": "refused",
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-non-ascii-refused",
+      "authority": "mcp.exämple.com",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": "refused",
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-userinfo-refused",
+      "authority": "user@mcp.example.com",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": "refused",
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-percent-encoded-refused",
+      "authority": "mcp%2eexample.com",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": "refused",
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-ipv6-unbracketed-refused",
+      "authority": "2001:db8::1",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": "refused",
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-ipv6-unclosed-refused",
+      "authority": "[2001:db8::1",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": "refused",
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-ipv6-port-without-colon-refused",
+      "authority": "[2001:db8::1]8443",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": "refused",
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-ipv6-zone-refused",
+      "authority": "[fe80::1%25eth0]",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": "refused",
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-not-utf8-refused",
+      "authority": {
+        "hex": "6d63702e6578ff616d706c652e636f6d"
+      },
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": "refused",
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "method-standard-reported-as-sent",
+      "authority": "mcp.example.com",
+      "method": "GET",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "GET",
+        "reported_method": "GET",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "method-patch-reported-as-sent",
+      "authority": "mcp.example.com",
+      "method": "PATCH",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "PATCH",
+        "reported_method": "PATCH",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "method-lower-case-reported-as-other",
+      "note": "Reported as [other]; the method read is as sent.",
+      "authority": "mcp.example.com",
+      "method": "post",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "post",
+        "reported_method": "other",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "method-custom-reported-as-other",
+      "authority": "mcp.example.com",
+      "method": "PURGE",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "PURGE",
+        "reported_method": "other",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "method-not-utf8-read-lossily",
+      "authority": "mcp.example.com",
+      "method": {
+        "hex": "50ff"
+      },
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "P�",
+        "reported_method": "other",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "path-read-as-sent",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "path-cut-at-its-query",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp/?key=sk-live-abc12345",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp/",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {
+          "key": [
+            "sk-live-abc12345"
+          ]
+        },
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "path-cut-at-its-fragment",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp#sk-live-abc12345?x",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "path-never-percent-decoded",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/m%63p",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/m%63p",
+        "redacted_path": "/m%63p",
+        "segments": [
+          "m%63p"
+        ],
+        "redacted_segments": [
+          "m%63p"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "path-empty-before-its-query",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "?x",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "",
+        "redacted_path": "/",
+        "segments": [],
+        "redacted_segments": [],
+        "query": {
+          "x": [
+            ""
+          ]
+        },
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "path-of-a-connect-read-as-the-root",
+      "authority": "[2001:db8::1]:443",
+      "method": "CONNECT",
+      "path": "[2001:db8::1]:443",
+      "expect": {
+        "host": {
+          "read": "2001:db8::1"
+        },
+        "method": "CONNECT",
+        "reported_method": "CONNECT",
+        "path": "/",
+        "redacted_path": "/",
+        "segments": [],
+        "redacted_segments": [],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "path-of-a-lower-case-connect-read-as-sent",
+      "authority": "mcp.example.com:443",
+      "method": "connect",
+      "path": "mcp.example.com:443",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "connect",
+        "reported_method": "other",
+        "path": "mcp.example.com:443",
+        "redacted_path": "/mcp.example.com:443",
+        "segments": [
+          "mcp.example.com:443"
+        ],
+        "redacted_segments": [
+          "mcp.example.com:443"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "path-not-utf8-read-lossily",
+      "note": "A bracket too, so not UTF-8 is the reason told first.",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": {
+        "hex": "2f5b6d63705d2fff"
+      },
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/[mcp]/�",
+        "redacted_path": "/%5Bmcp%5D/�",
+        "segments": [
+          "[mcp]",
+          "�"
+        ],
+        "redacted_segments": [
+          "%5Bmcp%5D",
+          "�"
+        ],
+        "query": {},
+        "unmatchable": "not_utf8"
+      }
+    },
+    {
+      "id": "path-replacement-character-sent-matches",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp/�",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp/�",
+        "redacted_path": "/mcp/�",
+        "segments": [
+          "mcp",
+          "�"
+        ],
+        "redacted_segments": [
+          "mcp",
+          "�"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "path-secret-segment-redacted",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/s3cret-s3cret-s3cret/mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/s3cret-s3cret-s3cret/mcp",
+        "redacted_path": "/[redacted]/mcp",
+        "segments": [
+          "s3cret-s3cret-s3cret",
+          "mcp"
+        ],
+        "redacted_segments": [
+          "[redacted]",
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "path-trailing-slash-dropped-when-redacted",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp/",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp/",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "path-empty-segments-skipped",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/a//b",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/a//b",
+        "redacted_path": "/a/b",
+        "segments": [
+          "a",
+          "b"
+        ],
+        "redacted_segments": [
+          "a",
+          "b"
+        ],
+        "query": {},
+        "unmatchable": "empty_segment"
+      }
+    },
+    {
+      "id": "unmatchable-dots-inside-segments-match",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/a.b/..c/.d",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/a.b/..c/.d",
+        "redacted_path": "/a.b/..c/.d",
+        "segments": [
+          "a.b",
+          "..c",
+          ".d"
+        ],
+        "redacted_segments": [
+          "a.b",
+          "..c",
+          ".d"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "unmatchable-query-not-checked",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp?x=[1]%2F/../a//b",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {
+          "x": [
+            "[1]//../a//b"
+          ]
+        },
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "unmatchable-redaction-marker",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/[redacted]/mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/[redacted]/mcp",
+        "redacted_path": "/[redacted]/mcp",
+        "segments": [
+          "[redacted]",
+          "mcp"
+        ],
+        "redacted_segments": [
+          "[redacted]",
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": "bracket"
+      }
+    },
+    {
+      "id": "unmatchable-open-bracket",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/a[",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/a[",
+        "redacted_path": "/a%5B",
+        "segments": [
+          "a["
+        ],
+        "redacted_segments": [
+          "a%5B"
+        ],
+        "query": {},
+        "unmatchable": "bracket"
+      }
+    },
+    {
+      "id": "unmatchable-close-bracket",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/a]",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/a]",
+        "redacted_path": "/a%5D",
+        "segments": [
+          "a]"
+        ],
+        "redacted_segments": [
+          "a%5D"
+        ],
+        "query": {},
+        "unmatchable": "bracket"
+      }
+    },
+    {
+      "id": "unmatchable-encoded-brackets",
+      "note": "Its brackets decoded, the segment is the marker, which the redaction keeps.",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/%5Bredacted%5D/mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/%5Bredacted%5D/mcp",
+        "redacted_path": "/[redacted]/mcp",
+        "segments": [
+          "%5Bredacted%5D",
+          "mcp"
+        ],
+        "redacted_segments": [
+          "[redacted]",
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": "bracket"
+      }
+    },
+    {
+      "id": "unmatchable-encoded-open-bracket-lower-case",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/%5bredacted/mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/%5bredacted/mcp",
+        "redacted_path": "/%5Bredacted/mcp",
+        "segments": [
+          "%5bredacted",
+          "mcp"
+        ],
+        "redacted_segments": [
+          "%5Bredacted",
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": "bracket"
+      }
+    },
+    {
+      "id": "unmatchable-encoded-close-bracket-lower-case",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/a%5d",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/a%5d",
+        "redacted_path": "/a%5D",
+        "segments": [
+          "a%5d"
+        ],
+        "redacted_segments": [
+          "a%5D"
+        ],
+        "query": {},
+        "unmatchable": "bracket"
+      }
+    },
+    {
+      "id": "unmatchable-encoded-slash",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/a%2Fb",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/a%2Fb",
+        "redacted_path": "/a%2Fb",
+        "segments": [
+          "a%2Fb"
+        ],
+        "redacted_segments": [
+          "a%2Fb"
+        ],
+        "query": {},
+        "unmatchable": "encoded_slash"
+      }
+    },
+    {
+      "id": "unmatchable-encoded-slash-lower-case",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/a%2fb",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/a%2fb",
+        "redacted_path": "/a%2fb",
+        "segments": [
+          "a%2fb"
+        ],
+        "redacted_segments": [
+          "a%2fb"
+        ],
+        "query": {},
+        "unmatchable": "encoded_slash"
+      }
+    },
+    {
+      "id": "unmatchable-bracket-told-before-the-rest",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/a]%2Fb/..//c",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/a]%2Fb/..//c",
+        "redacted_path": "/a%5D%2Fb/../c",
+        "segments": [
+          "a]%2Fb",
+          "..",
+          "c"
+        ],
+        "redacted_segments": [
+          "a%5D%2Fb",
+          "..",
+          "c"
+        ],
+        "query": {},
+        "unmatchable": "bracket"
+      }
+    },
+    {
+      "id": "unmatchable-encoded-slash-told-before-dots",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/a%2Fb/..//c",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/a%2Fb/..//c",
+        "redacted_path": "/a%2Fb/../c",
+        "segments": [
+          "a%2Fb",
+          "..",
+          "c"
+        ],
+        "redacted_segments": [
+          "a%2Fb",
+          "..",
+          "c"
+        ],
+        "query": {},
+        "unmatchable": "encoded_slash"
+      }
+    },
+    {
+      "id": "unmatchable-dot-dot-segment",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/../a//c",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/../a//c",
+        "redacted_path": "/../a/c",
+        "segments": [
+          "..",
+          "a",
+          "c"
+        ],
+        "redacted_segments": [
+          "..",
+          "a",
+          "c"
+        ],
+        "query": {},
+        "unmatchable": "dot_segment"
+      }
+    },
+    {
+      "id": "unmatchable-dot-segment",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/./mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/./mcp",
+        "redacted_path": "/./mcp",
+        "segments": [
+          ".",
+          "mcp"
+        ],
+        "redacted_segments": [
+          ".",
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": "dot_segment"
+      }
+    },
+    {
+      "id": "unmatchable-empty-segment",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp//",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp//",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": "empty_segment"
+      }
+    },
+    {
+      "id": "query-plus-read-as-a-space",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp?q=a+b",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {
+          "q": [
+            "a b"
+          ]
+        },
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "query-value-percent-decoded",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp?q=a%20b%2Bc",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {
+          "q": [
+            "a b+c"
+          ]
+        },
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "query-name-decoded",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp?a+b%21=1",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {
+          "a b!": [
+            "1"
+          ]
+        },
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "query-repeated-name-in-order-sent",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp?x=2&x=1",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {
+          "x": [
+            "2",
+            "1"
+          ]
+        },
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "query-name-without-value-empty",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp?flag",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {
+          "flag": [
+            ""
+          ]
+        },
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "query-empty-pairs-skipped",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp?&&a=1&",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {
+          "a": [
+            "1"
+          ]
+        },
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "query-second-equals-in-the-value",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp?a=b=c",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {
+          "a": [
+            "b=c"
+          ]
+        },
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "query-semicolon-not-a-separator",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp?a=1;b=2",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {
+          "a": [
+            "1;b=2"
+          ]
+        },
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "query-cut-at-its-fragment",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp?a=1#b=2",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {
+          "a": [
+            "1"
+          ]
+        },
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "query-percent-decoded-not-utf8-replaced",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp?a=%FF",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {
+          "a": [
+            "�"
+          ]
+        },
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "query-sent-not-utf8-read-lossily",
+      "note": "The path up to its query is UTF-8, so it can match.",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": {
+        "hex": "2f6d63703fff"
+      },
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {
+          "�": [
+            ""
+          ]
+        },
+        "unmatchable": null
+      }
+    }
+  ]
+}

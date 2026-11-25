@@ -10,6 +10,7 @@ mod policy;
 mod redaction;
 mod request_line;
 mod sanitize;
+mod vectors;
 
 // A body kept whole, within no cap or budget.
 fn keep_body(body: &[u8]) -> BodyRead {

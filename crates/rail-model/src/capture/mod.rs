@@ -12,9 +12,13 @@ pub use call::{
     CapturedCall, KeptValue, KeyReading, MeasureReading, ObservedCall, PathReading, RecordReading,
     Replacement, Taken, Untaken,
 };
+#[cfg(feature = "conformance")]
+pub(crate) use call::{answer, read_record};
 pub use compile::{CompiledEntry, CompiledPlan, EntryRefusal, compile_plan};
 
 pub use document::Document;
+#[cfg(feature = "conformance")]
+pub(crate) use plan::read_record_path;
 pub use plan::{
     CatchAll, Combine, ContextKey, Entry, InvalidPlan, KeyFunction, Measure, MeasureFunction,
     OnMaxGroups, Plan, PlanBudget, Record, parse_plan,
