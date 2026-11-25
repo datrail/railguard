@@ -152,6 +152,21 @@ impl Window {
         reason
     }
 
+    // What `Windowing` tells a plan change by, and reads the window's length from.
+    pub(super) fn plan(&self) -> &Arc<CompiledPlan> {
+        &self.plan
+    }
+
+    // What `Windowing` counts the window's end from.
+    pub(super) fn start(&self) -> SystemTime {
+        self.start
+    }
+
+    // The latest time written: what `Windowing` tells a clock stepped back by.
+    pub(super) fn latest(&self) -> SystemTime {
+        self.latest
+    }
+
     /// Counts calls lost before reaching the window.
     pub fn count_dropped(&mut self, calls: u64) {
         self.truncated.calls_dropped = self.truncated.calls_dropped.saturating_add(calls);
@@ -291,6 +306,11 @@ impl ClosedWindow {
     /// `entries_skipped` is its plan's, the same in every window.
     pub fn is_empty(&self) -> bool {
         self.captured.records.is_empty() && self.captured.truncated.calls_dropped == 0
+    }
+
+    // No earlier than its last call: the latest time written once it's closed.
+    pub(super) fn end(&self) -> SystemTime {
+        self.captured.end
     }
 
     /// Its plan's `max_unsent_windows`.

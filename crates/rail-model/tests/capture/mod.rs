@@ -4,6 +4,7 @@ mod call;
 mod compile;
 mod plan;
 mod window;
+mod windowing;
 
 // RFC 6902's add, remove and replace, as the vectors use them.
 pub fn patch(document: &mut Value, operation: &Value) {
