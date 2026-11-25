@@ -324,6 +324,11 @@ impl TryFrom<Fields> for ContextKey {
     fn try_from(fields: Fields) -> Result<Self, String> {
         let name = read_name(fields.name, "context key")?;
         let at = format!("context key {name}");
+        let built_in = ["method", "host", "operation", "path_prefix"].contains(&name.as_str());
+        // A built-in's value has a sanitizing of its own: a function given would be passed over.
+        if built_in && fields.function.is_some() {
+            return Err(format!("{at}: a built-in key takes no function"));
+        }
         Ok(match name.as_str() {
             "method" => Self::Method,
             "host" => Self::Host,
