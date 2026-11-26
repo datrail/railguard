@@ -21,7 +21,7 @@ behave the same. See the [main README](../../README.md) for the system around it
     `RequestGatherer` keeps its header lines and its body within `RAIL_MAX_BODY_MB`, and any other goes on unjudged, its
     body never gathered;
   - `Gateway::handle` judges the request gathered against the bundle held, by its deadline, and hands its body back to
-    send on:
+    send on; its answer is one of:
     - forward it;
     - deny it (403);
     - refuse it as one the rules can't apply to (503), or one past the cap or cut short (413).

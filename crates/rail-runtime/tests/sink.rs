@@ -7,7 +7,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use rail_model::endpoint::Endpoint;
 use rail_model::policy::{Ticket, TicketState};
-use rail_runtime::{Denial, DenialReporter, DenialSink, DeniedBy, FetchError, Response};
+use rail_runtime::{Denial, DenialReporter, DenialSink, DeniedBy, FetchError, PostBody, Response};
 use reqwest::StatusCode;
 use serde_json::Value;
 use tokio::runtime::Handle;
@@ -95,11 +95,11 @@ impl Sink {
 }
 
 impl DenialSink for Sink {
-    async fn send(&self, body: Vec<u8>) -> Result<Response, FetchError> {
+    async fn send(&self, body: PostBody) -> Result<Response, FetchError> {
         self.reports
             .lock()
             .unwrap()
-            .push(serde_json::from_slice(&body).unwrap());
+            .push(serde_json::from_slice(body.bytes()).unwrap());
         self.release.acquire().await.unwrap().forget();
         Ok(Response {
             status: self.answer,

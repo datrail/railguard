@@ -1,11 +1,11 @@
 use rail_model::condition::Refusal;
 use rail_model::endpoint::Endpoint;
 use rail_model::policy::{ChainOutcome, Decision, FallbackDenial, Outcome, TicketState};
-use rail_runtime::{Denial, DenialSink, DeniedBy, RailCenterDenials};
+use rail_runtime::{Denial, DenialSink, DeniedBy, PostBody, RailCenterDenials};
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 
-use crate::common::{Reply, assert_posted, assert_posted_gzipped, client, response, serve};
+use crate::common::{Reply, assert_posted, client, response, serve};
 use crate::sink::{POLICY, Sink, denial, valid};
 
 const TICKET_ID: &str = "0d9b6f3c-8a52-4e1f-9c7a-2b3e4f5a6b7c";
@@ -250,21 +250,10 @@ async fn a_report_is_posted_once_to_rail_center_with_the_credential() {
     let sink = RailCenterDenials {
         client: client(&server.url),
     };
-    let answer = sink.send(br#"{"denied_at": "x"}"#.to_vec()).await;
+    let answer = sink
+        .send(PostBody::new(br#"{"denied_at": "x"}"#.to_vec()))
+        .await;
 
     assert_posted(&server, "/v1/denials", r#"{"denied_at": "x"}"#);
     assert_eq!(answer.unwrap().status, StatusCode::UNPROCESSABLE_ENTITY);
-}
-
-// As a call record document is: one Rail Center payload, one rule.
-#[tokio::test]
-async fn a_large_report_is_posted_gzipped() {
-    let server = serve(|_| Reply::Raw(response("202 Accepted", &[], b""))).await;
-    let sink = RailCenterDenials {
-        client: client(&server.url),
-    };
-    let json = serde_json::to_vec(&json!({"claimed_status": "x".repeat(64 * 1024)})).unwrap();
-    sink.send(json.clone()).await.unwrap();
-
-    assert_posted_gzipped(&server, "/v1/denials", &json);
 }

@@ -80,7 +80,7 @@ impl Gathering {
     }
 }
 
-/// The gateway role for a host: each call judged within its deadline, at most
+/// The gateway role for a host: each call it judges judged within its deadline, at most
 /// `max_concurrent_judgements` at once.
 pub struct Gateway {
     bundles: Arc<BundleHolder>,

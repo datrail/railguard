@@ -20,8 +20,7 @@ use crate::rail_center::{AUTH_MODE, AUTH_TOKEN, CenterUrl, RailCenterSettings};
 const MAX_DRAINED_BYTES: usize = 8 * 1024;
 const DRAIN_TIMEOUT: Duration = Duration::from_secs(1);
 
-// Under this, gzip's header and work buy little; past it, a window's repetitive JSON shrinks
-// several times over.
+// Under this, gzip's header and work buy little.
 const GZIP_PAST_BYTES: usize = 10 * 1024;
 
 /// What one caller allows a fetch.
@@ -75,11 +74,11 @@ impl PostBody {
         // The fastest level: on the Rail Center thread, it's most of the shrinking for a
         // fraction of the work.
         let mut encoder = GzEncoder::new(Vec::new(), Compression::fast());
-        encoder
-            .write_all(&json)
+        let bytes = (encoder.write_all(&json))
+            .and_then(|()| encoder.finish())
             .expect("writing to a Vec can't fail");
         Self {
-            bytes: encoder.finish().expect("writing to a Vec can't fail"),
+            bytes,
             gzipped: true,
         }
     }
@@ -175,16 +174,14 @@ impl RailCenterClient {
         self.fetch(self.http.get(url), limits).await
     }
 
-    /// `POST` `body`, JSON, to `route`, gzipped past 10 KiB, in one attempt: retrying is the
-    /// caller's.
+    /// `POST` `body` to `route`, in one attempt: retrying is the caller's.
     pub async fn post(
         &self,
         route: &str,
-        body: Vec<u8>,
+        body: PostBody,
         limits: Limits,
     ) -> Result<Response, FetchError> {
-        self.fetch(self.post_request(route, PostBody::new(body)), limits)
-            .await
+        self.fetch(self.post_request(route, body), limits).await
     }
 
     /// `POST` `body` to `route`, in one attempt, its answer read for its status alone: the

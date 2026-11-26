@@ -5,7 +5,7 @@ the ticket Rail Center issued, so the server's gateway can judge the call, and s
 removes any such header the agent set itself, so an agent can't present a ticket of its own making.
 
 It's also the gateway, for MCP servers behind Envoy, or behind GCP's Application Load Balancer, which calls it through a
-Service Extension: it judges each call against the policy bundle, as rail-apigee does on Apigee (see
+Service Extension: it judges each MCP `POST` against the policy bundle, as rail-apigee does on Apigee (see
 [As the gateway](#as-the-gateway)). See the [main README](../../README.md) for the system around it.
 
 ## Architecture
@@ -178,7 +178,7 @@ answers.
 
 - A call allowed goes on without the agent's `x-rail`, `x-rail-*` and `_` headers.
 - One refused gets 403 `{"error": "denied by policy"}`, or 503 `{"error": "policy ruleset cannot be applied"}`.
-- One past `RAIL_MAX_BODY_MB`, or shorter than its `Content-Length` but not empty, gets 413
+- A `POST` past `RAIL_MAX_BODY_MB`, or shorter than its `Content-Length` but not empty, gets 413
   `{"error": "request body too large"}`.
 - A `POST` sending no body though its `Content-Length` isn't 0 gets 503.
 
@@ -194,9 +194,9 @@ Envoy's configuration:
   - **any other body mode** (`STREAMED`, the load balancer's default, `BUFFERED_PARTIAL`, `NONE`, Envoy's), or a stream
     that doesn't say its mode: a `POST` is refused with 503 and an error line naming it, since the whole body can't be
     seen first. A stream in `observability_mode`, whose answers Envoy ignores, ends in a gRPC error instead.
-- **ext_authz** must send the body: `with_request_body`, with `allow_partial_message: false`. A body Envoy flags as cut
-  (`x-envoy-auth-partial-body`) is refused 413, and a `POST` with none, unless its `Content-Length` is 0, 503: never
-  judged as if whole.
+- **ext_authz** must send the body: `with_request_body`, with `allow_partial_message: false`. A `POST`'s body Envoy
+  flags as cut (`x-envoy-auth-partial-body`) is refused 413, and a `POST` with none, unless its `Content-Length` is 0,
+  503: never judged as if whole.
 - **Fail closed:** `failure_mode_allow: false`, on either filter, so a call the gateway didn't answer never reaches the
   server. A stream that fails before its call is answered, such as with a buffered body past
   `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`, ends in an error, never as if answered.
@@ -263,7 +263,6 @@ keeps them, and an ext_proc stream lasts as long as its request. With Rail Cente
   - the bodies within it, their trees and the headers conditions read share 256 MiB; past it, a call is unjudged, 503 at
     enforce, forwarded at observe and none, a body adopted past it still held, to send on;
   - a full-duplex body whose later chunk passes that budget is dropped, so 503.
-
 - **The proxy's memory:** each ext_authz request, and each ext_proc body message, is held whole, up to
   `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`, while it's answered; the bodies kept for capture, up to `RAIL_MAX_BODY_MB` each,
   share 256 MiB, and up to 4096 calls wait for capture's thread.

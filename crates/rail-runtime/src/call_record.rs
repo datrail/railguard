@@ -53,8 +53,8 @@ enum Message {
     Flush(oneshot::Sender<()>),
 }
 
-/// Sends each closed window that holds a call or a drop to Rail Center as its document, gzipped
-/// past 10 KiB, oldest first, one at a time, retrying with a backoff from 5 s to 320 s; a document
+/// Sends each closed window that holds a call or a drop to Rail Center as its document, as a
+/// `PostBody`, oldest first, one at a time, retrying with a backoff from 5 s to 320 s; a document
 /// Rail Center refuses is dropped. Besides the oldest, it keeps up to the newest window's plan's
 /// `max_unsent_windows` and up to two million records and steps, the oldest dropped past either.
 /// Each drop is counted in the next document. Dropping it stops the sending.

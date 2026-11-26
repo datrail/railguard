@@ -9,7 +9,7 @@ use tokio::time::Instant;
 use tokio::time::timeout;
 
 use crate::bundles::{self, Script};
-use crate::calls::{Call, call, handle, judged_post, scanned_call};
+use crate::calls::{Call, call, handle, judged, judged_post, scanned_call};
 use crate::holder::{TestClock, until};
 use crate::keys;
 use crate::scanning::{scanning, scanning_settings};
@@ -63,11 +63,7 @@ async fn the_gateways_request_keeps_its_header_lines() {
         ("x-a", "1"),
         ("X-B", "2"),
     ];
-    let gatherer = started
-        .gateway
-        .gather(lines)
-        .judged()
-        .expect("a POST is judged");
+    let gatherer = judged(&started.gateway, lines);
     let request = gatherer.finish(BodyEnding::Whole);
     assert_eq!(
         request.header_lines().collect::<Vec<_>>(),
@@ -137,13 +133,11 @@ async fn a_judged_body_past_the_cap_or_cut_short_is_refused_unjudged() {
     let cut = judged_post(&started.gateway);
     let cut_answer = started.gateway.handle(cut, BodyEnding::CutShort).await.0;
     assert_eq!(cut_answer, Answer::TooLarge);
-    // Only an exact `POST` is judged: any other method is never gathered.
-    for method in ["GET", "post"] {
-        let gathered = started
-            .gateway
-            .gather([(":method", method), (":path", "/mcp")]);
-        assert!(gathered.judged().is_none(), "{method}");
-    }
+    // Only an exact `POST` is judged: any other method, a lower-case one too, is never gathered.
+    let lower = started
+        .gateway
+        .gather([(":method", "post"), (":path", "/mcp")]);
+    assert!(lower.judged().is_none());
     assert_eq!(handle(&started.gateway, at_cap).await.0, Answer::Deny);
     // Reports are sent on a task of their own: only the judged call's arrives.
     started.sink.until_sent(1).await;

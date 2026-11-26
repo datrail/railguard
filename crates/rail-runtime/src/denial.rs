@@ -16,7 +16,9 @@ use tokio::runtime::Handle;
 use tokio::sync::Semaphore;
 use uuid::Uuid;
 
-use crate::client::{FetchError, Limits, RailCenterClient, Response, Unread, read_status};
+use crate::client::{
+    FetchError, Limits, PostBody, RailCenterClient, Response, Unread, read_status,
+};
 use crate::clock::WallClock;
 
 const ROUTE: &str = "/v1/denials";
@@ -39,7 +41,7 @@ const MAX_IN_FLIGHT_NAMING_NO_POLICY: usize = 16;
 /// Where reports go: Rail Center, or a test's script.
 pub trait DenialSink: Send + Sync + 'static {
     /// One attempt to deliver `body`, whatever the status: what each means is the reporter's.
-    fn send(&self, body: Vec<u8>) -> impl Future<Output = Result<Response, FetchError>> + Send;
+    fn send(&self, body: PostBody) -> impl Future<Output = Result<Response, FetchError>> + Send;
 }
 
 /// Reports sent to Rail Center.
@@ -48,7 +50,7 @@ pub struct RailCenterDenials {
 }
 
 impl DenialSink for RailCenterDenials {
-    async fn send(&self, body: Vec<u8>) -> Result<Response, FetchError> {
+    async fn send(&self, body: PostBody) -> Result<Response, FetchError> {
         self.client.post(ROUTE, body, LIMITS).await
     }
 }
@@ -121,14 +123,14 @@ struct Metadata {
 trait ErasedSink: Send + Sync {
     fn send(
         &self,
-        body: Vec<u8>,
+        body: PostBody,
     ) -> Pin<Box<dyn Future<Output = Result<Response, FetchError>> + Send + '_>>;
 }
 
 impl<S: DenialSink> ErasedSink for S {
     fn send(
         &self,
-        body: Vec<u8>,
+        body: PostBody,
     ) -> Pin<Box<dyn Future<Output = Result<Response, FetchError>> + Send + '_>> {
         Box::pin(DenialSink::send(self, body))
     }
@@ -207,7 +209,7 @@ impl DenialReporter {
     }
 }
 
-fn build_report(denial: &Denial, now: std::time::SystemTime) -> Vec<u8> {
+fn build_report(denial: &Denial, now: std::time::SystemTime) -> PostBody {
     let (policy_id, fallback) = match denial.denied_by {
         DeniedBy::Policy(policy) => (Some(policy), None),
         DeniedBy::Fallback(fallback) => (None, Some(fallback)),
@@ -227,8 +229,10 @@ fn build_report(denial: &Denial, now: std::time::SystemTime) -> Vec<u8> {
             fallback,
         },
     };
-    serde_json::to_vec(&report)
-        .expect("a report has only string keys, and a clock within years 0 to 9999")
+    PostBody::new(
+        serde_json::to_vec(&report)
+            .expect("a report has only string keys, and a clock within years 0 to 9999"),
+    )
 }
 
 fn endpoint_key(endpoint: &Endpoint) -> Option<&str> {

@@ -83,7 +83,7 @@ impl CallRecordSink for Center {
     }
 }
 
-// The JSON `body` carries, gunzipped if it's gzipped.
+// The JSON `body` carries, gunzipped if it's gzipped: a full window's is.
 pub fn document(body: &PostBody) -> Value {
     if !body.is_gzipped() {
         return serde_json::from_slice(body.bytes()).unwrap();
@@ -108,12 +108,6 @@ pub fn window(max_unsent_windows: u32, paths: &[&str]) -> ClosedWindow {
         window.record(&call, clock.at(1));
     }
     window.close(clock.at(2))
-}
-
-// A window holding a call to each of 100 paths: a document well past the size it's gzipped at.
-pub fn large_window() -> ClosedWindow {
-    let paths: Vec<String> = (0..100).map(|n| format!("/{n}")).collect();
-    window(8, &paths.iter().map(String::as_str).collect::<Vec<_>>())
 }
 
 // A window under the vectors' plan at the ceiling of steps, holding `calls` calls to one path:

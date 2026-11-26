@@ -1,5 +1,5 @@
-//! The gateway role's callouts: each call it judges judged whole, any other forwarded unjudged;
-//! then forwarded without the agent's withheld headers, or refused with the gateway's status and
+//! The gateway role's callouts: each call it judges judged whole, any other passed on unjudged;
+//! each forwarded without the agent's withheld headers, or refused with the gateway's status and
 //! body.
 
 use std::sync::Arc;
@@ -40,7 +40,8 @@ pub(crate) struct GatewayCallouts {
     pub(crate) gateway: Option<Arc<Gateway>>,
 }
 
-/// ext_authz: judges a call it judges with the body Envoy sends (`with_request_body`).
+/// ext_authz: judges a `POST` with the body Envoy sends (`with_request_body`); any other call goes
+/// on unjudged.
 #[tonic::async_trait]
 impl Authorization for GatewayCallouts {
     async fn check(

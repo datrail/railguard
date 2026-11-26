@@ -128,7 +128,7 @@ message, which holds a whole buffered body.
 - **In `rail-envoy`, a message past it** fails its stream while the call is unanswered, so Envoy applies its failure
   mode:
   - closed (`failure_mode_allow: false`), as the gateway must, it refuses the call;
-  - open, as the proxy may, it forwards the call as the agent sent it, with no ticket, and uncaptured. Failing open, an
+  - open, as the proxy may, it forwards the call as the agent sent it, with no ticket, and uncaptured. There, an
     ext_proc body message past it comes after the headers were answered: the call keeps its ticket and is counted, its
     body unread.
 

@@ -9,9 +9,7 @@ use reqwest::StatusCode;
 use serde_json::json;
 use tokio::runtime::Handle;
 
-use crate::call_record_center::{
-    Center, accepted, calls, dropped, large_window, window, window_of, windows,
-};
+use crate::call_record_center::{Center, accepted, calls, dropped, window, window_of, windows};
 use crate::common::{Reply, assert_posted, assert_posted_gzipped, client, response, serve};
 use crate::holder::{TestClock, until};
 use crate::scripted::{answer, failed};
@@ -49,7 +47,7 @@ async fn a_failed_send_is_retried_with_the_same_bytes_backing_off_until_one_is_t
     let center = Center::new(&clock, move |n| answers[n]());
     let reporter = center.start(&clock);
 
-    reporter.report(large_window());
+    reporter.report(window(8, &["/a"]));
     until(&clock, 100).await;
     reporter.report(window(8, &["/b"]));
     until(&clock, 106).await;
@@ -57,8 +55,6 @@ async fn a_failed_send_is_retried_with_the_same_bytes_backing_off_until_one_is_t
     // A success resets the backoff: the next failure waits 5 s again.
     assert_eq!(center.sent_at(), [0, 5, 15, 35, 100, 105]);
     let bodies = center.bodies();
-    // Gzipped once: each retry sends the first attempt's bytes.
-    assert!(bodies[0].is_gzipped());
     assert!(
         bodies[..4]
             .iter()

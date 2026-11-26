@@ -52,7 +52,13 @@ pub async fn handle(gateway: &Gateway, call: Call) -> (Answer, Vec<u8>) {
 
 // The gatherer of a `POST` to `/mcp`, which `gateway` judges.
 pub fn judged_post(gateway: &Gateway) -> RequestGatherer {
-    (gateway.gather([(":method", "POST"), (":path", "/mcp")]))
-        .judged()
-        .expect("a POST is judged")
+    judged(gateway, [(":method", "POST"), (":path", "/mcp")])
+}
+
+// The gatherer of the call whose header lines are `lines`, a `POST`, which `gateway` judges.
+pub fn judged<'a>(
+    gateway: &Gateway,
+    lines: impl IntoIterator<Item = (&'a str, &'a str)>,
+) -> RequestGatherer {
+    gateway.gather(lines).judged().expect("a POST is judged")
 }
