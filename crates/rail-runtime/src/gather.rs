@@ -104,7 +104,9 @@ impl RequestGatherer {
         }
     }
 
-    pub(crate) fn ignore_declared_length(&mut self) {
+    /// For a host whose `Content-Length` may not be its body's: the body then has no declared
+    /// length.
+    pub fn ignore_declared_length(&mut self) {
         self.declared = None;
     }
 

@@ -623,11 +623,13 @@ async fn ext_authz_judges_the_body_sent_and_never_a_body_cut_short() {
     );
 
     let too_large = Err((413, r#"{"error": "request body too large"}"#.to_owned()));
-    // Cut at `max_request_bytes`, flagged by Envoy, or shorter than its size.
+    // Cut at `max_request_bytes`, flagged by Envoy, or shorter than its `Content-Length`.
     let partial = [("x-envoy-auth-partial-body", "true")];
     assert_eq!(check(&socket.path, &partial, &allowed, -1).await, too_large);
+    let declared = (allowed.len() + 1).to_string();
+    let longer = [("content-length", declared.as_str())];
     assert_eq!(
-        check(&socket.path, &[], &allowed, length(&allowed) + 1).await,
+        check(&socket.path, &longer, &allowed, length(&allowed) + 1).await,
         too_large
     );
     // No body sent at all, its size known: the filter has no `with_request_body`.
@@ -664,9 +666,6 @@ async fn ext_authz_judges_the_body_sent_and_never_a_body_cut_short() {
             .0,
         403
     );
-    // A declared length isn't checked against the body yet.
-    let declared = [("content-length", "99")];
-    assert!(check(&socket.path, &declared, &allowed, -1).await.is_ok());
     server.terminate();
     let logs = tokio::task::block_in_place(|| server.read_logs());
     assert_eq!(logs.matches("needs with_request_body").count(), 1, "{logs}");

@@ -89,17 +89,13 @@ impl Gateway {
         }
     }
 
-    /// The call whose header lines are `lines`, its body to gather within the cap. Its declared
-    /// length isn't checked against its body.
+    /// The call whose header lines are `lines`, its body to gather within the cap.
     pub fn gather<N, V>(&self, lines: impl IntoIterator<Item = (N, V)>) -> RequestGatherer
     where
         N: AsRef<[u8]>,
         V: AsRef<[u8]> + Into<Vec<u8>>,
     {
-        let mut gatherer =
-            RequestGatherer::keeping_lines(lines, self.settings.max_body_bytes, &self.budget);
-        gatherer.ignore_declared_length();
-        gatherer
+        RequestGatherer::keeping_lines(lines, self.settings.max_body_bytes, &self.budget)
     }
 
     /// Whether it's ready, and its state in readiness's words: `held` once a bundle is, else

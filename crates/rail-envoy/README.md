@@ -175,7 +175,8 @@ flowchart LR
 `rail gateway` judges each call whole, its headers and its body, through the same gateway as rail-apigee: the same
 waits, deadline, posture, fallbacks, denial reports and answers. A call allowed goes on without the agent's `x-rail`,
 `x-rail-*` and `_` headers; one refused gets 403 `{"error": "denied by policy"}`, or 503
-`{"error": "policy ruleset cannot be applied"}`, or, past `RAIL_MAX_BODY_MB`, 413 `{"error": "request body too large"}`.
+`{"error": "policy ruleset cannot be applied"}`, or, past `RAIL_MAX_BODY_MB` or shorter than its `Content-Length`, 413
+`{"error": "request body too large"}`.
 
 - **ext_proc** must send the request's headers, and its body `FULL_DUPLEX_STREAMED` or `BUFFERED`:
   - **full duplex** (GCP's load balancer): every answer is held until the body ends, by its last chunk or the trailers
@@ -187,8 +188,9 @@ waits, deadline, posture, fallbacks, denial reports and answers. A call allowed 
   - **any other body mode** (`STREAMED`, the load balancer's default, `BUFFERED_PARTIAL`, `NONE`, Envoy's), or a stream
     that doesn't say its mode, is refused with 503 and an error line naming it, since the whole body can't be seen
     first. A stream in `observability_mode`, whose answers Envoy ignores, ends in a gRPC error instead.
-- **ext_authz** must send the body: `with_request_body`, with `allow_partial_message: false`. A body cut short is
-  refused 413, and a `POST` with none, unless its size is known to be 0, 503: never judged as if whole.
+- **ext_authz** must send the body: `with_request_body`, with `allow_partial_message: false`. A body Envoy flags as cut
+  (`x-envoy-auth-partial-body`) is refused 413, and a `POST` with none, unless its `Content-Length` is 0, 503: never
+  judged as if whole.
 - **Fail closed:** `failure_mode_allow: false`, on either filter, so a call the gateway didn't answer never reaches the
   server. A stream that fails before its call is answered, such as with a buffered body past
   `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`, ends in an error, never as if answered.

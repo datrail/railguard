@@ -71,6 +71,8 @@ impl ExternalCalloutService for Callout {
                         .map(move |value| (name.as_str(), value.as_str()))
                 });
                 let mut gatherer = gateway.gather(line.into_iter().chain(items));
+                // Apigee decodes a gzipped body first, so its `content-length` may be the wire's.
+                gatherer.ignore_declared_length();
                 // Moved in and back out: it can be up to 4 MiB.
                 gatherer.adopt(std::mem::take(&mut request.content).into_bytes());
                 let (answer, content) = gateway.handle(gatherer, BodyEnding::Whole).await;

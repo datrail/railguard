@@ -38,12 +38,10 @@ pub(crate) fn take_body(http: &mut HttpRequest) -> (Vec<u8>, BodyEnding) {
     } else {
         std::mem::take(&mut http.raw_body)
     };
-    // Shorter than its size, it was cut short too.
-    let short = usize::try_from(http.size).is_ok_and(|size| body.len() < size);
     // A POST sends a body: none, of a size not known to be 0, is one Envoy wasn't asked to send.
     let ending = if body.is_empty() && http.method == "POST" && http.size != 0 {
         BodyEnding::NotSent
-    } else if partial || short {
+    } else if partial {
         BodyEnding::MayBeCut
     } else {
         BodyEnding::Whole
