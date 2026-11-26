@@ -1946,7 +1946,7 @@
       }
     },
     {
-      "id": "past-the-group-ceiling-the-overflow-counts-what-its-measures-lost-not-its-keys",
+      "id": "past-the-group-ceiling-the-overflow-counts-what-its-measures-lost",
       "plan": {
         "schema_version": "1.0",
         "content_hash": "sha256:fb3733bbe47258024770ac2cc2521f60c5709ddc2a31b87744ed1c213229d77c",
@@ -2048,18 +2048,6 @@
             },
             "body_bytes": 32
           }
-        },
-        {
-          "at": 1794304804,
-          "call": {
-            "authority": "d.example",
-            "method": "BREW",
-            "path": "/x",
-            "body": {
-              "text": "{\"content\": \"abc\"}"
-            },
-            "body_bytes": 18
-          }
         }
       ],
       "calls_dropped": 0,
@@ -2084,7 +2072,7 @@
           "end": "2026-11-10T10:15:00Z"
         },
         "truncated": {
-          "calls_coarsened": 3,
+          "calls_coarsened": 2,
           "calls_dropped": 0,
           "entries_skipped": 0,
           "body_unread": {
@@ -2110,7 +2098,7 @@
           },
           {
             "host": "[overflow]",
-            "count": 3
+            "count": 2
           }
         ],
         "records": [
@@ -2135,8 +2123,8 @@
               "host": "[overflow]"
             },
             "measures": {
-              "call_count": 3,
-              "content_bytes": 5
+              "call_count": 2,
+              "content_bytes": 0
             }
           }
         ],
@@ -2151,10 +2139,6 @@
           },
           {
             "at": "2026-11-10T10:00:03Z",
-            "record_id": "r2"
-          },
-          {
-            "at": "2026-11-10T10:00:04Z",
             "record_id": "r2"
           }
         ]

@@ -29,7 +29,7 @@ behave the same. See the [main README](../../README.md) for the system around it
 - **The request:** a **`RequestGatherer`** reads a request once from its header lines and its body: whole within its cap
   and its budget (or adopted past the budget by the gateway's), else unread, as not sent, cut short (of its declared
   length, or where its host may have cut it), or past either.
-  - Capture's keeps no header line and keeps its body within the 256 MiB every body kept shares.
+  - The one `Capture` uses keeps no header line and keeps its body within the 256 MiB every body kept shares.
   - The gateway's, from `Gateway::gather` and judged by `Gateway::handle`, keeps them, reads the declared length unless
     its host turns off `checks_declared_length`, and shares a 256 MiB budget of its own: a body adopted past it is kept,
     to send on, and only its tree and the headers conditions read are refused.

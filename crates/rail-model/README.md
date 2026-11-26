@@ -34,7 +34,7 @@ By module:
   - **`compile_condition`** and **`evaluate_condition`** evaluate one, as the judge does;
   - a **`Path`** is spelled as a dotted string or as a list, in a bundle or a plan; it's read for a **`ConditionUse`**
     (a gateway policy, a capture plan entry's match), which decides the paths it reads;
-  - a condition is compiled for one and evaluated in an **`Environment`**:
+  - a condition is compiled for a `ConditionUse` and evaluated in an **`Environment`**:
     - **`Environment::of`** an **`ObservedRequest`** and its ticket's claims;
     - `for_judging` a call given as a policy reads it (its claims, endpoint and headers), its request line read as
       absent and its body as not sent;
@@ -67,7 +67,7 @@ By module:
     - refusing one that breaks the field reference with why (**`InvalidPlan`**);
     - checking the proxy's ceilings too;
     - leaving to the caller its `content_hash`'s form, its `schema_version`'s major, its agent and its
-      `redaction_version`.
+      `redaction_version`;
   - a **`Plan`**'s entries keep their conditions as written, checked when compiled; its values are as Rail Center writes
     them;
   - **`compile_plan`** compiles a read plan's entries for matching calls (**`CompiledPlan`**):
@@ -75,23 +75,23 @@ By module:
       reaching it goes to the catch-all;
     - nothing else is checked, Rail Center's own rules for a plan being its own;
     - an entry is tried only for the host an `eq` on `request.host` among its conditions names, as written, or for every
-      host if none does.
+      host if none does;
   - **`CompiledPlan::capture`** matches an **`ObservedRequest`**, what the callout hands over, as a **`CapturedCall`**:
     - **`Taken`** by the first entry whose conditions all hold, or by the catch-all and why (**`Untaken`**): no entry
       took it, its path can't match one, or its walk stopped at an entry refused, one whose conditions read a body value
       that can't be told or a body unread, or one that spent the step budget;
     - what that record, the entry's or the catch-all's, reads of the call (**`RecordReading`**): each key and measure
       the plan lists, each path's finding kept apart (a value, nothing, one that can't be told, a body unread, the step
-      budget spent); a named key's string kept, or its SHA-256, as its `function`, `none` or `sha256`, says.
+      budget spent); a named key's string kept, or its SHA-256, as its `function`, `none` or `sha256`, says;
   - a **`Window`** counts the calls captured between two times:
     - grouped into call records by their record and its context keys' values, up to the plan's group ceiling (past it,
       an entry's new group in the catch-all, a catch-all's in its `[overflow]` record);
     - with each host's total (as many hosts as groups, a host first seen past either under `[overflow]`);
-    - with the calls' order, up to the plan's `max_steps_per_window`.
+    - with the calls' order, up to the plan's `max_steps_per_window`;
   - **`close`** gives a **`ClosedWindow`**, which tells:
     - its records and steps;
     - whether it's empty, for the sender to skip it;
-    - its plan's `max_unsent_windows`, for its queue.
+    - its plan's `max_unsent_windows`, for its queue;
   - the sender makes a `ClosedWindow` the call record **`Document`**, given its id, when it was built and the windows
     dropped before it;
   - **`Windowing`** keeps the window open under the plan held, told the plan and the time at each **`hold`** and
@@ -108,13 +108,12 @@ By module:
 - **`schema_version`:** **`SchemaVersion`**, a document's `MAJOR.MINOR`, a bundle's or a plan's.
 - **`timestamp`:** **`Timestamp`**, a moment as Rail Center's documents write one: RFC 3339 in UTC, `Z`, to the
   nanosecond the clock gives.
-- **`request_line`:** **`RequestLine::read`** reads a call's `:authority`, `:method` and `:path` once, as conditions
-  read them under `request`:
-  - the host as `parse_authority` spells it, or `[unparseable]`;
-  - the path up to its query or fragment (`/` for a `CONNECT`), as received and redacted, its segments, and its query,
-    read as a form's;
-  - it also tells why a path can match no capture plan entry (**`unmatchable`**), and what a call record reports of the
-    call (**`host_reading`**, **`reported_method`**, **`path_prefix`**).
+- **`request_line`:** **`RequestLine::read`** reads a call's `:authority`, `:method` and `:path` once:
+  - as conditions read them under `request`: the host as `parse_authority` spells it, or `[unparseable]`; the path up to
+    its query or fragment (`/` for a `CONNECT`), as received and redacted, its segments, and its query, read as a
+    form's;
+  - why a path can match no capture plan entry (**`unmatchable`**);
+  - what a call record reports of the call (**`host_reading`**, **`reported_method`**, **`path_prefix`**).
 - **`redaction`:** RailMon's rule for a path, at **`REDACTION_VERSION`**, as Rail Center writes a capture plan's paths.
 - **`sanitize`:** **`sanitize`**, **`sanitize_quoted`**, **`sanitize_unquoted`** and **`sanitize_for_json`** make text
   from a call safe to log.

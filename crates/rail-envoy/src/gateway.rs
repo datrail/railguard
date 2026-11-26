@@ -1,5 +1,6 @@
-//! The gateway role's callouts: each request judged whole, then forwarded without the agent's
-//! withheld headers, or refused with the gateway's status and body.
+//! The gateway role's callouts: each call it judges judged whole, any other forwarded unjudged;
+//! then forwarded without the agent's withheld headers, or refused with the gateway's status and
+//! body.
 
 use std::sync::Arc;
 
@@ -39,7 +40,7 @@ pub(crate) struct GatewayCallouts {
     pub(crate) gateway: Option<Arc<Gateway>>,
 }
 
-/// ext_authz: judges the request with the body Envoy sends (`with_request_body`).
+/// ext_authz: judges a call it judges with the body Envoy sends (`with_request_body`).
 #[tonic::async_trait]
 impl Authorization for GatewayCallouts {
     async fn check(
@@ -235,7 +236,7 @@ enum Stage {
     Headers,
     // Its headers held, its body growing, until it ends.
     Gathering(Box<Pending>),
-    // Disabled: every phase goes on as it came.
+    // Disabled, or a call it doesn't judge: every phase goes on as it came.
     Passing,
     // Answered whole, by a refusal or its last phase: later headers or body are ignored.
     Done,
@@ -266,13 +267,10 @@ impl Exchange {
         }
         let sent = process_lines(&headers);
         let removed = withheld_headers(sent.clone().map(|(name, _)| name));
-        let judged = self
-            .gateway
-            .clone()
-            .and_then(|gateway| match gateway.gather(sent) {
-                Gathering::Judged(gatherer) => Some((gateway, gatherer)),
-                Gathering::Unjudged => None,
-            });
+        let judged = self.gateway.clone().and_then(|gateway| {
+            let gatherer = gateway.gather(sent).judged()?;
+            Some((gateway, gatherer))
+        });
         let Some((gateway, gatherer)) = judged else {
             // Disabled, or a call it doesn't judge: nothing to gather.
             self.stage = Stage::Passing;

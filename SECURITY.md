@@ -41,8 +41,8 @@ Anything that gets a call past rail-apigee that its rules refuse:
   - a call repeating `method`, `params`, `params.name` or `params.arguments`, letter case ignored, or holding beside
     them a key that isn't JSON, like `"\method"`, which a lenient reader may read as any, names nothing, so the binding
     fallback decides it;
-  - so does one holding a NUL in a key, its `method` or its tool name, which a reader cutting strings there reads short,
-    while a NUL in any other value is compared as written;
+  - a call holding a NUL in a key, its `method` or its tool name, which a reader cutting strings there reads short, is
+    decided by the binding fallback too, while a NUL in any other value is compared as written;
 - **a hostile call or bundle** that crashes the gateway, or holds it past its deadline or its step budget (a judgement
   past 100,000 steps is refused, 503, at `enforce`);
 - **a call forwarded unjudged** other than in the cases below;
@@ -56,10 +56,10 @@ A refusal names no policy:
 
 - 403 for a denial;
 - 503 for a call the rules can't be applied to, and at `enforce` for one not judged within 5 s, whose judgement
-  panicked, or past the gateway's 256 MiB memory budget (logged as an error), and in any mode for a full-duplex body
-  dropped past that budget;
+  panicked, or past the gateway's 256 MiB memory budget (logged as an error), and in any mode for a `POST`'s full-duplex
+  body dropped past that budget;
 - 413, unjudged, for a `POST`'s body past `RAIL_MAX_BODY_MB`, or cut short (on Envoy: flagged by it, or shorter than its
-  `Content-Length`); on Apigee, so is a request past 4 MiB less 1 KiB.
+  `Content-Length`); on Apigee, also for a request past 4 MiB less 1 KiB.
 
 The bodies the gateway keeps, their trees and the headers conditions read share those 256 MiB, so many large calls at
 once can't exhaust its memory. If the callout is down or answers no decision, the reference Apigee proxy refuses the

@@ -62,11 +62,22 @@ impl Default for GatewaySettings {
 }
 
 /// How the gateway takes a call, decided at its headers.
+#[must_use]
 pub enum Gathering {
     /// Judged by `Gateway::handle`, its body gathered into this.
     Judged(RequestGatherer),
     /// Forwarded unjudged, its body passed on as it came, unread.
     Unjudged,
+}
+
+impl Gathering {
+    /// The gatherer of a call it judges.
+    pub fn judged(self) -> Option<RequestGatherer> {
+        match self {
+            Self::Judged(gatherer) => Some(gatherer),
+            Self::Unjudged => None,
+        }
+    }
 }
 
 /// The gateway role for a host: each call judged within its deadline, at most

@@ -1,4 +1,4 @@
-//! The Apigee host, in the gateway role: Apigee's ExternalCallout service over TCP, each request
+//! The Apigee host, in the gateway role: Apigee's ExternalCallout service over TCP, each `POST`
 //! judged against the policy bundle held.
 //!
 //! `rail-apigee gateway` (`rail gateway` in its image) serves, with `grpc.health.v1` on the same

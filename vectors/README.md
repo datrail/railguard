@@ -92,9 +92,9 @@ a Rust test's.
   - `matching`, layer 8's, two MCP tools on one host and an HTTP operation on another, their records without measures;
   - `worked-example` is the capture design's (railxia/docs' `design/2026-11-10-rc-dg-capture-plan/design.md` at
     `95b5c7b`, its section 2) with its measures as this reader reads them;
-  - `two-groups` it with a smaller budget;
-  - `sixty-seconds` and `five-minutes` it with another window and their own `plan_version`s, 1 and 2, by which layer 10
-    tells their windows apart.
+  - `two-groups` is `worked-example` with a smaller budget;
+  - `sixty-seconds` and `five-minutes` are `worked-example` with another window and their own `plan_version`s, 1 and 2,
+    by which layer 10 tells their windows apart.
 
 ### Values
 
@@ -174,15 +174,15 @@ What changed on the way:
   - an endpoint key not of the form `<slug>#<path>#<method>#<call>`;
   - a `content_hash` this reader reads opaque;
   - a major version other than 2, which the caller checks.
-- **`policy/judge.json`:** the whole-bundle cases of `decide.json` and those of `fallback.json`:
+- **`policy/judge.json`:** the whole-bundle cases of `decide.json` and those of `fallback.json`. Removed: 5 with an
+  action other than block or alert, 2 with an `enabled` missing or not a boolean (this reader refuses the bundle; Rail
+  Center publishes neither), 2 with mode none, where the caller never judges. What changed:
   - bundles filled in to 2.0, both fallbacks `pass` unless a case is about one, a ticket the claims Rail Center mints
     where a case gives none;
   - `fallback.json`'s `<slug>.<tool>` keys rewritten `<slug>#/mcp#tools/call#<tool>`, its cases with no chain given one
     inert alert;
   - an `endpoint` is `keyless`, `unrecognised` or `{"resolved": key}`, the key without its slug;
-  - a chain is `null` where a fallback denies at enforce; a refusal names the policy it was reached at;
-  - removed: 5 with an action other than block or alert, 2 with an `enabled` missing or not a boolean (this reader
-    refuses the bundle; Rail Center publishes neither), 2 with mode none, where the caller never judges.
+  - a chain is `null` where a fallback denies at enforce; a refusal names the policy it was reached at.
 - **`policy/base64_ticket.json`:** verbatim; a valid case's token is the payload as sent. Removed: 8 about how the
   header arrives, which the runtime handles, and 4 about a nesting cap of 64, where this reader's is 128; the contract
   leaves the cap to each reader.

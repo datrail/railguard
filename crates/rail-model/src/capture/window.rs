@@ -95,12 +95,22 @@ struct Written {
     measures_lost: Lost,
 }
 
-// What a call's values lost, apart for its keys and its measures.
+// What a call's keys, or its measures, lost.
 #[derive(Default)]
 struct Lost {
     path_unresolved: bool,
     values_replaced: u64,
     ambiguous: bool,
+}
+
+impl Lost {
+    fn join(self, other: Lost) -> Lost {
+        Lost {
+            path_unresolved: self.path_unresolved || other.path_unresolved,
+            values_replaced: self.values_replaced + other.values_replaced,
+            ambiguous: self.ambiguous || other.ambiguous,
+        }
+    }
 }
 
 impl Window {
@@ -299,11 +309,10 @@ impl Window {
         for (total, bytes) in measures.values_mut().zip(written.measures) {
             *total = total.saturating_add(bytes);
         }
-        let (keys, measured) = (written.keys_lost, written.measures_lost);
-        let path_unresolved = keys.path_unresolved || measured.path_unresolved;
-        self.truncated.path_unresolved += u64::from(path_unresolved);
-        self.truncated.values_replaced += keys.values_replaced + measured.values_replaced;
-        self.truncated.values_ambiguous += u64::from(keys.ambiguous || measured.ambiguous);
+        let lost = written.keys_lost.join(written.measures_lost);
+        self.truncated.path_unresolved += u64::from(lost.path_unresolved);
+        self.truncated.values_replaced += lost.values_replaced;
+        self.truncated.values_ambiguous += u64::from(lost.ambiguous);
     }
 }
 

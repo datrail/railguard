@@ -470,5 +470,8 @@ async fn with_rail_center_enabled_a_judged_body_past_the_cap_set_is_refused_with
         .unwrap()
         .into_inner();
     assert_eq!(flow(&forwarded, "rail.decision").as_deref(), Some("allow"));
-    assert_eq!(forwarded.request.unwrap().content, past);
+    let request = forwarded.request.unwrap();
+    assert_eq!(request.content, past);
+    let removed = HashMap::from([("x-rail".to_owned(), Strings::default())]);
+    assert_eq!(request.headers, removed);
 }

@@ -480,11 +480,8 @@ async fn a_judged_body_past_the_cap_is_refused_as_soon_as_it_is_and_no_other() {
     assert_eq!(removed(&echoed[0]), WITHHELD);
     assert!(streamed_back(&echoed[1..]).0 == past);
     let length = i64::try_from(past.len()).unwrap();
-    assert!(
-        check_as(&socket.path, "PUT", &[], &past, length)
-            .await
-            .is_ok()
-    );
+    let forwarded = check_as(&socket.path, "PUT", &[], &past, length).await;
+    assert_eq!(forwarded, Ok(WITHHELD.map(str::to_owned).to_vec()));
 }
 
 #[tokio::test(flavor = "multi_thread")]

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use rail_model::policy::Fallback;
-use rail_runtime::{Answer, BodyEnding, Gateway, GatewaySettings, Gathering};
+use rail_runtime::{Answer, BodyEnding, Gateway, GatewaySettings};
 use serde_json::json;
 use tokio::time::Instant;
 use tokio::time::timeout;
@@ -63,9 +63,11 @@ async fn the_gateways_request_keeps_its_header_lines() {
         ("x-a", "1"),
         ("X-B", "2"),
     ];
-    let Gathering::Judged(gatherer) = started.gateway.gather(lines) else {
-        panic!("a POST is judged");
-    };
+    let gatherer = started
+        .gateway
+        .gather(lines)
+        .judged()
+        .expect("a POST is judged");
     let request = gatherer.finish(BodyEnding::Whole);
     assert_eq!(
         request.header_lines().collect::<Vec<_>>(),
@@ -74,14 +76,13 @@ async fn the_gateways_request_keeps_its_header_lines() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn with_no_bundle_a_post_takes_the_setting_and_any_other_call_is_forwarded() {
+async fn with_no_bundle_a_call_takes_the_setting() {
     // A bundle is waited for 2 s, or to the deadline if sooner.
-    for (method, fallback, deadline, answered, waited) in [
-        ("POST", Fallback::Pass, 5, Answer::Forward, 2),
-        ("POST", Fallback::Block, 1, Answer::CannotApply, 1),
+    for (fallback, deadline, answered, waited) in [
+        (Fallback::Pass, 5, Answer::Forward, 2),
+        (Fallback::Block, 1, Answer::CannotApply, 1),
         // A deadline past any `Instant` reads as a day.
-        ("POST", Fallback::Pass, u64::MAX, Answer::Forward, 2),
-        ("GET", Fallback::Block, 5, Answer::Forward, 0),
+        (Fallback::Pass, u64::MAX, Answer::Forward, 2),
     ] {
         let clock = TestClock::new();
         let settings = GatewaySettings {
@@ -96,15 +97,15 @@ async fn with_no_bundle_a_post_takes_the_setting_and_any_other_call_is_forwarded
         let started = start(&clock, never, settings);
         until(&clock, 0).await;
 
-        let sent = call(method, None);
+        let sent = call("POST", None);
         let arrived = Instant::now();
         let (answer, back) = handle(&started.gateway, sent.clone()).await;
 
-        assert_eq!(answer, answered, "{method} {fallback:?}");
+        assert_eq!(answer, answered, "{fallback:?} {deadline}");
         assert_eq!(
             arrived.elapsed(),
             Duration::from_secs(waited),
-            "{method} {fallback:?}"
+            "{fallback:?}"
         );
         assert_eq!(back, sent.body.as_bytes());
     }
@@ -130,17 +131,19 @@ async fn a_judged_body_past_the_cap_or_cut_short_is_refused_unjudged() {
         ..call("POST", None)
     };
 
-    let (answer, back) = handle(&started.gateway, past.clone()).await;
+    let (answer, back) = handle(&started.gateway, past).await;
     assert_eq!(answer, Answer::TooLarge);
     assert!(back.is_empty());
     let cut = judged_post(&started.gateway);
     let cut_answer = started.gateway.handle(cut, BodyEnding::CutShort).await.0;
     assert_eq!(cut_answer, Answer::TooLarge);
-    // Not judged, a call of another method is never gathered, whatever its body.
-    let get = started
-        .gateway
-        .gather([(":method", "GET"), (":path", "/mcp")]);
-    assert!(matches!(get, Gathering::Unjudged));
+    // Only an exact `POST` is judged: any other method is never gathered.
+    for method in ["GET", "post"] {
+        let gathered = started
+            .gateway
+            .gather([(":method", method), (":path", "/mcp")]);
+        assert!(gathered.judged().is_none(), "{method}");
+    }
     assert_eq!(handle(&started.gateway, at_cap).await.0, Answer::Deny);
     // Reports are sent on a task of their own: only the judged call's arrives.
     started.sink.until_sent(1).await;

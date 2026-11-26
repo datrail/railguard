@@ -251,7 +251,7 @@ fn walk<'a>(
                 return ChainOutcome { decision, alerts };
             }
             Verdict::Refused(refusal) => refusal,
-            // Never from the gateway, which judges no call whose endpoint can't be read.
+            // Never from the gateway, which judges no call whose body is unread.
             Verdict::Ambiguous | Verdict::BodyUnread(_) => Refusal::NotForUse,
         };
         // A refused call reports nothing, its alerts included.

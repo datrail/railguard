@@ -142,7 +142,7 @@ The largest request body judged or captured, in MiB, as sent (an encoded body is
   logged, and isn't reported; with `RAIL_DISABLED=true`, nothing is judged, and this isn't applied.
   - Apigee's own limits come first: past 4 MiB less 1 KiB rail-apigee refuses a request (above), and past 10 MB Apigee
     answers 413 itself, so a value of 4 or more is logged with the limit in force.
-  - In `rail-envoy`, a body streamed in full duplex is refused as soon as it's past it.
+  - In `rail-envoy`, a `POST`'s body streamed in full duplex is refused as soon as it's past it.
 - **In `rail-envoy`'s proxy, past it, a body isn't read:** the call is forwarded as ever, and captured with its body
   counted as past the cap (`truncated.body_unread.past_cap`). Envoy's limits go above it, as its README
   [recommends](crates/rail-envoy/README.md#the-body-for-capture).
@@ -171,7 +171,7 @@ How often the bundle held is fetched again.
 - After a failure that may pass (no answer, a timeout, a 408, 429 or 5xx), the next attempt comes in 5 s, doubling to at
   most 320 s or the interval, whichever is less.
 - Any other answer that isn't held (a bundle refused, a body not JSON or too large, a 401, 403, 404 or another status)
-  would be repeated:
+  would be repeated, so:
   - while a bundle is held, it's asked again after the interval;
   - while none is held, it's asked again as after a failure, so the first bundle comes soon after Rail Center can give
     it.
