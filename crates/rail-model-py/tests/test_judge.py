@@ -8,7 +8,6 @@ from uuid import UUID
 import pytest
 
 from datrail_model import (
-    DEFAULT_STEP_LIMIT,
     ChainOutcome,
     CompiledBundle,
     Judgement,
@@ -29,7 +28,10 @@ _ENVIRONMENTS = json.loads((_VECTORS / "environments.json").read_text())["enviro
 _PATH_CASES = [
     case
     for case in json.loads((_VECTORS / "condition" / "path.json").read_text())["cases"]
-    if case["use"] == "gateway_policy" and _ENVIRONMENTS[case["environment"]]["for"] == "judging"
+    if case["use"] == "gateway_policy"
+    and _ENVIRONMENTS[case["environment"]]["for"] == "judging"
+    # A step limit is the native reader's; `test_refuses_past_the_step_limit` passes one through.
+    and "step_limit" not in case
 ]
 _FOUND_KINDS = {"string", "number", "bool", "list"}
 
@@ -85,26 +87,33 @@ def _get_expected_chain(expect):
         return "allowed", None
     if expect == "object" or (isinstance(expect, dict) and expect.keys() <= _FOUND_KINDS):
         return "denied", None
-    if isinstance(expect, dict) and expect.keys() <= {"refused_reading", "refused"}:
-        return "refused", next(iter(expect.values()))
+    if isinstance(expect, dict) and expect.keys() == {"refused_reading"}:
+        return "refused", expect["refused_reading"]
     raise AssertionError(f"no decision for {expect!r}")
 
 
-def _get_resolved_kind(expect):
-    if isinstance(expect, str):
-        return expect
-    kind = next(iter(expect))
-    # A refused path resolves to nothing.
-    return None if kind.startswith("refused") else kind
+def _write_item(item):
+    # As the vectors write a list's items; a bool before a number, since `True == 1`.
+    if item is None:
+        return "absent"
+    if isinstance(item, dict):
+        return "object"
+    if isinstance(item, bool):
+        return {"bool": item}
+    if isinstance(item, str):
+        return {"string": item}
+    if isinstance(item, list):
+        return {"list": [_write_item(inner) for inner in item]}
+    return {"number": item}
 
 
-def _get_step_limit(case):
-    if "step_limit" not in case:
-        return DEFAULT_STEP_LIMIT
-    # The condition's own step and one per list item, so only the path's cost is left to the case.
-    expect = case["expect"]
-    items = expect["list"] if isinstance(expect, dict) and "list" in expect else []
-    return case["step_limit"] + 1 + len(items)
+def _write_resolved(resolved):
+    # As the vectors write a value, so a whole value is compared, not only its kind.
+    if resolved is None or resolved.kind in {"absent", "object"}:
+        return None if resolved is None else resolved.kind
+    if resolved.kind == "list":
+        return {"list": [_write_item(item) for item in resolved.value]}
+    return {resolved.kind: resolved.value}
 
 
 def test_has_cases():
@@ -137,13 +146,12 @@ def test_judges_each_path_as_layer_3_resolves_it(case):
         endpoint_key=endpoint if isinstance(endpoint, str) else endpoint["resolved"],
         headers=[tuple(line) for line in environment["headers"]],
         claims=environment["ticket"],
-        step_limit=_get_step_limit(case),
     )
 
     decision, refusal = _get_expected_chain(case["expect"])
     assert (judgement.chain.decision, judgement.chain.refusal) == (decision, refusal)
-    resolved = judgement.trace[0].resolved
-    assert (None if resolved is None else resolved.kind) == _get_resolved_kind(case["expect"])
+    resolved = _write_resolved(judgement.trace[0].resolved)
+    assert resolved == (None if decision == "refused" else case["expect"])
 
 
 def test_traces_each_policy_evaluated_until_one_decides():
