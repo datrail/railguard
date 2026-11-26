@@ -120,7 +120,8 @@ message, which holds a whole buffered body.
   larger than the request.
 - **In `rail-envoy`, a message past it** fails its stream while the call is unanswered, so Envoy applies its failure
   mode: closed (`failure_mode_allow: false`), as the gateway must, it refuses the call; open, as the proxy may, it
-  forwards the call as the agent sent it, with no ticket, and uncaptured.
+  forwards the call as the agent sent it, with no ticket, and uncaptured. An ext_proc body message past it comes after
+  the headers were answered: the call keeps its ticket and is counted, its body unread.
 
 ### `RAIL_MAX_BODY_MB`
 

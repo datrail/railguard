@@ -90,6 +90,9 @@ body, and its streamed modes' bodies aren't kept yet. A body is cut short:
   request, as one followed by trailers doesn't either;
 - with ext_proc, when its stream ends before its body is sent.
 
+A body without a `Content-Length` past the cap, chunked or over HTTP/2, is sized as what Envoy sent, about
+`max_request_bytes` or the buffer limit: its `request_bytes`, or its size, is then a lower bound.
+
 ## Run it beside Envoy
 
 Envoy's configuration is the customer's, so we can only recommend it. rail-envoy needs at least:
@@ -130,7 +133,8 @@ with_request_body:
   allow_partial_message: true
   pack_as_bytes: true
 
-# Or ext_proc: the body held up to the buffer limit, then sent on; the trailers sent too.
+# Or ext_proc: the body held up to the buffer limit, then sent on; the trailers sent too, which
+# over HTTP/1 Envoy keeps only with `http_protocol_options: {enable_trailers: true}`.
 processing_mode:
   request_header_mode: SEND
   response_header_mode: SKIP
@@ -144,6 +148,10 @@ Past these, Envoy answers 413 itself, in front of rail-envoy:
 - ext_authz without `allow_partial_message`, to a body past `max_request_bytes`; with it, to one past the buffer limit
   if `max_request_bytes` is above it;
 - ext_proc `BUFFERED`, which works too, to a body past the buffer limit.
+
+Keep `max_request_bytes`, and the buffer limit with ext_proc, below `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB` (16 MiB by
+default) with room for the headers: a message past it fails its stream, and the call goes on under Envoy's failure mode,
+as [`CONFIGURATION.md`](../../CONFIGURATION.md#rail_callout_grpc_max_message_mb) says.
 
 `BUFFERED_PARTIAL` drops `Content-Length` without `allow_content_length_header`, so the upstream gets the body chunked;
 without `request_trailer_mode: SEND`, a request with trailers and no body is counted as cut short. ext_proc's other
