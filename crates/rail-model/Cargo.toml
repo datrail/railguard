@@ -15,7 +15,7 @@ name = "rail-model"
 path = "tests/main.rs"
 
 [features]
-# The conformance vectors' runner, for the tests and the binding's wheel; in no gateway or proxy.
+# The conformance vectors' runner, for the tests only.
 conformance = ["time/parsing"]
 
 [dependencies]

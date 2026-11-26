@@ -83,7 +83,7 @@ By module:
   from a call safe to log.
 - **`conformance`,** with the `conformance` feature: the [vectors](../../vectors/README.md)' runner. **`run_vectors`**
   runs a file of **`FILES`**, given its text and **`SHARED`**'s, and gives each case's `expect` and what this reader
-  found. The tests and the binding's wheel have it; the gateway's and the proxy's binaries don't.
+  found. Only the tests have it.
 
 ## What it doesn't do
 

@@ -12,8 +12,7 @@ crate-type = ["cdylib"]
 pyo3 = { version = "0.30", features = ["abi3-py312"] }
 # The major version rail-model uses, since its SignedTicketConfig holds these keys.
 ed25519-dalek = { version = "3", default-features = false }
-# Its conformance runner in every wheel, so the tests run what ships.
-rail-model = { path = "../rail-model", features = ["conformance"] }
+rail-model = { path = "../rail-model" }
 # Features as rail-model sets them; they unify, so none are added here.
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

@@ -8,9 +8,10 @@ input and what this reader answers. They're for two things:
 - **Reviewing a behaviour as data:** a case is named by its `id`, so a doc or a proposal can point at it, and a change
   to a behaviour shows as the `expect`s it changes.
 
-Run them with `cargo test -p rail-model -- vectors::` (`make coverage-vectors` for what they alone cover), and in Python
-with `make test-py`. `gateway_enforcement_conformance_cases.json` is `rail-runtime`'s, of the gateway role, in a format
-of its own.
+Run them with `cargo test -p rail-model -- vectors::` (`make coverage-vectors` for what they alone cover).
+`make test-py` runs the `policy/` files, layer 4's conditions and layer 3's judging paths through the wheel's Python
+interface. `gateway_enforcement_conformance_cases.json` is `rail-runtime`'s, of the gateway role, in a format of its
+own.
 
 ## The format
 

@@ -8,6 +8,7 @@ from uuid import UUID
 import pytest
 
 from datrail_model import (
+    DEFAULT_STEP_LIMIT,
     ChainOutcome,
     CompiledBundle,
     Judgement,
@@ -23,6 +24,14 @@ from datrail_model import (
 
 _VECTORS = Path(__file__).parents[3] / "vectors"
 _WALK_CASES = json.loads((_VECTORS / "policy" / "judge.json").read_text())["cases"]
+_ENVIRONMENTS = json.loads((_VECTORS / "environments.json").read_text())["environments"]
+# Layer 3's paths a policy reads, in an environment a sample can be.
+_PATH_CASES = [
+    case
+    for case in json.loads((_VECTORS / "condition" / "path.json").read_text())["cases"]
+    if case["use"] == "gateway_policy" and _ENVIRONMENTS[case["environment"]]["for"] == "judging"
+]
+_FOUND_KINDS = {"string", "number", "bool", "list"}
 
 
 def _build_policy(n, condition, action="block", enabled=True):
@@ -70,8 +79,37 @@ def _format_outcome(judgement):
     return {"fallbacks": list(judgement.fallback_denials), "chain": chain}
 
 
+def _get_expected_chain(expect):
+    # `existing` holds on whatever is found, so the block policy denies; a refusal refuses the call.
+    if expect == "absent":
+        return "allowed", None
+    if expect == "object" or (isinstance(expect, dict) and expect.keys() <= _FOUND_KINDS):
+        return "denied", None
+    if isinstance(expect, dict) and expect.keys() <= {"refused_reading", "refused"}:
+        return "refused", next(iter(expect.values()))
+    raise AssertionError(f"no decision for {expect!r}")
+
+
+def _get_resolved_kind(expect):
+    if isinstance(expect, str):
+        return expect
+    kind = next(iter(expect))
+    # A refused path resolves to nothing.
+    return None if kind.startswith("refused") else kind
+
+
+def _get_step_limit(case):
+    if "step_limit" not in case:
+        return DEFAULT_STEP_LIMIT
+    # The condition's own step and one per list item, so only the path's cost is left to the case.
+    expect = case["expect"]
+    items = expect["list"] if isinstance(expect, dict) and "list" in expect else []
+    return case["step_limit"] + 1 + len(items)
+
+
 def test_has_cases():
     assert _WALK_CASES
+    assert _PATH_CASES
 
 
 @pytest.mark.parametrize("case", _WALK_CASES, ids=lambda case: case["id"])
@@ -86,6 +124,26 @@ def test_walk_vectors(case):
     )
 
     assert _format_outcome(judgement) == case["expect"]
+
+
+@pytest.mark.parametrize("case", _PATH_CASES, ids=lambda case: case["id"])
+def test_judges_each_path_as_layer_3_resolves_it(case):
+    environment = _ENVIRONMENTS[case["environment"]]
+    endpoint = environment["endpoint"]
+    compiled = _compile_bundle([_build_policy(1, {"path": case["path"], "op": "existing"})])
+
+    judgement = judge_sample(
+        compiled,
+        endpoint_key=endpoint if isinstance(endpoint, str) else endpoint["resolved"],
+        headers=[tuple(line) for line in environment["headers"]],
+        claims=environment["ticket"],
+        step_limit=_get_step_limit(case),
+    )
+
+    decision, refusal = _get_expected_chain(case["expect"])
+    assert (judgement.chain.decision, judgement.chain.refusal) == (decision, refusal)
+    resolved = judgement.trace[0].resolved
+    assert (None if resolved is None else resolved.kind) == _get_resolved_kind(case["expect"])
 
 
 def test_traces_each_policy_evaluated_until_one_decides():
