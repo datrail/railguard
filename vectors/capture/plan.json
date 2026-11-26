@@ -559,6 +559,11 @@
       "expect": {"valid": false}
     },
     {
+      "id": "a-measure-with-no-function",
+      "patch": [{"op": "remove", "path": "/entries/0/record/measures/2/function"}],
+      "expect": {"valid": false}
+    },
+    {
       "id": "request-bytes-with-no-type",
       "patch": [{"op": "remove", "path": "/entries/0/record/measures/1/type"}],
       "expect": {"valid": false}
@@ -692,11 +697,6 @@
       "id": "a-catch-alls-two-hosts",
       "patch": [{"op": "add", "path": "/catch_all/record/context_keys/-", "value": {"name": "host"}}],
       "expect": {"valid": false}
-    },
-    {
-      "id": "a-catch-alls-measure-as-an-entrys",
-      "patch": [{"op": "add", "path": "/catch_all/record/measures/-", "value": {"name": "argument_bytes", "type": "sum", "function": "size", "paths": [["request", "body", "params", "arguments", "content"]]}}],
-      "expect": {"valid": true}
     }
   ]
 }

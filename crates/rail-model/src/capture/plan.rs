@@ -239,7 +239,11 @@ fn check_entry(entry: &Entry) -> Result<(), String> {
     }) {
         return Err(format!("context key {}: the catch-all's alone", key.name()));
     }
-    check_measures(&entry.record.measures)
+    let measures = &entry.record.measures;
+    unique(
+        "measure",
+        measures.iter().map(|measure| measure.name.as_str()),
+    )
 }
 
 fn check_catch_all(catch_all: &CatchAll) -> Result<(), String> {
@@ -254,11 +258,7 @@ fn check_catch_all(catch_all: &CatchAll) -> Result<(), String> {
     if !keys.contains(&ContextKey::Host) {
         return Err("no host context key".to_owned());
     }
-    check_measures(&catch_all.record.measures)
-}
-
-// A set by name.
-fn check_measures(measures: &[Measure]) -> Result<(), String> {
+    let measures = &catch_all.record.measures;
     unique(
         "measure",
         measures.iter().map(|measure| measure.name.as_str()),
@@ -357,13 +357,15 @@ impl TryFrom<Fields> for Measure {
         let paths = paths
             .iter()
             .map(|steps| {
-                // Counting the calls: the request, always there, is no record path but this.
-                if function == MeasureFunction::IsSet
-                    && steps.as_array().is_some_and(|steps| *steps == ["request"])
-                {
-                    Ok(Path::Request(RequestPath::Whole))
-                } else {
-                    read_record_path(steps)
+                let path = steps.as_array().and_then(|steps| Path::from_steps(steps));
+                match path {
+                    // Counting the calls: the request, always there, is no record path but this.
+                    Some(whole @ Path::Request(RequestPath::Whole))
+                        if function == MeasureFunction::IsSet =>
+                    {
+                        Ok(whole)
+                    }
+                    _ => read_record_path(steps),
                 }
             })
             .collect::<Result<_, _>>()

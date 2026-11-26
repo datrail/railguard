@@ -152,83 +152,6 @@
       }
     },
     {
-      "id": "is-set-body-string",
-      "environment": "capture-sample",
-      "record_of": "entry",
-      "record": {
-        "context_keys": [],
-        "measures": [
-          {
-            "name": "m",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request",
-                "body",
-                "params",
-                "arguments",
-                "repo"
-              ]
-            ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
-      },
-      "expect": {
-        "context_keys": {},
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          },
-          "m": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
       "id": "key-body-string-with-an-escape",
       "environment": "capture-sample",
       "record_of": "entry",
@@ -7664,6 +7587,81 @@
               {
                 "found": {
                   "bytes": 8
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "is-set-of-a-string-that-doesnt-decode",
+      "environment": "capture-body-written-forms",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request",
+                "body",
+                "bad"
+              ]
+            ]
+          },
+          {
+            "name": "call_count",
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": {
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
+          },
+          "request_bytes": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 142
+                }
+              }
+            ]
+          },
+          "m": {
+            "is_set": [
+              {
+                "found": {
+                  "set": true
                 }
               }
             ]

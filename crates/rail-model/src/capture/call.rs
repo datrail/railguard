@@ -306,7 +306,9 @@ fn read_key(
 fn read_is_set(path: &Path, environment: &Environment, budget: &mut Budget) -> PathReading<bool> {
     match resolve_path(path, environment, budget) {
         Ok((Lookup::Absent, _)) => PathReading::Found(false),
-        Ok((Lookup::Ambiguous, _)) => PathReading::Ambiguous,
+        // In the body, whether or not it decodes.
+        Ok((_, Some(_))) => PathReading::Found(true),
+        Ok((Lookup::Ambiguous, None)) => PathReading::Ambiguous,
         Ok((Lookup::BodyUnread(why), _)) => PathReading::BodyUnread(why),
         Ok(_) => PathReading::Found(true),
         Err(refusal) => PathReading::Refused(refusal),

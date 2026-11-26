@@ -91,7 +91,7 @@ body, and its streamed modes' bodies aren't kept yet. A body is cut short:
 - with ext_proc, when its stream ends before its body is sent.
 
 A body without a `Content-Length` past the cap, chunked or over HTTP/2, is sized as what Envoy sent, about
-`max_request_bytes` or the buffer limit: its `request_bytes`, or its size, is then a lower bound.
+`max_request_bytes` or the buffer limit: a size over its whole body, `["request", "body"]`, is then a lower bound.
 
 ## Run it beside Envoy
 
