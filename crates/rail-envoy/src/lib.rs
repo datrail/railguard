@@ -1,7 +1,7 @@
 //! The Envoy host: ext_authz and ext_proc on a unix socket Envoy shares, or on a port. As the
 //! proxy, it allows every request, with this proxy's ticket in `x-rail` to a protected host, and
-//! hands each ext_authz call to capture under the plan held; as the gateway, it judges each
-//! request against the policy bundle held.
+//! hands each ext_authz or ext_proc call to capture under the plan held; as the gateway, it
+//! judges each request against the policy bundle held.
 //!
 //! `rail-envoy proxy` or `rail-envoy gateway` (`rail proxy`, `rail gateway` in its image)
 //! serves, with `grpc.health.v1` on the same listener; `rail-envoy probe [--ready]` asks it for
@@ -13,6 +13,7 @@
 
 mod config;
 mod gateway;
+mod headers;
 mod health;
 mod services;
 mod xrail;

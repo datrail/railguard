@@ -1,5 +1,5 @@
 //! The proxy's capture, started as the binary starts it, and by the binary, against a stub Rail
-//! Center serving a capture plan, its ext_authz called as Envoy calls it.
+//! Center serving a capture plan, its ext_authz and ext_proc called as Envoy calls them.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -7,16 +7,22 @@ use std::time::Duration;
 
 use envoy_types::ext_authz::v3::pb::{Authorization, CheckRequest};
 use envoy_types::pb::envoy::config::core::v3::{HeaderMap, HeaderValue};
+use envoy_types::pb::envoy::extensions::filters::http::ext_proc::v3::processing_mode::BodySendMode;
 use envoy_types::pb::envoy::service::auth::v3::AttributeContext;
 use envoy_types::pb::envoy::service::auth::v3::attribute_context::{HttpRequest, Request};
 use envoy_types::pb::envoy::service::auth::v3::authorization_client::AuthorizationClient;
+use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_client::ExternalProcessorClient;
+use envoy_types::pb::envoy::service::ext_proc::v3::processing_request::Request as Phase;
+use envoy_types::pb::envoy::service::ext_proc::v3::{
+    HttpBody, HttpHeaders, HttpTrailers, ProcessingRequest, ProtocolConfiguration,
+};
 use rail_envoy::{Callouts, ProxyConfig};
 use rail_runtime::{Proxy, start_proxy};
 use rail_test_support::{RailCenter, protect};
 use serde_json::Value;
-use tonic::transport::Endpoint;
+use tonic::transport::{Channel, Endpoint};
 
-use crate::common::{TempSocket, rail_envoy, serve};
+use crate::common::{TempSocket, rail_envoy, serve, serve_ext_proc};
 
 const PLANS: &str = include_str!("../../../vectors/parse_plan_conformance_cases.json");
 
@@ -191,6 +197,139 @@ async fn ext_authz_calls_are_counted_and_their_window_sent_when_stopped() {
             &unread["past_cap"]
         ),
         (&Value::from(2), &Value::from(2), &Value::from(2)),
+        "{document}"
+    );
+}
+
+// A POST to GitHub's `/mcp` as ext_proc sends its headers, declaring `Content-Length` as
+// `declared`, if any, and ending the stream if `ended`.
+fn headers(declared: Option<usize>, ended: bool) -> Phase {
+    let header = |key: &str, value: &str| HeaderValue {
+        key: key.to_owned(),
+        raw_value: value.as_bytes().to_vec(),
+        ..Default::default()
+    };
+    let mut sent = vec![
+        header(":authority", "api.github.com"),
+        header(":method", "POST"),
+        header(":path", "/mcp"),
+    ];
+    sent.extend(declared.map(|length| header("content-length", &length.to_string())));
+    Phase::RequestHeaders(HttpHeaders {
+        headers: Some(HeaderMap { headers: sent }),
+        end_of_stream: ended,
+        ..Default::default()
+    })
+}
+
+fn body(sent: &[u8], ended: bool) -> Phase {
+    Phase::RequestBody(HttpBody {
+        body: sent.to_vec(),
+        end_of_stream: ended,
+        ..Default::default()
+    })
+}
+
+// One stream's phases as Envoy sends them, its first message naming `mode`, if any; returns once
+// the stream has ended.
+async fn process(channel: &Channel, mode: Option<BodySendMode>, phases: Vec<Phase>) {
+    let config = mode.map(|mode| ProtocolConfiguration {
+        request_body_mode: mode.into(),
+        ..Default::default()
+    });
+    let messages: Vec<ProcessingRequest> = phases
+        .into_iter()
+        .enumerate()
+        .map(|(index, phase)| ProcessingRequest {
+            request: Some(phase),
+            protocol_config: config.filter(|_| index == 0),
+            ..Default::default()
+        })
+        .collect();
+    let mut replies = ExternalProcessorClient::new(channel.clone())
+        .process(tokio_stream::iter(messages))
+        .await
+        .unwrap()
+        .into_inner();
+    while replies.message().await.unwrap().is_some() {}
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn ext_proc_calls_are_kept_from_their_buffered_body() {
+    let rail_center = RailCenter::start_with_plan(worked_example()).await;
+    let Proxy {
+        tickets,
+        capture,
+        stop,
+    } = start(&rail_center);
+    tokio::task::block_in_place(|| rail_test_support::wait_until(|| capture.is_capturing()));
+    let callouts = Callouts {
+        tickets: Some(tickets),
+        protected_hosts: Arc::new(protect("mcp.example.com")),
+        capture: Some(capture),
+    };
+    let (_socket, channel) = serve_ext_proc("ext-proc-capture", callouts).await;
+    let whole = mcp_call("docs", "x");
+    let large = mcp_call("uploads", &"r".repeat(3 * MIB));
+    let partial = Some(BodySendMode::BufferedPartial);
+    let buffered = Some(BodySendMode::Buffered);
+    let sized = || headers(Some(whole.len()), false);
+
+    // Ended before its body, handed over when the server drops its stream: first, so well before
+    // capture stops.
+    process(&channel, buffered, vec![sized()]).await;
+    // Partial, chunked, its message ending the stream: whole.
+    let ended = body(&whole, true);
+    process(&channel, partial, vec![headers(None, false), ended]).await;
+    // Buffered, the one message is the whole body, though it doesn't end the stream, as when
+    // trailers follow.
+    let trailed = body(&whole, false);
+    process(&channel, buffered, vec![headers(None, false), trailed]).await;
+    // Partial, not ending the stream, as when trailers follow, but whole by its `Content-Length`.
+    let declared_whole = body(&whole, false);
+    process(&channel, partial, vec![sized(), declared_whole]).await;
+    // An empty body, ending the stream at its headers, or at its trailers: counted, its body read.
+    process(&channel, partial, vec![headers(Some(0), true)]).await;
+    let trailers = Phase::RequestTrailers(HttpTrailers::default());
+    process(&channel, buffered, vec![headers(None, false), trailers]).await;
+    // Partial, chunked, not ending the stream: cut short at the cap, and past it.
+    let chunked = body(&[b' '; 2 * MIB], false);
+    process(&channel, partial, vec![headers(None, false), chunked]).await;
+    let past = body(&large, false);
+    process(&channel, partial, vec![headers(None, false), past]).await;
+    // Not sent: `NONE`, as when no mode is named, and a streamed mode, whose body isn't kept.
+    process(&channel, None, vec![sized()]).await;
+    let streamed = Some(BodySendMode::Streamed);
+    let chunk = body(&whole, true);
+    process(&channel, streamed, vec![sized(), chunk]).await;
+    tokio::task::spawn_blocking(move || stop.stop())
+        .await
+        .unwrap();
+
+    let documents = documents(&rail_center);
+    let [document] = documents.as_slice() else {
+        panic!("{documents:?}");
+    };
+    let records = document["records"].as_array().unwrap();
+    let docs = records
+        .iter()
+        .find(|record| record["context_keys"]["destination"] == "docs")
+        .unwrap_or_else(|| panic!("{document}"));
+    assert_eq!(docs["measures"]["call_count"], 3);
+    assert_eq!(docs["measures"]["request_bytes"], 3 * whole.len());
+    let calls: u64 = records
+        .iter()
+        .map(|record| record["measures"]["call_count"].as_u64().unwrap())
+        .sum();
+    assert_eq!(calls, 10, "{document}");
+    let unread = &document["truncated"]["body_unread"];
+    assert_eq!(
+        (
+            &unread["not_sent"],
+            &unread["cut_short"],
+            &unread["past_cap"]
+        ),
+        (&Value::from(2), &Value::from(2), &Value::from(1)),
         "{document}"
     );
 }
