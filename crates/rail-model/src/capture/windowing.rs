@@ -46,6 +46,11 @@ pub enum CallOutcome {
 }
 
 impl Windowing {
+    /// Whether a window is open: a plan was held when last told the time.
+    pub fn is_open(&self) -> bool {
+        self.open.is_some()
+    }
+
     /// When the open window ends, if one is and its end is a time: when to call `hold` next, if
     /// nothing comes sooner.
     pub fn end(&self) -> Option<SystemTime> {

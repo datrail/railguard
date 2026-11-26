@@ -57,7 +57,7 @@ async fn a_call_the_full_queue_turns_away_is_counted_in_the_window() {
     let (_capture, sender) = capture(&clock, |_| a_plan(), &center);
 
     until(&clock, 1).await;
-    // Handed over before the task takes any, well past the queue's 4 096.
+    // Handed over before the task takes any, well past the queue's 4096.
     for _ in 0..5_000 {
         sender.send(to_catch_all());
     }

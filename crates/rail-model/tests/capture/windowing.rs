@@ -218,12 +218,15 @@ fn test_a_window_whose_end_is_past_the_latest_time_ends_only_by_its_plan() {
     let [plan, _] = plans();
     let mut windowing = Windowing::default();
     let last = UNIX_EPOCH + Duration::from_secs(i64::MAX as u64 - 1);
+    assert!(!windowing.is_open());
     assert!(windowing.hold(Some(Arc::clone(&plan)), last).is_none());
+    assert!(windowing.is_open());
     assert_eq!(windowing.end(), None);
     let recorded = windowing.record(Some(plan), &get(), last);
     assert!(recorded.closed.is_none());
     assert!(matches!(recorded.outcome, CallOutcome::Counted { .. }));
     assert!(windowing.hold(None, last).is_some());
+    assert!(!windowing.is_open());
 }
 
 // A fixed-seed generator: the same sequences every run.
