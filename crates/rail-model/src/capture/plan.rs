@@ -357,15 +357,14 @@ impl TryFrom<Fields> for Measure {
         let paths = paths
             .iter()
             .map(|steps| {
-                let path = steps.as_array().and_then(|steps| Path::from_steps(steps));
-                match path {
-                    // Counting the calls: the request, always there, is no record path but this.
-                    Some(whole @ Path::Request(RequestPath::Whole))
-                        if function == MeasureFunction::IsSet =>
-                    {
-                        Ok(whole)
-                    }
-                    _ => read_record_path(steps),
+                // Not a record path: always there, so is_set over it counts the calls.
+                if function == MeasureFunction::IsSet
+                    && let Some(whole @ Path::Request(RequestPath::Whole)) =
+                        steps.as_array().and_then(|steps| Path::from_steps(steps))
+                {
+                    Ok(whole)
+                } else {
+                    read_record_path(steps)
                 }
             })
             .collect::<Result<_, _>>()

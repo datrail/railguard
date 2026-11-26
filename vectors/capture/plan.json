@@ -564,6 +564,11 @@
       "expect": {"valid": false}
     },
     {
+      "id": "an-is-set-over-the-request-line",
+      "patch": [{"op": "replace", "path": "/entries/0/record/measures/0/paths", "value": [["request", "method"]]}],
+      "expect": {"valid": false}
+    },
+    {
       "id": "request-bytes-with-no-type",
       "patch": [{"op": "remove", "path": "/entries/0/record/measures/1/type"}],
       "expect": {"valid": false}
@@ -691,6 +696,11 @@
     {
       "id": "a-catch-alls-path-prefix-of-0-segments",
       "patch": [{"op": "replace", "path": "/catch_all/record/context_keys/1/segments", "value": 0}],
+      "expect": {"valid": false}
+    },
+    {
+      "id": "two-catch-all-measures-with-one-name",
+      "patch": [{"op": "add", "path": "/catch_all/record/measures/-", "value": {"name": "call_count", "type": "sum", "function": "is_set", "paths": [["request"]]}}],
       "expect": {"valid": false}
     },
     {
