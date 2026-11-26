@@ -146,9 +146,9 @@ Layer 9's `sent` is what the sender gives the document: `document_id`, `generate
 What changed on the way:
 
 - **`authority.json`:** RailMon's host spelling (`schemas/vectors/destination-hosts.json`, datrail/railmon#173 at
-  `3c9cb74`), each case given the `port` this reader keeps beside the host; a case's `-port-dropped` is the host's. Like
-  the source, only authorities every reader accepts: what this reader refuses, RailMon reads as a host, so those stay a
-  Rust test.
+  `3c9cb74`), each case given the `port` this reader keeps beside the host; a `port-dropped` id means dropped from the
+  host, the port still read. Like the source, only authorities every reader accepts: what this reader refuses, RailMon
+  reads as a host, so those stay a Rust test.
 - **`redaction.json`:** RailMon's rule (`asp_redaction`, `REDACTION_VERSION` 1), its tests written as paths; a change to
   the rule updates both. Shapes whose shortest key is 20 characters or more are redacted by length here, whatever their
   shape.

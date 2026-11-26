@@ -1,6 +1,6 @@
 use rail_model::authority::parse_authority;
 
-// Refused here, each read as a host by RailMon's collector, which keeps the vectors' accepted cases only.
+// Refused here, but read as a host by RailMon's collector, so not a vector: the vectors hold only what both accept.
 #[test]
 fn test_refuses_a_malformed_authority() {
     for (authority, refusal) in [
