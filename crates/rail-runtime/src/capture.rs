@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime};
 
+use rail_model::body::{BodyBuffer, BodyRead, ByteBudget, Unread};
 use rail_model::capture::{
     BodyUnreadReason, CallOutcome, ClosedWindow, CompiledPlan, ObservedCall, Windowing,
 };
@@ -22,6 +23,9 @@ use crate::runtime_thread::RuntimeThread;
 
 // Calls waiting for the capture task: past it, a call is dropped and counted.
 const QUEUE: usize = 4_096;
+
+// What every body kept for capture may take together.
+const BODY_BUDGET_BYTES: usize = 256 * 1024 * 1024;
 
 // The longest the task sleeps with a window open, a minute, the shortest window: a clock stepped
 // back is seen though no call comes.
@@ -61,15 +65,40 @@ pub struct CaptureSender {
     calls: mpsc::Sender<ObservedCall>,
     // Calls the full queue turned away, read into the open window.
     dropped: Arc<AtomicU64>,
+    // Past it, a body is handed over unread.
+    max_body_bytes: usize,
+    budget: Arc<ByteBudget>,
+}
+
+/// A request as a callout was sent it.
+pub struct SentRequest<'a> {
+    pub authority: &'a [u8],
+    pub method: &'a [u8],
+    /// The path and its query, as received.
+    pub path: &'a [u8],
+    pub body: SentBody<'a>,
+}
+
+/// A request's body as a callout was sent it, and its length as the request declares it, if it
+/// does.
+pub enum SentBody<'a> {
+    Sent {
+        bytes: &'a [u8],
+        declared: Option<u64>,
+    },
+    /// What the callout's configuration kept from it.
+    NotSent { declared: Option<u64> },
 }
 
 impl Capture {
-    /// Starts the task on `runtime`, telling times by `now`.
+    /// Starts the task on `runtime`, telling times by `now`; the bodies past `max_body_bytes`, or
+    /// past the 256 MiB every body kept shares, are handed over unread.
     pub fn start(
         runtime: &Handle,
         plans: CapturePlanHolder,
         reporter: CallRecordReporter,
         now: WallClock,
+        max_body_bytes: usize,
     ) -> (Self, CaptureSender) {
         let (calls, queued) = mpsc::channel(QUEUE);
         let (stop, stopped) = oneshot::channel();
@@ -89,6 +118,8 @@ impl Capture {
             plans,
             calls,
             dropped,
+            max_body_bytes,
+            budget: ByteBudget::new(BODY_BUDGET_BYTES),
         };
         (Self { stop, task }, sender)
     }
@@ -116,6 +147,46 @@ impl CaptureSender {
         if let Err(TrySendError::Full(_)) = self.calls.try_send(call) {
             self.dropped.fetch_add(1, Ordering::Relaxed);
         }
+    }
+
+    /// Hands `request` over, its body read whole if it was sent whole within the cap and the
+    /// budget, else unread: not sent, cut short of its declared length, or past either.
+    pub fn send_request(&self, request: SentRequest<'_>) {
+        let (body, body_bytes) = match request.body {
+            SentBody::NotSent { declared } => {
+                (BodyRead::Unread(Unread::NotSent), declared.unwrap_or(0))
+            }
+            SentBody::Sent { bytes, declared } => {
+                let sent = bytes.len() as u64;
+                // A declared length below what was sent isn't the body's.
+                let body_bytes = declared.unwrap_or(sent).max(sent);
+                let body = if body_bytes > self.max_body_bytes as u64 {
+                    BodyRead::Unread(Unread::PastCap)
+                } else if sent < body_bytes {
+                    let unread = if bytes.is_empty() {
+                        Unread::NotSent
+                    } else {
+                        Unread::CutShort
+                    };
+                    BodyRead::Unread(unread)
+                } else {
+                    let mut buffer = BodyBuffer::new(self.max_body_bytes, &self.budget);
+                    buffer.append(bytes);
+                    match buffer.finish() {
+                        Ok(body) => BodyRead::Whole(Arc::new(body)),
+                        Err(unkept) => BodyRead::Unread(unkept.into()),
+                    }
+                };
+                (body, body_bytes)
+            }
+        };
+        self.send(ObservedCall {
+            authority: request.authority.to_vec(),
+            method: request.method.to_vec(),
+            path: request.path.to_vec(),
+            body,
+            body_bytes,
+        });
     }
 }
 

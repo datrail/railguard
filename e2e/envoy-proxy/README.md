@@ -11,7 +11,7 @@ Envoy fails open as described when rail-envoy is down. See [the stacks](../READM
 flowchart LR
   driver[driver.py] -->|calls, as an agent| envoy[an Envoy per case]
   envoy <-->|ext_authz or ext_proc, over a shared socket| ext[a rail-envoy per ticket state]
-  ext -->|ticket| center[rail-center: WireMock]
+  ext -->|ticket; capture plan, 404| center[rail-center: WireMock]
   envoy -->|plain| plain[upstream]
   envoy -->|HTTPS on 8443| tls[upstream-tls]
   envoy -->|HTTPS on 443| tls443[upstream-443]
@@ -22,7 +22,8 @@ flowchart LR
 
 `compose.yml` holds:
 
-- `rail-center`, a WireMock stub answering by sandbox name (`rail-center/mappings`);
+- `rail-center`, a WireMock stub answering by sandbox name (`rail-center/mappings`); it maps no capture plan, so
+  `GET /v1/capture-plan` gets a 404 and no proxy captures;
 - one rail-envoy per ticket state (`ext`, `ext-not-found`, `ext-expired`, `ext-issuer-down`, `ext-disabled`), each with
   an Envoy in front on `envoy-ext-authz.yaml`; and `envoy-ext-proc`, on `envoy-ext-proc.yaml`;
 - `envoy-no-ext-authz` and `envoy-no-ext-proc`, whose socket nothing serves on, so every callout fails and Envoy fails
@@ -70,3 +71,4 @@ left.
 - **Judging:** the proxy role judges nothing; [`envoy-gateway`](../envoy-gateway/README.md) covers the gateway.
 - **Signed tickets:** no case sends one.
 - **The drain and SIGTERM:** `rail-envoy`'s own tests (`tests/shutdown.rs`).
+- **Capture:** the stub serves no capture plan; `rail-envoy`'s own tests (`tests/capture.rs`) cover it.

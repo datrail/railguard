@@ -2,13 +2,16 @@ use std::fmt;
 use std::path::PathBuf;
 
 use rail_runtime::{
-    BundleSettings, ProtectedHosts, RailCenterSettings, Refused, Settings, TicketSettings,
-    read_bundle_settings, read_callout_port, read_log_format, read_log_level, read_max_body_bytes,
-    read_max_message_bytes, read_protected_hosts, read_rail_center_with, read_ticket_settings,
+    BundleSettings, GATEWAY_MAX_BODY_MB, ProtectedHosts, ProxySettings, RailCenterSettings,
+    Refused, Settings, read_bundle_settings, read_callout_port, read_log_format, read_log_level,
+    read_max_body_bytes, read_max_message_bytes, read_protected_hosts, read_proxy_settings,
+    read_rail_center_with,
 };
 
 const EXT_SOCKET: &str = "RAIL_EXT_SOCKET";
 const MAX_BODY_MB: &str = "RAIL_MAX_BODY_MB";
+// Most calls an agent makes are small JSON; past it, the body is captured as unread.
+const PROXY_MAX_BODY_MB: usize = 1;
 
 /// Where the server listens: the socket Envoy shares, or a port, for a host reaching it over the
 /// network.
@@ -33,8 +36,13 @@ pub struct ProxyConfig {
     /// The level of this workspace's own log lines.
     pub log_level: tracing::Level,
     pub listener: Listener,
-    /// Where this proxy's ticket comes from; `None` when Rail Center is disabled.
-    pub ticket: Option<(RailCenterSettings, TicketSettings)>,
+    /// The largest gRPC message received, in bytes.
+    pub max_message_bytes: usize,
+    /// The largest body captured, in bytes.
+    pub max_body_bytes: usize,
+    /// Where this proxy's ticket and capture plan come from and its call records go; `None`
+    /// when Rail Center is disabled.
+    pub rail_center: Option<(RailCenterSettings, ProxySettings)>,
     /// The hosts the ticket goes to, and how; routed even when Rail Center is disabled.
     pub protected_hosts: ProtectedHosts,
 }
@@ -46,15 +54,27 @@ impl ProxyConfig {
         let log_format = read_log_format(settings);
         let log_level = read_log_level(settings);
         let listener = read_listener(settings);
-        let (enabled, ticket) = read_rail_center_with(settings, read_ticket_settings);
+        let max_message_bytes = read_max_message_bytes(settings);
+        let max_body_bytes = read_max_body_bytes(settings, PROXY_MAX_BODY_MB, None);
+        let reachable = check_reachable(settings, &max_body_bytes, &max_message_bytes);
+        let (enabled, rail_center) = read_rail_center_with(settings, read_proxy_settings);
         let protected_hosts = read_protected_hosts(settings, enabled);
         log_format?;
-        let (log_level, listener, ticket, protected_hosts) =
-            (log_level?, listener?, ticket?, protected_hosts?);
+        reachable?;
+        let (log_level, listener, max_message_bytes, max_body_bytes, rail_center, protected_hosts) = (
+            log_level?,
+            listener?,
+            max_message_bytes?,
+            max_body_bytes?,
+            rail_center?,
+            protected_hosts?,
+        );
         Ok(Self {
             log_level,
             listener,
-            ticket,
+            max_message_bytes,
+            max_body_bytes,
+            rail_center,
             protected_hosts,
         })
     }
@@ -82,15 +102,8 @@ impl GatewayConfig {
         let log_level = read_log_level(settings);
         let listener = read_listener(settings);
         let max_message_bytes = read_max_message_bytes(settings);
-        let max_body_bytes = read_max_body_bytes(settings, None);
-        // A body Envoy sends whole is one message with its framing, so the cap must be below.
-        let reachable = match (&max_body_bytes, &max_message_bytes) {
-            (Ok(body), Ok(message)) if body >= message => Err(settings.get(MAX_BODY_MB).refuse(
-                "must be below RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB, the largest message read: a body \
-                 Envoy buffers arrives as one, with the request's headers",
-            )),
-            _ => Ok(()),
-        };
+        let max_body_bytes = read_max_body_bytes(settings, GATEWAY_MAX_BODY_MB, None);
+        let reachable = check_reachable(settings, &max_body_bytes, &max_message_bytes);
         let (_, rail_center) = read_rail_center_with(settings, read_bundle_settings);
         log_format?;
         reachable?;
@@ -108,6 +121,21 @@ impl GatewayConfig {
             max_body_bytes,
             rail_center,
         })
+    }
+}
+
+// A body Envoy sends whole is one message with its framing, so the cap must be below.
+fn check_reachable(
+    settings: &mut Settings,
+    max_body_bytes: &Result<usize, Refused>,
+    max_message_bytes: &Result<usize, Refused>,
+) -> Result<(), Refused> {
+    match (max_body_bytes, max_message_bytes) {
+        (Ok(body), Ok(message)) if body >= message => Err(settings.get(MAX_BODY_MB).refuse(
+            "must be below RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB, the largest message read: a body \
+             Envoy buffers arrives as one, with the request's headers",
+        )),
+        _ => Ok(()),
     }
 }
 

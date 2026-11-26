@@ -41,8 +41,13 @@ async fn a_stop_after_its_thread_stopped_is_warned_of() {
     let center = Center::accepting(&clock);
     let thread = CaptureThread::start().unwrap();
     let plans = start_on(thread.runtime(), &Script::new(&clock, |_| a_plan()), MINUTE);
-    let (capture, _sender) =
-        Capture::start(thread.runtime(), plans, center.start(&clock), clock.wall());
+    let (capture, _sender) = Capture::start(
+        thread.runtime(),
+        plans,
+        center.start(&clock),
+        clock.wall(),
+        usize::MAX,
+    );
 
     // Stopped the wrong way round: the task goes with its thread.
     thread.stop();

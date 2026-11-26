@@ -3,7 +3,7 @@
 DatRail lets an organisation decide what its AI agents may do with the MCP servers they call. Rail Center, a separate
 service, keeps the rules, and issues each agent a ticket saying what it knows about that agent. RailGuard enforces those
 rules on the network: a gateway in front of MCP servers judges each call against the rules, and a proxy beside the
-agents attaches their tickets to the calls they make.
+agents attaches their tickets to the calls they make, and records those calls for Rail Center.
 
 It's one Rust workspace for both, and for the rules language they share. The language is also built as a Python package,
 so Rail Center can check a rule with the same code the gateway enforces it with.
@@ -17,7 +17,7 @@ flowchart LR
   envoy -->|MCP call plus x-rail| apigee[Apigee]
   apigee <-->|ExternalCallout| railapigee[rail-apigee]
   apigee -->|allowed call| server[MCP server]
-  center[Rail Center] -->|ticket| railenvoy
+  center[Rail Center] <-->|ticket, capture plan, call records| railenvoy
   center -->|policy bundle, signing keys| railapigee
   railapigee -->|denials| center
 ```
@@ -30,8 +30,8 @@ flowchart LR
   `x-rail` headers removed. Where the MCP servers are behind Envoy, or GCP's Application Load Balancer, rail-envoy is
   the gateway instead (`rail gateway`), judging each call the same way.
 - **Rail Center to both.** Each host fetches what it needs and keeps it through an outage: the proxy its ticket while
-  it's valid, the gateway its bundle, and the keys tickets are signed with for 900 s. The gateway reports each denial
-  back, so people can see what was stopped and why.
+  it's valid and its capture plan, the gateway its bundle, and the keys tickets are signed with for 900 s. The gateway
+  reports each denial back, so people can see what was stopped and why, and the proxy posts its call records.
 
 Each host's README has its own flow: [rail-apigee](crates/rail-apigee/README.md#architecture) and
 [rail-envoy](crates/rail-envoy/README.md#architecture).

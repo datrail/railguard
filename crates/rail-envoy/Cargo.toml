@@ -33,6 +33,8 @@ tonic-health = { version = "0.14", default-features = false }
 rail-model = { path = "../rail-model" }
 rail-test-support = { path = "../rail-test-support" }
 reqwest = { version = "0.13", default-features = false }
+# The documents the proxy posts, read back.
+serde_json = "1"
 # The tests' client.
 tonic = { version = "0.14", default-features = false, features = ["channel"] }
 

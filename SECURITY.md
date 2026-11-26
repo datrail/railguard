@@ -1,8 +1,8 @@
 # Security Policy
 
 RailGuard enforces DatRail's rules on the network. rail-apigee, the gateway, judges each call to an MCP server against
-Rail Center's rules; rail-envoy, the proxy, attaches its own ticket from Rail Center to the agent's calls. Two things
-are worth attacking:
+Rail Center's rules; rail-envoy, the proxy, attaches its own ticket from Rail Center to the agent's calls, and records
+them under Rail Center's capture plan. Two things are worth attacking:
 
 - **A call past the gateway that its rules refuse.** The highest-severity class of report we accept: every other
   component exists to put a trustworthy ticket and a policy in front of it.
@@ -80,6 +80,10 @@ alone. Elsewhere, keep it reachable from Apigee only.
   name, over TLS unless the entry says `http://`; the reference configs check the certificate against that name. An
   entry without a port sends it to whatever port the agent names on that host. A ticket reaching a host the config
   didn't name is a report.
+- **Capture.** A call record carries counts and the values the plan names, read from a call's host, path and body (up to
+  `RAIL_MAX_BODY_MB`), within bounds on their length and shape, and hashed where the plan says `sha256`. A value leaving
+  that the plan didn't name, or unhashed where it said to hash, is a report. The bodies kept share 256 MiB and at most
+  4096 calls wait, so an agent can't grow the proxy's memory through capture.
 - **The socket, or the port.** Whatever can connect to it can ask what rail-envoy would attach to a request, ticket
   included. The socket is made `0660`, for rail-envoy's own user and group; Envoy reaches it by sharing the group: don't
   put the agent in it. A port (`RAIL_CALLOUT_PORT`) is bound on every interface, so anything that reaches it can read
@@ -88,10 +92,10 @@ alone. Elsewhere, keep it reachable from Apigee only.
 
 ## Both hosts
 
-- **The Rail Center fetch.** It carries the service token and the denial reports out, and a ticket, a bundle or the
-  signing keys back. Its client refuses an `http://` Rail Center unless `RAIL_CENTER_ALLOW_HTTP=true`, reads no proxy
-  setting from the environment, follows no redirect, caps what it reads, before and after decoding, and bounds the whole
-  fetch. A way past one of these is a report.
+- **The Rail Center fetch.** It carries the service token, the denial reports and the proxy's call records out, and a
+  ticket, a capture plan, a bundle or the signing keys back. Its client refuses an `http://` Rail Center unless
+  `RAIL_CENTER_ALLOW_HTTP=true`, reads no proxy setting from the environment, follows no redirect, caps what it reads,
+  before and after decoding, and bounds the whole fetch. A way past one of these is a report.
 - **The log.** Each field is quoted, or a JSON string, with what hides escaped, so a call's text can't forge a line or
   pass for an escape, and a secret is logged only as `set` or `unset`. The ticket is logged only as a fingerprint. A
   ticket, a token, or a header value other than the host reaching the log is a report.

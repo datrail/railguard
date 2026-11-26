@@ -2,10 +2,11 @@
 //! server, and a stub Rail Center for it.
 
 use std::ffi::OsStr;
-use std::io::Read;
+use std::io::{ErrorKind, Read};
 use std::net::{Ipv4Addr, SocketAddr, TcpListener as StdTcpListener};
 use std::process::{Child, Command, Output, Stdio};
 use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use rail_runtime::{
@@ -97,17 +98,40 @@ fn poll(mut condition: impl FnMut() -> bool, failure: &str) {
 }
 
 /// The server, killed if the test ends before it exits.
-pub struct Server(Child);
+pub struct Server {
+    child: Child,
+    // Its log so far, read as it's written, so a test can wait on a line.
+    logs: Arc<Mutex<Vec<u8>>>,
+    reader: Option<JoinHandle<()>>,
+}
 
 impl Server {
     /// `command` spawned, its log kept.
     pub fn spawn(mut command: Command) -> Self {
-        let child = command
+        let mut child = command
             .stdout(Stdio::null())
             .stderr(Stdio::piped())
             .spawn()
             .unwrap();
-        Self(child)
+        let mut stderr = child.stderr.take().unwrap();
+        let logs = Arc::new(Mutex::new(Vec::new()));
+        let kept = Arc::clone(&logs);
+        let reader = std::thread::spawn(move || {
+            let mut chunk = [0; 4096];
+            loop {
+                match stderr.read(&mut chunk) {
+                    Ok(0) => break,
+                    Ok(read) => kept.lock().unwrap().extend_from_slice(&chunk[..read]),
+                    Err(error) if error.kind() == ErrorKind::Interrupted => {}
+                    Err(error) => panic!("can't read the server's log: {error}"),
+                }
+            }
+        });
+        Self {
+            child,
+            logs,
+            reader: Some(reader),
+        }
     }
 
     /// `command` spawned, once `serving` holds; it must hold within 10 s.
@@ -120,7 +144,7 @@ impl Server {
     /// Sends SIGTERM.
     pub fn terminate(&self) {
         let status = Command::new("kill")
-            .args(["-TERM", &self.0.id().to_string()])
+            .args(["-TERM", &self.child.id().to_string()])
             .status()
             .unwrap();
         assert!(status.success());
@@ -130,7 +154,7 @@ impl Server {
     pub fn wait_for_exit(&mut self, deadline: Duration) -> Option<Option<i32>> {
         let until = Instant::now() + deadline;
         while Instant::now() < until {
-            if let Some(status) = self.0.try_wait().unwrap() {
+            if let Some(status) = self.child.try_wait().unwrap() {
                 return Some(status.code());
             }
             std::thread::sleep(Duration::from_millis(20));
@@ -138,38 +162,56 @@ impl Server {
         None
     }
 
+    /// Once it has logged `text`; it must within 10 s.
+    pub fn wait_for_log(&self, text: &str) {
+        poll(
+            || String::from_utf8_lossy(&self.logs.lock().unwrap()).contains(text),
+            "never logged",
+        );
+    }
+
     /// What it logged, once it has exited.
     pub fn read_logs(&mut self) -> String {
-        let mut logs = String::new();
-        let mut stderr = self.0.stderr.take().unwrap();
-        stderr.read_to_string(&mut logs).unwrap();
-        logs
+        if let Some(reader) = self.reader.take() {
+            reader.join().unwrap();
+        }
+        String::from_utf8_lossy(&self.logs.lock().unwrap()).into_owned()
     }
 }
 
 impl Drop for Server {
     fn drop(&mut self) {
-        let _ = self.0.kill();
-        let _ = self.0.wait();
+        let _ = self.child.kill();
+        let _ = self.child.wait();
     }
 }
 
-/// Rail Center, answering the bundle route with `bundle`, the key set with no keys, and taking
-/// every denial report; `seen` holds each request line.
+/// A report's request line and body.
+pub type Posted = (String, Vec<u8>);
+
+/// Rail Center, answering the bundle route with `bundle`, the key set with no keys, the capture
+/// plan route with its plan, or a 204 without one, and taking every report; `seen` holds each
+/// request line, `posted` each report's line and body.
 pub struct RailCenter {
     address: SocketAddr,
     pub seen: Arc<Mutex<Vec<String>>>,
+    pub posted: Arc<Mutex<Vec<Posted>>>,
     bundle_held: watch::Sender<bool>,
 }
 
 impl RailCenter {
     pub async fn start(bundle: &'static str) -> Self {
-        Self::start_with(bundle, false).await
+        Self::start_with(bundle, false, None).await
     }
 
     /// One that doesn't answer the bundle route until `release_bundle`.
     pub async fn start_holding_bundle(bundle: &'static str) -> Self {
-        Self::start_with(bundle, true).await
+        Self::start_with(bundle, true, None).await
+    }
+
+    /// One serving `plan` as the capture plan.
+    pub async fn start_with_plan(plan: &'static str) -> Self {
+        Self::start_with("{}", false, Some(plan)).await
     }
 
     pub fn url(&self) -> String {
@@ -180,16 +222,19 @@ impl RailCenter {
         self.bundle_held.send_replace(false);
     }
 
-    async fn start_with(bundle: &'static str, held: bool) -> Self {
+    async fn start_with(bundle: &'static str, held: bool, plan: Option<&'static str>) -> Self {
         let (bundle_held, released) = watch::channel(held);
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
         let address = listener.local_addr().unwrap();
         let seen = Arc::new(Mutex::new(Vec::new()));
+        let posted = Arc::new(Mutex::new(Vec::new()));
         let log = Arc::clone(&seen);
+        let reports = Arc::clone(&posted);
         tokio::spawn(async move {
             loop {
                 let (mut stream, _) = listener.accept().await.unwrap();
                 let log = Arc::clone(&log);
+                let reports = Arc::clone(&reports);
                 let mut released = released.clone();
                 tokio::spawn(async move {
                     let mut head = Vec::new();
@@ -217,8 +262,13 @@ impl RailCenter {
                         ("200 OK", bundle)
                     } else if line.starts_with("GET /v1/jwks.json") {
                         ("200 OK", r#"{"keys": []}"#)
+                    } else if line.starts_with("GET /v1/capture-plan") {
+                        plan.map_or(("204 No Content", ""), |plan| ("200 OK", plan))
                     } else {
-                        // A denial report, which Rail Center accepts.
+                        // A report, which Rail Center accepts; a ticket asked for gets the same.
+                        if line.starts_with("POST ") {
+                            reports.lock().unwrap().push((line.clone(), body.clone()));
+                        }
                         ("202 Accepted", "{}")
                     };
                     let response = format!(
@@ -234,6 +284,7 @@ impl RailCenter {
         Self {
             address,
             seen,
+            posted,
             bundle_held,
         }
     }

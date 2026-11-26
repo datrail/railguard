@@ -46,7 +46,13 @@ pub fn capture_every(
     center: &Center,
 ) -> (Capture, CaptureSender) {
     let plans = start(&Script::new(clock, answers), refresh_interval);
-    Capture::start(&Handle::current(), plans, center.start(clock), clock.wall())
+    Capture::start(
+        &Handle::current(),
+        plans,
+        center.start(clock),
+        clock.wall(),
+        usize::MAX,
+    )
 }
 
 // The vectors' plan, with 900 s windows.

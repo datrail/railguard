@@ -1,6 +1,7 @@
 //! The Envoy host: ext_authz and ext_proc on a unix socket Envoy shares, or on a port. As the
-//! proxy, it allows every request, with this proxy's ticket in `x-rail` to a protected host; as
-//! the gateway, it judges each request against the policy bundle held.
+//! proxy, it allows every request, with this proxy's ticket in `x-rail` to a protected host, and
+//! hands each ext_authz call to capture under the plan held; as the gateway, it judges each
+//! request against the policy bundle held.
 //!
 //! `rail-envoy proxy` or `rail-envoy gateway` (`rail proxy`, `rail gateway` in its image)
 //! serves, with `grpc.health.v1` on the same listener; `rail-envoy probe [--ready]` asks it for
@@ -22,14 +23,12 @@ use std::os::unix::fs::{FileTypeExt, PermissionsExt};
 use std::path::Path;
 use std::process::ExitCode;
 use std::sync::Arc;
-use std::time::SystemTime;
 
 use envoy_types::ext_authz::v3::pb::AuthorizationServer;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessorServer;
 use rail_grpc_host::{Address, Command, Role, Statuses, check_held};
 use rail_runtime::{
-    Gateway, GatewaySettings, Jitter, RailCenterClient, RailCenterSettings, RailCenterThread,
-    RailCenterTickets, Settings, Startup, TicketHolder, TicketSettings, Variables, start_gateway,
+    Gateway, GatewaySettings, Proxy, Settings, Startup, Variables, start_gateway, start_proxy,
 };
 use tokio::net::{TcpListener, UnixListener};
 use tokio::signal::unix::{Signal, SignalKind, signal};
@@ -94,16 +93,26 @@ async fn serve_proxy(config: ProxyConfig, startup: &Startup) -> ExitCode {
         Ok(prepared) => prepared,
         Err(code) => return code,
     };
-    let (rail_center, tickets) = match config.ticket.map(start_tickets).transpose() {
-        Ok(started) => started.unzip(),
+    let started = config
+        .rail_center
+        .map(|rail_center| start_proxy(rail_center, config.max_body_bytes))
+        .transpose();
+    let (stop, tickets, capture) = match started {
+        Ok(Some(Proxy {
+            tickets,
+            capture,
+            stop,
+        })) => (Some(move || stop.stop()), Some(tickets), Some(capture)),
+        Ok(None) => (None, None, None),
         Err(error) => {
-            tracing::error!(error = %error, "can't start fetching the ticket");
+            tracing::error!(error = %error, "can't start fetching from Rail Center");
             return ExitCode::FAILURE;
         }
     };
     let callouts = Callouts {
         tickets,
         protected_hosts: Arc::new(config.protected_hosts),
+        capture,
     };
     // Liveness never reads the ticket, so nothing restarts us for it; readiness does.
     let (statuses, readiness) = Statuses::start(
@@ -115,11 +124,12 @@ async fn serve_proxy(config: ProxyConfig, startup: &Startup) -> ExitCode {
     )
     .await;
     tracing::info!(listener = %config.listener, "serving Envoy");
+    let limit = config.max_message_bytes;
     let router = tonic::transport::Server::builder()
         .add_service(HealthServer::new(readiness))
-        .add_service(AuthorizationServer::new(callouts.clone()))
-        .add_service(ExternalProcessorServer::new(callouts));
-    serve_until_stopped(bound, router, statuses, terminate, rail_center).await
+        .add_service(AuthorizationServer::new(callouts.clone()).max_decoding_message_size(limit))
+        .add_service(ExternalProcessorServer::new(callouts).max_decoding_message_size(limit));
+    serve_until_stopped(bound, router, statuses, terminate, stop).await
 }
 
 async fn serve_gateway(config: GatewayConfig, startup: &Startup) -> ExitCode {
@@ -159,7 +169,8 @@ async fn serve_gateway(config: GatewayConfig, startup: &Startup) -> ExitCode {
         .add_service(HealthServer::new(readiness))
         .add_service(AuthorizationServer::new(callouts.clone()).max_decoding_message_size(limit))
         .add_service(ExternalProcessorServer::new(callouts).max_decoding_message_size(limit));
-    serve_until_stopped(bound, router, statuses, terminate, rail_center).await
+    let stop = rail_center.map(|thread| move || thread.stop());
+    serve_until_stopped(bound, router, statuses, terminate, stop).await
 }
 
 // The settings logged, SIGTERM handled and the listener bound, before anything starts.
@@ -184,9 +195,8 @@ async fn serve_until_stopped(
     router: Router,
     statuses: Statuses,
     terminate: Signal,
-    rail_center: Option<RailCenterThread>,
+    stop: Option<impl FnOnce() + Send + 'static>,
 ) -> ExitCode {
-    let stop = rail_center.map(|thread| move || thread.stop());
     match bound {
         Bound::Unix(listener) => {
             let incoming = UnixListenerStream::new(listener);
@@ -197,26 +207,6 @@ async fn serve_until_stopped(
             rail_grpc_host::serve_until_stopped(router, incoming, statuses, terminate, stop).await
         }
     }
-}
-
-// The ticket is fetched and refreshed on the Rail Center thread; calls only read it.
-fn start_tickets(
-    (rail_center, ticket): (RailCenterSettings, TicketSettings),
-) -> Result<(RailCenterThread, Arc<TicketHolder>), String> {
-    let client = RailCenterClient::new(&rail_center)?;
-    let thread = RailCenterThread::start()?;
-    let source = RailCenterTickets {
-        client,
-        agent: ticket.agent,
-    };
-    let tickets = TicketHolder::start(
-        thread.runtime(),
-        source,
-        ticket.refresh_interval,
-        Arc::new(SystemTime::now),
-        Jitter::random(),
-    );
-    Ok((thread, Arc::new(tickets)))
 }
 
 enum Bound {

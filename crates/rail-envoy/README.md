@@ -21,7 +21,7 @@ flowchart LR
   filter <-->|gRPC over a unix socket or TCP| ext[rail-envoy]
   tls --> server[MCP server]
   plain --> server
-  center[Rail Center] -->|ticket| ext
+  center[Rail Center] <-->|ticket, capture plan, call records| ext
 ```
 
 ext_authz and ext_proc over a unix socket, `RAIL_EXT_SOCKET`, or TCP, `RAIL_CALLOUT_PORT`: exactly one must be set.
@@ -42,6 +42,7 @@ has an `_`.
 - **The ticket never affects liveness,** only readiness. Without one, it fails closed by design, and a restart wouldn't
   help.
 - **Never logs the ticket,** only a fingerprint showing that it rotated.
+- **Captures what the agent calls,** under the plan Rail Center serves (see [Capture](#capture)), never changing a call.
 
 ## At startup
 
@@ -52,9 +53,9 @@ socket it can't listen on exits 2 too. A socket left by an earlier run is replac
 refused; the socket is made `0660`, since Envoy runs in its group as another user. Then it logs a `setting` line for
 each setting it uses, with its value and whether it came from the environment or the default, a secret only as `set` or
 `unset`. A value that weakens something is logged as a warning saying what (`RAIL_DISABLED=true`, an `http://` Rail
-Center), and so is a `RAIL_…` variable nothing reads, as a likely typo. It starts fetching the ticket, or as the gateway
-the bundle and the signing keys, then logs `serving Envoy`. Every line, `starting` included, is in the format
-`RAIL_LOG_FORMAT` names: JSON by default, Cloud Logging's on Cloud Run, or text.
+Center), and so is a `RAIL_…` variable nothing reads, as a likely typo. It starts fetching the ticket and the capture
+plan, or as the gateway the bundle and the signing keys, then logs `serving Envoy`. Every line, `starting` included, is
+in the format `RAIL_LOG_FORMAT` names: JSON by default, Cloud Logging's on Cloud Run, or text.
 
 ## When Rail Center is down
 
@@ -65,6 +66,22 @@ valid ticket, a protected host's calls carry `x-rail-status`:
 - `issuer-unreachable`: no answer yet, or the last one was a failure or a refusal, not "none", and none is held;
 - `expired`: the ticket held lapsed with no valid one to replace it;
 - `not-found`: Rail Center answered that this host and sandbox have no ticket.
+
+## Capture
+
+With Rail Center on, the proxy fetches this agent's capture plan (`GET /v1/capture-plan`, every
+`RAIL_CAPTURE_PLAN_REFRESH_SECONDS`) and, while it holds one, counts each call ext_authz sees in windows of the plan's
+length, grouped by the plan's entry taking it and the values its record keeps, such as a tool's repository. Each window
+holding a call or a drop is posted as a call record document (`POST /v1/call-records`), retried while Rail Center is
+down. A call is never delayed by it: it's handed to capture's own thread, and one past the 4096 waiting is dropped and
+counted. ext_proc's calls aren't captured yet.
+
+The body read is the one Envoy sends (`with_request_body`, with `pack_as_bytes: true`, so a body that isn't UTF-8
+arrives unchanged), up to `RAIL_MAX_BODY_MB` (1 MiB by default). A body not sent, cut short of its `Content-Length`,
+past the cap, or past the 256 MiB every body kept shares isn't read: the call is still counted, under the catch-all
+where an entry would have read its body, and the document counts it in `truncated.body_unread`. Envoy's
+`x-envoy-auth-partial-body` isn't read, since it stays `false` when Envoy stops at `max_request_bytes`; a chunked body
+cut there is told only by passing the cap, so set `max_request_bytes` above `RAIL_MAX_BODY_MB`.
 
 ## Run it beside Envoy
 
@@ -83,7 +100,12 @@ Envoy's configuration is the customer's, so we can only recommend it. rail-envoy
   `:authority`, and no rules that refuse its other changes, which Envoy may otherwise drop silently;
 - the route picked again after the callout: `clear_route_cache: true` on ext_authz; ext_proc's answer asks for it;
 - routes on `x-rail-upstream` to an HTTPS and a plain dynamic forward proxy cluster, each removing the header before the
-  upstream.
+  upstream;
+- for capture, with ext_authz, `with_request_body` with `pack_as_bytes: true`, `allow_partial_message: true` (otherwise
+  Envoy refuses a body past `max_request_bytes` with 413), and `max_request_bytes` above `RAIL_MAX_BODY_MB` and no more
+  than Envoy's buffer limit (the listener's `per_connection_buffer_limit_bytes`, or a route's
+  `request_body_buffer_limit`, whichever is larger), past which Envoy answers 413 too. Without a body, every call is
+  counted with its body not sent.
 
 [`e2e/envoy-proxy/envoy-ext-authz.yaml`](../../e2e/envoy-proxy/envoy-ext-authz.yaml) and
 [`envoy-ext-proc.yaml`](../../e2e/envoy-proxy/envoy-ext-proc.yaml) are working examples; they fail open.
@@ -161,8 +183,9 @@ ticket is held, never to restart it: a ticket that lapses turns it not ready, an
 ## Shutdown
 
 On SIGTERM or Ctrl-C it reports NOT_SERVING and drains for at most 5 s, then cuts the connections still open: Envoy
-keeps them, and an ext_proc stream lasts as long as its request. With Rail Center on, its thread then has at most 1 s
-more to stop, so 6 s in all.
+keeps them, and an ext_proc stream lasts as long as its request. With Rail Center on, the proxy then counts the calls
+already handed to capture, closes the open window and sends the documents waiting, for at most 2 s, and its capture and
+Rail Center threads have at most 1 s each to stop, so 9 s in all; the gateway's Rail Center thread has 1 s, so 6 s.
 
 ## Caveats
 
@@ -172,9 +195,12 @@ more to stop, so 6 s in all.
 - **The gateway's memory:** it holds each call's body until it's judged, which can take up to about twice
   `RAIL_MAX_BODY_MB` per call in flight, and reading its endpoint parses it into a tree of up to 16 times the body, for
   a body of small array items. Size its memory for the calls it serves at once.
+- **The proxy's memory:** each ext_authz request is held whole, up to `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`, while it's
+  answered; the bodies kept for capture, up to `RAIL_MAX_BODY_MB` each, share 256 MiB, and up to 4096 calls wait for
+  capture's thread.
 - **An encoded body isn't decoded:** a `Content-Encoding: gzip` call reads as naming no endpoint, so under
-  `binding_fallback: pass` it escapes every rule on `request.endpoint_key`. Apigee decompresses before its callout;
-  Envoy and GCP's load balancer don't.
+  `binding_fallback: pass` it escapes every rule on `request.endpoint_key`, and the proxy captures it as a body that
+  isn't JSON. Apigee decompresses before its callout; Envoy and GCP's load balancer don't.
 - **GCP's load balancer, failing open:** its docs say a full-duplex extension fails open on errors before the first body
   chunk. With a gateway it can't reach, it fails closed, answering 500
   ([the live harness](../../e2e/envoy-gateway/live/README.md)), and a body held back past the extension's timeout is

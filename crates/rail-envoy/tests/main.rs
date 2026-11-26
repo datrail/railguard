@@ -1,3 +1,4 @@
+mod capture;
 mod common;
 mod config;
 mod gateway;

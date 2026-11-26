@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use envoy_types::ext_authz::v3::CheckResponseExt;
 use envoy_types::ext_authz::v3::pb::{Authorization, CheckRequest, CheckResponse, OkHttpResponse};
+use envoy_types::pb::envoy::service::auth::v3::attribute_context::HttpRequest;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessor;
 use envoy_types::pb::envoy::service::ext_proc::v3::processing_request::Request;
 use envoy_types::pb::envoy::service::ext_proc::v3::processing_response::Response;
@@ -10,7 +11,10 @@ use envoy_types::pb::envoy::service::ext_proc::v3::{
     BodyResponse, CommonResponse, HeaderMutation, HeadersResponse, ProcessingRequest,
     ProcessingResponse, TrailersResponse,
 };
-use rail_runtime::{ProtectedHosts, Route, TicketHolder, XRailHeader, XRailHeaders};
+use rail_runtime::{
+    CaptureSender, ProtectedHosts, Route, SentBody, SentRequest, TicketHolder, XRailHeader,
+    XRailHeaders,
+};
 use tokio_stream::{Stream, StreamExt};
 use tonic::{Status, Streaming};
 
@@ -21,9 +25,12 @@ use crate::xrail::{as_raw_value, as_value};
 pub struct Callouts {
     pub tickets: Option<Arc<TicketHolder>>,
     pub protected_hosts: Arc<ProtectedHosts>,
+    /// Where calls are handed over, when Rail Center is used.
+    pub capture: Option<CaptureSender>,
 }
 
-/// ext_authz: allows every request, with its x-rail headers and, to a protected host, its route.
+/// ext_authz: allows every request, with its x-rail headers and, to a protected host, its route;
+/// with a capture plan held, hands the call to capture.
 #[tonic::async_trait]
 impl Authorization for Callouts {
     async fn check(
@@ -49,6 +56,11 @@ impl Authorization for Callouts {
         let ticket = self.tickets.as_deref().map(TicketHolder::current);
         let headers = XRailHeaders::of(ticket, authority, &self.protected_hosts, sent);
         log_request("ext_authz", authority, &headers);
+        if let (Some(capture), Some(http)) = (&self.capture, http)
+            && capture.is_capturing()
+        {
+            capture.send_request(observe(http));
+        }
         let mut response = CheckResponse::with_status(Status::ok(""));
         response.set_http_response(OkHttpResponse {
             headers: as_value(&headers),
@@ -57,6 +69,51 @@ impl Authorization for Callouts {
         });
         Ok(tonic::Response::new(response))
     }
+}
+
+// The call as Envoy sent it: the body is `raw_body` with `pack_as_bytes`, `body` without. Envoy's
+// `size` and partial-body header tell the bytes sent, not the body's, once it's cut short.
+fn observe(http: &HttpRequest) -> SentRequest<'_> {
+    let sent = if http.raw_body.is_empty() {
+        http.body.as_bytes()
+    } else {
+        &http.raw_body
+    };
+    let declared = declared_length(http);
+    // A POST sends a body: none, of a size not known to be 0, is one Envoy wasn't asked to send.
+    let unsent = sent.is_empty() && http.method == "POST" && http.size != 0 && declared != Some(0);
+    let body = if unsent {
+        SentBody::NotSent { declared }
+    } else {
+        SentBody::Sent {
+            bytes: sent,
+            declared,
+        }
+    };
+    SentRequest {
+        authority: http.host.as_bytes(),
+        method: http.method.as_bytes(),
+        path: http.path.as_bytes(),
+        body,
+    }
+}
+
+// `Content-Length` as sent, from either header field; a chunked body declares none.
+fn declared_length(http: &HttpRequest) -> Option<u64> {
+    let raw = http
+        .header_map
+        .iter()
+        .flat_map(|map| &map.headers)
+        .find_map(|header| {
+            header.key.eq_ignore_ascii_case("content-length").then(|| {
+                match header.raw_value.as_slice() {
+                    [] => header.value.clone(),
+                    raw => String::from_utf8_lossy(raw).into_owned(),
+                }
+            })
+        });
+    raw.or_else(|| http.headers.get("content-length").cloned())
+        .and_then(|value| value.trim().parse().ok())
 }
 
 pub(crate) type ProcessStream =

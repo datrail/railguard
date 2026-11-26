@@ -1,5 +1,5 @@
 //! The settings every host serving a callout reads alike: the port, the largest gRPC message,
-//! and the largest body judged.
+//! and the largest body judged or captured.
 
 use rail_model::sanitize::sanitize;
 
@@ -14,7 +14,8 @@ const DEFAULT_MAX_MESSAGE_MB: usize = 16;
 const MAX_MAX_MESSAGE_MB: usize = 100;
 
 const MAX_BODY_MB: &str = "RAIL_MAX_BODY_MB";
-pub(crate) const DEFAULT_MAX_BODY_MB: usize = 15;
+/// The gateway's default for `RAIL_MAX_BODY_MB`.
+pub const GATEWAY_MAX_BODY_MB: usize = 15;
 const MAX_MAX_BODY_MB: usize = 100;
 
 pub(crate) const MB: usize = 1024 * 1024;
@@ -54,16 +55,17 @@ pub fn read_max_message_bytes(settings: &mut Settings) -> Result<usize, Refused>
     mb.map(|mb| mb * MB)
 }
 
-/// `RAIL_MAX_BODY_MB`, the largest request body judged, in bytes; described with `host_limit`
-/// when that's lower, since it's then what refuses first.
+/// `RAIL_MAX_BODY_MB`, the largest request body read, in bytes, `default_mb` MiB when unset;
+/// described with `host_limit` when that's lower, since it's then what refuses first.
 pub fn read_max_body_bytes(
     settings: &mut Settings,
+    default_mb: usize,
     host_limit: Option<HostLimit>,
 ) -> Result<usize, Refused> {
     let mb = settings
         .get(MAX_BODY_MB)
         .parsed(|text| parse_mb(text, MAX_MAX_BODY_MB))
-        .map(|mb| mb.unwrap_or(DEFAULT_MAX_BODY_MB));
+        .map(|mb| mb.unwrap_or(default_mb));
     if let Ok(mb) = &mb {
         match host_limit {
             Some(limit) if limit.bytes < mb * MB => settings.describe(
