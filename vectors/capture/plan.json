@@ -71,7 +71,8 @@
           ],
           "measures": [
             {
-              "name": "call_count"
+              "name": "call_count",
+              "type": "count"
             },
             {
               "name": "request_bytes",
@@ -122,7 +123,8 @@
         ],
         "measures": [
           {
-            "name": "call_count"
+            "name": "call_count",
+            "type": "count"
           },
           {
             "name": "request_bytes",
@@ -296,7 +298,7 @@
     },
     {
       "id": "two-entries-with-one-id",
-      "patch": [{"op": "add", "path": "/entries/-", "value": {"id": "e1", "match": [{"path": ["request", "host"], "op": "eq", "value": "api.github.com"}, {"path": ["request", "redacted_path"], "op": "eq", "value": "/mcp"}, {"path": ["request", "mcp", "method"], "op": "eq", "value": "tools/call"}, {"path": ["request", "mcp", "tool"], "op": "eq", "value": "create_or_update_file"}], "record": {"context_keys": [{"name": "destination", "path": ["request", "body", "params", "arguments", "repo"], "field_type": "repository"}], "measures": [{"name": "call_count"}, {"name": "request_bytes", "type": "sum", "function": "size", "paths": [["request", "body"]]}, {"name": "argument_bytes", "type": "sum", "function": "size", "paths": [["request", "body", "params", "arguments", "content"]]}]}}}],
+      "patch": [{"op": "add", "path": "/entries/-", "value": {"id": "e1", "match": [{"path": ["request", "host"], "op": "eq", "value": "api.github.com"}, {"path": ["request", "redacted_path"], "op": "eq", "value": "/mcp"}, {"path": ["request", "mcp", "method"], "op": "eq", "value": "tools/call"}, {"path": ["request", "mcp", "tool"], "op": "eq", "value": "create_or_update_file"}], "record": {"context_keys": [{"name": "destination", "path": ["request", "body", "params", "arguments", "repo"], "field_type": "repository"}], "measures": [{"name": "call_count", "type": "count"}, {"name": "request_bytes", "type": "sum", "function": "size", "paths": [["request", "body"]]}, {"name": "argument_bytes", "type": "sum", "function": "size", "paths": [["request", "body", "params", "arguments", "content"]]}]}}}],
       "expect": {"valid": false}
     },
     {
@@ -536,16 +538,36 @@
     },
     {
       "id": "a-records-measures-under-the-references-name-measure",
-      "patch": [{"op": "add", "path": "/entries/0/record/measure", "value": [{"name": "call_count"}, {"name": "request_bytes", "type": "sum", "function": "size", "paths": [["request", "body"]]}, {"name": "argument_bytes", "type": "sum", "function": "size", "paths": [["request", "body", "params", "arguments", "content"]]}]}, {"op": "remove", "path": "/entries/0/record/measures"}],
+      "patch": [{"op": "add", "path": "/entries/0/record/measure", "value": [{"name": "call_count", "type": "count"}, {"name": "request_bytes", "type": "sum", "function": "size", "paths": [["request", "body"]]}, {"name": "argument_bytes", "type": "sum", "function": "size", "paths": [["request", "body", "params", "arguments", "content"]]}]}, {"op": "remove", "path": "/entries/0/record/measures"}],
       "expect": {"valid": false}
     },
     {
-      "id": "an-entrys-measures-without-call-count",
-      "patch": [{"op": "remove", "path": "/entries/0/record/measures/0"}],
+      "id": "a-count-with-null-paths",
+      "patch": [{"op": "add", "path": "/entries/0/record/measures/0/paths", "value": null}],
+      "expect": {"valid": true}
+    },
+    {
+      "id": "a-count-with-empty-paths",
+      "patch": [{"op": "add", "path": "/entries/0/record/measures/0/paths", "value": []}],
+      "expect": {"valid": true}
+    },
+    {
+      "id": "a-count-over-paths",
+      "patch": [{"op": "add", "path": "/entries/0/record/measures/0/paths", "value": [["request", "body", "params", "arguments", "content"], ["request", "query", "q"]]}],
+      "expect": {"valid": true}
+    },
+    {
+      "id": "a-count-with-paths-not-a-list",
+      "patch": [{"op": "add", "path": "/entries/0/record/measures/0/paths", "value": "request.body"}],
       "expect": {"valid": false}
     },
     {
-      "id": "a-measure-with-no-type",
+      "id": "a-count-with-a-function",
+      "patch": [{"op": "add", "path": "/entries/0/record/measures/0/function", "value": "size"}],
+      "expect": {"valid": false}
+    },
+    {
+      "id": "request-bytes-with-no-type",
       "patch": [{"op": "remove", "path": "/entries/0/record/measures/1/type"}],
       "expect": {"valid": false}
     },
@@ -621,7 +643,7 @@
     },
     {
       "id": "two-measures-with-one-name",
-      "patch": [{"op": "add", "path": "/entries/0/record/measures/-", "value": {"name": "call_count"}}],
+      "patch": [{"op": "add", "path": "/entries/0/record/measures/-", "value": {"name": "call_count", "type": "count"}}],
       "expect": {"valid": false}
     },
     {

@@ -81,7 +81,8 @@ pub enum KeyReading {
 
 #[derive(Debug, PartialEq)]
 pub enum MeasureReading {
-    CallCount,
+    /// Whether each of its paths finds a value.
+    Count(Vec<PathReading<()>>),
     /// What each of its paths adds.
     SizeInBytes(Vec<PathReading<u64>>),
 }
@@ -239,8 +240,13 @@ pub(crate) fn read_record(
         .measures
         .iter()
         .map(|measure| match measure {
-            Measure::CallCount => MeasureReading::CallCount,
-            Measure::Named {
+            Measure::Count { paths, .. } => MeasureReading::Count(
+                paths
+                    .iter()
+                    .map(|path| read_presence(path, environment, budget))
+                    .collect(),
+            ),
+            Measure::Sum {
                 function: MeasureFunction::SizeInBytes,
                 paths,
                 ..
@@ -293,6 +299,17 @@ fn read_key(
         Lookup::Absent => PathReading::Absent,
         Lookup::Ambiguous => PathReading::Ambiguous,
         Lookup::BodyUnread(why) => PathReading::BodyUnread(why),
+    }
+}
+
+// Any value but a JSON `null`: a parameter sent several times is there, whichever a server reads.
+fn read_presence(path: &Path, environment: &Environment, budget: &mut Budget) -> PathReading<()> {
+    match resolve_path(path, environment, budget) {
+        Ok((Lookup::Absent, _)) => PathReading::Absent,
+        Ok((Lookup::Ambiguous, _)) => PathReading::Ambiguous,
+        Ok((Lookup::BodyUnread(why), _)) => PathReading::BodyUnread(why),
+        Ok(_) => PathReading::Found(()),
+        Err(refusal) => PathReading::Refused(refusal),
     }
 }
 

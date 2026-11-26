@@ -410,7 +410,22 @@ fn write(
         .measures
         .iter()
         .map(|reading| match reading {
-            MeasureReading::CallCount => 1,
+            // 1 if every path found a value, with none too; nothing there is the answer, not a loss.
+            MeasureReading::Count(paths) => paths
+                .iter()
+                .map(|path| match path {
+                    PathReading::Found(()) => 1,
+                    PathReading::Absent => 0,
+                    PathReading::Ambiguous => {
+                        written.ambiguous = true;
+                        0
+                    }
+                    PathReading::BodyUnread(_) | PathReading::Refused(_) => {
+                        written.path_unresolved = true;
+                        0
+                    }
+                })
+                .product(),
             MeasureReading::SizeInBytes(paths) => paths
                 .iter()
                 .map(|path| match path {

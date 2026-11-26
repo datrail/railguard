@@ -70,7 +70,8 @@
         ],
         "measures": [
           {
-            "name": "call_count"
+            "name": "call_count",
+            "type": "count"
           },
           {
             "name": "request_bytes",
@@ -107,7 +108,8 @@
       ],
       "measures": [
         {
-          "name": "call_count"
+          "name": "call_count",
+          "type": "count"
         },
         {
           "name": "request_bytes",

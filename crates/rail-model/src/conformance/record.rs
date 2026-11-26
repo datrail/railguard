@@ -96,7 +96,10 @@ fn encode_key_reading(reading: &KeyReading) -> Value {
 
 fn encode_measure_reading(reading: &MeasureReading) -> Value {
     match reading {
-        MeasureReading::CallCount => json!("call_count"),
+        MeasureReading::Count(readings) => json!({"count": readings
+            .iter()
+            .map(|reading| encode_path_reading(reading, |()| json!(null)))
+            .collect::<Vec<_>>()}),
         MeasureReading::SizeInBytes(readings) => json!({"size_in_bytes": readings
             .iter()
             .map(|reading| encode_path_reading(reading, |bytes| json!({"bytes": bytes})))

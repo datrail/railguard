@@ -82,10 +82,10 @@ a Rust test's.
   given, a finite one past any case's body).
 - **`capture/plans.json`:** named plans. A case's `plan` is a name, its `entries`, where given, in place of the plan's;
   or a plan written whole. `one-entry` is the plan layers 6 and 7 write their `match` or `record` into; `matching`,
-  layer 8's, two MCP tools on one host and an HTTP operation on another, their records the built-in measures alone;
-  `worked-example` is the capture design's (railxia/docs' `design/2026-11-10-rc-dg-capture-plan/design.md` at `95b5c7b`,
-  its section 2), `two-groups` it with a smaller budget, and `sixty-seconds` and `five-minutes` it with another window
-  and their own `plan_version`s, 1 and 2, by which layer 10 tells their windows apart.
+  layer 8's, two MCP tools on one host and an HTTP operation on another, their records counting calls and their bodies'
+  bytes alone; `worked-example` is the capture design's (railxia/docs' `design/2026-11-10-rc-dg-capture-plan/design.md`
+  at `95b5c7b`, its section 2), `two-groups` it with a smaller budget, and `sixty-seconds` and `five-minutes` it with
+  another window and their own `plan_version`s, 1 and 2, by which layer 10 tells their windows apart.
 
 ### Values
 
@@ -107,7 +107,7 @@ object of it:
 | An endpoint              | `"discovery"`, or `{"judged": "keyless" \| "unrecognised" \| {"resolved": key}}`                                                                                                                                             |
 | A condition read         | `reading`: `"valid"`, `"unknown"`, `"invalid"`; each problem's `location`, `code`, `scope`, and `expected_shape` where it has one                                                                                            |
 | A record's key           | `{"method": …}`, `{"host": …}`, `{"path_prefix": "…"}`, `{"operation": <a record's path>}`, `{"path": <a record's path>}`                                                                                                    |
-| A record's measure       | `"call_count"`, `{"size_in_bytes": [<a record's path>, …]}`, one per path                                                                                                                                                    |
+| A record's measure       | `{"count": [<a record's path>, …]}`, `{"size_in_bytes": [<a record's path>, …]}`, one per path                                                                                                                               |
 | Taken, and why not       | `{"entry": id}`, `{"catch_all": id, "why": …}`: `"no_entry"`, `{"unmatchable": why}`, `{"refused": {entry, location, refusal}}`, `{"stopped": …}`, `{"ambiguous": {entry}}`, `{"body_unread": {entry, why}}`                 |
 
 Resolving a path refuses only `budget_exceeded`; `unknown_op`, `invalid` and `not_for_use` come from a compiled

@@ -1,6 +1,6 @@
 use rail_model::agent::AgentId;
 use rail_model::capture::{
-    Combine, ContextKey, KeyFunction, Measure, MeasureFunction, OnMaxGroups, Plan, parse_plan,
+    ContextKey, KeyFunction, Measure, MeasureFunction, OnMaxGroups, Plan, parse_plan,
 };
 use rail_model::condition::{BodyPath, BodyStep, Condition, Path, RequestPath};
 use rail_model::schema_version::SchemaVersion;
@@ -69,16 +69,17 @@ fn test_reads_the_worked_example_as_written() {
     assert_eq!(
         entry.record.measures,
         [
-            Measure::CallCount,
-            Measure::Named {
+            Measure::Count {
+                name: "call_count".into(),
+                paths: Vec::new(),
+            },
+            Measure::Sum {
                 name: "request_bytes".into(),
-                combine: Combine::Sum,
                 function: MeasureFunction::SizeInBytes,
                 paths: vec![body(&[])],
             },
-            Measure::Named {
+            Measure::Sum {
                 name: "argument_bytes".into(),
-                combine: Combine::Sum,
                 function: MeasureFunction::SizeInBytes,
                 paths: vec![body(&["params", "arguments", "content"])],
             },
@@ -97,10 +98,12 @@ fn test_reads_the_worked_example_as_written() {
     assert_eq!(
         plan.catch_all.record.measures,
         [
-            Measure::CallCount,
-            Measure::Named {
+            Measure::Count {
+                name: "call_count".into(),
+                paths: Vec::new(),
+            },
+            Measure::Sum {
                 name: "request_bytes".into(),
-                combine: Combine::Sum,
                 function: MeasureFunction::SizeInBytes,
                 paths: vec![body(&[])],
             },
@@ -147,8 +150,8 @@ fn test_passes_over_a_key_or_measures_unknown_field_unread() {
             r#""field_type":"repository","x":1e400"#,
         ),
         (
-            r#"{"name":"call_count"}"#,
-            r#"{"name":"call_count","x":1e400}"#,
+            r#"{"name":"call_count","type":"count"}"#,
+            r#"{"name":"call_count","type":"count","x":1e400}"#,
         ),
         (r#"{"name":"host"}"#, r#"{"name":"host","x":1e400}"#),
     ] {
