@@ -142,7 +142,7 @@ fn test_jwt_vectors() {
                 },
             };
             let state = parse_jwt_ticket(&case.header, &config, case.now_in_seconds);
-            // Every vector's header holds a `.`.
+            // Every vector's header but the empty one holds a `.`.
             assert_eq!(
                 parse_ticket(&case.header, &config, case.now_in_seconds),
                 state

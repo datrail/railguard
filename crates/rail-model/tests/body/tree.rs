@@ -44,10 +44,6 @@ fn test_walks_keys_and_indexes() {
     let root = body.json().unwrap();
     let found = |steps: &[Step]| describe(root.walk(steps));
     use Step::{Index, Key};
-    // Containers' raw text too, from their opening to their closing byte.
-    let list = root.walk(&[Key("a"), Key("b")]).found().unwrap();
-    assert_eq!(list.raw(), br#"[10, {"c": "x"}, null]"#);
-    assert_eq!(root.raw(), body.as_bytes());
     for (steps, walked, why) in [
         (&[Key("a"), Key("b"), Index(0)][..], "10", "an index"),
         (
@@ -55,46 +51,15 @@ fn test_walks_keys_and_indexes() {
             r#""x""#,
             "into an array's object",
         ),
-        (&[Key("Solo")], "3", "past a lone surrogate"),
-        (&[Key("esc")], "4", "a key written with an escape"),
         (&[Key("a"), Key("b"), Index(2)], "absent", "null"),
         (&[Key("n")], "absent", "null"),
         (&[Key("a"), Key("b"), Index(3)], "absent", "past the end"),
-        (&[Key("solo")], "absent", "only there in another case"),
         (&[Key("a"), Index(0)], "absent", "an index into an object"),
-        (
-            &[Key("a"), Key("b"), Key("0")],
-            "absent",
-            "a key into an array",
-        ),
-        (&[Key("missing")], "absent", "a key not there"),
         (&[Key("n"), Key("x")], "absent", "into null"),
-        (&[Key("dup")], "ambiguous", "repeated but for case"),
-        (&[Key("Dup")], "ambiguous", "repeated but for case"),
-        (
-            &[Key("é")],
-            "ambiguous",
-            "repeated but for case, past ASCII",
-        ),
-        (
-            &[Key("foos")],
-            "ambiguous",
-            "repeated but for case, ſ folding to s",
-        ),
-        (
-            &[Key("id")],
-            "ambiguous",
-            "repeated but for case, İ folding to i",
-        ),
         (
             &[Key("dup"), Key("x")],
             "ambiguous",
             "a step past an ambiguous one",
-        ),
-        (
-            &[Key("nul"), Key("x")],
-            "ambiguous",
-            "beside a key holding a NUL",
         ),
     ] {
         assert_eq!(found(steps), walked, "{why}");

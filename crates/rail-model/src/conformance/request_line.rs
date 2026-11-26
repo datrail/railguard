@@ -32,8 +32,9 @@ fn run_case(case: &Case) -> Result<Value, String> {
         &case.method.to_bytes()?,
         &case.path.to_bytes()?,
     );
+    // No more segments than the path has bytes, so a reader that never answers none still ends.
     let segments = |read: fn(&RequestLine, usize) -> Option<&str>| {
-        (0..)
+        (0..=line.path().len())
             .map_while(|index| read(&line, index))
             .collect::<Vec<_>>()
     };

@@ -6,8 +6,8 @@ use std::sync::Arc;
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
-use super::read_written;
 use super::value::{Bytes, decode_unread, keep};
+use super::{DEFAULT_BYTE_BUDGET, read_written};
 use crate::body::BodyRead;
 use crate::capture::ObservedCall;
 use crate::condition::{Environment, Headers};
@@ -75,7 +75,8 @@ enum BodySpec {
 
 impl CallSpec {
     pub(super) fn to_call(&self) -> Result<ObservedCall, String> {
-        let sent = |bytes: &[u8]| match keep(bytes, self.byte_budget.unwrap_or(usize::MAX)) {
+        let sent = |bytes: &[u8]| match keep(bytes, self.byte_budget.unwrap_or(DEFAULT_BYTE_BUDGET))
+        {
             Ok(body) => BodyRead::Whole(Arc::new(body)),
             Err(why) => BodyRead::Unread(why),
         };

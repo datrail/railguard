@@ -46,6 +46,27 @@
       }
     },
     {
+      "id": "policy-header-costs-no-step",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "headers",
+        "x-trace"
+      ],
+      "step_limit": 0,
+      "expect": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "b"
+          }
+        ]
+      }
+    },
+    {
       "id": "plan-ticket-key",
       "environment": "capture-sample",
       "use": "capture_plan",
@@ -1355,6 +1376,19 @@
       }
     },
     {
+      "id": "plan-redacted-segment-index-negative-invalid",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "redacted_path",
+        -1
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
       "id": "plan-segment-index-a-string-invalid",
       "environment": "capture-sample",
       "use": "capture_plan",
@@ -1699,6 +1733,55 @@
         "Dup"
       ],
       "expect": "ambiguous"
+    },
+    {
+      "id": "plan-body-key-repeated-in-another-case-past-ascii-ambiguous",
+      "environment": "capture-body-keys-folded",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "é"
+      ],
+      "expect": "ambiguous"
+    },
+    {
+      "id": "plan-body-key-folding-a-dotted-capital-i-ambiguous",
+      "note": "İ folds to i, as Unicode folds case.",
+      "environment": "capture-body-keys-folded",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "id"
+      ],
+      "expect": "ambiguous"
+    },
+    {
+      "id": "plan-body-key-beside-a-key-outside-json-ambiguous",
+      "environment": "capture-body-key-outside-json",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "o",
+        "a"
+      ],
+      "expect": "ambiguous"
+    },
+    {
+      "id": "plan-body-key-outside-an-object-holding-a-key-outside-json-read",
+      "note": "The ambiguity stays in the object holding that key.",
+      "environment": "capture-body-key-outside-json",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "b"
+      ],
+      "expect": {
+        "number": 3
+      }
     },
     {
       "id": "plan-body-string-not-decoding-ambiguous",

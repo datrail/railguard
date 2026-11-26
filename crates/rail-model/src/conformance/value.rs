@@ -6,6 +6,7 @@ use std::borrow::Cow;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
+use super::DEFAULT_BYTE_BUDGET;
 use crate::body::{BodyBuffer, ByteBudget, RequestBody, Unparsed, Unread};
 use crate::condition::{BodyUnread, Items, Lookup, Refusal, Verdict};
 use crate::request_line::{HostReading, ReportedMethod, Unmatchable};
@@ -190,8 +191,8 @@ impl HeldValue {
                     ("list", Value::Array(_)) => {
                         let mut text = String::new();
                         write_body_text(value, &mut text)?;
-                        let body =
-                            keep(text.as_bytes(), usize::MAX).map_err(|why| format!("{why:?}"))?;
+                        let body = keep(text.as_bytes(), DEFAULT_BYTE_BUDGET)
+                            .map_err(|why| format!("{why:?}"))?;
                         // `lookup` reads it back as JSON.
                         if body.json().is_err() {
                             return Err(format!("not a list: {value}"));

@@ -2378,6 +2378,29 @@
       "expect": "does_not_hold"
     },
     {
+      "id": "in-a-bool-operand-item-on-its-text-does-not-hold",
+      "note": "No item is coerced: true is no string.",
+      "value": {
+        "string": "true"
+      },
+      "op": "in",
+      "operand": [
+        true
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "in-a-bool-operand-item-on-one-does-not-hold",
+      "value": {
+        "number": 1
+      },
+      "op": "in",
+      "operand": [
+        true
+      ],
+      "expect": "does_not_hold"
+    },
+    {
       "id": "in-a-list-operand-item-on-its-number-does-not-hold",
       "value": {
         "number": 95

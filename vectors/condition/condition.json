@@ -266,6 +266,37 @@
       }
     },
     {
+      "id": "unknown-op-on-a-path-under-no-source",
+      "condition": {
+        "path": "body.x",
+        "op": "near",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "unknown",
+        "compiled": {
+          "refused": "unknown_op"
+        },
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "unknown_op",
+            "scope": "authoring"
+          },
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
       "id": "invalid-a-string",
       "condition": "not an object",
       "use": "gateway_policy",

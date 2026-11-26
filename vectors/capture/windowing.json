@@ -1147,6 +1147,187 @@
           "open_until": 120
         }
       ]
+    },
+    {
+      "id": "each-reason-a-body-went-unread-told-under-its-name",
+      "note": "Each named as a document's truncated.body_unread names it; a body read tells none.",
+      "plans": [
+        "sixty-seconds"
+      ],
+      "events": [
+        {
+          "hold": {
+            "plan": "sixty-seconds",
+            "at": 60
+          }
+        },
+        {
+          "record": {
+            "plan": "sixty-seconds",
+            "at": 61,
+            "call": {
+              "authority": "api.github.com",
+              "method": "POST",
+              "path": "/mcp",
+              "body": {
+                "unread": "past_budget"
+              },
+              "body_bytes": 100
+            }
+          }
+        },
+        {
+          "record": {
+            "plan": "sixty-seconds",
+            "at": 62,
+            "call": {
+              "authority": "api.github.com",
+              "method": "POST",
+              "path": "/mcp",
+              "body": {
+                "unread": "not_sent"
+              },
+              "body_bytes": 0
+            }
+          }
+        },
+        {
+          "record": {
+            "plan": "sixty-seconds",
+            "at": 63,
+            "call": {
+              "authority": "api.github.com",
+              "method": "POST",
+              "path": "/mcp",
+              "body": {
+                "unread": "cut_short"
+              },
+              "body_bytes": 50
+            }
+          }
+        },
+        {
+          "record": {
+            "plan": "sixty-seconds",
+            "at": 64,
+            "call": {
+              "authority": "api.github.com",
+              "method": "POST",
+              "path": "/mcp",
+              "body": "[]",
+              "body_bytes": 2
+            }
+          }
+        },
+        {
+          "record": {
+            "plan": "sixty-seconds",
+            "at": 65,
+            "call": {
+              "authority": "api.github.com",
+              "method": "POST",
+              "path": "/mcp",
+              "body": "{",
+              "body_bytes": 1
+            }
+          }
+        },
+        {
+          "record": {
+            "plan": "sixty-seconds",
+            "at": 66,
+            "call": {
+              "authority": "api.github.com",
+              "method": "POST",
+              "path": "/mcp",
+              "body": "{\"method\": \"tools/call\", \"params\": {\"name\": \"a\", \"NAME\": \"b\"}}",
+              "body_bytes": 62
+            }
+          }
+        },
+        {
+          "record": {
+            "plan": "sixty-seconds",
+            "at": 67,
+            "call": {
+              "authority": "api.github.com",
+              "method": "POST",
+              "path": "/mcp",
+              "body": "{}",
+              "body_bytes": 2
+            }
+          }
+        }
+      ],
+      "expect": [
+        {
+          "closed": null,
+          "open_until": 120
+        },
+        {
+          "closed": null,
+          "outcome": {
+            "counted": {
+              "body_unread": "past_budget"
+            }
+          },
+          "open_until": 120
+        },
+        {
+          "closed": null,
+          "outcome": {
+            "counted": {
+              "body_unread": "not_sent"
+            }
+          },
+          "open_until": 120
+        },
+        {
+          "closed": null,
+          "outcome": {
+            "counted": {
+              "body_unread": "cut_short"
+            }
+          },
+          "open_until": 120
+        },
+        {
+          "closed": null,
+          "outcome": {
+            "counted": {
+              "body_unread": "batch"
+            }
+          },
+          "open_until": 120
+        },
+        {
+          "closed": null,
+          "outcome": {
+            "counted": {
+              "body_unread": "not_json"
+            }
+          },
+          "open_until": 120
+        },
+        {
+          "closed": null,
+          "outcome": {
+            "counted": {
+              "body_unread": "ambiguous"
+            }
+          },
+          "open_until": 120
+        },
+        {
+          "closed": null,
+          "outcome": {
+            "counted": {
+              "body_unread": null
+            }
+          },
+          "open_until": 120
+        }
+      ]
     }
   ]
 }

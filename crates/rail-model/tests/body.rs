@@ -1,15 +1,13 @@
 mod json;
-mod mcp;
 mod tree;
 
 use std::sync::Arc;
 
-use rail_model::body::mcp::McpReading;
-use rail_model::body::{BodyBuffer, ByteBudget, RequestBody, Unkept, Unparsed, Unread};
+use rail_model::body::{BodyBuffer, ByteBudget, RequestBody, Unkept, Unread};
 
-// A body kept whole, with no cap or budget to meet.
+// A body kept whole, within no cap; a budget only so a parser that never stops runs out.
 fn keep(body: &[u8]) -> RequestBody {
-    keep_within(&ByteBudget::new(usize::MAX), body).unwrap()
+    keep_within(&ByteBudget::new(32 << 20), body).unwrap()
 }
 
 fn keep_within(budget: &Arc<ByteBudget>, body: &[u8]) -> Result<RequestBody, Unkept> {
@@ -62,10 +60,6 @@ fn test_shares_one_budget_between_bodies_until_each_is_dropped() {
 #[test]
 fn test_charges_a_bodys_tree_to_the_budget_too() {
     let body = b"[0, 0, 0]";
-    let unparsed = keep_within(&ByteBudget::new(body.len()), body).unwrap();
-    assert_eq!(unparsed.json().err(), Some(Unparsed::PastBudget));
-    assert_eq!(unparsed.mcp(), &McpReading::Unparsed(Unparsed::PastBudget));
-
     let roomy = ByteBudget::new(1 << 20);
     let parsed = keep_within(&roomy, body).unwrap();
     assert!(parsed.json().is_ok());

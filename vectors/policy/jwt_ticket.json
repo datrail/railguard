@@ -518,6 +518,84 @@
       "now_in_seconds": 1785240000,
       "state": "undecodable",
       "added": true
+    },
+    {
+      "id": "jwt-an-empty-header-is-absent",
+      "header": "",
+      "now_in_seconds": 1785240000,
+      "state": "absent",
+      "added": true
+    },
+    {
+      "id": "jwt-parts-padded-and-in-the-standard-alphabet-read",
+      "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpPU0UiLCJraWQiOiJ2ZWN0b3Ita2V5LTEifQ==.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJ4IjoiPz8/In0=.H9PJvYlxko9mNJCGPSd1BNUVXvOm-JgBe4xx_SlIePISZcIyeACW8WX6HkAsJu_6NdUndwBFtOK5VOAVLuFLBQ==",
+      "now_in_seconds": 1785240000,
+      "state": "valid",
+      "token": {
+        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "low"
+          }
+        },
+        "skills": [
+          "finretail.orders"
+        ],
+        "exp": 1785326400,
+        "nbf": 1785240000,
+        "jti": "f0000000-0000-4000-8000-000000000001",
+        "iss": "https://rail-center.example/tenants/00000000-0000-4000-8000-0000000000aa",
+        "aud": "00000000-0000-4000-8000-0000000000aa",
+        "x": "???"
+      },
+      "exp_in_seconds": 1785326400,
+      "added": true
+    },
+    {
+      "id": "jwt-a-signed-payload-that-is-a-list-is-malformed",
+      "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.W10.t__Zl6wkfLfkFmaZRNs8xRHAUxoUlfMReAmzgrPfL_VIKVpjsTNsxg7bqa1BbaRwQDR3W1-6-tMQ5xinAO-vBA",
+      "now_in_seconds": 1785240000,
+      "state": "malformed",
+      "added": true
+    },
+    {
+      "id": "jwt-a-signed-payload-that-is-a-string-is-malformed",
+      "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.Ingi.p4deeqqW09HmuXNVypPeKt9DWSKGIvNnM1qEY1_MZDTHA-d55iF5uaaghOY1BoENAt2ErZyjF0J7Cl0ledXTCQ",
+      "now_in_seconds": 1785240000,
+      "state": "malformed",
+      "added": true
+    },
+    {
+      "id": "jwt-a-signed-payload-that-is-a-number-is-malformed",
+      "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.MQ.ZGMkQ84UNk2Yp5rxB1Opnu444T96na4GbgeyrBuTcZLk42NkWjFOt7Cu0oIz83ugXlb5cJs1kI39WQnrg0ZdAw",
+      "now_in_seconds": 1785240000,
+      "state": "malformed",
+      "added": true
+    },
+    {
+      "id": "jwt-a-reader-with-an-empty-issuer-reads-it-as-not-configured",
+      "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiIiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.oJpLp2yxUK7RfX9_UBP-1zNhzl2oSOQpFCG_N4C2U2QYuVMCA2KnaOtLeUR_NOGxHTgmZ7ckTjQmzAZAGnJWAQ",
+      "now_in_seconds": 1785240000,
+      "state": "wrong_audience",
+      "reader": {
+        "holds_keys": true,
+        "issuer": "",
+        "audience": "00000000-0000-4000-8000-0000000000aa"
+      },
+      "added": true
+    },
+    {
+      "id": "jwt-a-reader-with-an-empty-audience-reads-it-as-not-configured",
+      "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIifQ.nAv5qCJCl_SIKLXpUA92V6_Y5-x37gI0THeaMf1ZcXwcqDkUUnAY_i4JcnmXoTjnetbjoR28gO_MyrWGc32LBQ",
+      "now_in_seconds": 1785240000,
+      "state": "wrong_audience",
+      "reader": {
+        "holds_keys": true,
+        "issuer": "https://rail-center.example/tenants/00000000-0000-4000-8000-0000000000aa",
+        "audience": ""
+      },
+      "added": true
     }
   ]
 }

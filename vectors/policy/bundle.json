@@ -3690,6 +3690,619 @@
       },
       "usable": false,
       "added": true
+    },
+    {
+      "id": "two-bindings-differing-only-by-slug-are-one-endpoint",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#refund_order",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          },
+          {
+            "endpoint_key": "other#/mcp#tools/call#refund_order",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "lt",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false,
+      "added": true
+    },
+    {
+      "id": "an-endpoint-key-with-no-call",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "lt",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false,
+      "added": true
+    },
+    {
+      "id": "an-endpoint-key-with-an-empty-slug",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "#/mcp#tools/call#refund_order",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "lt",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false,
+      "added": true
+    },
+    {
+      "id": "an-endpoint-key-with-an-empty-path",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail##tools/call#refund_order",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "lt",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false,
+      "added": true
+    },
+    {
+      "id": "an-endpoint-key-with-an-empty-method",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp##refund_order",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "lt",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false,
+      "added": true
+    },
+    {
+      "id": "an-endpoint-key-with-an-empty-call",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "lt",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false,
+      "added": true
+    },
+    {
+      "id": "a-version-with-a-plus-sign-is-refused",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#refund_order",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "lt",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "+2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false,
+      "added": true
+    },
+    {
+      "id": "a-minor-with-a-plus-sign-is-refused",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#refund_order",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "lt",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.+0",
+        "ticket_fallback": "block"
+      },
+      "usable": false,
+      "added": true
+    },
+    {
+      "id": "a-version-with-an-empty-minor-is-refused",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#refund_order",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "lt",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.",
+        "ticket_fallback": "block"
+      },
+      "usable": false,
+      "added": true
+    },
+    {
+      "id": "a-version-with-an-empty-major-is-refused",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#refund_order",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "lt",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": ".0",
+        "ticket_fallback": "block"
+      },
+      "usable": false,
+      "added": true
+    },
+    {
+      "id": "a-version-with-a-trailing-space-is-refused",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#refund_order",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "lt",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0 ",
+        "ticket_fallback": "block"
+      },
+      "usable": false,
+      "added": true
+    },
+    {
+      "id": "a-negative-major-is-refused",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#refund_order",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "lt",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "-1.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false,
+      "added": true
+    },
+    {
+      "id": "a-comma-is-no-separator",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#refund_order",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "lt",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2,0",
+        "ticket_fallback": "block"
+      },
+      "usable": false,
+      "added": true
+    },
+    {
+      "id": "a-condition-whose-op-this-reader-does-not-know-keeps-the-bundle",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#refund_order",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "unknown",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": true,
+      "chain": [
+        "5c8f1e42-0000-4000-8000-0000000000a1"
+      ],
+      "chain_priorities": [
+        1
+      ],
+      "added": true
     }
   ]
 }

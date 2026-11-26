@@ -1261,6 +1261,202 @@
         },
         "endpoint": "discovery"
       }
+    },
+    {
+      "id": "mcp-member-without-a-value-unparsed",
+      "body": "{\"a\":}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-object-trailing-comma-unparsed",
+      "body": "{\"a\":1,}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-list-trailing-comma-unparsed",
+      "body": "[1,]",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-items-without-a-comma-unparsed",
+      "body": "[1 2]",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-key-not-a-string-unparsed",
+      "body": "{1:2}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-literal-followed-by-letters-unparsed",
+      "body": "truex",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-literal-cut-short-unparsed",
+      "body": "nul",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-string-unterminated-unparsed",
+      "body": "\"abc",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-string-ending-in-an-escaped-quote-unparsed",
+      "body": "\"abc\\\"",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-single-quoted-key-unparsed",
+      "body": "{'a':1}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-key-of-a-lone-surrogate-among-every-escape-read-past",
+      "body": "{\"\\ud800\\\"\\\\\\/\\b\\f\\n\\r\\t\\u00e9\": 1, \"method\": \"ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "ping",
+            "tool": null
+          }
+        },
+        "endpoint": "discovery"
+      }
+    },
+    {
+      "id": "endpoint-tool-name-with-a-bidi-override-kept-verbatim",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"track‮package\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "track‮package"
+          }
+        },
+        "endpoint": {
+          "judged": {
+            "resolved": "/mcp#tools/call#track‮package"
+          }
+        }
+      }
+    },
+    {
+      "id": "endpoint-tool-name-with-a-line-separator-kept-verbatim",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"track package\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "track package"
+          }
+        },
+        "endpoint": {
+          "judged": {
+            "resolved": "/mcp#tools/call#track package"
+          }
+        }
+      }
+    },
+    {
+      "id": "mcp-params-a-string-names-no-tool",
+      "body": "{\"method\": \"tools/call\", \"params\": \"a\\/b\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": null
+          }
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
     }
   ]
 }

@@ -20,26 +20,3 @@ fn test_reads_a_host_one_way() {
         );
     }
 }
-
-#[test]
-fn test_refuses_what_isnt_a_host_and_port() {
-    for authority in [
-        ".",
-        ":8443",
-        "mcp.example.com:",
-        "mcp.example.com:0",
-        "mcp.example.com:65536",
-        "mcp.example.com:+80",
-        "mcp.example.com..",
-        "mcp.exämple.com",
-        "mcp..example.com",
-        "user@mcp.example.com",
-        "mcp%2eexample.com",
-        "2001:db8::1",
-        "[2001:db8::1",
-        "[2001:db8::1]8443",
-        "[fe80::1%25eth0]",
-    ] {
-        assert!(split_authority(authority).is_err(), "{authority}");
-    }
-}

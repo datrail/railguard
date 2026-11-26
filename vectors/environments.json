@@ -307,6 +307,22 @@
       },
       "body": "{}",
       "body_bytes": 2
+    },
+    "capture-body-keys-folded": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp",
+      "body": "{\"\\u00c9\": 6, \"\\u00e9\": 7, \"\\u0130d\": 10, \"id\": 11}",
+      "body_bytes": 51
+    },
+    "capture-body-key-outside-json": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp",
+      "body": "{\"o\": {\"a\": 1, \"\\q\": 2}, \"b\": 3}",
+      "body_bytes": 32
     }
   }
 }

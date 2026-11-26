@@ -2,9 +2,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use rail_model::body::{BodyRead, Unread};
-use rail_model::capture::{
-    BodyUnreadReason, Document, ObservedCall, Window, compile_plan, parse_plan,
-};
+use rail_model::capture::{Document, ObservedCall, Window, compile_plan, parse_plan};
 use serde::Deserialize;
 use serde_json::Value;
 use uuid::Uuid;
@@ -129,57 +127,6 @@ fn test_vectors() {
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
-}
-
-#[test]
-fn test_tells_why_a_body_went_unread() {
-    let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
-    let compiled = Arc::new(compile_plan(parse_plan(&vectors.plan.to_string()).unwrap()));
-    let call = |body: BodyRead| ObservedCall {
-        authority: b"api.github.com".to_vec(),
-        method: b"POST".to_vec(),
-        path: b"/mcp".to_vec(),
-        body,
-        body_bytes: 0,
-    };
-    let ambiguous = br#"{"method": "tools/call", "params": {"name": "a", "Name": "b"}}"#;
-    let cases = [
-        (
-            BodyRead::Unread(Unread::PastCap),
-            Some(BodyUnreadReason::PastCap),
-        ),
-        (
-            BodyRead::Unread(Unread::PastBudget),
-            Some(BodyUnreadReason::PastBudget),
-        ),
-        (
-            BodyRead::Unread(Unread::NotSent),
-            Some(BodyUnreadReason::NotSent),
-        ),
-        (
-            BodyRead::Unread(Unread::CutShort),
-            Some(BodyUnreadReason::CutShort),
-        ),
-        (keep_body(b"[]"), Some(BodyUnreadReason::Batch)),
-        (keep_body(b"{"), Some(BodyUnreadReason::NotJson)),
-        (keep_body(ambiguous), Some(BodyUnreadReason::Ambiguous)),
-        (keep_body(b"{}"), None),
-    ];
-    let sent = Sent {
-        document_id: Uuid::nil(),
-        generated_at: 2,
-        windows_dropped: 0,
-    };
-    for (body, reason) in cases {
-        let mut window = Window::open(Arc::clone(&compiled), time(0));
-        assert_eq!(window.record(&call(body), time(1)), reason);
-        // Named as the document counts it.
-        let written = serde_json::to_value(close(window, 2, &sent)).unwrap();
-        let counted = &written["truncated"]["body_unread"];
-        if let Some(reason) = reason {
-            assert_eq!(counted[reason.as_str()], 1, "{reason:?}");
-        }
-    }
 }
 
 #[test]
