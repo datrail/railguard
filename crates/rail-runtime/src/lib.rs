@@ -44,10 +44,10 @@ pub use config::{
     ConfigErrors, EXIT_CODE, Entry, Level, Refused, Secret, Settings, Source, Startup, Variables,
 };
 pub use denial::{Denial, DenialReporter, DenialSink, DeniedBy, RailCenterDenials};
-pub use gateway::{Answer, Call, UnitSettings};
+pub use gateway::{Answer, UnitSettings};
 pub use gateway_call::{Gateway, GatewaySettings};
 pub use gateway_start::start_gateway;
-pub use gather::{BodyEnding, RequestGatherer};
+pub use gather::{BodyEnding, Lines, RequestGatherer};
 pub use key_set::{KeySet, KeySetHolder, KeySource, RailCenterKeys};
 pub use logging::{read_log_format, read_log_level};
 pub use protected_hosts::{ProtectedHost, ProtectedHosts, read_protected_hosts};
@@ -56,7 +56,7 @@ pub use rail_center::{
     CenterUrl, RailCenterSettings, read_disabled, read_rail_center, read_rail_center_with,
 };
 pub use rail_center_thread::RailCenterThread;
-pub use rail_model::request::{XRAIL, is_withheld_header, read_path};
+pub use rail_model::request::{XRAIL, is_withheld_header};
 pub use retry::Jitter;
 pub use ticket::{
     OpaqueTicket, RailCenterTickets, TicketSettings, TicketSource, read_ticket_settings,

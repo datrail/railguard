@@ -1,5 +1,5 @@
 use rail_model::body::{BodyRead, ByteBudget, Unread};
-use rail_runtime::{BodyEnding, RequestGatherer};
+use rail_runtime::{BodyEnding, Lines, RequestGatherer};
 
 const CAP_BYTES: usize = 4;
 
@@ -16,7 +16,12 @@ fn gather(
         .into_iter()
         .chain(lengths)
         .chain([("content-type", "application/json")]);
-    let mut gatherer = RequestGatherer::start(lines, CAP_BYTES, &ByteBudget::new(budget_bytes));
+    let mut gatherer = RequestGatherer::start(
+        lines,
+        Lines::None,
+        CAP_BYTES,
+        &ByteBudget::new(budget_bytes),
+    );
     if let Some(sent) = sent {
         gatherer.adopt(sent.to_vec());
     }

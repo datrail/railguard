@@ -6,49 +6,16 @@ use envoy_types::pb::envoy::service::ext_proc::v3::processing_request::Request;
 use envoy_types::pb::envoy::service::ext_proc::v3::{HttpBody, HttpHeaders, ProtocolConfiguration};
 use rail_runtime::{BodyEnding, CaptureSender, HeldRequest};
 
-use crate::headers::{PARTIAL_BODY, value_of};
+use crate::headers::{check_lines, take_body, value_of};
 
-/// ext_authz's call, handed over if capturing: the body is `raw_body` with `pack_as_bytes`, `body`
-/// without.
-pub(crate) fn hand_over(sender: &CaptureSender, http: HttpRequest) {
-    // Envoy sends the headers in one of the two, `header_map` when asked for raw headers.
-    let sent = http
-        .headers
-        .iter()
-        .map(|(name, value)| (name.as_bytes(), value.as_bytes()))
-        .chain(
-            http.header_map
-                .iter()
-                .flat_map(|map| &map.headers)
-                .map(|header| (header.key.as_bytes(), value_of(header))),
-        );
-    // Envoy sends `:authority` as `host`.
-    let line = [
-        (&b":authority"[..], http.host.as_bytes()),
-        (b":method", http.method.as_bytes()),
-        (b":path", http.path.as_bytes()),
-    ];
-    let Some(mut held) = sender.hold(line.into_iter().chain(sent.clone())) else {
+/// ext_authz's call, handed over if capturing.
+pub(crate) fn hand_over(sender: &CaptureSender, mut http: HttpRequest) {
+    let Some(mut held) = sender.hold(check_lines(&http)) else {
         return;
     };
-    let partial = sent.into_iter().any(|(name, value)| {
-        name.eq_ignore_ascii_case(PARTIAL_BODY.as_bytes()) && value == b"true"
-    });
-    let body = if http.raw_body.is_empty() {
-        http.body.into_bytes()
-    } else {
-        http.raw_body
-    };
-    // A POST sends a body: none, of a size not known to be 0, is one Envoy wasn't asked to send.
-    let unsent = body.is_empty() && http.method == "POST" && http.size != 0;
+    let (body, ending) = take_body(&mut http);
     held.adopt(body);
-    held.finish(if unsent {
-        BodyEnding::NotSent
-    } else if partial {
-        BodyEnding::MayBeCut
-    } else {
-        BodyEnding::Whole
-    });
+    held.finish(ending);
 }
 
 /// One ext_proc stream's call for capture, held from its headers until its body ends.

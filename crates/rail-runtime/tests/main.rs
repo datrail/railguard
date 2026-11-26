@@ -3,6 +3,7 @@ mod bundle_settings;
 mod bundles;
 mod call_record_center;
 mod call_records;
+mod calls;
 mod capture;
 mod capture_plan;
 mod capture_plan_holder;

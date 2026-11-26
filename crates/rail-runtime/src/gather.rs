@@ -5,12 +5,13 @@ use std::sync::Arc;
 use rail_model::body::{BodyBuffer, BodyRead, ByteBudget, Unread};
 use rail_model::request::ObservedRequest;
 
-/// A request as its host is sent it: its request line and declared length from its headers, then
-/// its body, kept up to a cap within a budget. It keeps no header line: capture reads none.
+/// A request as its host is sent it: its request line, declared length and the header lines it
+/// keeps from its headers, then its body, kept up to a cap within a budget.
 pub struct RequestGatherer {
     authority: Vec<u8>,
     method: Vec<u8>,
     path: Vec<u8>,
+    header_lines: Vec<(Vec<u8>, Vec<u8>)>,
     declared: Option<u64>,
     body: BodyBuffer,
     cap_bytes: usize,
@@ -28,11 +29,19 @@ pub enum BodyEnding {
     NotSent,
 }
 
+/// Which header lines a request keeps: capture's none, since plans read none.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Lines {
+    All,
+    None,
+}
+
 impl RequestGatherer {
-    /// From the header lines as sent, pseudo-headers included: `:authority`, `:method` and `:path`
-    /// are its request line, the first `content-length` its declared length.
+    /// From the header lines as sent, pseudo-headers included: the first `:authority`, `:method`
+    /// and `:path` are its request line, the first `content-length` its declared length.
     pub fn start<N, V>(
         lines: impl IntoIterator<Item = (N, V)>,
+        keep: Lines,
         cap_bytes: usize,
         budget: &Arc<ByteBudget>,
     ) -> Self
@@ -40,37 +49,52 @@ impl RequestGatherer {
         N: AsRef<[u8]>,
         V: AsRef<[u8]> + Into<Vec<u8>>,
     {
-        let mut gatherer = Self {
-            authority: Vec::new(),
-            method: Vec::new(),
-            path: Vec::new(),
-            declared: None,
-            body: BodyBuffer::new(cap_bytes, budget),
-            cap_bytes,
-        };
-        let mut length_seen = false;
+        let (mut authority, mut method, mut path) = (Vec::new(), Vec::new(), Vec::new());
+        let (mut header_lines, mut declared, mut length_seen) = (Vec::new(), None, false);
         for (name, value) in lines {
-            let part = match name.as_ref() {
-                b":authority" => &mut gatherer.authority,
-                b":method" => &mut gatherer.method,
-                b":path" => &mut gatherer.path,
-                name if !length_seen && name.eq_ignore_ascii_case(b"content-length") => {
-                    length_seen = true;
-                    gatherer.declared = read_length(value.as_ref());
+            let name = name.as_ref();
+            let part = match name {
+                b":authority" => &mut authority,
+                b":method" => &mut method,
+                b":path" => &mut path,
+                // The other pseudo-headers aren't header lines.
+                [b':', ..] => continue,
+                _ => {
+                    if !length_seen && name.eq_ignore_ascii_case(b"content-length") {
+                        length_seen = true;
+                        declared = read_length(value.as_ref());
+                    }
+                    if keep == Lines::All {
+                        header_lines.push((name.to_vec(), value.into()));
+                    }
                     continue;
                 }
-                _ => continue,
             };
             if part.is_empty() {
                 *part = value.into();
             }
         }
-        gatherer
+        Self {
+            authority,
+            method,
+            path,
+            header_lines,
+            declared,
+            body: BodyBuffer::new(cap_bytes, budget),
+            cap_bytes,
+        }
     }
 
-    /// Keeps `body`, sent in one message, without a copy.
-    pub fn adopt(&mut self, body: Vec<u8>) {
+    /// For a host whose declared length isn't checked against its body.
+    pub fn ignore_declared_length(&mut self) {
+        self.declared = None;
+    }
+
+    /// Keeps `body`, without a copy if it's the first; whether it's still kept, else past the cap
+    /// or the budget, so a host refusing it can stop.
+    pub fn adopt(&mut self, body: Vec<u8>) -> bool {
         self.body.adopt(body);
+        self.body.is_kept()
     }
 
     /// The request, its body read whole if it came whole within the cap and the budget, else
@@ -108,7 +132,7 @@ impl RequestGatherer {
             self.authority,
             self.method,
             self.path,
-            Vec::new(),
+            self.header_lines,
             body,
             body_bytes,
         )

@@ -9,7 +9,7 @@ use std::sync::Arc;
 use apigee_callout_proto::apigee::external_callout_service_server::ExternalCalloutService;
 use apigee_callout_proto::apigee::{FlowVariable, MessageContext, Strings, flow_variable};
 use prost::Message;
-use rail_runtime::{Answer, Call, Gateway, XRAIL, is_withheld_header, read_path};
+use rail_runtime::{Answer, BodyEnding, Gateway, XRAIL, is_withheld_header};
 
 // The flow variables the Apigee proxy reads.
 const DECISION: &str = "rail.decision";
@@ -57,40 +57,32 @@ impl ExternalCalloutService for Callout {
         }
         let answer = match &self.gateway {
             Some(gateway) => {
-                let headers = read_headers(&context);
                 let request = context.request.get_or_insert_default();
-                let call = Call {
-                    path: read_path(&request.uri),
-                    method: request.verb.clone(),
-                    // Moved in and back out: it can be up to 4 MiB.
-                    body: std::mem::take(&mut request.content),
-                    headers,
-                };
-                let (answer, call) = gateway.handle(call).await;
-                context.request.get_or_insert_default().content = call.body;
+                let line = [(":method", &request.verb), (":path", &request.uri)];
+                // Every item as a header line: Apigee splits a value on commas and sends each part
+                // as an item.
+                let items = request.headers.iter().flat_map(|(name, values)| {
+                    values
+                        .strings
+                        .iter()
+                        .map(move |value| (name.as_str(), value))
+                });
+                let mut gatherer = gateway.gather(
+                    line.into_iter()
+                        .chain(items)
+                        .map(|(name, value)| (name.as_bytes(), value.as_bytes())),
+                );
+                // Moved in and back out: it can be up to 4 MiB.
+                gatherer.adopt(std::mem::take(&mut request.content).into_bytes());
+                let (answer, content) = gateway.handle(gatherer.finish(BodyEnding::Whole)).await;
+                // It came as a `String`, so it's UTF-8.
+                request.content = String::from_utf8(content).unwrap_or_default();
                 answer
             }
             None => Answer::Forward,
         };
         Ok(tonic::Response::new(build_answer(context, answer)))
     }
-}
-
-// Every item as a header line: Apigee splits a value on commas and sends each part as an item.
-fn read_headers(context: &MessageContext) -> Vec<(String, String)> {
-    let Some(request) = &context.request else {
-        return Vec::new();
-    };
-    request
-        .headers
-        .iter()
-        .flat_map(|(name, values)| {
-            values
-                .strings
-                .iter()
-                .map(move |value| (name.clone(), value.clone()))
-        })
-        .collect()
 }
 
 /// The received context, with only our changes in its maps: Apigee's own fields are returned as

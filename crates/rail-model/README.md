@@ -48,7 +48,7 @@ By module:
   shares, as a **`RequestBody`**: read once into a JSON tree (**`json`**, walked with `tree::Node`, a walk finding a
   value, nothing, or one that can't be told) and an MCP reading (**`mcp`**, or why it names nothing). **`BodyRead`** is
   a call's body as a reader has it: kept whole, or unread and why. **`mcp::read_endpoint`** reads the endpoint an MCP
-  message names, from its method and tool; **`McpReading::read`** reads one from bytes a host holds itself.
+  message names, from its method and tool; **`McpReading::read`** reads one from bytes, within no budget.
 - **`capture`:** **`parse_plan`** reads a capture plan as `parse_bundle` reads a bundle, passing over fields it doesn't
   know, refusing one that breaks the field reference with why (**`InvalidPlan`**). A **`Plan`**'s entries keep their
   conditions as written, checked when compiled; its values are as Rail Center writes them. It checks the proxy's

@@ -2,9 +2,10 @@ use std::pin::pin;
 use std::sync::Arc;
 use std::time::Duration;
 
-use rail_runtime::{Answer, Call, Gateway, GatewaySettings};
+use rail_runtime::{Answer, Gateway, GatewaySettings};
 
 use crate::bundles::{self, Script};
+use crate::calls::{Call, handle};
 use crate::holder::{TestClock, until};
 use crate::keys;
 use crate::logs::{Logs, lines_with};
@@ -37,7 +38,7 @@ async fn a_body_past_the_cap_is_warned_of_with_its_size_and_the_cap() {
         headers: Vec::new(),
     };
 
-    assert_eq!(gateway.handle(call).await.0, Answer::TooLarge);
+    assert_eq!(handle(&gateway, call).await.0, Answer::TooLarge);
 
     let logs = logs.text();
     let lines = lines_with(&logs, "past RAIL_MAX_BODY_MB");
@@ -78,10 +79,10 @@ async fn a_call_with_no_verdict_by_its_deadline_is_forwarded_at_observe() {
     };
 
     // Left unpolled once it holds the slot, so its deadline can't stop its judgement.
-    let mut judged = pin!(gateway.handle(scanned));
+    let mut judged = pin!(handle(&gateway, scanned));
     let unfinished = tokio::time::timeout(Duration::from_millis(20), judged.as_mut()).await;
     assert!(unfinished.is_err());
-    let (waiting, _) = gateway.handle(call()).await;
+    let (waiting, _) = handle(&gateway, call()).await;
     let (judged, _) = judged.await;
 
     assert_eq!(waiting, Answer::Forward);

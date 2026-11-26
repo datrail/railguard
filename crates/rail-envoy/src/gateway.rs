@@ -7,7 +7,6 @@ use envoy_types::ext_authz::v3::CheckResponseExt;
 use envoy_types::ext_authz::v3::pb::{
     Authorization, CheckRequest, CheckResponse, DeniedHttpResponse, OkHttpResponse,
 };
-use envoy_types::pb::envoy::config::core::v3::HeaderValue;
 use envoy_types::pb::envoy::extensions::filters::http::ext_proc::v3::processing_mode::BodySendMode;
 use envoy_types::pb::envoy::service::ext_proc::v3::body_mutation::Mutation;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessor;
@@ -19,11 +18,11 @@ use envoy_types::pb::envoy::service::ext_proc::v3::{
     TrailersResponse,
 };
 use envoy_types::pb::envoy::r#type::v3::HttpStatus;
-use rail_runtime::{Answer, Call, Gateway, read_path, withheld_headers};
+use rail_runtime::{Answer, BodyEnding, Gateway, RequestGatherer, withheld_headers};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::headers::{PARTIAL_BODY, value_of};
+use crate::headers::{check_lines, take_body, value_of};
 use crate::services::{ProcessStream, continue_unchanged};
 use crate::xrail::{raw_value_option, value_option};
 use tokio_stream::StreamExt;
@@ -46,60 +45,27 @@ impl Authorization for GatewayCallouts {
         &self,
         request: tonic::Request<CheckRequest>,
     ) -> Result<tonic::Response<CheckResponse>, Status> {
-        let http = request
+        let mut http = request
             .into_inner()
             .attributes
             .and_then(|attributes| attributes.request)
             .and_then(|request| request.http)
             .unwrap_or_default();
-        // Envoy sends the headers in one of the two, `header_map` when asked for raw headers.
-        // The path and method as ext_authz gives them, then every header.
-        let line = [(":path", http.path), (":method", http.method)]
-            .map(|(name, value)| (name.to_owned(), value));
-        let sent = line.into_iter().chain(http.headers).chain(
-            http.header_map
-                .into_iter()
-                .flat_map(|map| map.headers)
-                .map(|header| (header.key.clone(), read_value(&header))),
-        );
-        let request = read_request(sent);
-        let body = if http.raw_body.is_empty() {
-            http.body.into_bytes()
-        } else {
-            http.raw_body
-        };
-        let removed = withheld_headers(request.lines.iter().map(|(name, _)| name.as_str()));
-        let partial = request
-            .lines
-            .iter()
-            .any(|(name, value)| name.eq_ignore_ascii_case(PARTIAL_BODY) && value == "true");
-        let short = usize::try_from(http.size).is_ok_and(|size| body.len() < size);
-        // An MCP call always has a body: none, where the size isn't known to be 0, is one not sent.
-        let unsent = request.method == "POST" && body.is_empty() && http.size != 0;
+        let removed = withheld_headers(check_lines(&http).map(|(name, _)| name));
         let answer = match &self.gateway {
             None => Answer::Forward,
-            Some(_) if unsent => {
-                tracing::error!(
-                    "refused unjudged: Envoy sent no body; its ext_authz filter needs with_request_body"
-                );
-                Answer::CannotApply
-            }
-            // A body cut short could read as another call, so it's never judged as whole.
-            Some(_) if partial || short => {
-                tracing::warn!(
-                    bytes = body.len(),
-                    "refused unjudged: Envoy sent part of the body"
-                );
-                Answer::TooLarge
-            }
             Some(gateway) => {
-                let call = Call {
-                    path: request.path,
-                    method: request.method,
-                    body,
-                    headers: request.lines,
+                let mut gatherer = gateway.gather(check_lines(&http));
+                let (body, ending) = take_body(&mut http);
+                // Shorter than its size, it was cut short too.
+                let short = usize::try_from(http.size).is_ok_and(|size| body.len() < size);
+                gatherer.adopt(body);
+                let ending = if short && ending != BodyEnding::NotSent {
+                    BodyEnding::CutShort
+                } else {
+                    ending
                 };
-                gateway.handle(call).await.0
+                gateway.handle(gatherer.finish(ending)).await.0
             }
         };
         let response = match answer.refusal() {
@@ -267,7 +233,7 @@ struct Exchange {
 enum Stage {
     Headers,
     // Its headers held, its body growing, until it ends.
-    Gathering(Pending),
+    Gathering(Box<Pending>),
     // Disabled: every phase goes on as it came.
     Passing,
     // Answered whole, by a refusal or its last phase: later headers or body are ignored.
@@ -276,11 +242,8 @@ enum Stage {
 
 struct Pending {
     gateway: Arc<Gateway>,
-    path: String,
-    method: String,
-    headers: Vec<(String, String)>,
     removed: Vec<String>,
-    body: Vec<u8>,
+    gatherer: RequestGatherer,
 }
 
 impl Exchange {
@@ -304,34 +267,30 @@ impl Exchange {
             .headers
             .iter()
             .flat_map(|map| &map.headers)
-            .map(|header| (header.key.clone(), read_value(header)));
-        let request = read_request(sent);
-        let removed = withheld_headers(request.lines.iter().map(|(name, _)| name.as_str()));
+            .map(|header| (header.key.as_str(), value_of(header)));
+        let removed = withheld_headers(sent.clone().map(|(name, _)| name));
         let Some(gateway) = self.gateway.clone() else {
             // Disabled: nothing to judge, so nothing to gather.
             self.stage = Stage::Passing;
             return Answers::Now(vec![headers_response(removed)]);
         };
         let pending = Pending {
+            gatherer: gateway.gather(sent),
             gateway,
-            path: request.path,
-            method: request.method,
-            headers: request.lines,
             removed,
-            body: Vec::new(),
         };
         if headers.end_of_stream {
             self.stage = Stage::Done;
-            return judge(pending, Ending::Headers, self.mode).await;
+            return judge(pending, EndedBy::Headers, self.mode).await;
         }
         match self.mode {
             Some(BodySendMode::Buffered) => {
                 let answer = headers_response(pending.removed.clone());
-                self.stage = Stage::Gathering(pending);
+                self.stage = Stage::Gathering(Box::new(pending));
                 Answers::Now(vec![answer])
             }
             Some(BodySendMode::FullDuplexStreamed) => {
-                self.stage = Stage::Gathering(pending);
+                self.stage = Stage::Gathering(Box::new(pending));
                 Answers::Now(Vec::new())
             }
             mode => {
@@ -357,22 +316,14 @@ impl Exchange {
                 self.refuse(Answer::CannotApply)
             }
             Stage::Gathering(mut pending) => {
-                pending.body.extend_from_slice(&body.body);
-                let limit = pending.gateway.max_body_bytes();
-                if pending.body.len() > limit {
-                    tracing::warn!(
-                        bytes = pending.body.len(),
-                        limit,
-                        "refused unjudged: the body is past RAIL_MAX_BODY_MB"
-                    );
-                    return self.refuse(Answer::TooLarge);
-                }
+                // Past the cap, it's refused as soon as it is.
+                let kept = pending.gatherer.adopt(body.body);
                 // Buffered, the one message is the whole body, trailers or not.
-                if !body.end_of_stream && self.mode != Some(BodySendMode::Buffered) {
+                if kept && !body.end_of_stream && self.mode != Some(BodySendMode::Buffered) {
                     self.stage = Stage::Gathering(pending);
                     return Answers::Now(Vec::new());
                 }
-                judge(pending, Ending::Body, self.mode).await
+                judge(*pending, EndedBy::Body, self.mode).await
             }
         }
     }
@@ -380,7 +331,7 @@ impl Exchange {
     // The trailers end a request still gathered: full duplex's body, or no body at all.
     async fn on_trailers(&mut self) -> Answers {
         match std::mem::replace(&mut self.stage, Stage::Done) {
-            Stage::Gathering(pending) => judge(pending, Ending::Trailers, self.mode).await,
+            Stage::Gathering(pending) => judge(*pending, EndedBy::Trailers, self.mode).await,
             _ => Answers::Now(vec![Response::RequestTrailers(TrailersResponse::default())]),
         }
     }
@@ -392,36 +343,27 @@ impl Exchange {
 }
 
 // The answers to every phase held, in order, or a refusal.
-async fn judge(pending: Pending, ending: Ending, mode: Option<BodySendMode>) -> Answers {
+async fn judge(pending: Pending, ending: EndedBy, mode: Option<BodySendMode>) -> Answers {
     let Pending {
         gateway,
-        path,
-        method,
-        headers,
         removed,
-        body,
+        gatherer,
     } = pending;
-    let call = Call {
-        path,
-        method,
-        body,
-        headers,
-    };
-    let (answer, call) = gateway.handle(call).await;
+    let (answer, body) = gateway.handle(gatherer.finish(BodyEnding::Whole)).await;
     if answer != Answer::Forward {
         return Answers::Now(vec![immediate(answer)]);
     }
     let full_duplex = mode == Some(BodySendMode::FullDuplexStreamed);
     match ending {
-        Ending::Headers => Answers::Now(vec![headers_response(removed)]),
-        Ending::Body | Ending::Trailers if full_duplex => Answers::BodyBack {
+        EndedBy::Headers => Answers::Now(vec![headers_response(removed)]),
+        EndedBy::Body | EndedBy::Trailers if full_duplex => Answers::BodyBack {
             removed,
-            body: call.body,
-            trailers: ending == Ending::Trailers,
+            body,
+            trailers: ending == EndedBy::Trailers,
         },
         // Buffered, its headers were answered when they came.
-        Ending::Body => Answers::Now(vec![Response::RequestBody(BodyResponse::default())]),
-        Ending::Trailers => {
+        EndedBy::Body => Answers::Now(vec![Response::RequestBody(BodyResponse::default())]),
+        EndedBy::Trailers => {
             Answers::Now(vec![Response::RequestTrailers(TrailersResponse::default())])
         }
     }
@@ -429,7 +371,7 @@ async fn judge(pending: Pending, ending: Ending, mode: Option<BodySendMode>) -> 
 
 // What ended the request: its headers, its last body chunk, or its trailers.
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum Ending {
+enum EndedBy {
     Headers,
     Body,
     Trailers,
@@ -493,42 +435,4 @@ fn immediate(answer: Answer) -> Response {
         body: body.as_bytes().to_vec(),
         ..Default::default()
     })
-}
-
-struct ReadRequest {
-    path: String,
-    method: String,
-    // Every header line but the pseudo-headers, `:authority` as `host`.
-    lines: Vec<(String, String)>,
-}
-
-// One rule for both callouts: rules read `host` whether the request came as HTTP/1 or HTTP/2.
-fn read_request(sent: impl Iterator<Item = (String, String)>) -> ReadRequest {
-    let mut request = ReadRequest {
-        path: "/".to_owned(),
-        method: String::new(),
-        lines: Vec::new(),
-    };
-    let mut authority = None;
-    for (key, value) in sent {
-        match key.as_str() {
-            ":path" => request.path = read_path(&value),
-            ":method" => request.method = value,
-            ":authority" => authority = Some(value),
-            key if key.starts_with(':') => {}
-            _ => request.lines.push((key, value)),
-        }
-    }
-    let has_host = request
-        .lines
-        .iter()
-        .any(|(name, _)| name.eq_ignore_ascii_case("host"));
-    if let (Some(authority), false) = (authority, has_host) {
-        request.lines.push(("host".to_owned(), authority));
-    }
-    request
-}
-
-fn read_value(header: &HeaderValue) -> String {
-    String::from_utf8_lossy(value_of(header)).into_owned()
 }

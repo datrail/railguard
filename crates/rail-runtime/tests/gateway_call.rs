@@ -3,12 +3,13 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use rail_model::policy::Fallback;
-use rail_runtime::{Answer, Call, Gateway, GatewaySettings};
+use rail_runtime::{Answer, Gateway, GatewaySettings};
 use serde_json::json;
 use tokio::time::Instant;
 use tokio::time::timeout;
 
 use crate::bundles::{self, Script};
+use crate::calls::{Call, handle};
 use crate::holder::{TestClock, until};
 use crate::keys;
 use crate::scanning::{SCANNED, scanning, scanning_settings};
@@ -19,7 +20,7 @@ const NAMING_NEW: &str = "eyJhbGciOiAiRWREU0EiLCAia2lkIjogIm5ldyJ9.e30.AAAAAAAAA
 // As `NAMING_NEW`, but `alg: none`.
 const NAMING_NEW_UNSIGNABLE: &str = "eyJhbGciOiAibm9uZSIsICJraWQiOiAibmV3In0.e30.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
-fn call(method: &str, x_rail: Option<&str>) -> Call<String> {
+fn call(method: &str, x_rail: Option<&str>) -> Call {
     Call {
         path: "/mcp".into(),
         method: method.into(),
@@ -84,7 +85,7 @@ async fn with_no_bundle_a_post_takes_the_setting_and_any_other_call_is_forwarded
 
         let sent = call(method, None);
         let arrived = Instant::now();
-        let (answer, back) = started.gateway.handle(sent.clone()).await;
+        let (answer, back) = handle(&started.gateway, sent.clone()).await;
 
         assert_eq!(answer, answered, "{method} {fallback:?}");
         assert_eq!(
@@ -92,7 +93,7 @@ async fn with_no_bundle_a_post_takes_the_setting_and_any_other_call_is_forwarded
             Duration::from_secs(waited),
             "{method} {fallback:?}"
         );
-        assert_eq!(back.body, sent.body);
+        assert_eq!(back, sent.body.as_bytes());
     }
 }
 
@@ -118,11 +119,10 @@ async fn a_body_past_the_cap_is_refused_unjudged_whatever_the_method_and_one_at_
 
     for method in ["POST", "GET"] {
         let sent = past(method);
-        let (answer, back) = started.gateway.handle(sent.clone()).await;
+        let (answer, _) = handle(&started.gateway, sent.clone()).await;
         assert_eq!(answer, Answer::TooLarge, "{method}");
-        assert_eq!(back.body, sent.body);
     }
-    assert_eq!(started.gateway.handle(at_cap).await.0, Answer::Deny);
+    assert_eq!(handle(&started.gateway, at_cap).await.0, Answer::Deny);
     // Reports are sent on a task of their own: only the judged call's arrives.
     started.sink.until_sent(1).await;
     for _ in 0..10 {
@@ -156,7 +156,7 @@ async fn a_key_not_held_is_waited_for_only_where_the_bundle_can_accept_a_signed_
         until(&clock, 31).await;
 
         let arrived = Instant::now();
-        started.gateway.handle(call("POST", x_rail)).await;
+        handle(&started.gateway, call("POST", x_rail)).await;
 
         assert_eq!(
             started.keys.fetched_at().len(),
@@ -172,7 +172,7 @@ async fn a_key_not_held_is_waited_for_only_where_the_bundle_can_accept_a_signed_
 }
 
 // A call `scanning`'s policies are slow to judge.
-fn scanned_call() -> Call<String> {
+fn scanned_call() -> Call {
     Call {
         headers: vec![("x-a".into(), "a".repeat(SCANNED))],
         ..call("POST", None)
@@ -197,18 +197,18 @@ async fn a_call_answered_unjudged_or_dropped_has_its_judgement_stopped() {
         until(&clock, 0).await;
         let huge = scanned_call();
 
-        let handled = started.gateway.handle(huge.clone());
+        let handled = handle(&started.gateway, huge.clone());
         if dropped {
             assert!(timeout(Duration::from_millis(10), handled).await.is_err());
         } else {
             let (answer, back) = handled.await;
             assert_eq!(answer, Answer::CannotApply);
-            assert!(back.headers == huge.headers);
+            assert_eq!(back, huge.body.as_bytes());
         }
 
         // Judged once the slot is free, and reported alone.
         let judged =
-            async { while started.gateway.handle(call("POST", None)).await.0 != Answer::Deny {} };
+            async { while handle(&started.gateway, call("POST", None)).await.0 != Answer::Deny {} };
         let freed = timeout(Duration::from_secs(5), judged).await;
         assert!(freed.is_ok(), "{deadline:?}");
         for _ in 0..100 {
@@ -231,10 +231,10 @@ async fn a_call_with_no_verdict_by_its_deadline_is_refused_at_enforce() {
     until(&clock, 0).await;
 
     // Left unpolled once it holds the slot, so its deadline can't stop its judgement.
-    let mut judged = pin!(started.gateway.handle(scanned_call()));
+    let mut judged = pin!(handle(&started.gateway, scanned_call()));
     let unfinished = timeout(Duration::from_millis(20), judged.as_mut()).await;
     assert!(unfinished.is_err());
-    let (waiting, _) = started.gateway.handle(call("POST", None)).await;
+    let (waiting, _) = handle(&started.gateway, call("POST", None)).await;
     let (judged, _) = judged.await;
 
     assert_eq!(waiting, Answer::CannotApply);
@@ -257,7 +257,7 @@ async fn a_ticket_is_read_at_the_wall_clocks_time() {
         );
         until(&clock, 0).await;
 
-        let (answer, _) = started.gateway.handle(call("POST", Some(x_rail))).await;
+        let (answer, _) = handle(&started.gateway, call("POST", Some(x_rail))).await;
 
         assert_eq!(answer, answered, "{x_rail}");
     }
