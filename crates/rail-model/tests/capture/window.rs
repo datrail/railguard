@@ -3,8 +3,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use rail_model::body::{BodyRead, Unread};
 use rail_model::capture::{Window, compile_plan, parse_plan};
-use rail_model::request::ObservedRequest;
 use serde_json::Value;
+
+use crate::observed;
 
 const PLANS: &str = include_str!("../../../../vectors/capture/plans.json");
 
@@ -19,11 +20,10 @@ fn test_tells_what_a_closed_window_holds() {
     plan["budget"]["max_unsent_windows"] = 3.into();
     let compiled = Arc::new(compile_plan(parse_plan(&plan.to_string()).unwrap()));
     let call = |path: &str| {
-        ObservedRequest::new(
-            b"api.github.com".to_vec(),
-            b"GET".to_vec(),
-            path.as_bytes().to_vec(),
-            Vec::new(),
+        observed(
+            "api.github.com",
+            "GET",
+            path,
             BodyRead::Unread(Unread::NotSent),
             0,
         )

@@ -3,10 +3,11 @@ use rail_model::capture::{
 };
 use rail_model::condition::{DEFAULT_STEP_LIMIT, Refusal};
 use rail_model::request::ObservedRequest;
+use rail_model::request_line::Unmatchable;
 use serde_json::{Map, Value, json};
 
 use super::patch;
-use crate::keep_body;
+use crate::{keep_body, observed};
 
 const PLANS: &str = include_str!("../../../../vectors/capture/plans.json");
 
@@ -14,11 +15,10 @@ fn search_code(arguments: &Value) -> ObservedRequest {
     let body = json!({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
         "params": {"name": "search_code", "arguments": arguments}});
     let body = body.to_string();
-    ObservedRequest::new(
-        b"api.github.com".to_vec(),
-        b"POST".to_vec(),
-        b"/mcp".to_vec(),
-        Vec::new(),
+    observed(
+        "api.github.com",
+        "POST",
+        "/mcp",
         keep_body(body.as_bytes()),
         body.len() as u64,
     )
@@ -91,11 +91,10 @@ fn test_a_record_reads_within_the_budget_its_matching_left() {
         tags.push(json!("x"));
         body.insert("tags".into(), Value::Array(tags));
         let body = Value::Object(body).to_string();
-        ObservedRequest::new(
-            b"hooks.slack.com".to_vec(),
-            b"POST".to_vec(),
-            b"/services/T0ABC".to_vec(),
-            Vec::new(),
+        observed(
+            "hooks.slack.com",
+            "POST",
+            "/services/T0ABC",
             keep_body(body.as_bytes()),
             body.len() as u64,
         )
@@ -120,4 +119,25 @@ fn test_a_record_reads_within_the_budget_its_matching_left() {
         user(&call(tags, members)),
         KeyReading::Path(PathReading::Refused(Refusal::BudgetExceeded))
     );
+}
+
+// The path's bytes as sent: one that isn't UTF-8 matches no entry.
+#[test]
+fn test_reads_a_path_as_sent() {
+    let plans: Value = serde_json::from_str(PLANS).unwrap();
+    let compiled = compile_plan(parse_plan(&plans["plans"]["matching"].to_string()).unwrap());
+    let path = b"/mcp/\xff".to_vec();
+    let host = b"api.github.com".to_vec();
+    let call = ObservedRequest::new(
+        host,
+        b"POST".to_vec(),
+        path,
+        Vec::new(),
+        keep_body(b"{}"),
+        2,
+    );
+    assert!(matches!(
+        compiled.capture(&call).taken,
+        Taken::CatchAll(_, Untaken::Unmatchable(Unmatchable::NotUtf8))
+    ));
 }

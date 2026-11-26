@@ -10,16 +10,16 @@ use crate::request_line::RequestLine;
 
 /// What a condition reads about one call: its ticket's claims (`None` without a usable ticket),
 /// and its request.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub struct Environment<'a> {
     pub(crate) ticket: Option<&'a Map<String, Value>>,
     request: Request<'a>,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 enum Request<'a> {
     Observed(&'a Sources<'a>),
-    /// A sample judged against a bundle: it has no request line and no body.
+    /// A call given as a policy reads it: no request line and no body.
     Sample {
         endpoint: &'a Endpoint,
         headers: &'a Headers,
@@ -35,8 +35,8 @@ impl<'a> Environment<'a> {
         }
     }
 
-    /// For judging a sample call against the policy bundle, given what a policy reads: its ticket
-    /// claims, its endpoint and its headers. A path into its request line or body reads absent.
+    /// For judging a call against the policy bundle given what a policy reads: its ticket claims,
+    /// its endpoint and its headers. Its request line reads absent, its body as not sent.
     pub fn for_judging(
         ticket: Option<&'a Map<String, Value>>,
         endpoint: &'a Endpoint,
@@ -84,8 +84,7 @@ impl<'a> Environment<'a> {
 static NOT_SENT: BodyRead = BodyRead::Unread(Unread::NotSent);
 
 /// What a call's conditions and records read of its request, each built the first time a path
-/// reads it. One per call.
-#[derive(Debug)]
+/// reads it. One per call. No `Debug`, which would print its headers once read.
 pub struct Sources<'r> {
     pub(crate) request: &'r ObservedRequest,
     request_line: OnceCell<RequestLine>,
@@ -93,6 +92,7 @@ pub struct Sources<'r> {
 }
 
 impl<'r> Sources<'r> {
+    /// With nothing read yet.
     pub fn new(request: &'r ObservedRequest) -> Self {
         Self {
             request,

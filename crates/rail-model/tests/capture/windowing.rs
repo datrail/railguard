@@ -9,6 +9,8 @@ use rail_model::request::ObservedRequest;
 use serde_json::Value;
 use uuid::Uuid;
 
+use crate::observed;
+
 const PLANS: &str = include_str!("../../../../vectors/capture/plans.json");
 
 // Each plan's `window_seconds`, by index.
@@ -30,14 +32,7 @@ fn plans() -> [Arc<CompiledPlan>; 2] {
 }
 
 fn call(method: &str, path: &str, why: Unread) -> ObservedRequest {
-    ObservedRequest::new(
-        b"api.github.com".to_vec(),
-        method.as_bytes().to_vec(),
-        path.as_bytes().to_vec(),
-        Vec::new(),
-        BodyRead::Unread(why),
-        0,
-    )
+    observed("api.github.com", method, path, BodyRead::Unread(why), 0)
 }
 
 fn get() -> ObservedRequest {

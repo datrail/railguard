@@ -1,4 +1,4 @@
-//! What an agent's request is read as by every use.
+//! An agent's request as a host received it, and the rules its headers and path are read by.
 
 use std::fmt;
 use std::sync::OnceLock;
@@ -12,13 +12,14 @@ use crate::endpoint::Resolution;
 /// The ticket, for the gateway to check.
 pub const XRAIL: &str = "x-rail";
 
-/// An agent's request as a host received it, before any rewrite: what every use reads of a call.
+/// An agent's request as a host received it, before any rewrite.
 pub struct ObservedRequest {
     /// `:authority` as the agent sent it, before the proxy rewrites it.
     pub(crate) authority: WireText,
     pub(crate) method: WireText,
     /// `:path` as received: the path and its query, never decoded.
     pub(crate) path: WireText,
+    /// The header lines the host passes, in order.
     pub(crate) headers: Vec<(WireText, WireText)>,
     pub(crate) body: BodyRead,
     /// Every byte of the body the host was sent, kept or not.
@@ -76,9 +77,7 @@ impl fmt::Debug for ObservedRequest {
 }
 
 /// Text as read from the wire: its bytes as sent, and as text, those that aren't UTF-8 replaced.
-pub(crate) struct WireText(Form);
-
-enum Form {
+pub(crate) enum WireText {
     Text(String),
     NotText { raw: Vec<u8>, lossy: String },
 }
@@ -86,28 +85,28 @@ enum Form {
 impl From<Vec<u8>> for WireText {
     // Without a copy, unless it isn't UTF-8.
     fn from(bytes: Vec<u8>) -> Self {
-        Self(match String::from_utf8(bytes) {
-            Ok(text) => Form::Text(text),
+        match String::from_utf8(bytes) {
+            Ok(text) => Self::Text(text),
             Err(error) => {
                 let raw = error.into_bytes();
                 let lossy = String::from_utf8_lossy(&raw).into_owned();
-                Form::NotText { raw, lossy }
+                Self::NotText { raw, lossy }
             }
-        })
+        }
     }
 }
 
 impl WireText {
     pub(crate) fn as_bytes(&self) -> &[u8] {
-        match &self.0 {
-            Form::Text(text) => text.as_bytes(),
-            Form::NotText { raw, .. } => raw,
+        match self {
+            Self::Text(text) => text.as_bytes(),
+            Self::NotText { raw, .. } => raw,
         }
     }
 
     pub(crate) fn as_str(&self) -> &str {
-        match &self.0 {
-            Form::Text(text) | Form::NotText { lossy: text, .. } => text,
+        match self {
+            Self::Text(text) | Self::NotText { lossy: text, .. } => text,
         }
     }
 }

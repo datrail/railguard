@@ -1,8 +1,9 @@
-use rail_model::condition::{Budget, Environment, Evaluation, Headers, Refusal, Verdict};
+use rail_model::body::{BodyRead, Unread};
+use rail_model::condition::{Budget, Environment, Evaluation, Headers, Refusal, Sources, Verdict};
 use rail_model::endpoint::Endpoint;
 use rail_model::policy::{
-    Decision, EnforcementMode, JudgingMode, Outcome, Tracer, compile_bundle, judge, judge_traced,
-    parse_bundle,
+    Decision, EnforcementMode, FallbackDenial, JudgingMode, Outcome, Tracer, compile_bundle, judge,
+    judge_traced, parse_bundle,
 };
 use serde_json::{Value, json};
 use uuid::Uuid;
@@ -249,4 +250,34 @@ fn test_traces_only_the_policies_a_binding_allows() {
             Verdict::DoesNotHold
         )]
     );
+}
+
+// A request whose endpoint can't be read, a session message's or a body unread's, is unbound.
+#[test]
+fn test_reads_an_endpoint_not_read_as_unbound() {
+    let bundle = json!({
+        "schema_version": "2.0",
+        "content_hash": "unbound",
+        "enforcement": {"mode": "enforce"},
+        "policies": [],
+        "bindings": [],
+        "binding_fallback": "block",
+        "ticket_fallback": "pass",
+    });
+    let bundle = compile_bundle(&parse_bundle(&bundle.to_string()).unwrap());
+    for body in [
+        crate::keep_body(br#"{"method": "initialize"}"#),
+        BodyRead::Unread(Unread::CutShort),
+    ] {
+        let request = crate::observed("a.test", "POST", "/mcp", body, 0);
+        let sources = Sources::new(&request);
+        let environment = Environment::of(&sources, None);
+        let outcome = judge(
+            &bundle,
+            &environment,
+            JudgingMode::Enforce,
+            &mut Budget::default(),
+        );
+        assert_eq!(outcome.fallback_denials, [FallbackDenial::Binding]);
+    }
 }

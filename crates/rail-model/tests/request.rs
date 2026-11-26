@@ -1,4 +1,5 @@
-use rail_model::request::read_path;
+use rail_model::body::{BodyRead, Unread};
+use rail_model::request::{ObservedRequest, read_path};
 
 #[test]
 fn the_path_is_the_uri_without_its_query_percent_decoded() {
@@ -20,4 +21,24 @@ fn the_path_is_the_uri_without_its_query_percent_decoded() {
     for (uri, path) in cases {
         assert_eq!(read_path(uri), path, "{uri:?}");
     }
+}
+
+// Its path and headers can carry credentials.
+#[test]
+fn test_debugs_a_request_without_its_path_or_headers() {
+    let header = vec![(b"authorization".to_vec(), b"Bearer sk-1".to_vec())];
+    let body = BodyRead::Unread(Unread::NotSent);
+    let request = ObservedRequest::new(
+        b"a.test".to_vec(),
+        b"GET".to_vec(),
+        b"/sk-2".to_vec(),
+        header,
+        body,
+        0,
+    );
+    let debug = format!("{request:?}");
+    assert!(
+        debug.contains("a.test") && !debug.contains("sk-"),
+        "{debug}"
+    );
 }

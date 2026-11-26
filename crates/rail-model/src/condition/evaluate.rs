@@ -358,13 +358,13 @@ fn resolve_request<'a>(
     environment: &Environment<'a>,
     budget: &mut Budget,
 ) -> Result<(Lookup<'a>, Option<tree::Node<'a>>), Refusal> {
-    let request_line = environment.request_line();
+    // Built only for a path into it.
+    let request_line = || environment.request_line();
     let text = |text: Option<&'a str>| {
         text.map_or(Lookup::Absent, |text| Lookup::String(Cow::Borrowed(text)))
     };
     let lookup = match path {
-        RequestPath::Whole => Lookup::Object,
-        RequestPath::Headers => Lookup::Object,
+        RequestPath::Whole | RequestPath::Headers => Lookup::Object,
         RequestPath::EndpointKey => match environment.endpoint() {
             Ok(Some(Endpoint::Resolved(key))) => Lookup::String(Cow::Borrowed(key.as_str())),
             Ok(_) => Lookup::Absent,
@@ -375,18 +375,18 @@ fn resolve_request<'a>(
             Some([value]) => read_value(value),
             Some(values) => Lookup::List(Items::Values(values)),
         },
-        RequestPath::Host => text(request_line.map(RequestLine::host)),
-        RequestPath::Method => text(request_line.map(RequestLine::method)),
-        RequestPath::Path(None) => text(request_line.map(RequestLine::path)),
-        RequestPath::RedactedPath(None) => text(request_line.map(RequestLine::redacted_path)),
+        RequestPath::Host => text(request_line().map(RequestLine::host)),
+        RequestPath::Method => text(request_line().map(RequestLine::method)),
+        RequestPath::Path(None) => text(request_line().map(RequestLine::path)),
+        RequestPath::RedactedPath(None) => text(request_line().map(RequestLine::redacted_path)),
         RequestPath::Path(Some(index)) => {
-            text(request_line.and_then(|line| line.path_segment(*index)))
+            text(request_line().and_then(|line| line.path_segment(*index)))
         }
         RequestPath::RedactedPath(Some(index)) => {
-            text(request_line.and_then(|line| line.redacted_path_segment(*index)))
+            text(request_line().and_then(|line| line.redacted_path_segment(*index)))
         }
         RequestPath::Query { name, index } => match (
-            request_line.map_or(&[][..], |line| line.query_values(name)),
+            request_line().map_or(&[][..], |line| line.query_values(name)),
             index,
         ) {
             (values, Some(index)) => values.get(*index).map_or(Lookup::Absent, read_value),

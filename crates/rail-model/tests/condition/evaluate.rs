@@ -8,7 +8,7 @@ use rail_model::condition::{
 };
 use rail_model::endpoint::Endpoint;
 use rail_model::request::ObservedRequest;
-use serde_json::{Map, Value, json};
+use serde_json::{Value, json};
 
 use crate::keep_body;
 
@@ -185,35 +185,41 @@ fn test_charges_a_key_by_the_members_it_reads() {
 }
 
 // A policy's paths read from the request: its header lines, and its endpoint from its decoded path
-// and its body, which names none unread.
+// and its body: none for a session message, none told for a body unread.
 #[test]
 fn test_reads_a_policys_paths_from_an_observed_request() {
-    let body = keep_body(br#"{"method": "tools/call", "params": {"name": "a"}}"#);
+    let tool = || keep_body(br#"{"method": "tools/call", "params": {"name": "a"}}"#);
     let header = vec![(b"X-A".to_vec(), b"1, 2".to_vec())];
-    let observed = observe(b"/m%63p?x=1", header, body);
-    let unread = observe(b"/mcp", Vec::new(), BodyRead::Unread(Unread::CutShort));
-    let claims = Map::from_iter([("a".to_owned(), json!("b"))]);
-    let evaluate = |request: &ObservedRequest, condition: Value| {
-        let condition: Condition = serde_json::from_value(condition).unwrap();
-        let sources = Sources::new(request);
-        let compiled = compile_condition(&condition, ConditionUse::GatewayPolicy);
-        let environment = Environment::of(&sources, Some(&claims));
-        evaluate_condition(&compiled, &environment, &mut Budget::default()).verdict
-    };
-    for condition in [
-        json!({"path": "ticket.a", "op": "eq", "value": "b"}),
-        json!({"path": "request.headers.x-a", "op": "contains", "value": "2"}),
-        json!({"path": "request.endpoint_key", "op": "eq", "value": "/mcp#tools/call#a"}),
-    ] {
-        assert_eq!(
-            evaluate(&observed, condition.clone()),
+    let session = keep_body(br#"{"method": "initialize"}"#);
+    let unread = BodyRead::Unread(Unread::CutShort);
+    let endpoint = |op, value| json!({"path": "request.endpoint_key", "op": op, "value": value});
+    for (request, condition, verdict) in [
+        (
+            observe(b"/m%63p?x=1", header, tool()),
+            json!({"path": "request.headers.x-a", "op": "contains", "value": "2"}),
             Verdict::Holds,
-            "{condition}"
-        );
+        ),
+        (
+            observe(b"/m%63p?x=1", Vec::new(), tool()),
+            endpoint("eq", json!("/mcp#tools/call#a")),
+            Verdict::Holds,
+        ),
+        (
+            observe(b"/mcp", Vec::new(), session),
+            endpoint("not_existing", Value::Null),
+            Verdict::Holds,
+        ),
+        (
+            observe(b"/mcp", Vec::new(), unread),
+            endpoint("existing", Value::Null),
+            Verdict::BodyUnread(BodyUnread::Unread(Unread::CutShort)),
+        ),
+    ] {
+        let read: Condition = serde_json::from_value(condition.clone()).unwrap();
+        let sources = Sources::new(&request);
+        let compiled = compile_condition(&read, ConditionUse::GatewayPolicy);
+        let environment = Environment::of(&sources, None);
+        let found = evaluate_condition(&compiled, &environment, &mut Budget::default()).verdict;
+        assert_eq!(found, verdict, "{condition}");
     }
-    let endpoint = json!({"path": "request.endpoint_key", "op": "existing"});
-    assert_eq!(
-        evaluate(&unread, endpoint),
-        Verdict::BodyUnread(BodyUnread::Unread(Unread::CutShort))
-    );
 }

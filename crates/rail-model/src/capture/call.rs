@@ -1,5 +1,5 @@
-//! A call as the callout hands it over, matched against a compiled plan, and what the record
-//! counting it, an entry's or the catch-all's, reads of it.
+//! A call matched against a compiled plan, and what the record counting it, an entry's or the
+//! catch-all's, reads of it.
 
 use sha2::{Digest, Sha256};
 
