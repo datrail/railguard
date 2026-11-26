@@ -1,6 +1,5 @@
 //! The proxy's callouts handing calls to capture: each reads what Envoy sent it as its mode tells.
 
-use envoy_types::pb::envoy::config::core::v3::HeaderValue;
 use envoy_types::pb::envoy::extensions::filters::http::ext_proc::v3::processing_mode::BodySendMode;
 use envoy_types::pb::envoy::service::auth::v3::attribute_context::HttpRequest;
 use envoy_types::pb::envoy::service::ext_proc::v3::processing_request::Request;
@@ -12,62 +11,44 @@ use crate::headers::{PARTIAL_BODY, value_of};
 /// ext_authz's call, handed over if capturing: the body is `raw_body` with `pack_as_bytes`, `body`
 /// without.
 pub(crate) fn hand_over(sender: &CaptureSender, http: HttpRequest) {
-    let partial = http
+    // Envoy sends the headers in one of the two, `header_map` when asked for raw headers.
+    let sent = http
         .headers
         .iter()
-        .map(|(name, value)| (name.as_str(), value.as_bytes()))
+        .map(|(name, value)| (name.as_bytes(), value.as_bytes()))
         .chain(
             http.header_map
                 .iter()
                 .flat_map(|map| &map.headers)
-                .map(|header| (header.key.as_str(), value_of(header))),
-        )
-        .any(|(name, value)| name.eq_ignore_ascii_case(PARTIAL_BODY) && value == b"true");
-    let body = if http.raw_body.is_empty() {
+                .map(|header| (header.key.as_bytes(), value_of(header))),
+        );
+    // Envoy sends `:authority` as `host`.
+    let line = [
+        (&b":authority"[..], http.host.as_bytes()),
+        (b":method", http.method.as_bytes()),
+        (b":path", http.path.as_bytes()),
+    ];
+    let Some(mut held) = sender.hold(line.into_iter().chain(sent.clone())) else {
+        return;
+    };
+    let partial = sent.into_iter().any(|(name, value)| {
+        name.eq_ignore_ascii_case(PARTIAL_BODY.as_bytes()) && value == b"true"
+    });
+    // A POST sends a body: none, of a size not known to be 0, is one Envoy wasn't asked to send.
+    let unsent =
+        http.raw_body.is_empty() && http.body.is_empty() && http.method == "POST" && http.size != 0;
+    held.adopt(if http.raw_body.is_empty() {
         http.body.into_bytes()
     } else {
         http.raw_body
-    };
-    // A POST sends a body: none, of a size not known to be 0, is one Envoy wasn't asked to send.
-    let ending = if body.is_empty() && http.method == "POST" && http.size != 0 {
+    });
+    held.finish(if unsent {
         Ending::NotSent
     } else if partial {
         Ending::MayBeCut
     } else {
         Ending::Whole
-    };
-    // Envoy sends `:authority` as `host`, and the headers in one of the two, `header_map` when
-    // asked for raw headers.
-    let line = [
-        (":authority", http.host),
-        (":method", http.method),
-        (":path", http.path),
-    ]
-    .map(|(name, value)| (name.to_owned(), value.into_bytes()));
-    let sent = http
-        .headers
-        .into_iter()
-        .map(|(name, value)| (name, value.into_bytes()))
-        .chain(
-            http.header_map
-                .into_iter()
-                .flat_map(|map| map.headers)
-                .map(owned_value),
-        );
-    if let Some(mut held) = sender.hold(line.into_iter().chain(sent)) {
-        held.adopt(body);
-        held.finish(ending);
-    }
-}
-
-// A header's name and value, as `value_of` reads it, without a copy.
-fn owned_value(header: HeaderValue) -> (String, Vec<u8>) {
-    let value = if header.raw_value.is_empty() {
-        header.value.into_bytes()
-    } else {
-        header.raw_value
-    };
-    (header.key, value)
+    });
 }
 
 /// One ext_proc stream's call for capture, held from its headers until its body ends.
