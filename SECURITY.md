@@ -53,7 +53,7 @@ Anything that gets a call past rail-apigee that its rules refuse:
 A refusal names no policy: 403 for a denial, 503 for a call the rules can't be applied to, and at `enforce` for one not
 judged within 5 s, whose judgement panicked, or past the gateway's 256 MiB memory budget (logged as an error), and in
 any mode for a full-duplex body dropped past that budget. The bodies the gateway keeps, their trees and the headers
-conditions read share those 256 MiB, so many large calls at once can't exhaust its memory. A body past
+conditions read share those 256 MiB, so many large calls at once can't exhaust its memory. A `POST`'s body past
 `RAIL_MAX_BODY_MB`, or cut short (on Envoy: flagged by it, or shorter than its `Content-Length`), is refused unjudged,
 413; on Apigee, so is a request past 4 MiB less 1 KiB. If the callout is down or answers no decision, the reference
 Apigee proxy refuses the call, 503.
@@ -66,7 +66,7 @@ alone. Elsewhere, keep it reachable from Apigee only.
 **Not a report: forwarded unjudged, by design.**
 
 - every call while `RAIL_DISABLED=true`, at enforcement `none`, or at `observe`, which only logs what it would deny;
-- a request other than a `POST`, and a session message (`initialize`, `tools/list`, a notification);
+- a request other than a `POST`, whatever its body, and a session message (`initialize`, `tools/list`, a notification);
 - a call that arrives before the first bundle is held, after waiting 2 s for it, logged as an error;
 - an unsigned ticket, read as it is even where tickets are signed: anything that reaches the gateway can present one, so
   it's only as good as the path from the proxy.

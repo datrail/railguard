@@ -61,6 +61,14 @@ impl Default for GatewaySettings {
     }
 }
 
+/// How the gateway takes a call, decided at its headers.
+pub enum Gathering {
+    /// Judged by `Gateway::handle`, its body gathered into this.
+    Judged(RequestGatherer),
+    /// Forwarded unjudged, its body passed on as it came, unread.
+    Unjudged,
+}
+
 /// The gateway role for a host: each call judged within its deadline, at most
 /// `max_concurrent_judgements` at once.
 pub struct Gateway {
@@ -94,20 +102,24 @@ impl Gateway {
         }
     }
 
-    /// The call whose header lines are `lines`, its body to gather within the cap; a body adopted
-    /// past the budget is kept, to send on.
-    pub fn gather<N, V>(&self, lines: impl IntoIterator<Item = (N, V)>) -> RequestGatherer
+    /// How it takes the call whose header lines are `lines`: judged, its body to gather within the
+    /// cap (a body adopted past the budget kept, to send on), or forwarded unjudged, its body
+    /// unread.
+    pub fn gather<N, V>(&self, lines: impl IntoIterator<Item = (N, V)>) -> Gathering
     where
         N: AsRef<[u8]>,
         V: AsRef<[u8]> + Into<Vec<u8>>,
     {
         let mut gatherer =
             RequestGatherer::keeping_lines(lines, self.settings.max_body_bytes, &self.budget);
+        if !is_judged(&gatherer) {
+            return Gathering::Unjudged;
+        }
         gatherer.keep_past_budget();
         if !self.settings.checks_declared_length {
             gatherer.ignore_declared_length();
         }
-        gatherer
+        Gathering::Judged(gatherer)
     }
 
     /// Whether it's ready, and its state in readiness's words: `held` once a bundle is, else
@@ -119,9 +131,9 @@ impl Gateway {
         }
     }
 
-    /// What to do with the call `gatherer` gathered, its body ended as `ending`, by its deadline,
-    /// and its body back for the host to send on. Only a `POST` is judged, and no call whose body
-    /// is past `max_body_bytes`, cut short, or dropped past the memory budget is forwarded.
+    /// What to do with the judged call `gatherer` gathered, its body ended as `ending`, by its
+    /// deadline, and its body back for the host to send on. No call whose body is past
+    /// `max_body_bytes`, cut short, or dropped past the memory budget is forwarded.
     pub async fn handle(&self, gatherer: RequestGatherer, ending: BodyEnding) -> (Answer, Vec<u8>) {
         let call = Arc::new(gatherer.finish(ending));
         let answer = self.answer(&call).await;
@@ -152,7 +164,6 @@ impl Gateway {
                 tracing::warn!(bytes, "refused unjudged: the host sent part of the body");
                 return Answer::TooLarge;
             }
-            _ if call.method() != "POST" => return Answer::Forward,
             // Logged by its host where it wasn't configured to send it, not where it declared a length.
             BodyRead::Unread(Unread::NotSent) => return Answer::CannotApply,
             BodyRead::Whole(_) => {}
@@ -240,4 +251,9 @@ fn epoch_seconds(now: SystemTime) -> i64 {
         Ok(since) => i64::try_from(since.as_secs()).unwrap_or(i64::MAX),
         Err(before) => -i64::try_from(before.duration().as_secs()).unwrap_or(i64::MAX),
     }
+}
+
+// The one rule for which calls are judged: for now, an MCP message's `POST`.
+fn is_judged(gatherer: &RequestGatherer) -> bool {
+    gatherer.method() == b"POST"
 }

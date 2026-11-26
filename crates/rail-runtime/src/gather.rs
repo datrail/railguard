@@ -111,6 +111,10 @@ impl RequestGatherer {
         self.declared = None;
     }
 
+    pub(crate) fn method(&self) -> &[u8] {
+        &self.method
+    }
+
     pub(crate) fn keep_past_budget(&mut self) {
         self.body.keep_past_budget();
     }

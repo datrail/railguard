@@ -441,7 +441,7 @@ async fn with_rail_center_enabled_a_request_whose_answer_apigee_could_not_take_i
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn with_rail_center_enabled_a_body_past_the_cap_set_is_refused_without_waiting() {
+async fn with_rail_center_enabled_a_judged_body_past_the_cap_set_is_refused_without_waiting() {
     let port = free_port();
     let mut command = with_rail_center(port, "http://127.0.0.1:1");
     command.env("RAIL_MAX_BODY_MB", "1");
@@ -458,4 +458,17 @@ async fn with_rail_center_enabled_a_body_past_the_cap_set_is_refused_without_wai
 
     assert_eq!(flow(&refused, "rail.status").as_deref(), Some("413"));
     assert!(sent.elapsed() < Duration::from_secs(1));
+
+    // Not judged, a call of another method goes on with its content as it came, past the cap too.
+    let past = "a".repeat(1024 * 1024 + 1);
+    let mut put = call(&past);
+    put.request.as_mut().unwrap().verb = "PUT".to_owned();
+    let forwarded = client(port)
+        .await
+        .process_message(put)
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(flow(&forwarded, "rail.decision").as_deref(), Some("allow"));
+    assert_eq!(forwarded.request.unwrap().content, past);
 }

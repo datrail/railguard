@@ -5,7 +5,7 @@ use std::time::Duration;
 use rail_runtime::{Answer, BodyEnding, Gateway, GatewaySettings};
 
 use crate::bundles::{self, Script};
-use crate::calls::{Call, call, handle, scanned_call};
+use crate::calls::{Call, call, handle, judged_post, scanned_call};
 use crate::holder::{TestClock, until};
 use crate::keys;
 use crate::logs::{Logs, lines_with};
@@ -56,7 +56,7 @@ async fn a_body_dropped_past_the_memory_budget_is_an_error() {
     let logs = Logs::default();
     let _logging = logs.capture();
     let gateway = holding_nothing(&TestClock::new(), 512 << 20);
-    let mut gatherer = gateway.gather([(":method", "POST"), (":path", "/mcp")]);
+    let mut gatherer = judged_post(&gateway);
     // Zeroed lazily, so it takes no memory until read.
     gatherer.adopt(vec![0; 257 << 20]);
     gatherer.adopt(b"0".to_vec());

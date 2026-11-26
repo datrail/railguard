@@ -45,7 +45,7 @@ pub use config::{
 };
 pub use denial::{Denial, DenialReporter, DenialSink, DeniedBy, RailCenterDenials};
 pub use gateway::{Answer, UnitSettings};
-pub use gateway_call::{Gateway, GatewaySettings};
+pub use gateway_call::{Gateway, GatewaySettings, Gathering};
 pub use gateway_start::start_gateway;
 pub use gather::{BodyEnding, RequestGatherer};
 pub use key_set::{KeySet, KeySetHolder, KeySource, RailCenterKeys};

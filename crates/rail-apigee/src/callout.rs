@@ -9,7 +9,7 @@ use std::sync::Arc;
 use apigee_callout_proto::apigee::external_callout_service_server::ExternalCalloutService;
 use apigee_callout_proto::apigee::{FlowVariable, MessageContext, Strings, flow_variable};
 use prost::Message;
-use rail_runtime::{Answer, BodyEnding, Gateway, XRAIL, is_withheld_header};
+use rail_runtime::{Answer, BodyEnding, Gateway, Gathering, XRAIL, is_withheld_header};
 
 // The flow variables the Apigee proxy reads.
 const DECISION: &str = "rail.decision";
@@ -70,14 +70,19 @@ impl ExternalCalloutService for Callout {
                         .iter()
                         .map(move |value| (name.as_str(), value.as_str()))
                 });
-                let mut gatherer = gateway.gather(line.into_iter().chain(items));
-                // Moved in and back out: it can be up to 4 MiB.
-                gatherer.adopt(std::mem::take(&mut request.content).into_bytes());
-                let (answer, content) = gateway.handle(gatherer, BodyEnding::Whole).await;
-                // It came as a `String`, so it's UTF-8; empty for a body refused past the cap: nothing
-                // is forwarded.
-                request.content = String::from_utf8(content).unwrap_or_default();
-                answer
+                match gateway.gather(line.into_iter().chain(items)) {
+                    // Its content goes back as it came.
+                    Gathering::Unjudged => Answer::Forward,
+                    Gathering::Judged(mut gatherer) => {
+                        // Moved in and back out: it can be up to 4 MiB.
+                        gatherer.adopt(std::mem::take(&mut request.content).into_bytes());
+                        let (answer, content) = gateway.handle(gatherer, BodyEnding::Whole).await;
+                        // It came as a `String`, so it's UTF-8; empty for a body refused past the
+                        // cap: nothing is forwarded.
+                        request.content = String::from_utf8(content).unwrap_or_default();
+                        answer
+                    }
+                }
             }
             None => Answer::Forward,
         };

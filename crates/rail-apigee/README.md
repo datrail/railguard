@@ -34,8 +34,8 @@ every name holding `_` (some upstreams read it as `-`), and the flow variable `r
 - **A refusal names no policy.** 403 `{"error": "denied by policy"}` for a call the rules deny, 503
   `{"error": "policy ruleset cannot be applied"}` for one they can't be applied to, so a caller can't map the rules one
   attempt at a time.
-- **A body past `RAIL_MAX_BODY_MB` is refused unjudged,** 413 `{"error": "request body too large"}`, with a warning
-  logged; it isn't reported.
+- **A `POST` whose body is past `RAIL_MAX_BODY_MB` is refused unjudged,** 413 `{"error": "request body too large"}`,
+  with a warning logged; it isn't reported.
 - **Answers within 5 s** of the request's arrival. A call not judged by then is logged as an error: refused at
   `enforce`, 503, as one the rules can't be applied to; forwarded at `observe` and `none`.
 - **Fails closed when it's down,** with the proxy below: a callout that's down, times out or answers without a decision

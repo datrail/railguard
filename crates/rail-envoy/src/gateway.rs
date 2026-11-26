@@ -18,7 +18,7 @@ use envoy_types::pb::envoy::service::ext_proc::v3::{
     TrailersResponse,
 };
 use envoy_types::pb::envoy::r#type::v3::HttpStatus;
-use rail_runtime::{Answer, BodyEnding, Gateway, RequestGatherer, withheld_headers};
+use rail_runtime::{Answer, BodyEnding, Gateway, Gathering, RequestGatherer, withheld_headers};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
@@ -55,17 +55,19 @@ impl Authorization for GatewayCallouts {
         let removed = withheld_headers(check_lines(&http).map(|(name, _)| name));
         let answer = match &self.gateway {
             None => Answer::Forward,
-            Some(gateway) => {
-                let mut gatherer = gateway.gather(check_lines(&http));
-                let (body, ending) = take_body(&mut http);
-                if ending == BodyEnding::NotSent {
-                    tracing::error!(
-                        "refused unjudged: Envoy sent no body; its ext_authz filter needs with_request_body"
-                    );
+            Some(gateway) => match gateway.gather(check_lines(&http)) {
+                Gathering::Unjudged => Answer::Forward,
+                Gathering::Judged(mut gatherer) => {
+                    let (body, ending) = take_body(&mut http);
+                    if ending == BodyEnding::NotSent {
+                        tracing::error!(
+                            "refused unjudged: Envoy sent no body; its ext_authz filter needs with_request_body"
+                        );
+                    }
+                    gatherer.adopt(body);
+                    gateway.handle(gatherer, ending).await.0
                 }
-                gatherer.adopt(body);
-                gateway.handle(gatherer, ending).await.0
-            }
+            },
         };
         let response = match answer.refusal() {
             None => {
@@ -264,13 +266,20 @@ impl Exchange {
         }
         let sent = process_lines(&headers);
         let removed = withheld_headers(sent.clone().map(|(name, _)| name));
-        let Some(gateway) = self.gateway.clone() else {
-            // Disabled: nothing to judge, so nothing to gather.
+        let judged = self
+            .gateway
+            .clone()
+            .and_then(|gateway| match gateway.gather(sent) {
+                Gathering::Judged(gatherer) => Some((gateway, gatherer)),
+                Gathering::Unjudged => None,
+            });
+        let Some((gateway, gatherer)) = judged else {
+            // Disabled, or a call it doesn't judge: nothing to gather.
             self.stage = Stage::Passing;
             return Answers::Now(vec![headers_response(removed)]);
         };
         let pending = Pending {
-            gatherer: gateway.gather(sent),
+            gatherer,
             gateway,
             removed,
         };

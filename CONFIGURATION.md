@@ -131,7 +131,7 @@ The largest request body judged or captured, in MiB, as sent (an encoded body is
 - **Accepted:** `1` to `100`, a whole number of MiB; in `rail-envoy`, below `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`, since a
   buffered body arrives as one message.
 - **Read by:** both hosts, `rail-envoy` in either role.
-- **In the gateways, past it, a call is refused unjudged,** 413 `{"error": "request body too large"}`, with a warning
+- **In the gateways, past it, a `POST` is refused unjudged,** 413 `{"error": "request body too large"}`, with a warning
   logged, and isn't reported; with `RAIL_DISABLED=true`, nothing is judged, and this isn't applied. Apigee's own limits
   come first: past 4 MiB less 1 KiB rail-apigee refuses a request (above), and past 10 MB Apigee answers 413 itself, so
   a value of 4 or more is logged with the limit in force. In `rail-envoy`, a body streamed in full duplex is refused as

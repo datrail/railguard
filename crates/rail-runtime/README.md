@@ -15,10 +15,11 @@ behave the same. See the [main README](../../README.md) for the system around it
   signing keys, the ticket and the capture plan through Rail Center failures, refreshed on a jittered period: backing
   off after a failure that may pass, and after a refusal too while nothing is held, or at any time for the keys and the
   ticket, which lapse.
-- **The gateway:** `Gateway::gather` starts a call's `RequestGatherer`, keeping its header lines and its body within
-  `RAIL_MAX_BODY_MB`; `Gateway::handle` judges the request gathered against the bundle held, by its deadline: forward
-  it, deny it (403), refuse it as one the rules can't apply to (503), or one past the cap or cut short (413), and hands
-  its body back to send on. `DenialReporter` reports each denial without the call waiting.
+- **The gateway:** `Gateway::gather` decides at a call's headers whether it's judged (a `POST`, for now): a judged
+  call's `RequestGatherer` keeps its header lines and its body within `RAIL_MAX_BODY_MB`, and any other goes on
+  unjudged, its body never gathered; `Gateway::handle` judges the request gathered against the bundle held, by its
+  deadline: forward it, deny it (403), refuse it as one the rules can't apply to (503), or one past the cap or cut short
+  (413), and hands its body back to send on. `DenialReporter` reports each denial without the call waiting.
 - **The proxy:** `XRailHeaders` are the proxy's changes to a request, for a protected host or any other.
   `CallRecordReporter` sends each closed capture window holding a call or a drop to Rail Center as its call record
   document, oldest first, one at a time, retrying with a backoff; an empty window isn't sent, and a document Rail Center
