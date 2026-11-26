@@ -45,14 +45,26 @@ pub struct Response {
     pub body: Vec<u8>,
 }
 
-/// A JSON body as it's posted: gzipped past 10 KiB, once, so each attempt sends the same bytes.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// A JSON body as it's posted: gzipped past 10 KiB. Kept, its retries send the same bytes.
+#[derive(Clone)]
 pub struct PostBody {
     bytes: Vec<u8>,
     gzipped: bool,
 }
 
+// Its size, not its bytes, which a call's values fill.
+impl fmt::Debug for PostBody {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("PostBody")
+            .field("bytes", &self.bytes.len())
+            .field("gzipped", &self.gzipped)
+            .finish()
+    }
+}
+
 impl PostBody {
+    /// `json`, gzipped if it's past 10 KiB.
     pub fn new(json: Vec<u8>) -> Self {
         if json.len() <= GZIP_PAST_BYTES {
             return Self {

@@ -1,6 +1,3 @@
-use std::io::Read;
-
-use flate2::read::GzDecoder;
 use rail_model::condition::Refusal;
 use rail_model::endpoint::Endpoint;
 use rail_model::policy::{ChainOutcome, Decision, FallbackDenial, Outcome, TicketState};
@@ -8,7 +5,7 @@ use rail_runtime::{Denial, DenialSink, DeniedBy, RailCenterDenials};
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 
-use crate::common::{Reply, assert_posted, client, response, serve};
+use crate::common::{Reply, assert_posted, assert_posted_gzipped, client, response, serve};
 use crate::sink::{POLICY, Sink, denial, valid};
 
 const TICKET_ID: &str = "0d9b6f3c-8a52-4e1f-9c7a-2b3e4f5a6b7c";
@@ -269,10 +266,5 @@ async fn a_large_report_is_posted_gzipped() {
     let json = serde_json::to_vec(&json!({"claimed_status": "x".repeat(64 * 1024)})).unwrap();
     sink.send(json.clone()).await.unwrap();
 
-    let request = server.requests.lock().unwrap()[0].to_ascii_lowercase();
-    assert!(request.contains("content-encoding: gzip\r\n"), "{request}");
-    let body = server.bodies.lock().unwrap()[0].clone();
-    let mut sent = Vec::new();
-    GzDecoder::new(&body[..]).read_to_end(&mut sent).unwrap();
-    assert_eq!(sent, json);
+    assert_posted_gzipped(&server, "/v1/denials", &json);
 }

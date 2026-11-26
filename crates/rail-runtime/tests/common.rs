@@ -2,9 +2,11 @@
 // Shared by both test binaries, and each uses only part of it.
 #![allow(dead_code)]
 
+use std::io::Read;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use flate2::read::GzDecoder;
 use rail_runtime::{RailCenterClient, RailCenterSettings, Refused, Settings, read_rail_center};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -35,7 +37,7 @@ pub struct Server {
 
 // Where `read_head` keeps what it reads.
 #[derive(Clone, Default)]
-pub struct Seen {
+struct Seen {
     requests: Arc<Mutex<Vec<String>>>,
     bodies: Arc<Mutex<Vec<Vec<u8>>>>,
 }
@@ -62,7 +64,7 @@ pub async fn serve(reply: impl Fn(usize) -> Reply + Send + Sync + 'static) -> Se
     }
 }
 
-pub async fn answer(mut stream: TcpStream, reply: Reply, seen: &Seen) {
+async fn answer(mut stream: TcpStream, reply: Reply, seen: &Seen) {
     if !read_head(&mut stream, seen).await {
         return;
     }
@@ -159,8 +161,30 @@ pub fn client(url: &str) -> RailCenterClient {
     RailCenterClient::new(&settings(url, Some(TOKEN))).unwrap()
 }
 
-/// Asserts `server` was sent one request, posting `body` as JSON to `route` with the credential.
+/// Asserts `server` was sent one request, posting `body` as JSON to `route` with the credential,
+/// as it is.
 pub fn assert_posted(server: &Server, route: &str, body: &str) {
+    let request = posted_head(server, route);
+    assert!(!request.contains("content-encoding"), "{request}");
+    assert!(request.ends_with(body), "{request}");
+}
+
+/// As `assert_posted`, `json` sent gzipped.
+pub fn assert_posted_gzipped(server: &Server, route: &str, json: &[u8]) {
+    let request = posted_head(server, route);
+    assert!(request.contains("content-encoding: gzip\r\n"), "{request}");
+    assert_eq!(gunzip(&server.bodies.lock().unwrap()[0]), json);
+}
+
+pub fn gunzip(bytes: &[u8]) -> Vec<u8> {
+    let mut json = Vec::new();
+    GzDecoder::new(bytes).read_to_end(&mut json).unwrap();
+    json
+}
+
+// The one request `server` was sent, lowercased, checked as a JSON `POST` to `route` with the
+// credential.
+fn posted_head(server: &Server, route: &str) -> String {
     let requests = server.requests.lock().unwrap().clone();
     assert_eq!(requests.len(), 1, "{requests:?}");
     let request = requests[0].to_ascii_lowercase();
@@ -170,5 +194,5 @@ pub fn assert_posted(server: &Server, route: &str, body: &str) {
         "authorization: bearer {}\r\n",
         TOKEN.to_ascii_lowercase()
     )));
-    assert!(request.ends_with(body), "{request}");
+    request
 }

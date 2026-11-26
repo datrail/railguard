@@ -2,10 +2,8 @@
 // Shared by both test binaries, and each uses only part of it.
 #![allow(dead_code)]
 
-use std::io::Read;
 use std::sync::{Arc, Mutex};
 
-use flate2::read::GzDecoder;
 use rail_model::body::{BodyRead, Unread};
 use rail_model::capture::{ClosedWindow, Window, compile_plan, parse_plan};
 use rail_runtime::{CallRecordReporter, CallRecordSink, FetchError, Jitter, PostBody};
@@ -16,6 +14,7 @@ use tokio::sync::Semaphore;
 
 use crate::capture_plans::{hash, plan};
 use crate::captures::{post, to_catch_all};
+use crate::common::gunzip;
 use crate::holder::TestClock;
 use crate::scripted::{Answer, Script, answer};
 
@@ -89,9 +88,7 @@ pub fn document(body: &PostBody) -> Value {
     if !body.is_gzipped() {
         return serde_json::from_slice(body.bytes()).unwrap();
     }
-    let mut json = Vec::new();
-    GzDecoder::new(body.bytes()).read_to_end(&mut json).unwrap();
-    serde_json::from_slice(&json).unwrap()
+    serde_json::from_slice(&gunzip(body.bytes())).unwrap()
 }
 
 pub fn accepted() -> Answer {

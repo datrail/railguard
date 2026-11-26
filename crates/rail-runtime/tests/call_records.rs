@@ -1,9 +1,7 @@
-use std::io::Read;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, UNIX_EPOCH};
 
-use flate2::read::GzDecoder;
 use rail_runtime::{
     CallRecordReporter, CallRecordSink, Jitter, PostBody, RailCenterCallRecords, WallClock,
 };
@@ -14,7 +12,7 @@ use tokio::runtime::Handle;
 use crate::call_record_center::{
     Center, accepted, calls, dropped, large_window, window, window_of, windows,
 };
-use crate::common::{Reply, assert_posted, client, response, serve};
+use crate::common::{Reply, assert_posted, assert_posted_gzipped, client, response, serve};
 use crate::holder::{TestClock, until};
 use crate::scripted::{answer, failed};
 
@@ -61,7 +59,11 @@ async fn a_failed_send_is_retried_with_the_same_bytes_backing_off_until_one_is_t
     let bodies = center.bodies();
     // Gzipped once: each retry sends the first attempt's bytes.
     assert!(bodies[0].is_gzipped());
-    assert!(bodies[..4].iter().all(|body| *body == bodies[0]));
+    assert!(
+        bodies[..4]
+            .iter()
+            .all(|body| body.bytes() == bodies[0].bytes())
+    );
     let documents = center.documents();
     assert_ne!(documents[4]["document_id"], documents[0]["document_id"]);
 }
@@ -137,7 +139,7 @@ async fn the_one_in_flight_is_never_dropped() {
 
     assert_eq!(center.sent_at(), [0, 7]);
     let bodies = center.bodies();
-    assert_eq!(bodies[1], bodies[0]);
+    assert_eq!(bodies[1].bytes(), bodies[0].bytes());
 }
 
 #[tokio::test(start_paused = true)]
@@ -285,8 +287,6 @@ async fn a_document_is_posted_to_rail_center_with_the_credential_and_read_by_its
         .await;
 
     assert_posted(&server, "/v1/call-records", r#"{"window": "x"}"#);
-    let request = server.requests.lock().unwrap()[0].to_ascii_lowercase();
-    assert!(!request.contains("content-encoding"), "{request}");
     assert_eq!(answer.unwrap(), StatusCode::ACCEPTED);
 }
 
@@ -300,10 +300,5 @@ async fn a_large_document_is_posted_gzipped() {
     let answer = sink.send(PostBody::new(json.clone())).await;
 
     assert_eq!(answer.unwrap(), StatusCode::ACCEPTED);
-    let request = server.requests.lock().unwrap()[0].to_ascii_lowercase();
-    assert!(request.contains("content-encoding: gzip\r\n"), "{request}");
-    let body = server.bodies.lock().unwrap()[0].clone();
-    let mut sent = Vec::new();
-    GzDecoder::new(&body[..]).read_to_end(&mut sent).unwrap();
-    assert_eq!(sent, json);
+    assert_posted_gzipped(&server, "/v1/call-records", &json);
 }
