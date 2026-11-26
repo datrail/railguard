@@ -5,13 +5,13 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use rail_model::body::mcp::{McpReading, read_endpoint};
-use rail_model::condition::{Budget, DEFAULT_STEP_LIMIT, Environment, Headers};
+use rail_model::condition::{Budget, DEFAULT_STEP_LIMIT, Environment};
 use rail_model::endpoint::{Endpoint, Resolution};
 use rail_model::policy::{
     Decision, DecodedTicket, JudgingMode, Outcome, SignedTicketConfig, TicketState, decode_ticket,
     judge,
 };
-use rail_model::request::XRAIL;
+use rail_model::request::{Headers, XRAIL};
 
 use crate::bundle_holder::HeldBundle;
 use crate::denial::{Denial, DeniedBy, ticket_state};

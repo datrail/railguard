@@ -1,13 +1,14 @@
 //! An agent's request as a host received it, and the rules its headers and path are read by.
 
+use std::collections::BTreeMap;
 use std::fmt;
 use std::sync::OnceLock;
 
 use percent_encoding::percent_decode_str;
+use serde_json::Value;
 
 use crate::body::mcp::read_endpoint;
 use crate::body::{BodyRead, Unread};
-use crate::condition::Headers;
 use crate::endpoint::Resolution;
 use crate::request_line::RequestLine;
 
@@ -155,5 +156,36 @@ pub fn read_path(uri: &str) -> String {
         "/".to_owned()
     } else {
         path.into_owned()
+    }
+}
+
+/// A call's headers as conditions read them: names lowercased, every value split on commas.
+/// Held as JSON strings, so a header's values read like a list in the ticket.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Headers(BTreeMap<String, Vec<Value>>);
+
+impl Headers {
+    /// From each line as sent, in order. Lines sharing a name pool their parts.
+    pub fn from_lines<N, V>(lines: impl IntoIterator<Item = (N, V)>) -> Self
+    where
+        N: AsRef<str>,
+        V: AsRef<str>,
+    {
+        let mut headers: BTreeMap<String, Vec<Value>> = BTreeMap::new();
+        for (name, value) in lines {
+            let parts = headers.entry(name.as_ref().to_lowercase()).or_default();
+            // Differs from Rail Center's `strip` only on control characters a header value can't hold.
+            parts.extend(
+                value
+                    .as_ref()
+                    .split(',')
+                    .map(|part| Value::String(part.trim().to_string())),
+            );
+        }
+        Self(headers)
+    }
+
+    pub(crate) fn get(&self, name: &str) -> Option<&[Value]> {
+        self.0.get(name).map(Vec::as_slice)
     }
 }

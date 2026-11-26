@@ -3,11 +3,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use rail_model::body::BodyRead;
 use rail_model::condition::{
-    Budget, Condition, ConditionUse, Environment, Headers, Predicate, Refusal, Verdict,
-    compile_condition, evaluate_condition,
+    Budget, Condition, ConditionUse, Environment, Predicate, Refusal, Verdict, compile_condition,
+    evaluate_condition,
 };
 use rail_model::endpoint::Endpoint;
-use rail_model::request::ObservedRequest;
+use rail_model::request::{Headers, ObservedRequest};
 use serde_json::{Value, json};
 
 use crate::{keep_body, observed};

@@ -10,9 +10,9 @@ use super::value::{Bytes, decode_unread, keep};
 use super::{DEFAULT_BYTE_BUDGET, read_written};
 use crate::body::BodyRead;
 use crate::capture::capture_environment;
-use crate::condition::{Environment, Headers};
+use crate::condition::Environment;
 use crate::endpoint::Endpoint;
-use crate::request::ObservedRequest;
+use crate::request::{Headers, ObservedRequest};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]

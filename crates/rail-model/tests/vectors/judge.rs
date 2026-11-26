@@ -1,8 +1,9 @@
-use rail_model::condition::{Budget, Environment, Headers};
+use rail_model::condition::{Budget, Environment};
 use rail_model::endpoint::Endpoint;
 use rail_model::policy::{
     Decision, EnforcementMode, FallbackDenial, Outcome, compile_bundle, judge, parse_bundle,
 };
+use rail_model::request::Headers;
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 

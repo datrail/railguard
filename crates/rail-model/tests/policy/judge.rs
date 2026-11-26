@@ -1,10 +1,11 @@
 use rail_model::body::{BodyRead, Unread};
-use rail_model::condition::{Budget, Environment, Evaluation, Headers, Refusal, Verdict};
+use rail_model::condition::{Budget, Environment, Evaluation, Refusal, Verdict};
 use rail_model::endpoint::Endpoint;
 use rail_model::policy::{
     Decision, EnforcementMode, FallbackDenial, JudgingMode, Outcome, Tracer, compile_bundle, judge,
     judge_traced, parse_bundle,
 };
+use rail_model::request::Headers;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
