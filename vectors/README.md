@@ -57,6 +57,7 @@ the call, and a window writes them.
 | `capture/matching.json`     | 8. A plan compiled, and the record taking a call             | `plan`; `entries`; `call`                                                                                 | `refused` entries, `entries_skipped`, `taken`                                                                                                      |
 | `capture/window.json`       | 9. A window's calls, closed into its document                | `plan`; `entries`; `start`, `end`; `calls`, each at a time; `calls_dropped`; `sent`, the sender's values  | the whole document                                                                                                                                 |
 | `capture/windowing.json`    | 10. Windowing over chosen times                              | `plans`, those its events name; `events`                                                                  | each event's output                                                                                                                                |
+| `authority.json`            | An authority read                                            | `authority`                                                                                               | `host`, `port`, `null` for none                                                                                                                    |
 | `redaction.json`            | A path redacted                                              | `path`                                                                                                    | `redacted`                                                                                                                                         |
 | `policy/bundle.json`        | A bundle read                                                | `bundle`                                                                                                  | `usable`; a usable one's `chain`, its enabled policies in evaluation order, and their `chain_priorities`                                           |
 | `policy/judge.json`         | A call judged against a bundle: the fallbacks, then the walk | `bundle`, `mode`, `endpoint`, `ticket`, `headers`                                                         | `expect.fallbacks`, those that deny, in the order asked; `expect.chain`, the walk's verdict                                                        |
@@ -136,7 +137,7 @@ Layer 9's `sent` is what the sender gives the document: `document_id`, `generate
   the value is looked at.
 - **What stays a Rust test,** not a vector: the Rust API (types, sharing, never panicking); this reader's own limits'
   arithmetic (a vector pins a boundary's outcome, not its charges); invariants over generated inputs; log lines and an
-  error's wording; layers below these (the body's tree, the authority's splitting), but where a layer above reads their
+  error's wording; layers below these (the body's tree, an authority refused), but where a layer above reads their
   outcome; the step budget shared by matching and its record, and a walk stopped by it, since layer 8 takes no step
   limit.
 
@@ -144,6 +145,10 @@ Layer 9's `sent` is what the sender gives the document: `document_id`, `generate
 
 What changed on the way:
 
+- **`authority.json`:** RailMon's host spelling (`schemas/vectors/destination-hosts.json`, datrail/railmon#173 at
+  `3c9cb74`), each case given the `port` this reader keeps beside the host; a `port-dropped` id means dropped from the
+  host, the port still read. Like the source, only authorities every reader accepts: what this reader refuses, RailMon
+  reads as a host, so those stay a Rust test.
 - **`redaction.json`:** RailMon's rule (`asp_redaction`, `REDACTION_VERSION` 1), its tests written as paths; a change to
   the rule updates both. Shapes whose shortest key is 20 characters or more are redacted by length here, whatever their
   shape.

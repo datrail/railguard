@@ -42,7 +42,7 @@ By module:
   **`Resolution`**, whether a message is judged at all.
 - **`agent`:** **`AgentId`**, which agent a host serves, as Rail Center names it: its tickets are fetched for it, and a
   capture plan names it.
-- **`authority`:** **`split_authority`** reads a host and port from an `:authority`, spelled one way wherever a host is
+- **`authority`:** **`parse_authority`** reads a host and port from an `:authority`, spelled one way wherever a host is
   compared.
 - **`body`:** **`BodyBuffer`** keeps a body as it arrives, up to a cap and within a **`ByteBudget`** every kept body
   shares, as a **`RequestBody`**: read once into a JSON tree (**`json`**, walked with `tree::Node`, a walk finding a
@@ -81,7 +81,7 @@ By module:
 - **`timestamp`:** **`Timestamp`**, a moment as Rail Center's documents write one: RFC 3339 in UTC, `Z`, to the
   nanosecond the clock gives.
 - **`request_line`:** **`RequestLine::read`** reads a call's `:authority`, `:method` and `:path` once, as conditions
-  read them under `request`: the host as `split_authority` spells it, or `[unparseable]`; the path up to its query or
+  read them under `request`: the host as `parse_authority` spells it, or `[unparseable]`; the path up to its query or
   fragment (`/` for a `CONNECT`), as received and redacted, its segments, and its query, read as a form's. It also tells
   why a path can match no capture plan entry (**`unmatchable`**), and what a call record reports of the call
   (**`host_reading`**, **`reported_method`**, **`path_prefix`**).
