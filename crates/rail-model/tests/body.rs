@@ -33,11 +33,12 @@ fn test_keeps_a_body_up_to_its_cap_counting_every_byte() {
     assert_eq!(past.finish().unwrap_err(), Unkept::PastCap);
 }
 
-// Without a copy, its capacity charged; after a chunk, appended.
+// Without a copy, its capacity charged; after one, even empty, appended.
 #[test]
 fn test_adopts_a_body_as_appending_it_would() {
     let budget = ByteBudget::new(8);
     let mut first = BodyBuffer::new(5, &budget);
+    first.adopt(Vec::with_capacity(1));
     first.adopt(b"abc".to_vec());
     first.adopt(b"de".to_vec());
     assert_eq!(first.finish().unwrap().as_bytes(), b"abcde");

@@ -18,7 +18,7 @@ use tokio::time::sleep;
 use crate::call_record::CallRecordReporter;
 use crate::capture_plan_holder::CapturePlanHolder;
 use crate::clock::WallClock;
-use crate::gather::{Ending, RequestGatherer};
+use crate::gather::{BodyEnding, RequestGatherer};
 use crate::runtime_thread::RuntimeThread;
 
 // Calls waiting for the capture task: past it, a call is dropped and counted.
@@ -71,7 +71,7 @@ pub struct CaptureSender {
 }
 
 /// A call held for capture from its headers until its host sees its body end; dropped first, it's
-/// handed over cut short.
+/// handed over as its stream ending first: `BodyEnding::CutShort`.
 pub struct HeldRequest {
     // Taken when handed over.
     gatherer: Option<RequestGatherer>,
@@ -163,7 +163,7 @@ impl HeldRequest {
     }
 
     /// Hands the call over, its body as `ending` tells.
-    pub fn finish(mut self, ending: Ending) {
+    pub fn finish(mut self, ending: BodyEnding) {
         if let Some(gatherer) = self.gatherer.take() {
             self.sender.send(gatherer.finish(ending));
         }
@@ -173,7 +173,7 @@ impl HeldRequest {
 impl Drop for HeldRequest {
     fn drop(&mut self) {
         if let Some(gatherer) = self.gatherer.take() {
-            self.sender.send(gatherer.finish_dropped());
+            self.sender.send(gatherer.finish(BodyEnding::CutShort));
         }
     }
 }

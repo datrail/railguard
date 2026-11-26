@@ -4,7 +4,7 @@ use envoy_types::pb::envoy::extensions::filters::http::ext_proc::v3::processing_
 use envoy_types::pb::envoy::service::auth::v3::attribute_context::HttpRequest;
 use envoy_types::pb::envoy::service::ext_proc::v3::processing_request::Request;
 use envoy_types::pb::envoy::service::ext_proc::v3::{HttpBody, HttpHeaders, ProtocolConfiguration};
-use rail_runtime::{CaptureSender, Ending, HeldRequest};
+use rail_runtime::{BodyEnding, CaptureSender, HeldRequest};
 
 use crate::headers::{PARTIAL_BODY, value_of};
 
@@ -34,20 +34,20 @@ pub(crate) fn hand_over(sender: &CaptureSender, http: HttpRequest) {
     let partial = sent.into_iter().any(|(name, value)| {
         name.eq_ignore_ascii_case(PARTIAL_BODY.as_bytes()) && value == b"true"
     });
-    // A POST sends a body: none, of a size not known to be 0, is one Envoy wasn't asked to send.
-    let unsent =
-        http.raw_body.is_empty() && http.body.is_empty() && http.method == "POST" && http.size != 0;
-    held.adopt(if http.raw_body.is_empty() {
+    let body = if http.raw_body.is_empty() {
         http.body.into_bytes()
     } else {
         http.raw_body
-    });
+    };
+    // A POST sends a body: none, of a size not known to be 0, is one Envoy wasn't asked to send.
+    let unsent = body.is_empty() && http.method == "POST" && http.size != 0;
+    held.adopt(body);
     held.finish(if unsent {
-        Ending::NotSent
+        BodyEnding::NotSent
     } else if partial {
-        Ending::MayBeCut
+        BodyEnding::MayBeCut
     } else {
-        Ending::Whole
+        BodyEnding::Whole
     });
 }
 
@@ -79,7 +79,7 @@ impl StreamCapture {
             // Trailers with the call still held: no body message came, so the body was empty.
             Request::RequestTrailers(_) => {
                 if let Some(held) = self.held.take() {
-                    held.finish(Ending::Whole);
+                    held.finish(BodyEnding::Whole);
                 }
             }
             _ => {}
@@ -95,7 +95,7 @@ impl StreamCapture {
             return;
         };
         if headers.end_of_stream {
-            held.finish(Ending::Whole);
+            held.finish(BodyEnding::Whole);
         } else if matches!(
             self.mode,
             BodySendMode::Buffered | BodySendMode::BufferedPartial
@@ -103,7 +103,7 @@ impl StreamCapture {
             self.held = Some(held);
         } else {
             // `NONE` sends no body; the streamed modes' aren't kept yet.
-            held.finish(Ending::NotSent);
+            held.finish(BodyEnding::NotSent);
         }
     }
 
@@ -115,9 +115,9 @@ impl StreamCapture {
         };
         held.adopt(std::mem::take(&mut body.body));
         let ending = if body.end_of_stream || self.mode == BodySendMode::Buffered {
-            Ending::Whole
+            BodyEnding::Whole
         } else {
-            Ending::MayBeCut
+            BodyEnding::MayBeCut
         };
         held.finish(ending);
     }

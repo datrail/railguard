@@ -130,8 +130,8 @@ async fn ext_authz_calls_are_counted_and_their_window_sent_when_stopped() {
         ..post(&whole, Some(whole.len()))
     };
     check(&callouts, as_text).await;
-    // Not sent: declared, or a POST of a size Envoy doesn't know.
-    check(&callouts, post(b"", Some(whole.len()))).await;
+    // Empty, of a size Envoy knows is 0: read, so not counted; not sent, of a size it doesn't know.
+    check(&callouts, post(b"", None)).await;
     check(
         &callouts,
         HttpRequest {
@@ -154,12 +154,17 @@ async fn ext_authz_calls_are_counted_and_their_window_sent_when_stopped() {
         ..post(&whole[..10], None)
     };
     check(&callouts, in_header_map).await;
-    // Cut where Envoy stopped at `max_request_bytes`, with no `Content-Length` to tell.
+    // Cut where Envoy says it may be, with no `Content-Length` to tell.
     let partial = HttpRequest {
         headers: HashMap::from([("x-envoy-auth-partial-body".to_owned(), "true".to_owned())]),
         ..post(&whole[..10], None)
     };
     check(&callouts, partial).await;
+    let not_partial = HttpRequest {
+        headers: HashMap::from([("x-envoy-auth-partial-body".to_owned(), "false".to_owned())]),
+        ..post(&whole, None)
+    };
+    check(&callouts, not_partial).await;
     // As the binary stops it, once its server has drained.
     tokio::task::spawn_blocking(move || stop.stop())
         .await
@@ -177,12 +182,12 @@ async fn ext_authz_calls_are_counted_and_their_window_sent_when_stopped() {
             .unwrap_or_else(|| panic!("{document}"))
     };
     assert_eq!(e1("docs")["entry_id"], "e1");
-    assert_eq!(e1("docs")["measures"]["call_count"], 2);
-    assert_eq!(e1("docs")["measures"]["request_bytes"], 2 * whole.len());
+    assert_eq!(e1("docs")["measures"]["call_count"], 3);
+    assert_eq!(e1("docs")["measures"]["request_bytes"], 3 * whole.len());
     let unread = &document["truncated"]["body_unread"];
     assert_eq!(
         (&unread["not_sent"], &unread["cut_short"]),
-        (&Value::from(2), &Value::from(3)),
+        (&Value::from(1), &Value::from(3)),
         "{document}"
     );
 }
@@ -275,7 +280,7 @@ async fn ext_proc_calls_are_kept_from_their_buffered_body() {
     let trailers = Phase::RequestTrailers(HttpTrailers::default());
     process(&channel, buffered, vec![headers(None, false), trailers]).await;
     // Partial, chunked, not ending the stream: cut short.
-    let chunked = body(&whole, false);
+    let chunked = body(&mcp_call("chunked", "x"), false);
     process(&channel, partial, vec![headers(None, false), chunked]).await;
     // Not sent: `NONE`, as when no mode is named, and a streamed mode, whose body isn't kept.
     process(&channel, None, vec![sized()]).await;

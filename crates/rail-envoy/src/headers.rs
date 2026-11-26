@@ -14,7 +14,7 @@ pub(crate) fn value_of(header: &HeaderValue) -> &[u8] {
 }
 
 /// The first value of the header `name`, in any letter case. Envoy sends each name read here once:
-/// it refuses a repeated `Content-Length` or pseudo-header, and joins two `Host` lines with a comma.
+/// it refuses a repeated pseudo-header.
 pub(crate) fn find_value<'a>(
     headers: impl IntoIterator<Item = &'a HeaderValue>,
     name: &str,

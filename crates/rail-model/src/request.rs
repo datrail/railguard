@@ -25,7 +25,7 @@ pub struct ObservedRequest {
     /// The header lines the host passes, in order.
     pub(crate) header_lines: Vec<(WireText, WireText)>,
     pub(crate) body: BodyRead,
-    /// Every byte of the body the host was sent, kept or not.
+    /// The body's length: as declared, or the bytes received if more.
     pub(crate) body_bytes: u64,
     // Each read once, by whichever use asks first, on whichever thread.
     request_line: OnceLock<RequestLine>,
@@ -63,7 +63,7 @@ impl ObservedRequest {
         &self.body
     }
 
-    /// Every byte of the body the host was sent, kept or not.
+    /// The body's length: as declared, or the bytes received if more.
     pub fn body_bytes(&self) -> u64 {
         self.body_bytes
     }
