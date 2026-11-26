@@ -117,7 +117,11 @@ impl Window {
     /// taken it.
     pub fn record(&mut self, call: &ObservedRequest, at: SystemTime) -> Option<BodyUnreadReason> {
         let plan = Arc::clone(&self.plan);
-        let request_line = RequestLine::read(&call.authority, &call.method, &call.path);
+        let request_line = RequestLine::read(
+            call.authority.as_bytes(),
+            call.method.as_bytes(),
+            call.path.as_bytes(),
+        );
         let mut reader = CallReader::new(&request_line, call);
         let taken = reader.take(&plan);
         let reason = body_unread_reason(&taken);

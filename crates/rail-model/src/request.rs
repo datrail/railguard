@@ -1,23 +1,122 @@
 //! What an agent's request is read as by every use.
 
+use std::fmt;
+use std::sync::OnceLock;
+
 use percent_encoding::percent_decode_str;
 
-use crate::body::BodyRead;
+use crate::body::mcp::read_endpoint;
+use crate::body::{BodyRead, Unread};
+use crate::endpoint::Resolution;
 
 /// The ticket, for the gateway to check.
 pub const XRAIL: &str = "x-rail";
 
-/// A call as the callout hands it to the capture thread, its request whole.
-#[derive(Debug)]
+/// An agent's request as a host received it, before any rewrite: what every use reads of a call.
 pub struct ObservedRequest {
     /// `:authority` as the agent sent it, before the proxy rewrites it.
-    pub authority: Vec<u8>,
-    pub method: Vec<u8>,
+    pub(crate) authority: WireText,
+    pub(crate) method: WireText,
     /// `:path` as received: the path and its query, never decoded.
-    pub path: Vec<u8>,
-    pub body: BodyRead,
-    /// Every byte of the body the callout was sent, kept or not.
-    pub body_bytes: u64,
+    pub(crate) path: WireText,
+    headers: Vec<(WireText, WireText)>,
+    pub(crate) body: BodyRead,
+    /// Every byte of the body the host was sent, kept or not.
+    pub(crate) body_bytes: u64,
+    // Read once, by whichever use asks first, on whichever thread.
+    endpoint: OnceLock<Resolution>,
+}
+
+impl ObservedRequest {
+    /// From each part as sent, `headers` its lines in order.
+    pub fn new(
+        authority: Vec<u8>,
+        method: Vec<u8>,
+        path: Vec<u8>,
+        headers: Vec<(Vec<u8>, Vec<u8>)>,
+        body: BodyRead,
+        body_bytes: u64,
+    ) -> Self {
+        Self {
+            authority: authority.into(),
+            method: method.into(),
+            path: path.into(),
+            headers: headers
+                .into_iter()
+                .map(|(name, value)| (name.into(), value.into()))
+                .collect(),
+            body,
+            body_bytes,
+            endpoint: OnceLock::new(),
+        }
+    }
+
+    /// Each header line as text.
+    pub(crate) fn header_lines(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.headers
+            .iter()
+            .map(|(name, value)| (name.as_str(), value.as_str()))
+    }
+
+    /// What its decoded path and MCP message name, unless its body is unread.
+    pub(crate) fn endpoint(&self) -> Result<&Resolution, Unread> {
+        match &self.body {
+            BodyRead::Unread(why) => Err(*why),
+            BodyRead::Whole(body) => Ok(self
+                .endpoint
+                .get_or_init(|| read_endpoint(&read_path(self.path.as_str()), body.mcp()))),
+        }
+    }
+}
+
+// Neither its path nor its headers, which can carry credentials.
+impl fmt::Debug for ObservedRequest {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ObservedRequest")
+            .field("authority", &self.authority.as_str())
+            .field("method", &self.method.as_str())
+            .field("body", &self.body)
+            .field("body_bytes", &self.body_bytes)
+            .finish_non_exhaustive()
+    }
+}
+
+/// Text as read from the wire: its bytes as sent, and as text, those that aren't UTF-8 replaced.
+pub(crate) struct WireText(Form);
+
+enum Form {
+    Text(String),
+    NotText { raw: Vec<u8>, lossy: String },
+}
+
+impl From<Vec<u8>> for WireText {
+    // Without a copy, unless it isn't UTF-8.
+    fn from(bytes: Vec<u8>) -> Self {
+        Self(match String::from_utf8(bytes) {
+            Ok(text) => Form::Text(text),
+            Err(error) => {
+                let raw = error.into_bytes();
+                let lossy = String::from_utf8_lossy(&raw).into_owned();
+                Form::NotText { raw, lossy }
+            }
+        })
+    }
+}
+
+impl WireText {
+    pub(crate) fn as_bytes(&self) -> &[u8] {
+        match &self.0 {
+            Form::Text(text) => text.as_bytes(),
+            Form::NotText { raw, .. } => raw,
+        }
+    }
+
+    pub(crate) fn as_str(&self) -> &str {
+        match &self.0 {
+            Form::Text(text) | Form::NotText { lossy: text, .. } => text,
+        }
+    }
 }
 
 /// Whether an agent's header is kept from the upstream: an x-rail header, or any name with `_`.

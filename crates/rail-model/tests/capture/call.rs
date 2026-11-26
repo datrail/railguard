@@ -14,13 +14,14 @@ fn search_code(arguments: &Value) -> ObservedRequest {
     let body = json!({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
         "params": {"name": "search_code", "arguments": arguments}});
     let body = body.to_string();
-    ObservedRequest {
-        authority: b"api.github.com".to_vec(),
-        method: b"POST".to_vec(),
-        path: b"/mcp".to_vec(),
-        body_bytes: body.len() as u64,
-        body: keep_body(body.as_bytes()),
-    }
+    ObservedRequest::new(
+        b"api.github.com".to_vec(),
+        b"POST".to_vec(),
+        b"/mcp".to_vec(),
+        Vec::new(),
+        keep_body(body.as_bytes()),
+        body.len() as u64,
+    )
 }
 
 // A body's list too long to check stops the walk at the entry checking it, for that call only.
@@ -90,13 +91,14 @@ fn test_a_record_reads_within_the_budget_its_matching_left() {
         tags.push(json!("x"));
         body.insert("tags".into(), Value::Array(tags));
         let body = Value::Object(body).to_string();
-        ObservedRequest {
-            authority: b"hooks.slack.com".to_vec(),
-            method: b"POST".to_vec(),
-            path: b"/services/T0ABC".to_vec(),
-            body_bytes: body.len() as u64,
-            body: keep_body(body.as_bytes()),
-        }
+        ObservedRequest::new(
+            b"hooks.slack.com".to_vec(),
+            b"POST".to_vec(),
+            b"/services/T0ABC".to_vec(),
+            Vec::new(),
+            keep_body(body.as_bytes()),
+            body.len() as u64,
+        )
     };
     let user = |call: &ObservedRequest| {
         let captured = compiled.capture(call);

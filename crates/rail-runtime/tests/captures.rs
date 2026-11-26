@@ -16,13 +16,14 @@ use crate::holder::TestClock;
 use crate::scripted::{Answer, Script};
 
 pub fn post(path: &str, body: BodyRead) -> ObservedRequest {
-    ObservedRequest {
-        authority: b"api.github.com".to_vec(),
-        method: b"POST".to_vec(),
-        path: path.as_bytes().to_vec(),
+    ObservedRequest::new(
+        b"api.github.com".to_vec(),
+        b"POST".to_vec(),
+        path.as_bytes().to_vec(),
+        Vec::new(),
         body,
-        body_bytes: 0,
-    }
+        0,
+    )
 }
 
 // A call no entry of the vectors' plan takes: the catch-all's.

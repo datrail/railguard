@@ -197,13 +197,14 @@ impl CaptureSender {
                 (body, body_bytes)
             }
         };
-        self.send(ObservedRequest {
-            authority: request.authority.to_vec(),
-            method: request.method.to_vec(),
-            path: request.path.to_vec(),
+        self.send(ObservedRequest::new(
+            request.authority.to_vec(),
+            request.method.to_vec(),
+            request.path.to_vec(),
+            Vec::new(),
             body,
             body_bytes,
-        });
+        ));
     }
 }
 

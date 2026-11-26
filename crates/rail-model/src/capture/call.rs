@@ -128,7 +128,11 @@ pub enum Replacement {
 impl CompiledPlan {
     /// Matches `call`, then reads what the record counting it holds.
     pub fn capture(&self, call: &ObservedRequest) -> CapturedCall<'_> {
-        let request_line = RequestLine::read(&call.authority, &call.method, &call.path);
+        let request_line = RequestLine::read(
+            call.authority.as_bytes(),
+            call.method.as_bytes(),
+            call.path.as_bytes(),
+        );
         let mut reader = CallReader::new(&request_line, call);
         let taken = reader.take(self);
         let record = reader.read(taken.record().1);

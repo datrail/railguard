@@ -98,13 +98,14 @@ pub fn window(max_unsent_windows: u32, paths: &[&str]) -> ClosedWindow {
     let clock = TestClock::new();
     let mut window = Window::open(plan, clock.at(0));
     for path in paths {
-        let call = ObservedRequest {
-            authority: b"api.github.com".to_vec(),
-            method: b"GET".to_vec(),
-            path: path.as_bytes().to_vec(),
-            body: BodyRead::Unread(Unread::NotSent),
-            body_bytes: 0,
-        };
+        let call = ObservedRequest::new(
+            b"api.github.com".to_vec(),
+            b"GET".to_vec(),
+            path.as_bytes().to_vec(),
+            Vec::new(),
+            BodyRead::Unread(Unread::NotSent),
+            0,
+        );
         window.record(&call, clock.at(1));
     }
     window.close(clock.at(2))
@@ -119,13 +120,14 @@ pub fn window_of(calls: u32) -> ClosedWindow {
     let plan = Arc::new(compile_plan(parse_plan(&plan.to_string()).unwrap()));
     let clock = TestClock::new();
     let mut window = Window::open(plan, clock.at(0));
-    let call = ObservedRequest {
-        authority: b"api.github.com".to_vec(),
-        method: b"GET".to_vec(),
-        path: b"/a".to_vec(),
-        body: BodyRead::Unread(Unread::NotSent),
-        body_bytes: 0,
-    };
+    let call = ObservedRequest::new(
+        b"api.github.com".to_vec(),
+        b"GET".to_vec(),
+        b"/a".to_vec(),
+        Vec::new(),
+        BodyRead::Unread(Unread::NotSent),
+        0,
+    );
     for _ in 0..calls {
         window.record(&call, clock.at(1));
     }

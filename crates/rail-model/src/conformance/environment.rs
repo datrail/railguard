@@ -91,13 +91,14 @@ impl CallSpec {
             BodySpec::Shorthand { text, bytes } => sent(&expand(text, *bytes)?),
             BodySpec::Sent(bytes) => sent(&bytes.to_bytes()?),
         };
-        Ok(ObservedRequest {
-            authority: self.authority.to_bytes()?,
-            method: self.method.to_bytes()?,
-            path: self.path.to_bytes()?,
+        Ok(ObservedRequest::new(
+            self.authority.to_bytes()?,
+            self.method.to_bytes()?,
+            self.path.to_bytes()?,
+            Vec::new(),
             body,
-            body_bytes: self.body_bytes,
-        })
+            self.body_bytes,
+        ))
     }
 }
 
@@ -193,7 +194,11 @@ impl Named {
             },
             Spec::Capture { call } => {
                 let call = call.to_call()?;
-                let request_line = RequestLine::read(&call.authority, &call.method, &call.path);
+                let request_line = RequestLine::read(
+                    call.authority.as_bytes(),
+                    call.method.as_bytes(),
+                    call.path.as_bytes(),
+                );
                 Sources::Capture { call, request_line }
             }
         })

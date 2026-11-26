@@ -30,13 +30,14 @@ fn plans() -> [Arc<CompiledPlan>; 2] {
 }
 
 fn call(method: &str, path: &str, why: Unread) -> ObservedRequest {
-    ObservedRequest {
-        authority: b"api.github.com".to_vec(),
-        method: method.as_bytes().to_vec(),
-        path: path.as_bytes().to_vec(),
-        body: BodyRead::Unread(why),
-        body_bytes: 0,
-    }
+    ObservedRequest::new(
+        b"api.github.com".to_vec(),
+        method.as_bytes().to_vec(),
+        path.as_bytes().to_vec(),
+        Vec::new(),
+        BodyRead::Unread(why),
+        0,
+    )
 }
 
 fn get() -> ObservedRequest {

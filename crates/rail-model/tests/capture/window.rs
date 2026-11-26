@@ -18,12 +18,15 @@ fn test_tells_what_a_closed_window_holds() {
     let mut plan = plans["plans"]["worked-example"].clone();
     plan["budget"]["max_unsent_windows"] = 3.into();
     let compiled = Arc::new(compile_plan(parse_plan(&plan.to_string()).unwrap()));
-    let call = |path: &str| ObservedRequest {
-        authority: b"api.github.com".to_vec(),
-        method: b"GET".to_vec(),
-        path: path.as_bytes().to_vec(),
-        body: BodyRead::Unread(Unread::NotSent),
-        body_bytes: 0,
+    let call = |path: &str| {
+        ObservedRequest::new(
+            b"api.github.com".to_vec(),
+            b"GET".to_vec(),
+            path.as_bytes().to_vec(),
+            Vec::new(),
+            BodyRead::Unread(Unread::NotSent),
+            0,
+        )
     };
     // (paths called, calls dropped) and what the closed window holds: its records and steps,
     // and whether it's empty.
