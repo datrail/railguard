@@ -14,7 +14,7 @@ use tokio::sync::{mpsc, oneshot};
 use tokio::time::{Instant, sleep_until};
 use uuid::Uuid;
 
-use crate::client::{FetchError, RailCenterClient, answered};
+use crate::client::{FetchError, PostBody, RailCenterClient, answered};
 use crate::clock::WallClock;
 use crate::retry::{Backoff, Jitter, round_to_seconds};
 
@@ -33,7 +33,7 @@ const FLUSH_LIMIT: Duration = Duration::from_secs(2);
 /// Where documents go: Rail Center, or a test's script.
 pub trait CallRecordSink: Send + Sync + 'static {
     /// One attempt to deliver `body`, answered by its status: what each means is the reporter's.
-    fn send(&self, body: Vec<u8>) -> impl Future<Output = Result<StatusCode, FetchError>> + Send;
+    fn send(&self, body: PostBody) -> impl Future<Output = Result<StatusCode, FetchError>> + Send;
 }
 
 /// Documents sent to Rail Center.
@@ -42,7 +42,7 @@ pub struct RailCenterCallRecords {
 }
 
 impl CallRecordSink for RailCenterCallRecords {
-    async fn send(&self, body: Vec<u8>) -> Result<StatusCode, FetchError> {
+    async fn send(&self, body: PostBody) -> Result<StatusCode, FetchError> {
         self.client.post_for_status(ROUTE, body, DEADLINE).await
     }
 }
@@ -53,11 +53,11 @@ enum Message {
     Flush(oneshot::Sender<()>),
 }
 
-/// Sends each closed window that holds a call or a drop to Rail Center as its document, oldest
-/// first, one at a time, retrying with a backoff from 5 s to 320 s; a document Rail Center refuses
-/// is dropped. Besides the oldest, it keeps up to the newest window's plan's `max_unsent_windows`
-/// and up to two million records and steps, the oldest dropped past either. Each drop is counted in
-/// the next document. Dropping it stops the sending.
+/// Sends each closed window that holds a call or a drop to Rail Center as its document, as a
+/// `PostBody`, oldest first, one at a time, retrying with a backoff from 5 s to 320 s; a document
+/// Rail Center refuses is dropped. Besides the oldest, it keeps up to the newest window's plan's
+/// `max_unsent_windows` and up to two million records and steps, the oldest dropped past either.
+/// Each drop is counted in the next document. Dropping it stops the sending.
 pub struct CallRecordReporter {
     // Its task ends once this is dropped.
     messages: mpsc::UnboundedSender<Message>,
@@ -111,7 +111,7 @@ struct Queued {
 
 enum Content {
     Window(Box<ClosedWindow>),
-    Document { id: Uuid, body: Vec<u8> },
+    Document { id: Uuid, body: PostBody },
 }
 
 // What one attempt brought.
@@ -262,7 +262,7 @@ impl Reporter {
     }
 
     // The oldest's bytes, made its document if it isn't yet; `None` if it can't be.
-    fn attempt(&mut self) -> Option<Vec<u8>> {
+    fn attempt(&mut self) -> Option<PostBody> {
         // A hurry is for the attempt in flight, or this one: not for its retries.
         self.send_now = false;
         if let Content::Document { body, .. } = &self.queue.front()?.content {
@@ -280,7 +280,8 @@ impl Reporter {
         };
         let document = window.into_document(id, (self.now)(), self.windows_dropped);
         match serde_json::to_vec(&document) {
-            Ok(body) => {
+            Ok(json) => {
+                let body = PostBody::new(json);
                 head.content = Content::Document {
                     id,
                     body: body.clone(),

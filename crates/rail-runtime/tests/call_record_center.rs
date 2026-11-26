@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 
 use rail_model::body::{BodyRead, Unread};
 use rail_model::capture::{ClosedWindow, Window, compile_plan, parse_plan};
-use rail_runtime::{CallRecordReporter, CallRecordSink, FetchError, Jitter};
+use rail_runtime::{CallRecordReporter, CallRecordSink, FetchError, Jitter, PostBody};
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 use tokio::runtime::Handle;
@@ -14,6 +14,7 @@ use tokio::sync::Semaphore;
 
 use crate::capture_plans::{hash, plan};
 use crate::captures::{post, to_catch_all};
+use crate::common::gunzip;
 use crate::holder::TestClock;
 use crate::scripted::{Answer, Script, answer};
 
@@ -23,7 +24,7 @@ use crate::scripted::{Answer, Script, answer};
 pub struct Center {
     pub script: Script,
     pub release: Arc<Semaphore>,
-    pub bodies: Arc<Mutex<Vec<Vec<u8>>>>,
+    pub bodies: Arc<Mutex<Vec<PostBody>>>,
 }
 
 impl Center {
@@ -64,25 +65,30 @@ impl Center {
         self.script.fetched_at()
     }
 
-    pub fn bodies(&self) -> Vec<Vec<u8>> {
+    pub fn bodies(&self) -> Vec<PostBody> {
         self.bodies.lock().unwrap().clone()
     }
 
     pub fn documents(&self) -> Vec<Value> {
-        self.bodies()
-            .iter()
-            .map(|body| serde_json::from_slice(body).unwrap())
-            .collect()
+        self.bodies().iter().map(document).collect()
     }
 }
 
 impl CallRecordSink for Center {
-    async fn send(&self, body: Vec<u8>) -> Result<StatusCode, FetchError> {
+    async fn send(&self, body: PostBody) -> Result<StatusCode, FetchError> {
         self.bodies.lock().unwrap().push(body);
         let answer = self.script.answer().await;
         self.release.acquire().await.unwrap().forget();
         answer.map(|response| response.status)
     }
+}
+
+// The JSON `body` carries, gunzipped if it's gzipped: a full window's is.
+pub fn document(body: &PostBody) -> Value {
+    if !body.is_gzipped() {
+        return serde_json::from_slice(body.bytes()).unwrap();
+    }
+    serde_json::from_slice(&gunzip(body.bytes())).unwrap()
 }
 
 pub fn accepted() -> Answer {

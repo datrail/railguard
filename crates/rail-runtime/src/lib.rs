@@ -38,14 +38,14 @@ pub use callout::{
 pub use capture::{Capture, CaptureSender, CaptureThread, HeldRequest};
 pub use capture_plan::{CapturePlanSource, RailCenterCapturePlans, read_capture_plan_refresh};
 pub use capture_plan_holder::CapturePlanHolder;
-pub use client::{FetchError, Limits, RailCenterClient, Response};
+pub use client::{FetchError, Limits, PostBody, RailCenterClient, Response};
 pub use clock::{Clock, Stamp, WallClock};
 pub use config::{
     ConfigErrors, EXIT_CODE, Entry, Level, Refused, Secret, Settings, Source, Startup, Variables,
 };
 pub use denial::{Denial, DenialReporter, DenialSink, DeniedBy, RailCenterDenials};
 pub use gateway::{Answer, UnitSettings};
-pub use gateway_call::{Gateway, GatewaySettings};
+pub use gateway_call::{Gateway, GatewaySettings, Gathering};
 pub use gateway_start::start_gateway;
 pub use gather::{BodyEnding, RequestGatherer};
 pub use key_set::{KeySet, KeySetHolder, KeySource, RailCenterKeys};

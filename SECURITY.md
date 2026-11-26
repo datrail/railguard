@@ -36,11 +36,13 @@ Anything that gets a call past rail-apigee that its rules refuse:
 - **a ticket read as what it isn't:** a signed ticket accepted though expired, malformed, or signed with a key Rail
   Center didn't publish, or for another issuer or audience than the bundle names;
 - **a parser disagreement:** the gateway reading a ticket, a bundle or a call differently from Rail Center, or from the
-  MCP server behind it, so what's judged isn't what's sent (Apigee splits a header on commas, so a ticket holding one
-  reads as undecodable; a call repeating `method`, `params`, `params.name` or `params.arguments`, letter case ignored,
-  or holding beside them a key that isn't JSON, like `"\method"`, which a lenient reader may read as any, names nothing,
-  so the binding fallback decides it; so does one holding a NUL in a key, its `method` or its tool name, which a reader
-  cutting strings there reads short, while a NUL in any other value is compared as written);
+  MCP server behind it, so what's judged isn't what's sent:
+  - Apigee splits a header on commas, so a ticket holding one reads as undecodable;
+  - a call repeating `method`, `params`, `params.name` or `params.arguments`, letter case ignored, or holding beside
+    them a key that isn't JSON, like `"\method"`, which a lenient reader may read as any, names nothing, so the binding
+    fallback decides it;
+  - a call holding a NUL in a key, its `method` or its tool name, which a reader cutting strings there reads short, is
+    decided by the binding fallback too, while a NUL in any other value is compared as written;
 - **a hostile call or bundle** that crashes the gateway, or holds it past its deadline or its step budget (a judgement
   past 100,000 steps is refused, 503, at `enforce`);
 - **a call forwarded unjudged** other than in the cases below;
@@ -50,13 +52,18 @@ Anything that gets a call past rail-apigee that its rules refuse:
 - **the denial reports:** anything that suppresses or forges them, since they're the audit trail. Past 64 reports in
   flight, 16 of them naming no policy, a report is dropped and logged; the call stays denied.
 
-A refusal names no policy: 403 for a denial, 503 for a call the rules can't be applied to, and at `enforce` for one not
-judged within 5 s, whose judgement panicked, or past the gateway's 256 MiB memory budget (logged as an error), and in
-any mode for a full-duplex body dropped past that budget. The bodies the gateway keeps, their trees and the headers
-conditions read share those 256 MiB, so many large calls at once can't exhaust its memory. A body past
-`RAIL_MAX_BODY_MB`, or cut short (on Envoy: flagged by it, or shorter than its `Content-Length`), is refused unjudged,
-413; on Apigee, so is a request past 4 MiB less 1 KiB. If the callout is down or answers no decision, the reference
-Apigee proxy refuses the call, 503.
+A refusal names no policy:
+
+- 403 for a denial;
+- 503 for a call the rules can't be applied to, and at `enforce` for one not judged within 5 s, whose judgement
+  panicked, or past the gateway's 256 MiB memory budget (logged as an error), and in any mode for a `POST`'s full-duplex
+  body dropped past that budget;
+- 413, unjudged, for a `POST`'s body past `RAIL_MAX_BODY_MB`, or cut short (on Envoy: flagged by it, or shorter than its
+  `Content-Length`); on Apigee, also for a request past 4 MiB less 1 KiB.
+
+The bodies the gateway keeps, their trees and the headers conditions read share those 256 MiB, so many large calls at
+once can't exhaust its memory. If the callout is down or answers no decision, the reference Apigee proxy refuses the
+call, 503.
 
 **The callout's port.** It receives every header and the body, bearer token included, and logs no header value.
 rail-apigee authenticates no caller, so only Apigee may reach it: a caller could otherwise ask for verdicts, and send
@@ -66,7 +73,7 @@ alone. Elsewhere, keep it reachable from Apigee only.
 **Not a report: forwarded unjudged, by design.**
 
 - every call while `RAIL_DISABLED=true`, at enforcement `none`, or at `observe`, which only logs what it would deny;
-- a request other than a `POST`, and a session message (`initialize`, `tools/list`, a notification);
+- a request other than a `POST`, whatever its body, and a session message (`initialize`, `tools/list`, a notification);
 - a call that arrives before the first bundle is held, after waiting 2 s for it, logged as an error;
 - an unsigned ticket, read as it is even where tickets are signed: anything that reaches the gateway can present one, so
   it's only as good as the path from the proxy.
@@ -95,10 +102,10 @@ alone. Elsewhere, keep it reachable from Apigee only.
 
 ## Both hosts
 
-- **The Rail Center fetch.** It carries the service token, the denial reports and the proxy's call records out, and a
-  ticket, a capture plan, a bundle or the signing keys back. Its client refuses an `http://` Rail Center unless
-  `RAIL_CENTER_ALLOW_HTTP=true`, reads no proxy setting from the environment, follows no redirect, caps what it reads,
-  before and after decoding, and bounds the whole fetch. A way past one of these is a report.
+- **The Rail Center fetch.** It carries the service token, the denial reports and the proxy's call records out (one past
+  10 KiB gzipped), and a ticket, a capture plan, a bundle or the signing keys back. Its client refuses an `http://` Rail
+  Center unless `RAIL_CENTER_ALLOW_HTTP=true`, reads no proxy setting from the environment, follows no redirect, caps
+  what it reads, before and after decoding, and bounds the whole fetch. A way past one of these is a report.
 - **The log.** Each field is quoted, or a JSON string, with what hides escaped, so a call's text can't forge a line or
   pass for an escape, and a secret is logged only as `set` or `unset`. The ticket is logged only as a fingerprint. A
   ticket, a token, or a header value other than the host reaching the log is a report.

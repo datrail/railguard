@@ -87,13 +87,30 @@ struct GroupKey {
     values: Vec<Option<String>>,
 }
 
-// What a record writes of one call, and what it lost.
+// What a record writes of one call, and what its keys and its measures lost.
 #[derive(Default)]
 struct Written {
     measures: Vec<u64>,
+    keys_lost: Lost,
+    measures_lost: Lost,
+}
+
+// What a call's keys, or its measures, lost.
+#[derive(Default)]
+struct Lost {
     path_unresolved: bool,
     values_replaced: u64,
     ambiguous: bool,
+}
+
+impl Lost {
+    fn join(self, other: Lost) -> Lost {
+        Lost {
+            path_unresolved: self.path_unresolved || other.path_unresolved,
+            values_replaced: self.values_replaced + other.values_replaced,
+            ambiguous: self.ambiguous || other.ambiguous,
+        }
+    }
 }
 
 impl Window {
@@ -149,10 +166,7 @@ impl Window {
             None if !coarsened => self.open_record(key, spec),
             None => {
                 // Its keys aren't written, so neither is what they lost.
-                written = Written {
-                    measures: written.measures,
-                    ..Written::default()
-                };
+                written.keys_lost = Lost::default();
                 self.overflow(catch_all)
             }
         };
@@ -295,9 +309,10 @@ impl Window {
         for (total, bytes) in measures.values_mut().zip(written.measures) {
             *total = total.saturating_add(bytes);
         }
-        self.truncated.path_unresolved += u64::from(written.path_unresolved);
-        self.truncated.values_replaced += written.values_replaced;
-        self.truncated.values_ambiguous += u64::from(written.ambiguous);
+        let lost = written.keys_lost.join(written.measures_lost);
+        self.truncated.path_unresolved += u64::from(lost.path_unresolved);
+        self.truncated.values_replaced += lost.values_replaced;
+        self.truncated.values_ambiguous += u64::from(lost.ambiguous);
     }
 }
 
@@ -389,46 +404,48 @@ fn write(
 ) -> (Vec<Option<String>>, Written) {
     debug_assert_eq!(spec.context_keys.len(), record.context_keys.len());
     let mut written = Written::default();
+    let lost = &mut written.keys_lost;
     let values = record
         .context_keys
         .iter()
         .map(|reading| match reading {
             KeyReading::Method(method) => {
-                written.values_replaced += u64::from(*method == ReportedMethod::Other);
+                lost.values_replaced += u64::from(*method == ReportedMethod::Other);
                 Some(method.as_str().to_owned())
             }
             KeyReading::Host(host) => {
-                written.values_replaced += u64::from(*host == HostReading::PastLongest);
+                lost.values_replaced += u64::from(*host == HostReading::PastLongest);
                 Some(request_line.host().to_owned())
             }
             KeyReading::PathPrefix(prefix) => Some(prefix.clone()),
-            KeyReading::Operation(reading) => write_value(reading, &mut written, false),
-            KeyReading::Path(reading) => write_value(reading, &mut written, true),
+            KeyReading::Operation(reading) => write_value(reading, lost, false),
+            KeyReading::Path(reading) => write_value(reading, lost, true),
         })
         .collect();
+    let lost = &mut written.measures_lost;
     written.measures = record
         .measures
         .iter()
         .map(|reading| match reading {
-            MeasureReading::SizeInBytes(paths) => add_up(paths, |bytes| *bytes, &mut written),
-            MeasureReading::IsSet(paths) => add_up(paths, |set| u64::from(*set), &mut written),
+            MeasureReading::SizeInBytes(paths) => add_up(paths, |bytes| *bytes, lost),
+            MeasureReading::IsSet(paths) => add_up(paths, |set| u64::from(*set), lost),
         })
         .collect();
     (values, written)
 }
 
 // What a measure's paths add, a path that found nothing a loss.
-fn add_up<T>(paths: &[PathReading<T>], number: impl Fn(&T) -> u64, written: &mut Written) -> u64 {
+fn add_up<T>(paths: &[PathReading<T>], number: impl Fn(&T) -> u64, lost: &mut Lost) -> u64 {
     paths
         .iter()
         .map(|path| match path {
             PathReading::Found(found) => number(found),
             PathReading::Ambiguous => {
-                written.ambiguous = true;
+                lost.ambiguous = true;
                 0
             }
             PathReading::Absent | PathReading::BodyUnread(_) | PathReading::Refused(_) => {
-                written.path_unresolved = true;
+                lost.path_unresolved = true;
                 0
             }
         })
@@ -439,24 +456,24 @@ fn add_up<T>(paths: &[PathReading<T>], number: impl Fn(&T) -> u64, written: &mut
 // keep, which a plan path counts as unresolved.
 fn write_value(
     reading: &PathReading<KeptValue>,
-    written: &mut Written,
+    lost: &mut Lost,
     from_plan_path: bool,
 ) -> Option<String> {
     match reading {
         PathReading::Found(KeptValue::String(text) | KeptValue::Hashed(text)) => Some(text.clone()),
         PathReading::Found(KeptValue::Replaced(_)) => {
-            written.values_replaced += 1;
+            lost.values_replaced += 1;
             Some(REDACTED.to_owned())
         }
         PathReading::Ambiguous => {
-            written.ambiguous = true;
+            lost.ambiguous = true;
             Some(AMBIGUOUS.to_owned())
         }
         PathReading::Found(KeptValue::NotAString)
         | PathReading::Absent
         | PathReading::BodyUnread(_)
         | PathReading::Refused(_) => {
-            written.path_unresolved |= from_plan_path;
+            lost.path_unresolved |= from_plan_path;
             None
         }
     }

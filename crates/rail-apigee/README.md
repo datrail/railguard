@@ -23,9 +23,13 @@ flowchart LR
 ```
 
 Apigee's ExternalCallout service, over TCP on `RAIL_CALLOUT_PORT`. It judges each `POST` against the policy bundle held,
-and answers with what Apigee should change: the received context, with every `x-rail` and `x-rail-*` header removed, and
-every name holding `_` (some upstreams read it as `-`), and the flow variable `rail.decision` set to `allow` or
-`refuse`, plus `rail.status` and `rail.body` for a refusal. The proxy (below) acts on them.
+and answers with what Apigee should change:
+
+- the received context, with every `x-rail` and `x-rail-*` header removed, and every name holding `_` (some upstreams
+  read it as `-`);
+- the flow variable `rail.decision` set to `allow` or `refuse`, plus `rail.status` and `rail.body` for a refusal.
+
+The proxy (below) acts on them.
 
 - **Changes only its own.** Nothing else in the context changes: Apigee applies only what the answer's maps hold.
 - **Session messages aren't judged.** A request other than a `POST` is allowed, and so is a session message
@@ -34,8 +38,8 @@ every name holding `_` (some upstreams read it as `-`), and the flow variable `r
 - **A refusal names no policy.** 403 `{"error": "denied by policy"}` for a call the rules deny, 503
   `{"error": "policy ruleset cannot be applied"}` for one they can't be applied to, so a caller can't map the rules one
   attempt at a time.
-- **A body past `RAIL_MAX_BODY_MB` is refused unjudged,** 413 `{"error": "request body too large"}`, with a warning
-  logged; it isn't reported.
+- **A `POST` whose body is past `RAIL_MAX_BODY_MB` is refused unjudged,** 413 `{"error": "request body too large"}`,
+  with a warning logged; it isn't reported.
 - **Answers within 5 s** of the request's arrival. A call not judged by then is logged as an error: refused at
   `enforce`, 503, as one the rules can't be applied to; forwarded at `observe` and `none`.
 - **Fails closed when it's down,** with the proxy below: a callout that's down, times out or answers without a decision
@@ -115,10 +119,10 @@ Center on, its thread then has at most 1 s more to stop.
 - **A compressed body:** Apigee decompresses it before the callout, so it's judged as sent (seen live), and no body is
   checked against its `Content-Length`, which may be the compressed one.
 - **A header with commas:** Apigee splits it on its commas, so a ticket holding one reads as undecodable (seen live).
-- **The gateway's memory:** reading a call's endpoint parses its body into a tree of up to 16 times the body, for a body
-  of small array items. The bodies within it, their trees and the headers conditions read share 256 MiB; past it, a call
-  is unjudged, 503 at enforce, forwarded at observe and none, a body adopted past it still held, to send on. Size its
-  memory for the calls it serves at once.
+- **The gateway's memory** (size it for the calls it serves at once):
+  - reading a call's endpoint parses its body into a tree of up to 16 times the body, for a body of small array items;
+  - the bodies within it, their trees and the headers conditions read share 256 MiB; past it, a call is unjudged, 503 at
+    enforce, forwarded at observe and none, a body adopted past it still held, to send on.
 
 ## The image
 

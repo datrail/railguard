@@ -2,12 +2,15 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, UNIX_EPOCH};
 
-use rail_runtime::{CallRecordReporter, CallRecordSink, Jitter, RailCenterCallRecords, WallClock};
+use rail_runtime::{
+    CallRecordReporter, CallRecordSink, Jitter, PostBody, RailCenterCallRecords, WallClock,
+};
 use reqwest::StatusCode;
+use serde_json::json;
 use tokio::runtime::Handle;
 
 use crate::call_record_center::{Center, accepted, calls, dropped, window, window_of, windows};
-use crate::common::{Reply, assert_posted, client, response, serve};
+use crate::common::{Reply, assert_posted, assert_posted_gzipped, client, response, serve};
 use crate::holder::{TestClock, until};
 use crate::scripted::{answer, failed};
 
@@ -52,7 +55,11 @@ async fn a_failed_send_is_retried_with_the_same_bytes_backing_off_until_one_is_t
     // A success resets the backoff: the next failure waits 5 s again.
     assert_eq!(center.sent_at(), [0, 5, 15, 35, 100, 105]);
     let bodies = center.bodies();
-    assert!(bodies[..4].iter().all(|body| *body == bodies[0]));
+    assert!(
+        bodies[..4]
+            .iter()
+            .all(|body| body.bytes() == bodies[0].bytes())
+    );
     let documents = center.documents();
     assert_ne!(documents[4]["document_id"], documents[0]["document_id"]);
 }
@@ -128,7 +135,7 @@ async fn the_one_in_flight_is_never_dropped() {
 
     assert_eq!(center.sent_at(), [0, 7]);
     let bodies = center.bodies();
-    assert_eq!(bodies[1], bodies[0]);
+    assert_eq!(bodies[1].bytes(), bodies[0].bytes());
 }
 
 #[tokio::test(start_paused = true)]
@@ -271,8 +278,23 @@ async fn a_document_is_posted_to_rail_center_with_the_credential_and_read_by_its
     let sink = RailCenterCallRecords {
         client: client(&server.url),
     };
-    let answer = sink.send(br#"{"window": "x"}"#.to_vec()).await;
+    let answer = sink
+        .send(PostBody::new(br#"{"window": "x"}"#.to_vec()))
+        .await;
 
     assert_posted(&server, "/v1/call-records", r#"{"window": "x"}"#);
     assert_eq!(answer.unwrap(), StatusCode::ACCEPTED);
+}
+
+#[tokio::test]
+async fn a_large_document_is_posted_gzipped() {
+    let server = serve(|_| Reply::Raw(response("202 Accepted", &[], b""))).await;
+    let sink = RailCenterCallRecords {
+        client: client(&server.url),
+    };
+    let json = serde_json::to_vec(&json!({"window": "x".repeat(64 * 1024)})).unwrap();
+    let answer = sink.send(PostBody::new(json.clone())).await;
+
+    assert_eq!(answer.unwrap(), StatusCode::ACCEPTED);
+    assert_posted_gzipped(&server, "/v1/call-records", &json);
 }

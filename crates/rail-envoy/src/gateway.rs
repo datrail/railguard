@@ -1,5 +1,6 @@
-//! The gateway role's callouts: each request judged whole, then forwarded without the agent's
-//! withheld headers, or refused with the gateway's status and body.
+//! The gateway role's callouts: each call it judges judged whole, any other passed on unjudged;
+//! each forwarded without the agent's withheld headers, or refused with the gateway's status and
+//! body.
 
 use std::sync::Arc;
 
@@ -18,7 +19,7 @@ use envoy_types::pb::envoy::service::ext_proc::v3::{
     TrailersResponse,
 };
 use envoy_types::pb::envoy::r#type::v3::HttpStatus;
-use rail_runtime::{Answer, BodyEnding, Gateway, RequestGatherer, withheld_headers};
+use rail_runtime::{Answer, BodyEnding, Gateway, Gathering, RequestGatherer, withheld_headers};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
@@ -39,7 +40,8 @@ pub(crate) struct GatewayCallouts {
     pub(crate) gateway: Option<Arc<Gateway>>,
 }
 
-/// ext_authz: judges the request with the body Envoy sends (`with_request_body`).
+/// ext_authz: judges a `POST` with the body Envoy sends (`with_request_body`); any other call goes
+/// on unjudged.
 #[tonic::async_trait]
 impl Authorization for GatewayCallouts {
     async fn check(
@@ -55,17 +57,19 @@ impl Authorization for GatewayCallouts {
         let removed = withheld_headers(check_lines(&http).map(|(name, _)| name));
         let answer = match &self.gateway {
             None => Answer::Forward,
-            Some(gateway) => {
-                let mut gatherer = gateway.gather(check_lines(&http));
-                let (body, ending) = take_body(&mut http);
-                if ending == BodyEnding::NotSent {
-                    tracing::error!(
-                        "refused unjudged: Envoy sent no body; its ext_authz filter needs with_request_body"
-                    );
+            Some(gateway) => match gateway.gather(check_lines(&http)) {
+                Gathering::Unjudged => Answer::Forward,
+                Gathering::Judged(mut gatherer) => {
+                    let (body, ending) = take_body(&mut http);
+                    if ending == BodyEnding::NotSent {
+                        tracing::error!(
+                            "refused unjudged: Envoy sent no body; its ext_authz filter needs with_request_body"
+                        );
+                    }
+                    gatherer.adopt(body);
+                    gateway.handle(gatherer, ending).await.0
                 }
-                gatherer.adopt(body);
-                gateway.handle(gatherer, ending).await.0
-            }
+            },
         };
         let response = match answer.refusal() {
             None => {
@@ -233,7 +237,7 @@ enum Stage {
     Headers,
     // Its headers held, its body growing, until it ends.
     Gathering(Box<Pending>),
-    // Disabled: every phase goes on as it came.
+    // Disabled, or a call it doesn't judge: every phase goes on as it came.
     Passing,
     // Answered whole, by a refusal or its last phase: later headers or body are ignored.
     Done,
@@ -264,13 +268,17 @@ impl Exchange {
         }
         let sent = process_lines(&headers);
         let removed = withheld_headers(sent.clone().map(|(name, _)| name));
-        let Some(gateway) = self.gateway.clone() else {
-            // Disabled: nothing to judge, so nothing to gather.
+        let judged = self.gateway.clone().and_then(|gateway| {
+            let gatherer = gateway.gather(sent).judged()?;
+            Some((gateway, gatherer))
+        });
+        let Some((gateway, gatherer)) = judged else {
+            // Disabled, or a call it doesn't judge: nothing to gather.
             self.stage = Stage::Passing;
             return Answers::Now(vec![headers_response(removed)]);
         };
         let pending = Pending {
-            gatherer: gateway.gather(sent),
+            gatherer,
             gateway,
             removed,
         };

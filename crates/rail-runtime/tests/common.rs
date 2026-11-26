@@ -2,9 +2,11 @@
 // Shared by both test binaries, and each uses only part of it.
 #![allow(dead_code)]
 
+use std::io::Read;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use flate2::read::GzDecoder;
 use rail_runtime::{RailCenterClient, RailCenterSettings, Refused, Settings, read_rail_center};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -29,27 +31,40 @@ pub enum Reply {
 pub struct Server {
     pub url: String,
     pub requests: Arc<Mutex<Vec<String>>>,
+    // Each request's body as sent, which `requests` holds only as text.
+    pub bodies: Arc<Mutex<Vec<Vec<u8>>>>,
+}
+
+// Where `read_head` keeps what it reads.
+#[derive(Clone, Default)]
+struct Seen {
+    requests: Arc<Mutex<Vec<String>>>,
+    bodies: Arc<Mutex<Vec<Vec<u8>>>>,
 }
 
 pub async fn serve(reply: impl Fn(usize) -> Reply + Send + Sync + 'static) -> Server {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("http://{}", listener.local_addr().unwrap());
-    let requests = Arc::new(Mutex::new(Vec::new()));
-    let seen = Arc::clone(&requests);
+    let seen = Seen::default();
+    let Seen { requests, bodies } = seen.clone();
     tokio::spawn(async move {
         let mut count = 0;
         loop {
             let (stream, _) = listener.accept().await.unwrap();
-            let seen = Arc::clone(&seen);
+            let seen = seen.clone();
             let reply = reply(count);
             count += 1;
             tokio::spawn(async move { answer(stream, reply, &seen).await });
         }
     });
-    Server { url, requests }
+    Server {
+        url,
+        requests,
+        bodies,
+    }
 }
 
-pub async fn answer(mut stream: TcpStream, reply: Reply, seen: &Mutex<Vec<String>>) {
+async fn answer(mut stream: TcpStream, reply: Reply, seen: &Seen) {
     if !read_head(&mut stream, seen).await {
         return;
     }
@@ -86,7 +101,7 @@ pub async fn answer(mut stream: TcpStream, reply: Reply, seen: &Mutex<Vec<String
 
 // Reads one request, its head and any body it declares, into `seen`; false if the peer closed
 // first.
-async fn read_head(stream: &mut TcpStream, seen: &Mutex<Vec<String>>) -> bool {
+async fn read_head(stream: &mut TcpStream, seen: &Seen) -> bool {
     let mut head = Vec::new();
     let mut byte = [0];
     while !head.ends_with(b"\r\n\r\n") {
@@ -108,8 +123,9 @@ async fn read_head(stream: &mut TcpStream, seen: &Mutex<Vec<String>>) -> bool {
     if stream.read_exact(&mut body).await.is_err() {
         return false;
     }
-    request.push_str(&String::from_utf8(body).unwrap());
-    seen.lock().unwrap().push(request);
+    request.push_str(&String::from_utf8_lossy(&body));
+    seen.requests.lock().unwrap().push(request);
+    seen.bodies.lock().unwrap().push(body);
     true
 }
 
@@ -145,8 +161,30 @@ pub fn client(url: &str) -> RailCenterClient {
     RailCenterClient::new(&settings(url, Some(TOKEN))).unwrap()
 }
 
-/// Asserts `server` was sent one request, posting `body` as JSON to `route` with the credential.
+/// Asserts `server` was sent one request, posting `body` as JSON to `route` with the credential,
+/// as it is.
 pub fn assert_posted(server: &Server, route: &str, body: &str) {
+    let request = posted_head(server, route);
+    assert!(!request.contains("content-encoding"), "{request}");
+    assert!(request.ends_with(body), "{request}");
+}
+
+/// As `assert_posted`, `json` sent gzipped.
+pub fn assert_posted_gzipped(server: &Server, route: &str, json: &[u8]) {
+    let request = posted_head(server, route);
+    assert!(request.contains("content-encoding: gzip\r\n"), "{request}");
+    assert_eq!(gunzip(&server.bodies.lock().unwrap()[0]), json);
+}
+
+pub fn gunzip(bytes: &[u8]) -> Vec<u8> {
+    let mut json = Vec::new();
+    GzDecoder::new(bytes).read_to_end(&mut json).unwrap();
+    json
+}
+
+// The one request `server` was sent, lowercased, checked as a JSON `POST` to `route` with the
+// credential.
+fn posted_head(server: &Server, route: &str) -> String {
     let requests = server.requests.lock().unwrap().clone();
     assert_eq!(requests.len(), 1, "{requests:?}");
     let request = requests[0].to_ascii_lowercase();
@@ -156,5 +194,5 @@ pub fn assert_posted(server: &Server, route: &str, body: &str) {
         "authorization: bearer {}\r\n",
         TOKEN.to_ascii_lowercase()
     )));
-    assert!(request.ends_with(body), "{request}");
+    request
 }

@@ -1,6 +1,6 @@
 //! The conformance vectors' runner: each layer's cases read, run, and what they find written in the
-//! vectors' encoding, so the Rust tests and the binding compare the same values. In the binding's
-//! wheel, never in the gateway's or the proxy's binaries. It reads only the texts it's given.
+//! vectors' encoding, so the Rust tests and the binding compare the same values. Behind the
+//! `conformance` feature, which only the tests turn on. It reads only the texts it's given.
 
 use std::collections::BTreeMap;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};

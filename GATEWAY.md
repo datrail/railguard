@@ -14,12 +14,14 @@ flowchart TD
   arrive([A request arrives])
   grpc{"Its gRPC stream fails?"}
   disabled{RAIL_DISABLED}
+  post{POST?}
   whole{"The whole body gathered?"}
   both([Both hosts, below])
   e1["A gRPC error:<br>Envoy's failure_mode_allow decides"]:::grpcError
   e2["Forwarded unjudged by Envoy,<br>which ignores the answer;<br>logged as an error"]:::forwarded
   f1[Forwarded unjudged]:::forwarded
   f2[Forwarded unjudged]:::forwarded
+  f3["Forwarded unjudged,<br>its body never gathered"]:::forwarded
   r1[503]:::cannotApply
   r2[413]:::tooLarge
 
@@ -28,7 +30,9 @@ flowchart TD
   grpc -->|"yes: ext_proc in observability mode"| e2
   grpc -->|no| disabled
   disabled -->|true| f1
-  disabled -->|false| whole
+  disabled -->|false| post
+  post -->|no| f3
+  post -->|yes| whole
   whole -->|"no: ext_proc's body mode isn't full duplex or buffered,<br>ext_proc sent the body before its headers,<br>ext_authz sent a POST without its body,<br>a POST sent no body though its Content-Length isn't 0,<br>or a full-duplex body whose later chunk passes the 256 MiB memory budget"| r1
   whole -->|"no: ext_authz sent part of the body,<br>the body is shorter than its Content-Length but not empty,<br>or ext_proc's body gathered past RAIL_MAX_BODY_MB"| r2
   whole -->|"no: buffered, with trailers and no body,<br>and request_trailer_mode isn't SEND"| f2
@@ -49,10 +53,12 @@ flowchart TD
   grpc{"Its message past<br>RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB?"}
   answerable{"The whole request past 4 MiB less 1 KiB,<br>more than an answer can carry back?"}
   disabled{RAIL_DISABLED}
+  post{POST?}
   both([Both hosts, below])
   e1["A gRPC error:<br>the proxy's FaultRule answers 503"]:::grpcError
   r1[413]:::tooLarge
   f1[Forwarded unjudged]:::forwarded
+  f2["Forwarded unjudged,<br>its content as it came"]:::forwarded
 
   arrive --> grpc
   grpc -->|yes| e1
@@ -60,7 +66,9 @@ flowchart TD
   answerable -->|yes| r1
   answerable -->|no| disabled
   disabled -->|true| f1
-  disabled -->|false| both
+  disabled -->|false| post
+  post -->|no| f2
+  post -->|yes| both
 
   classDef forwarded fill:#d4edda,stroke:#2e7d32,color:#1b5e20
   classDef denied fill:#f8d7da,stroke:#c62828,color:#7f0000
@@ -73,9 +81,8 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  start([From either host])
+  start([A POST, from either host])
   cap{"Body past RAIL_MAX_BODY_MB?"}
-  post{POST?}
   subgraph deadline["Within 5 s from the bundle wait on, the judging below included"]
     bundle{"A bundle held,<br>waiting up to 2 s?"}
     key["Read x-rail; for a signed ticket, wait up to 2 s for its key,<br>if the bundle names an issuer and an audience<br>and enforcement isn't none"]
@@ -85,7 +92,6 @@ flowchart TD
     judged([Judged, below])
   end
   r1[413]:::tooLarge
-  f1[Forwarded unjudged]:::forwarded
   f2["Forwarded unjudged,<br>logged as an error"]:::forwarded
   f3[Forwarded unjudged]:::forwarded
   f4[Forwarded unjudged]:::forwarded
@@ -94,9 +100,7 @@ flowchart TD
 
   start --> cap
   cap -->|yes| r1
-  cap -->|no| post
-  post -->|no| f1
-  post -->|yes| bundle
+  cap -->|no| bundle
   bundle -->|no| f2
   bundle -->|yes| key
   key --> slot

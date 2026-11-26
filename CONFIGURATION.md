@@ -17,9 +17,11 @@ Runs the host without Rail Center: nothing is fetched from it and nothing report
 - **Default:** `false`.
 - **Accepted:** a boolean.
 - **Read by:** both hosts.
-- Both hosts are then ready at once. `rail-apigee` allows every call it can answer. `rail-envoy`'s proxy still routes
-  the protected hosts, but sets neither `x-rail` nor `x-rail-status`, and captures nothing; its gateway forwards every
-  call, with `x-rail`, `x-rail-*` and `_` headers removed.
+- Both hosts are then ready at once.
+  - `rail-apigee` allows every call it can answer.
+  - `rail-envoy`'s proxy still routes the protected hosts, but sets neither `x-rail` nor `x-rail-status`, and captures
+    nothing.
+  - `rail-envoy`'s gateway forwards every call, with `x-rail`, `x-rail-*` and `_` headers removed.
 - The other settings are still judged if they're set, so a mistake in one shows before Rail Center is turned on. It's
   logged as a warning when `true`.
 
@@ -35,6 +37,8 @@ Where Rail Center is: the base URL each route, such as `/v1/policy-bundle`, is a
   in the clear.
 - A host other URL parsers would read differently (`0x7f.1`, which is `127.0.0.1`) is refused, so the host reached is
   the one read in the value. A refusal never quotes the value, which may hold a credential.
+- A call record document or a denial report past 10 KiB is posted gzipped, with `Content-Encoding: gzip`; a smaller one
+  as it is.
 
 ### `RAIL_CENTER_ALLOW_HTTP`
 
@@ -88,14 +92,17 @@ How each log line is written, on stderr.
   the default.
 - `text` is the message then `name="value"` fields. `json` and `gcp` write one JSON object per line: `timestamp` (RFC
   3339, UTC; `time` in `gcp`, the name Cloud Logging reads it by), the level, `target`, `message`, then each field, a
-  number or a bool bare. `json` names the level `level` (`ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE`); `gcp` names it
-  `severity`, as Cloud Logging reads it (`WARN` as `WARNING`, `TRACE` as `DEBUG`).
-- In either JSON format, hidden characters and `\` are escaped as in `text`, `"` is left to JSON, and a field is cut at
-  1024 characters, but not the message. A field named `message`, `timestamp`, `level`, `severity`, `target`, or one
-  Cloud Logging reads (`time`, `timestampSeconds`, `timestampNanos`, `httpRequest`, or under `logging.googleapis.com/`),
-  or already starting `field.`, is written `field.<name>`. Each refusal is an `ERROR` line of its own,
-  `invalid configuration` with the reason in `refusal`, and a usage error is one too, `invalid arguments` with the
-  reason in `reason`.
+  number or a bool bare.
+  - `json` names the level `level` (`ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE`);
+  - `gcp` names it `severity`, as Cloud Logging reads it (`WARN` as `WARNING`, `TRACE` as `DEBUG`).
+- In either JSON format:
+  - hidden characters and `\` are escaped as in `text`, `"` is left to JSON;
+  - a field is cut at 1024 characters, but not the message;
+  - a field named `message`, `timestamp`, `level`, `severity`, `target`, or one Cloud Logging reads (`time`,
+    `timestampSeconds`, `timestampNanos`, `httpRequest`, or under `logging.googleapis.com/`), or already starting
+    `field.`, is written `field.<name>`.
+- Each refusal is an `ERROR` line of its own, `invalid configuration` with the reason in `refusal`, and a usage error is
+  one too, `invalid arguments` with the reason in `reason`.
 
 ### `RAIL_CALLOUT_PORT`
 
@@ -119,9 +126,11 @@ message, which holds a whole buffered body.
   allows: Apigee takes a callout's answer of at most 4 MiB, and the answer echoes the body. An answer may be up to 1 KiB
   larger than the request.
 - **In `rail-envoy`, a message past it** fails its stream while the call is unanswered, so Envoy applies its failure
-  mode: closed (`failure_mode_allow: false`), as the gateway must, it refuses the call; open, as the proxy may, it
-  forwards the call as the agent sent it, with no ticket, and uncaptured. An ext_proc body message past it comes after
-  the headers were answered: the call keeps its ticket and is counted, its body unread.
+  mode:
+  - closed (`failure_mode_allow: false`), as the gateway must, it refuses the call;
+  - open, as the proxy may, it forwards the call as the agent sent it, with no ticket, and uncaptured. There, an
+    ext_proc body message past it comes after the headers were answered: the call keeps its ticket and is counted, its
+    body unread.
 
 ### `RAIL_MAX_BODY_MB`
 
@@ -131,11 +140,11 @@ The largest request body judged or captured, in MiB, as sent (an encoded body is
 - **Accepted:** `1` to `100`, a whole number of MiB; in `rail-envoy`, below `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`, since a
   buffered body arrives as one message.
 - **Read by:** both hosts, `rail-envoy` in either role.
-- **In the gateways, past it, a call is refused unjudged,** 413 `{"error": "request body too large"}`, with a warning
-  logged, and isn't reported; with `RAIL_DISABLED=true`, nothing is judged, and this isn't applied. Apigee's own limits
-  come first: past 4 MiB less 1 KiB rail-apigee refuses a request (above), and past 10 MB Apigee answers 413 itself, so
-  a value of 4 or more is logged with the limit in force. In `rail-envoy`, a body streamed in full duplex is refused as
-  soon as it's past it.
+- **In the gateways, past it, a `POST` is refused unjudged,** 413 `{"error": "request body too large"}`, with a warning
+  logged, and isn't reported; with `RAIL_DISABLED=true`, nothing is judged, and this isn't applied.
+  - Apigee's own limits come first: past 4 MiB less 1 KiB rail-apigee refuses a request (above), and past 10 MB Apigee
+    answers 413 itself, so a value of 4 or more is logged with the limit in force.
+  - In `rail-envoy`, a `POST`'s body streamed in full duplex is refused as soon as it's past it.
 - **In `rail-envoy`'s proxy, past it, a body isn't read:** the call is forwarded as ever, and captured with its body
   counted as past the cap (`truncated.body_unread.past_cap`). Envoy's limits go above it, as its README
   [recommends](crates/rail-envoy/README.md#the-body-for-capture).
@@ -160,12 +169,15 @@ How often the bundle held is fetched again.
 - **Default:** `60`, so a rule changed in Rail Center reaches every gateway within about a minute.
 - **Accepted:** `5` to `86400`, whole seconds: a bundle polled less often than daily is surely a mistake.
 - **Read by:** both hosts' gateways.
-- Each wait is scaled by 0.8 to 1.2, so a fleet doesn't poll in step. After a failure that may pass (no answer, a
-  timeout, a 408, 429 or 5xx), the next attempt comes in 5 s, doubling to at most 320 s or the interval, whichever is
-  less. Any other answer that isn't held (a bundle refused, a body not JSON or too large, a 401, 403, 404 or another
-  status) would be repeated, so while a bundle is held it's asked again after the interval; while none is held, it's
-  asked again as after a failure, so the first bundle comes soon after Rail Center can give it. The floor of 5 s isn't a
-  setting: a lower one would let a fleet hammer Rail Center.
+- Each wait is scaled by 0.8 to 1.2, so a fleet doesn't poll in step.
+- After a failure that may pass (no answer, a timeout, a 408, 429 or 5xx), the next attempt comes in 5 s, doubling to at
+  most 320 s or the interval, whichever is less.
+- Any other answer that isn't held (a bundle refused, a body not JSON or too large, a 401, 403, 404 or another status)
+  would be repeated, so:
+  - while a bundle is held, it's asked again after the interval;
+  - while none is held, it's asked again as after a failure, so the first bundle comes soon after Rail Center can give
+    it.
+- The floor of 5 s isn't a setting: a lower one would let a fleet hammer Rail Center.
 
 ## rail-envoy
 

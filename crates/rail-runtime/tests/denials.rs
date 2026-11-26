@@ -1,7 +1,7 @@
 use rail_model::condition::Refusal;
 use rail_model::endpoint::Endpoint;
 use rail_model::policy::{ChainOutcome, Decision, FallbackDenial, Outcome, TicketState};
-use rail_runtime::{Denial, DenialSink, DeniedBy, RailCenterDenials};
+use rail_runtime::{Denial, DenialSink, DeniedBy, PostBody, RailCenterDenials};
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 
@@ -250,7 +250,9 @@ async fn a_report_is_posted_once_to_rail_center_with_the_credential() {
     let sink = RailCenterDenials {
         client: client(&server.url),
     };
-    let answer = sink.send(br#"{"denied_at": "x"}"#.to_vec()).await;
+    let answer = sink
+        .send(PostBody::new(br#"{"denied_at": "x"}"#.to_vec()))
+        .await;
 
     assert_posted(&server, "/v1/denials", r#"{"denied_at": "x"}"#);
     assert_eq!(answer.unwrap().status, StatusCode::UNPROCESSABLE_ENTITY);

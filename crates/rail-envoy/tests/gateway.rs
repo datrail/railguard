@@ -119,10 +119,14 @@ fn post(end_of_stream: bool) -> Phase {
 }
 
 fn post_to(authority: &str, end_of_stream: bool) -> Phase {
+    request("POST", authority, end_of_stream)
+}
+
+fn request(method: &str, authority: &str, end_of_stream: bool) -> Phase {
     Phase::RequestHeaders(HttpHeaders {
         headers: Some(HeaderMap {
             headers: vec![
-                header(":method", "POST"),
+                header(":method", method),
                 header(":path", "/mcp?session=1"),
                 header(":authority", authority),
                 header("content-type", "application/json"),
@@ -425,7 +429,7 @@ async fn a_request_without_a_body_is_judged_from_its_headers_and_other_modes_ref
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn a_streamed_body_past_the_cap_is_refused_as_soon_as_it_is() {
+async fn a_judged_body_past_the_cap_is_refused_as_soon_as_it_is_and_no_other() {
     let socket = TempSocket::new("gw-cap");
     let (_server, _rail_center) = judging(
         &socket.path,
@@ -468,6 +472,16 @@ async fn a_streamed_body_past_the_cap_is_refused_as_soon_as_it_is() {
     .await
     .unwrap();
     assert!(streamed_back(&forwarded[1..]).0 == at_cap);
+
+    // Not judged, a call of another method is never gathered: past the cap, it goes on whole.
+    let past = vec![b' '; 1536 * 1024];
+    let put = vec![request("PUT", "mcp.example", false), chunk(&past, true)];
+    let echoed = process(&socket.path, duplex, put).await.unwrap();
+    assert_eq!(removed(&echoed[0]), WITHHELD);
+    assert!(streamed_back(&echoed[1..]).0 == past);
+    let length = i64::try_from(past.len()).unwrap();
+    let forwarded = check_as(&socket.path, "PUT", &[], &past, length).await;
+    assert_eq!(forwarded, Ok(WITHHELD.map(str::to_owned).to_vec()));
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -535,9 +549,19 @@ async fn it_is_ready_once_it_holds_a_bundle() {
     assert_eq!(stdout(&ready()), "serving (gateway: held)\n");
 }
 
-// What ext_authz answers: the headers removed, or the refusal's status and body.
+// What ext_authz answers a POST: the headers removed, or the refusal's status and body.
 async fn check(
     socket: &Path,
+    headers: &[(&str, &str)],
+    body: &[u8],
+    size: i64,
+) -> Result<Vec<String>, (i32, String)> {
+    check_as(socket, "POST", headers, body, size).await
+}
+
+async fn check_as(
+    socket: &Path,
+    method: &str,
     headers: &[(&str, &str)],
     body: &[u8],
     size: i64,
@@ -559,7 +583,7 @@ async fn check(
         attributes: Some(AttributeContext {
             request: Some(Request {
                 http: Some(HttpRequest {
-                    method: "POST".to_owned(),
+                    method: method.to_owned(),
                     path: "/mcp?session=1".to_owned(),
                     host: "mcp.example".to_owned(),
                     headers: sent,

@@ -266,7 +266,7 @@ pub fn evaluate_condition<'a>(
 }
 
 /// `condition`'s verdict on `value`, as `evaluate_condition` gives it where its path resolves to
-/// `value`.
+/// `value`, but for the steps resolving it charges.
 #[cfg(feature = "conformance")]
 pub(crate) fn apply_condition(
     condition: &CompiledCondition,
