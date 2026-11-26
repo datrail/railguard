@@ -245,7 +245,9 @@ beside counting those calls; the gateway's Rail Center thread has 1 s, so 6 s.
   supports full duplex.
 - **The gateway's memory:** it holds each call's body until it's judged, which can take up to about twice
   `RAIL_MAX_BODY_MB` per call in flight, and reading its endpoint parses it into a tree of up to 16 times the body, for
-  a body of small array items. Size its memory for the calls it serves at once.
+  a body of small array items. The bodies, their trees and the headers rules read share 256 MiB: past it, a call is
+  unjudged, by the bundle's `judge_fallback` at enforce, and a full-duplex body, whose bytes are then dropped, 503. Size
+  its memory for the calls it serves at once.
 - **The proxy's memory:** each ext_authz request, and each ext_proc body message, is held whole, up to
   `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`, while it's answered; the bodies kept for capture, up to `RAIL_MAX_BODY_MB` each,
   share 256 MiB, and up to 4096 calls wait for capture's thread.

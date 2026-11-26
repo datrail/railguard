@@ -29,8 +29,8 @@ flowchart TD
   grpc -->|no| disabled
   disabled -->|true| f1
   disabled -->|false| whole
-  whole -->|"no: ext_proc's body mode isn't full duplex or buffered,<br>ext_proc sent the body before its headers,<br>or ext_authz sent a POST without its body"| r1
-  whole -->|"no: ext_authz sent part of the body,<br>or ext_proc's body gathered past RAIL_MAX_BODY_MB"| r2
+  whole -->|"no: ext_proc's body mode isn't full duplex or buffered,<br>ext_proc sent the body before its headers,<br>ext_authz sent a POST without its body,<br>or a full-duplex body gathered past the 256 MiB memory budget"| r1
+  whole -->|"no: ext_authz sent part of the body,<br>the body is shorter than its Content-Length,<br>or ext_proc's body gathered past RAIL_MAX_BODY_MB"| r2
   whole -->|"no: buffered, with trailers and no body,<br>and request_trailer_mode isn't SEND"| f2
   whole -->|yes| both
 
@@ -105,8 +105,8 @@ flowchart TD
   session -->|no| mode
   mode -->|none| f4
   mode -->|observe or enforce| judged
-  deadline -->|"past it, or judging panicked,<br>at enforce"| r2
-  deadline -->|"past it, or judging panicked,<br>at observe or none"| f5
+  deadline -->|"past it, judging panicked, or the body's tree<br>or the headers past the 256 MiB memory budget,<br>at enforce"| r2
+  deadline -->|"past it, judging panicked, or the body's tree<br>or the headers past the 256 MiB memory budget,<br>at observe or none"| f5
 
   style deadline fill:#eceff1,stroke:#90a4ae,color:#263238
 
