@@ -1514,6 +1514,14 @@
       "expect": "absent"
     },
     {
+      "id": "policy-ticket-key-under-a-list-of-objects-holding-it-absent",
+      "note": "A key is never sought inside a list's items.",
+      "environment": "judging-ticket-leaving-out",
+      "use": "gateway_policy",
+      "path": "ticket.grants.scope",
+      "expect": "absent"
+    },
+    {
       "id": "policy-ticket-key-under-a-string-holding-it-absent",
       "environment": "judging-sample",
       "use": "gateway_policy",

@@ -124,3 +124,26 @@ fn test_a_malformed_case_is_refused() {
         assert!(refused.contains(why), "{refused}");
     }
 }
+
+// A condition's reading, refusal and problems agree, so a case can't be wrong in one alone.
+#[test]
+fn test_a_conditions_refusal_agrees_with_its_reading_and_problems() {
+    let outcomes = run_vectors("condition/condition.json", &read_texts()).unwrap();
+    assert!(!outcomes.is_empty());
+    for outcome in outcomes {
+        let (id, got) = (&outcome.id, &outcome.got);
+        let problems = got["problems"].as_array().unwrap();
+        let has = |key: &str, value: &str| problems.iter().any(|problem| problem[key] == value);
+        let (enforced, unknown_op) = (has("scope", "enforcement"), has("code", "unknown_op"));
+        assert_eq!(
+            got["compiled"] != "evaluable",
+            enforced || unknown_op,
+            "{id}"
+        );
+        match got["reading"].as_str().unwrap() {
+            "invalid" => assert!(enforced, "{id}"),
+            "unknown" => assert!(unknown_op && !enforced, "{id}"),
+            _ => {}
+        }
+    }
+}

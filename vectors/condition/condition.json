@@ -713,6 +713,31 @@
       }
     },
     {
+      "id": "invalid-ne-a-bool",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": "ne",
+        "value": true
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "scalar"
+          }
+        ]
+      }
+    },
+    {
       "id": "invalid-eq-null",
       "condition": {
         "path": "ticket.sandbox_type",
@@ -935,6 +960,105 @@
               "path"
             ],
             "code": "unknown_path",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-for-use-endpoint-key-in-a-plan",
+      "condition": {
+        "path": [
+          "request",
+          "endpoint_key"
+        ],
+        "op": "existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": {
+          "refused": "not_for_use"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-for-use-redacted-path-segment-in-a-plan",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path",
+          0
+        ],
+        "op": "eq",
+        "value": "mcp"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": {
+          "refused": "not_for_use"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-op-in-a-plan",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "near",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "unknown",
+        "compiled": {
+          "refused": "unknown_op"
+        },
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "unknown_op",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-in-a-plan",
+      "condition": "not an object",
+      "use": "capture_plan",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [],
+            "code": "not_an_object",
             "scope": "enforcement"
           }
         ]
@@ -5485,6 +5609,33 @@
       "condition": {
         "path": "ticket.skills",
         "op": "contains",
+        "value": [
+          "x"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "scalar"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-not-contains-a-list-operand",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "not_contains",
         "value": [
           "x"
         ]

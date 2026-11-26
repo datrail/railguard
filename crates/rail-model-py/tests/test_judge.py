@@ -2,7 +2,6 @@ import base64
 import json
 import math
 from datetime import UTC, datetime
-from decimal import Decimal
 from pathlib import Path
 from uuid import UUID
 
@@ -26,16 +25,6 @@ _VECTORS = Path(__file__).parents[3] / "vectors"
 _WALK_CASES = json.loads((_VECTORS / "policy" / "judge.json").read_text())["cases"]
 
 
-def _dump_json(value):
-    if isinstance(value, Decimal):
-        return str(value)
-    if isinstance(value, dict):
-        return "{" + ",".join(f"{json.dumps(k)}:{_dump_json(v)}" for k, v in value.items()) + "}"
-    if isinstance(value, list):
-        return "[" + ",".join(_dump_json(item) for item in value) + "]"
-    return json.dumps(value)
-
-
 def _build_policy(n, condition, action="block", enabled=True):
     return {
         "id": str(_get_policy_id(n)),
@@ -49,7 +38,7 @@ def _build_policy(n, condition, action="block", enabled=True):
 
 def _compile_bundle(policies, *, mode="enforce", bindings=(), ticket_fallback="pass"):
     compiled = compile_bundle(
-        _dump_json(
+        json.dumps(
             {
                 "schema_version": "2.0",
                 "content_hash": "wheel",

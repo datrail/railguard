@@ -123,7 +123,12 @@
           1
         ],
         "lapsed": null,
-        "count": 5
+        "count": 5,
+        "grants": [
+          {
+            "scope": "repo"
+          }
+        ]
       },
       "endpoint": "keyless",
       "headers": []
@@ -323,6 +328,14 @@
       "path": "/mcp",
       "body": "{\"o\": {\"a\": 1, \"\\q\": 2}, \"b\": 3}",
       "body_bytes": 32
+    },
+    "capture-body-spaced-list": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp",
+      "body": "{\"blocks\": [\t\"a\\\" b\",\r\n1 ]}",
+      "body_bytes": 27
     }
   }
 }

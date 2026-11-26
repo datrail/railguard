@@ -2399,6 +2399,21 @@
       "expect": "does_not_hold"
     },
     {
+      "id": "in-a-bool-operand-item-on-a-list-of-a-bool-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "bool": true
+          }
+        ]
+      },
+      "op": "in",
+      "operand": [
+        true
+      ],
+      "expect": "does_not_hold"
+    },
+    {
       "id": "in-a-list-operand-item-on-its-number-does-not-hold",
       "value": {
         "number": 95

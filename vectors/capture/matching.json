@@ -1000,6 +1000,70 @@
       }
     },
     {
+      "id": "an-entry-implying-its-host-by-a-later-eq-is-tried-for-that-host",
+      "plan": "matching",
+      "entries": [
+        {
+          "id": "e1",
+          "match": [
+            {
+              "path": [
+                "request",
+                "mcp",
+                "tool"
+              ],
+              "op": "eq",
+              "value": "create_or_update_file"
+            },
+            {
+              "path": [
+                "request",
+                "host"
+              ],
+              "op": "eq",
+              "value": "api.github.com"
+            }
+          ],
+          "record": {
+            "context_keys": [],
+            "measures": [
+              {
+                "name": "call_count"
+              },
+              {
+                "name": "error_count"
+              },
+              {
+                "name": "request_bytes",
+                "type": "sum",
+                "function": "size",
+                "paths": [
+                  [
+                    "request",
+                    "body"
+                  ]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "call": {
+        "authority": "api.github.com",
+        "method": "POST",
+        "path": "/other",
+        "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"create_or_update_file\", \"arguments\": {}}}",
+        "body_bytes": 113
+      },
+      "expect": {
+        "refused": [],
+        "entries_skipped": 0,
+        "taken": {
+          "entry": "e1"
+        }
+      }
+    },
+    {
       "id": "a-refused-entry-stops-its-hosts-walk",
       "note": "So an entry meant to be narrower is never passed over for a broader one after it. starts_with is an op this reader doesn't know.",
       "plan": "matching",

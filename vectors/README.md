@@ -174,7 +174,7 @@ Each names its source in `_source`; what changed on the way:
 
 Layers 3 to 5 hold, among their own, the condition cases of datrail/gateway's
 `gateway-core/tests/vectors/v2/decide.json` at `041c92f`, each split into its path, its reading and its op; being no one
-source's file, they name no `_source`.
+source's file, they name no `_source`. Three of them, an operand past a double, are refused here as read.
 
 ## Queries
 

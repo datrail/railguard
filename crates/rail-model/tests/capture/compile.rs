@@ -46,6 +46,7 @@ fn test_refuses_the_conditions_check_condition_says_every_reader_refuses() {
                 problem.scope == ProblemScope::Enforcement || problem.code == ProblemCode::UnknownOp
             })
     };
+    assert!(!vectors.cases.is_empty());
     let mut failures = Vec::new();
     for case in &vectors.cases {
         let plan = get_plan(&plans, case);
