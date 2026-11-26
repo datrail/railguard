@@ -18,25 +18,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -48,13 +30,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -77,34 +53,12 @@
                 "repo"
               ]
             ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -135,25 +89,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -165,13 +101,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -195,34 +125,12 @@
                 "message"
               ]
             ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -255,25 +163,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -285,13 +175,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -316,34 +200,12 @@
                 "path"
               ]
             ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -374,25 +236,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -402,13 +246,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -431,34 +269,12 @@
                 "files"
               ]
             ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -489,34 +305,12 @@
                 "blocks"
               ]
             ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 27
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -546,25 +340,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -574,13 +350,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -602,34 +372,12 @@
                 "arguments"
               ]
             ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -660,25 +408,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -688,13 +418,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -717,34 +441,12 @@
                 "draft"
               ]
             ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -775,25 +477,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -803,13 +487,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -832,34 +510,12 @@
                 "size"
               ]
             ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -890,25 +546,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -916,13 +554,7 @@
             "path": "absent"
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -945,21 +577,38 @@
                 "note"
               ]
             ]
-          },
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "m": {
+            "size_in_bytes": [
+              "absent"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "is-set-body-null",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
           {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
+            "name": "m",
             "type": "sum",
-            "function": "size",
+            "function": "is_set",
             "paths": [
               [
                 "request",
-                "body"
+                "body",
+                "params",
+                "arguments",
+                "note"
               ]
             ]
           }
@@ -968,14 +617,13 @@
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          },
           "m": {
-            "size_in_bytes": [
-              "absent"
+            "is_set": [
+              {
+                "found": {
+                  "set": false
+                }
+              }
             ]
           }
         }
@@ -999,25 +647,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -1025,13 +655,7 @@
             "path": "absent"
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -1054,34 +678,12 @@
                 "owner"
               ]
             ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          },
           "m": {
             "size_in_bytes": [
               "absent"
@@ -1109,25 +711,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -1135,13 +719,7 @@
             "path": "ambiguous"
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -1164,21 +742,38 @@
                 "labels"
               ]
             ]
-          },
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "m": {
+            "size_in_bytes": [
+              "ambiguous"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "is-set-body-key-in-another-case",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
           {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
+            "name": "m",
             "type": "sum",
-            "function": "size",
+            "function": "is_set",
             "paths": [
               [
                 "request",
-                "body"
+                "body",
+                "params",
+                "arguments",
+                "labels"
               ]
             ]
           }
@@ -1187,13 +782,8 @@
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          },
           "m": {
-            "size_in_bytes": [
+            "is_set": [
               "ambiguous"
             ]
           }
@@ -1215,25 +805,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -1243,13 +815,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -1269,34 +835,12 @@
                 "body"
               ]
             ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -1325,25 +869,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -1355,13 +881,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -1382,34 +902,12 @@
                 "repo"
               ]
             ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -1439,25 +937,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -1465,13 +945,7 @@
             "path": "ambiguous"
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -1492,21 +966,40 @@
                 "tag"
               ]
             ]
-          },
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 4
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "is-set-query-several-values-found",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
           {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
+            "name": "m",
             "type": "sum",
-            "function": "size",
+            "function": "is_set",
             "paths": [
               [
                 "request",
-                "body"
+                "query",
+                "tag"
               ]
             ]
           }
@@ -1515,16 +1008,45 @@
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          },
           "m": {
-            "size_in_bytes": [
+            "is_set": [
               {
                 "found": {
-                  "bytes": 4
+                  "set": true
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "is-set-over-the-request-always-set",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "m": {
+            "is_set": [
+              {
+                "found": {
+                  "set": true
                 }
               }
             ]
@@ -1549,25 +1071,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -1579,13 +1083,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -1607,34 +1105,12 @@
                 1
               ]
             ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -1663,25 +1139,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -1693,13 +1151,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -1720,34 +1172,12 @@
                 "empty"
               ]
             ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -1776,25 +1206,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -1806,13 +1218,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -1833,34 +1239,12 @@
                 0
               ]
             ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -1889,25 +1273,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -1919,13 +1285,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -1946,34 +1306,12 @@
                 0
               ]
             ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -2002,25 +1340,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -2032,13 +1352,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -2059,34 +1373,12 @@
                 1
               ]
             ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -2132,34 +1424,12 @@
                 "repo"
               ]
             ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -2205,25 +1475,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -2242,13 +1494,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -2268,25 +1514,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -2298,13 +1526,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 3211
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -2323,25 +1545,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -2353,13 +1557,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 3211
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -2378,25 +1576,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -2408,13 +1588,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 3211
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -2435,25 +1609,7 @@
             "function": "sha256"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -2465,13 +1621,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 3211
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -2491,25 +1641,7 @@
             "function": "sha256"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -2521,13 +1653,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 3211
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -2548,25 +1674,7 @@
             "function": "sha256"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -2578,13 +1686,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 3211
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -2605,25 +1707,7 @@
             "function": "sha256"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -2635,13 +1719,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 3211
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -2662,25 +1740,7 @@
             "function": "sha256"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -2692,13 +1752,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 3211
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -2718,25 +1772,7 @@
             "function": "sha256"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -2748,13 +1784,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 3211
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -2774,25 +1804,7 @@
             "function": "sha256"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -2804,13 +1816,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 3211
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -2829,25 +1835,7 @@
             "function": "sha256"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -2857,13 +1845,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 3211
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -2883,25 +1865,7 @@
             "function": "sha256"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -2909,13 +1873,7 @@
             "path": "absent"
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 3211
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -2935,25 +1893,7 @@
             "function": "none"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -2965,13 +1905,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 3211
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -2991,25 +1925,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3021,13 +1937,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 972
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3046,25 +1956,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3076,13 +1968,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 972
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3101,25 +1987,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3131,13 +1999,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 972
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3156,25 +2018,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3186,13 +2030,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 972
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3211,25 +2049,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3241,13 +2061,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 972
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3266,25 +2080,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3296,13 +2092,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 972
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3321,25 +2111,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3351,13 +2123,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 972
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3376,25 +2142,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3406,13 +2154,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 972
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3431,25 +2173,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3461,13 +2185,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 972
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3486,25 +2204,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3516,13 +2216,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 972
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3541,25 +2235,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3571,13 +2247,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 972
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3596,25 +2266,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3626,13 +2278,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 972
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3651,25 +2297,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3681,13 +2309,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 972
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3706,25 +2328,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3736,13 +2340,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 972
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3761,25 +2359,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3791,13 +2371,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 972
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3816,25 +2390,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3846,13 +2402,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 972
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3871,25 +2421,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3901,13 +2433,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 972
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3926,25 +2452,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3956,13 +2464,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 972
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3981,25 +2483,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4011,13 +2495,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 972
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4036,25 +2514,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4066,13 +2526,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 972
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4091,25 +2545,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4121,13 +2557,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 972
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4146,25 +2576,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4176,13 +2588,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 972
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4201,25 +2607,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4231,13 +2619,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 972
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4260,25 +2642,7 @@
             "name": "operation"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4301,13 +2665,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4325,25 +2683,7 @@
             "segments": 3
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4356,13 +2696,7 @@
             "path_prefix": "/[redacted]/mcp"
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4375,25 +2709,7 @@
             "name": "host"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4401,13 +2717,7 @@
             "host": "refused"
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 2
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4423,25 +2733,7 @@
             "name": "operation"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4456,13 +2748,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 51
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4478,25 +2764,7 @@
             "name": "operation"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4509,13 +2777,7 @@
             "operation": "absent"
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 0
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4531,25 +2793,7 @@
             "name": "operation"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4562,13 +2806,7 @@
             "operation": "ambiguous"
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 62
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4589,25 +2827,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4619,13 +2839,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 120
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4648,21 +2862,42 @@
                 "repo"
               ]
             ]
-          },
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "m": {
+            "size_in_bytes": [
+              {
+                "body_unread": {
+                  "unread": "not_sent"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "unread-body-is-set",
+      "environment": "capture-body-not-sent",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
           {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
+            "name": "m",
             "type": "sum",
-            "function": "size",
+            "function": "is_set",
             "paths": [
               [
                 "request",
-                "body"
+                "body",
+                "params",
+                "arguments",
+                "repo"
               ]
             ]
           }
@@ -4671,13 +2906,8 @@
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 120
-          },
           "m": {
-            "size_in_bytes": [
+            "is_set": [
               {
                 "body_unread": {
                   "unread": "not_sent"
@@ -4706,34 +2936,12 @@
                 "body"
               ]
             ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 120
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -4764,34 +2972,12 @@
                 "body"
               ]
             ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 70000
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -4820,25 +3006,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4850,13 +3018,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 8
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4877,34 +3039,12 @@
                 "body"
               ]
             ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 8
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -4933,25 +3073,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4959,13 +3081,7 @@
             "path": "absent"
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 0
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4984,25 +3100,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -5014,13 +3112,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 120
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -5036,25 +3128,7 @@
             "name": "operation"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -5071,13 +3145,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 120
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -5096,25 +3164,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "step_limit": 10,
       "expect": {
@@ -5125,13 +3175,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 80
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -5150,25 +3194,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "step_limit": 9,
       "expect": {
@@ -5179,13 +3205,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 80
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -5206,21 +3226,39 @@
                 "a"
               ]
             ]
-          },
+          }
+        ]
+      },
+      "step_limit": 9,
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "m": {
+            "size_in_bytes": [
+              {
+                "refused": "budget_exceeded"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "is-set-past-the-step-limit-refused",
+      "environment": "capture-body-ten-members",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
           {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
+            "name": "m",
             "type": "sum",
-            "function": "size",
+            "function": "is_set",
             "paths": [
               [
                 "request",
-                "body"
+                "body",
+                "a"
               ]
             ]
           }
@@ -5230,13 +3268,8 @@
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 80
-          },
           "m": {
-            "size_in_bytes": [
+            "is_set": [
               {
                 "refused": "budget_exceeded"
               }
@@ -5263,23 +3296,6 @@
                 "body"
               ]
             ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
@@ -5287,11 +3303,6 @@
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 80
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -5330,25 +3341,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "step_limit": 15,
       "expect": {
@@ -5364,13 +3357,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 80
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -5397,34 +3384,12 @@
                 "sci"
               ]
             ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 142
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -5458,25 +3423,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -5484,13 +3431,7 @@
             "path": "ambiguous"
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 142
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -5512,21 +3453,40 @@
                 "bad"
               ]
             ]
-          },
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 8
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "is-set-of-a-string-that-doesnt-decode",
+      "environment": "capture-body-written-forms",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
           {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
+            "name": "m",
             "type": "sum",
-            "function": "size",
+            "function": "is_set",
             "paths": [
               [
                 "request",
-                "body"
+                "body",
+                "bad"
               ]
             ]
           }
@@ -5535,16 +3495,11 @@
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 142
-          },
           "m": {
-            "size_in_bytes": [
+            "is_set": [
               {
                 "found": {
-                  "bytes": 8
+                  "set": true
                 }
               }
             ]
@@ -5587,25 +3542,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -5631,13 +3568,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 2
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -5669,34 +3600,12 @@
                 "s"
               ]
             ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 2
-          },
           "m": {
             "size_in_bytes": [
               {

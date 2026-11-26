@@ -70,10 +70,14 @@
         ],
         "measures": [
           {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
+            "name": "call_count",
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -110,10 +114,14 @@
       ],
       "measures": [
         {
-          "name": "call_count"
-        },
-        {
-          "name": "error_count"
+          "name": "call_count",
+          "type": "sum",
+          "function": "is_set",
+          "paths": [
+            [
+              "request"
+            ]
+          ]
         },
         {
           "name": "request_bytes",

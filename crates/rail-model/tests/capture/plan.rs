@@ -1,6 +1,6 @@
 use rail_model::agent::AgentId;
 use rail_model::capture::{
-    Combine, ContextKey, KeyFunction, Measure, MeasureFunction, OnMaxGroups, Plan, parse_plan,
+    ContextKey, KeyFunction, Measure, MeasureFunction, OnMaxGroups, Plan, parse_plan,
 };
 use rail_model::condition::{BodyPath, BodyStep, Condition, Path, RequestPath};
 use rail_model::schema_version::SchemaVersion;
@@ -69,12 +69,18 @@ fn test_reads_the_worked_example_as_written() {
     assert_eq!(
         entry.record.measures,
         [
-            Measure::CallCount,
-            Measure::ErrorCount,
-            Measure::RequestBytes,
-            Measure::Named {
+            Measure {
+                name: "call_count".into(),
+                function: MeasureFunction::IsSet,
+                paths: vec![Path::Request(RequestPath::Whole)],
+            },
+            Measure {
+                name: "request_bytes".into(),
+                function: MeasureFunction::SizeInBytes,
+                paths: vec![body(&[])],
+            },
+            Measure {
                 name: "argument_bytes".into(),
-                combine: Combine::Sum,
                 function: MeasureFunction::SizeInBytes,
                 paths: vec![body(&["params", "arguments", "content"])],
             },
@@ -93,9 +99,16 @@ fn test_reads_the_worked_example_as_written() {
     assert_eq!(
         plan.catch_all.record.measures,
         [
-            Measure::CallCount,
-            Measure::ErrorCount,
-            Measure::RequestBytes
+            Measure {
+                name: "call_count".into(),
+                function: MeasureFunction::IsSet,
+                paths: vec![Path::Request(RequestPath::Whole)],
+            },
+            Measure {
+                name: "request_bytes".into(),
+                function: MeasureFunction::SizeInBytes,
+                paths: vec![body(&[])],
+            },
         ]
     );
 }
@@ -139,13 +152,14 @@ fn test_passes_over_a_key_or_measures_unknown_field_unread() {
             r#""field_type":"repository","x":1e400"#,
         ),
         (
-            r#"{"name":"call_count"}"#,
-            r#"{"name":"call_count","x":1e400}"#,
+            r#""paths":[["request"]],"type":"sum"}"#,
+            r#""paths":[["request"]],"type":"sum","x":1e400}"#,
         ),
         (r#"{"name":"host"}"#, r#"{"name":"host","x":1e400}"#),
     ] {
         let plan = vectors().plan.to_string().replacen(from, to, 1);
 
+        assert!(plan.contains(to), "{from} not in the plan");
         assert!(parse_plan(&plan).is_ok(), "{to}");
     }
 }

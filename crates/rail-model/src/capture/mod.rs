@@ -20,8 +20,8 @@ pub use document::Document;
 #[cfg(feature = "conformance")]
 pub(crate) use plan::read_record_path;
 pub use plan::{
-    CatchAll, Combine, ContextKey, Entry, InvalidPlan, KeyFunction, Measure, MeasureFunction,
-    OnMaxGroups, Plan, PlanBudget, Record, parse_plan,
+    CatchAll, ContextKey, Entry, InvalidPlan, KeyFunction, Measure, MeasureFunction, OnMaxGroups,
+    Plan, PlanBudget, Record, parse_plan,
 };
 pub use window::{BodyUnreadReason, ClosedWindow, Window};
 pub use windowing::{CallOutcome, Recorded, Windowing};

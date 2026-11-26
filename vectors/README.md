@@ -82,10 +82,11 @@ a Rust test's.
   given, a finite one past any case's body).
 - **`capture/plans.json`:** named plans. A case's `plan` is a name, its `entries`, where given, in place of the plan's;
   or a plan written whole. `one-entry` is the plan layers 6 and 7 write their `match` or `record` into; `matching`,
-  layer 8's, two MCP tools on one host and an HTTP operation on another, their records the built-in measures alone;
+  layer 8's, two MCP tools on one host and an HTTP operation on another, their records without measures;
   `worked-example` is the capture design's (railxia/docs' `design/2026-11-10-rc-dg-capture-plan/design.md` at `95b5c7b`,
-  its section 2), `two-groups` it with a smaller budget, and `sixty-seconds` and `five-minutes` it with another window
-  and their own `plan_version`s, 1 and 2, by which layer 10 tells their windows apart.
+  its section 2) with its measures as this reader reads them, `two-groups` it with a smaller budget, and `sixty-seconds`
+  and `five-minutes` it with another window and their own `plan_version`s, 1 and 2, by which layer 10 tells their
+  windows apart.
 
 ### Values
 
@@ -99,7 +100,7 @@ object of it:
 | A verdict                | `"holds"`, `"does_not_hold"`, `"ambiguous"`, `{"body_unread": why}`, `{"refused": why}`                                                                                                                                      |
 | A refusal                | `{"refused": "unknown_op" \| "invalid" \| "not_for_use" \| "budget_exceeded"}` as resolved or evaluated; layer 3's `{"refused_reading": "invalid" \| "not_for_use" \| "not_for_record"}` as read for its use, never resolved |
 | A record's path          | `{"found": <kept>}`, `"absent"`, `"ambiguous"`, `{"body_unread": why}`, `{"refused": why}`                                                                                                                                   |
-| What a key keeps         | `{"string": "…"}`, `{"hashed": "<64 hex digits>"}`, `{"replaced": "key_shape" \| "past_longest"}`, `"not_a_string"`; a measure's `{"bytes": n}`                                                                              |
+| What a key keeps         | `{"string": "…"}`, `{"hashed": "<64 hex digits>"}`, `{"replaced": "key_shape" \| "past_longest"}`, `"not_a_string"`; a size's `{"bytes": n}`, an `is_set`'s `{"set": true \| false}`                                         |
 | A host                   | `{"read": host}`; `"refused"`, `"past_longest"`, each read and reported as `[unparseable]`                                                                                                                                   |
 | A method reported        | the method, one of the standard nine, or `"other"`, reported as `[other]`                                                                                                                                                    |
 | Why a path never matches | `null`, or `"not_utf8"`, `"bracket"`, `"encoded_slash"`, `"dot_segment"`, `"empty_segment"`, the first that applies in that order                                                                                            |
@@ -107,7 +108,7 @@ object of it:
 | An endpoint              | `"discovery"`, or `{"judged": "keyless" \| "unrecognised" \| {"resolved": key}}`                                                                                                                                             |
 | A condition read         | `reading`: `"valid"`, `"unknown"`, `"invalid"`; each problem's `location`, `code`, `scope`, and `expected_shape` where it has one                                                                                            |
 | A record's key           | `{"method": …}`, `{"host": …}`, `{"path_prefix": "…"}`, `{"operation": <a record's path>}`, `{"path": <a record's path>}`                                                                                                    |
-| A record's measure       | `"call_count"`, `"error_count"`, `{"request_bytes": n}`, `{"size_in_bytes": [<a record's path>, …]}`, one per path                                                                                                           |
+| A record's measure       | `{"size_in_bytes": [<a record's path>, …]}`, `{"is_set": [<a record's path>, …]}`, one per path                                                                                                                              |
 | Taken, and why not       | `{"entry": id}`, `{"catch_all": id, "why": …}`: `"no_entry"`, `{"unmatchable": why}`, `{"refused": {entry, location, refusal}}`, `{"stopped": …}`, `{"ambiguous": {entry}}`, `{"body_unread": {entry, why}}`                 |
 
 Resolving a path refuses only `budget_exceeded`; `unknown_op`, `invalid` and `not_for_use` come from a compiled

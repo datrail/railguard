@@ -7,7 +7,7 @@ use std::ops::RangeInclusive;
 
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
-use serde_json::{Value, json};
+use serde_json::Value;
 
 use crate::agent::AgentId;
 use crate::condition::{BodyStep, Condition, Path, RequestPath};
@@ -67,7 +67,7 @@ pub struct Entry {
 }
 
 /// What a call's record holds: an entry's, or the catch-all's, whose keys are only the built-in
-/// ones and whose measures only the three every record holds.
+/// ones.
 #[derive(Debug, Deserialize)]
 pub struct Record {
     pub context_keys: Vec<ContextKey>,
@@ -102,25 +102,19 @@ pub enum ContextKey {
     },
 }
 
+/// What its function makes of the values its paths find, added up over the paths and the calls.
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(try_from = "Fields")]
-pub enum Measure {
-    CallCount,
-    ErrorCount,
-    /// The whole body's size, as sent.
-    RequestBytes,
-    Named {
-        name: String,
-        combine: Combine,
-        function: MeasureFunction,
-        paths: Vec<Path>,
-    },
+pub struct Measure {
+    pub name: String,
+    pub function: MeasureFunction,
+    pub paths: Vec<Path>,
 }
 
-/// How a measure's per-call numbers add up.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+// A measure's `type`: how its numbers add up.
+#[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Combine {
+enum Combine {
     Sum,
 }
 
@@ -141,6 +135,8 @@ pub enum MeasureFunction {
     /// The bytes the values take, as the call sends them.
     #[serde(rename = "size")]
     SizeInBytes,
+    /// 1 for a value other than `null`, 0 for none; over `["request"]`, always 1.
+    IsSet,
 }
 
 impl ContextKey {
@@ -150,17 +146,6 @@ impl ContextKey {
             Self::Host => "host",
             Self::PathPrefix { .. } => "path_prefix",
             Self::Operation => "operation",
-            Self::Named { name, .. } => name,
-        }
-    }
-}
-
-impl Measure {
-    pub(crate) fn name(&self) -> &str {
-        match self {
-            Self::CallCount => "call_count",
-            Self::ErrorCount => "error_count",
-            Self::RequestBytes => "request_bytes",
             Self::Named { name, .. } => name,
         }
     }
@@ -254,7 +239,11 @@ fn check_entry(entry: &Entry) -> Result<(), String> {
     }) {
         return Err(format!("context key {}: the catch-all's alone", key.name()));
     }
-    check_measures(&entry.record.measures)
+    let measures = &entry.record.measures;
+    unique(
+        "measure",
+        measures.iter().map(|measure| measure.name.as_str()),
+    )
 }
 
 fn check_catch_all(catch_all: &CatchAll) -> Result<(), String> {
@@ -270,28 +259,10 @@ fn check_catch_all(catch_all: &CatchAll) -> Result<(), String> {
         return Err("no host context key".to_owned());
     }
     let measures = &catch_all.record.measures;
-    if let Some(named) = measures
-        .iter()
-        .find(|measure| matches!(measure, Measure::Named { .. }))
-    {
-        return Err(format!("measure {}: only the built-in ones", named.name()));
-    }
-    check_measures(measures)
-}
-
-// A set by name, holding the three every record does.
-fn check_measures(measures: &[Measure]) -> Result<(), String> {
-    unique("measure", measures.iter().map(Measure::name))?;
-    for built_in in [
-        Measure::CallCount,
-        Measure::ErrorCount,
-        Measure::RequestBytes,
-    ] {
-        if !measures.contains(&built_in) {
-            return Err(format!("no {} measure", built_in.name()));
-        }
-    }
-    Ok(())
+    unique(
+        "measure",
+        measures.iter().map(|measure| measure.name.as_str()),
+    )
 }
 
 fn unique<'a>(what: &str, names: impl Iterator<Item = &'a str>) -> Result<(), String> {
@@ -365,32 +336,18 @@ impl TryFrom<Fields> for ContextKey {
     }
 }
 
-// A measure's fields depend on its name.
+// A measure's fields, each required.
 impl TryFrom<Fields> for Measure {
     type Error = String;
 
     fn try_from(fields: Fields) -> Result<Self, String> {
         let name = read_name(fields.name, "measure")?;
         let at = format!("measure {name}");
-        match name.as_str() {
-            "call_count" => return Ok(Self::CallCount),
-            "error_count" => return Ok(Self::ErrorCount),
-            _ => {}
-        }
         let combine = present(fields.combine, "type", &at)?;
         let function = present(fields.function, "function", &at)?;
         let paths = present(fields.paths, "paths", &at)?;
-        if name == "request_bytes" {
-            let whole_body = json!([["request", "body"]]);
-            if (combine, function, paths) != (json!("sum"), json!("size"), whole_body) {
-                return Err(format!(
-                    "{at}: not a sum of size over [[\"request\", \"body\"]]"
-                ));
-            }
-            return Ok(Self::RequestBytes);
-        }
         let unlisted = |field: &str| format!("{at}: its {field} is none the reference lists");
-        let combine: Combine = read_listed(combine).ok_or_else(|| unlisted("type"))?;
+        let Combine::Sum = read_listed(combine).ok_or_else(|| unlisted("type"))?;
         let function: MeasureFunction =
             read_listed(function).ok_or_else(|| unlisted("function"))?;
         let paths = match paths {
@@ -399,12 +356,21 @@ impl TryFrom<Fields> for Measure {
         };
         let paths = paths
             .iter()
-            .map(read_record_path)
+            .map(|steps| {
+                // Not a record path: always there, so is_set over it counts the calls.
+                if function == MeasureFunction::IsSet
+                    && let Some(whole @ Path::Request(RequestPath::Whole)) =
+                        steps.as_array().and_then(|steps| Path::from_steps(steps))
+                {
+                    Ok(whole)
+                } else {
+                    read_record_path(steps)
+                }
+            })
             .collect::<Result<_, _>>()
             .map_err(|why| format!("{at}: {why}"))?;
-        Ok(Self::Named {
+        Ok(Self {
             name,
-            combine,
             function,
             paths,
         })

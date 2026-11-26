@@ -81,12 +81,10 @@ pub enum KeyReading {
 
 #[derive(Debug, PartialEq)]
 pub enum MeasureReading {
-    CallCount,
-    ErrorCount,
-    /// The body's bytes as sent, read or not.
-    RequestBytes(u64),
     /// What each of its paths adds.
     SizeInBytes(Vec<PathReading<u64>>),
+    /// Whether each of its paths finds a value; nothing there is found, as not set.
+    IsSet(Vec<PathReading<bool>>),
 }
 
 /// What a record's path found.
@@ -241,21 +239,24 @@ pub(crate) fn read_record(
     let measures = record
         .measures
         .iter()
-        .map(|measure| match measure {
-            Measure::CallCount => MeasureReading::CallCount,
-            Measure::ErrorCount => MeasureReading::ErrorCount,
-            Measure::RequestBytes => MeasureReading::RequestBytes(body_bytes),
-            Measure::Named {
-                function: MeasureFunction::SizeInBytes,
-                paths,
-                ..
-            } => MeasureReading::SizeInBytes(
-                paths
-                    .iter()
-                    .map(|path| read_size_in_bytes(path, environment, body_bytes, budget))
-                    .collect(),
-            ),
-        })
+        .map(
+            |Measure {
+                 function, paths, ..
+             }| match function {
+                MeasureFunction::SizeInBytes => MeasureReading::SizeInBytes(
+                    paths
+                        .iter()
+                        .map(|path| read_size_in_bytes(path, environment, body_bytes, budget))
+                        .collect(),
+                ),
+                MeasureFunction::IsSet => MeasureReading::IsSet(
+                    paths
+                        .iter()
+                        .map(|path| read_is_set(path, environment, budget))
+                        .collect(),
+                ),
+            },
+        )
         .collect();
     RecordReading {
         context_keys,
@@ -298,6 +299,18 @@ fn read_key(
         Lookup::Absent => PathReading::Absent,
         Lookup::Ambiguous => PathReading::Ambiguous,
         Lookup::BodyUnread(why) => PathReading::BodyUnread(why),
+    }
+}
+
+// Any value but a JSON `null`: a parameter sent several times is set, whichever a server reads.
+fn read_is_set(path: &Path, environment: &Environment, budget: &mut Budget) -> PathReading<bool> {
+    match resolve_path(path, environment, budget) {
+        Ok((Lookup::Absent, _)) => PathReading::Found(false),
+        Ok((Lookup::BodyUnread(why), _)) => PathReading::BodyUnread(why),
+        // Not in the body: one in it is there whether or not it decodes.
+        Ok((Lookup::Ambiguous, None)) => PathReading::Ambiguous,
+        Ok(_) => PathReading::Found(true),
+        Err(refusal) => PathReading::Refused(refusal),
     }
 }
 

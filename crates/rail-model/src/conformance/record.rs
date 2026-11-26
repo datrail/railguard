@@ -77,7 +77,7 @@ fn encode_record_reading(record: &Record, reading: &RecordReading) -> Value {
         .measures
         .iter()
         .zip(&reading.measures)
-        .map(|(measure, reading)| (measure.name().to_owned(), encode_measure_reading(reading)))
+        .map(|(measure, reading)| (measure.name.clone(), encode_measure_reading(reading)))
         .collect();
     json!({"context_keys": keys, "measures": measures})
 }
@@ -96,12 +96,13 @@ fn encode_key_reading(reading: &KeyReading) -> Value {
 
 fn encode_measure_reading(reading: &MeasureReading) -> Value {
     match reading {
-        MeasureReading::CallCount => json!("call_count"),
-        MeasureReading::ErrorCount => json!("error_count"),
-        MeasureReading::RequestBytes(bytes) => json!({"request_bytes": bytes}),
         MeasureReading::SizeInBytes(readings) => json!({"size_in_bytes": readings
             .iter()
             .map(|reading| encode_path_reading(reading, |bytes| json!({"bytes": bytes})))
+            .collect::<Vec<_>>()}),
+        MeasureReading::IsSet(readings) => json!({"is_set": readings
+            .iter()
+            .map(|reading| encode_path_reading(reading, |set| json!({"set": set})))
             .collect::<Vec<_>>()}),
     }
 }
