@@ -100,10 +100,10 @@ Envoy's configuration is the customer's, so we can only recommend it. rail-envoy
 - ext_authz or ext_proc on the request headers, over the unix socket;
 - either fail closed (`failure_mode_allow: false`), or fail open with Envoy removing `x-rail`, `x-rail-*` and `_`
   headers before the route is picked and before the callout: `early_header_mutation_extensions` and
-  `headers_with_underscores_action: DROP_HEADER` on the connection manager. Otherwise, while rail-envoy is down, the
-  agent's own headers cross, and its `x-rail-upstream` picks the route. Failing open, while it's down a protected host's
-  requests go as the agent sent them, over plain HTTP, usually at port 80, so they usually fail to connect, and no
-  ticket is sent;
+  `headers_with_underscores_action: DROP_HEADER` on the connection manager.
+  - Otherwise, while rail-envoy is down, the agent's own headers cross, and its `x-rail-upstream` picks the route.
+  - Failing open, while it's down a protected host's requests go as the agent sent them, over plain HTTP, usually at
+    port 80, so they usually fail to connect, and no ticket is sent;
 - every request header reported: no `allowed_headers` or `disallowed_headers` on ext_authz, no `forward_rules` on
   ext_proc. Otherwise only `x-rail`, `x-rail-status` and `x-rail-upstream` are sure to be removed;
 - `allow_all_routing` (ext_authz's `decoder_header_mutation_rules`, ext_proc's `mutation_rules`), so it can rewrite
@@ -174,10 +174,13 @@ flowchart LR
 
 `rail gateway` judges each `POST` whole, its headers and its body (any other request goes on unjudged, its body never
 gathered), through the same gateway as rail-apigee: the same waits, deadline, posture, fallbacks, denial reports and
-answers. A call allowed goes on without the agent's `x-rail`, `x-rail-*` and `_` headers; one refused gets 403
-`{"error": "denied by policy"}`, or 503 `{"error": "policy ruleset cannot be applied"}`, or, past `RAIL_MAX_BODY_MB` or
-shorter than its `Content-Length` but not empty, 413 `{"error": "request body too large"}`. A `POST` sending no body
-though its `Content-Length` isn't 0 gets 503.
+answers.
+
+- A call allowed goes on without the agent's `x-rail`, `x-rail-*` and `_` headers.
+- One refused gets 403 `{"error": "denied by policy"}`, or 503 `{"error": "policy ruleset cannot be applied"}`.
+- One past `RAIL_MAX_BODY_MB`, or shorter than its `Content-Length` but not empty, gets 413
+  `{"error": "request body too large"}`.
+- A `POST` sending no body though its `Content-Length` isn't 0 gets 503.
 
 - **ext_proc** must send the request's headers, and its body `FULL_DUPLEX_STREAMED` or `BUFFERED`:
   - **full duplex** (GCP's load balancer): every answer is held until the body ends, by its last chunk or the trailers
@@ -219,11 +222,16 @@ Every setting it reads, its own and those both hosts share, is in
 
 ## Health
 
-It serves `grpc.health.v1` on the same listener: `""`, ext_authz's and ext_proc's service names are liveness, SERVING
-while it serves; `rail.Ready` is readiness, SERVING while the proxy holds a valid ticket, or the gateway a bundle, or
-with Rail Center disabled. All are NOT_SERVING once it's stopping. A readiness answer gives the role's state in its
-metadata, `rail-ready-proxy`: `valid`, `expired`, `not-found` or `issuer-unreachable` (`x-rail-status`'s words); or
-`rail-ready-gateway`: `held` or `none`; either `disabled`, or `stopping`.
+It serves `grpc.health.v1` on the same listener:
+
+- `""`, ext_authz's and ext_proc's service names are liveness, SERVING while it serves;
+- `rail.Ready` is readiness, SERVING while the proxy holds a valid ticket, or the gateway a bundle, or with Rail Center
+  disabled;
+- all are NOT_SERVING once it's stopping;
+- a readiness answer gives the role's state in its metadata:
+  - `rail-ready-proxy`: `valid`, `expired`, `not-found` or `issuer-unreachable` (`x-rail-status`'s words);
+  - `rail-ready-gateway`: `held` or `none`;
+  - either: `disabled`, or `stopping`.
 
 `rail-envoy probe [--ready]` (`rail probe [--ready]` in its image) asks it, for an exec probe, and exits 0 only on
 SERVING; it waits at most 5 s, so give the probe a longer timeout. It names no role, since the server answers for its
@@ -234,21 +242,27 @@ ticket is held, never to restart it: a ticket that lapses turns it not ready, an
 ## Shutdown
 
 On SIGTERM or Ctrl-C it reports NOT_SERVING and drains for at most 5 s, then cuts the connections still open: Envoy
-keeps them, and an ext_proc stream lasts as long as its request. With Rail Center on, the proxy then counts the calls
-already handed to capture (at most 4096 waiting, untimed), closes the open window and sends the documents waiting,
-waiting at most 2 s for them, and its capture and Rail Center threads have at most 1 s each to stop, so 9 s in all
-beside counting those calls; the gateway's Rail Center thread has 1 s, so 6 s.
+keeps them, and an ext_proc stream lasts as long as its request. With Rail Center on:
+
+- the proxy then counts the calls already handed to capture (at most 4096 waiting, untimed), closes the open window and
+  sends the documents waiting, waiting at most 2 s for them, and its capture and Rail Center threads have at most 1 s
+  each to stop, so 9 s in all beside counting those calls;
+- the gateway's Rail Center thread has 1 s, so 6 s.
 
 ## Caveats
 
 - **The proxy and ext_proc's full-duplex body mode:** the proxy doesn't send that body back yet, so Envoy answers 500
   and nothing reaches the upstream. Every other body mode, and ext_authz with a body, passes the body whole. The gateway
   supports full duplex.
-- **The gateway's memory:** it holds each call's body until it's judged, which can take up to about twice
-  `RAIL_MAX_BODY_MB` per call in flight, and reading its endpoint parses it into a tree of up to 16 times the body, for
-  a body of small array items. The bodies within it, their trees and the headers conditions read share 256 MiB; past it,
-  a call is unjudged, 503 at enforce, forwarded at observe and none, a body adopted past it still held, to send on; a
-  full-duplex body whose later chunk passes it is dropped, so 503. Size its memory for the calls it serves at once.
+- **The gateway's memory:**
+  - it holds each call's body until it's judged, which can take up to about twice `RAIL_MAX_BODY_MB` per call in flight;
+  - reading its endpoint parses it into a tree of up to 16 times the body, for a body of small array items;
+  - the bodies within it, their trees and the headers conditions read share 256 MiB; past it, a call is unjudged, 503 at
+    enforce, forwarded at observe and none, a body adopted past it still held, to send on;
+  - a full-duplex body whose later chunk passes it is dropped, so 503.
+
+  Size its memory for the calls it serves at once.
+
 - **The proxy's memory:** each ext_authz request, and each ext_proc body message, is held whole, up to
   `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`, while it's answered; the bodies kept for capture, up to `RAIL_MAX_BODY_MB` each,
   share 256 MiB, and up to 4096 calls wait for capture's thread.

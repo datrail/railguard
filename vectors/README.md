@@ -71,24 +71,30 @@ a Rust test's.
 
 ### Shared inputs
 
-- **`environments.json`:** named environments. One `for` judging, a policy's sample as `for_judging` builds it (the
-  gateway builds its own from the request, a policy reading it alike but for `host`, taken from `:authority` where no
-  `host` line was sent): the ticket's claims (`null` for no usable ticket, so every ticket path is absent), the
-  `endpoint` (`keyless`, `unrecognised` or `{"resolved": key}`) and the `headers` as sent; its request line reads
-  absent, its body as not sent. One `for` capture: a call, with no ticket and no header lines, its endpoint the one its
-  path and body name; a body unread reads its endpoint key as unread.
-- **A call:** its `authority`, `method` and `path` as sent; its `body` as text, as `{"hex": …}` for bytes that aren't
-  UTF-8, as `{"unread": why}` (`past_cap`, `past_budget`, `not_sent`, `cut_short`), or as `{"text": …, "bytes": n}`,
-  where `<N bytes>` stands for N bytes of `x` and the text is padded with spaces to `bytes`; `body_bytes`, its length as
-  the call declares it; `byte_budget`, where a case is about passing the bytes a body and its tree share (where none is
-  given, a finite one past any case's body).
+- **`environments.json`:** named environments.
+  - One `for` judging, a policy's sample as `for_judging` builds it (the gateway builds its own from the request, a
+    policy reading it alike but for `host`, taken from `:authority` where no `host` line was sent): the ticket's claims
+    (`null` for no usable ticket, so every ticket path is absent), the `endpoint` (`keyless`, `unrecognised` or
+    `{"resolved": key}`) and the `headers` as sent; its request line reads absent, its body as not sent.
+  - One `for` capture: a call, with no ticket and no header lines, its endpoint the one its path and body name; a body
+    unread reads its endpoint key as unread.
+- **A call:**
+  - its `authority`, `method` and `path` as sent;
+  - its `body` as text, as `{"hex": …}` for bytes that aren't UTF-8, as `{"unread": why}` (`past_cap`, `past_budget`,
+    `not_sent`, `cut_short`), or as `{"text": …, "bytes": n}`, where `<N bytes>` stands for N bytes of `x` and the text
+    is padded with spaces to `bytes`;
+  - `body_bytes`, its length as the call declares it;
+  - `byte_budget`, where a case is about passing the bytes a body and its tree share (where none is given, a finite one
+    past any case's body).
 - **`capture/plans.json`:** named plans. A case's `plan` is a name, its `entries`, where given, in place of the plan's;
-  or a plan written whole. `one-entry` is the plan layers 6 and 7 write their `match` or `record` into; `matching`,
-  layer 8's, two MCP tools on one host and an HTTP operation on another, their records without measures;
-  `worked-example` is the capture design's (railxia/docs' `design/2026-11-10-rc-dg-capture-plan/design.md` at `95b5c7b`,
-  its section 2) with its measures as this reader reads them, `two-groups` it with a smaller budget, and `sixty-seconds`
-  and `five-minutes` it with another window and their own `plan_version`s, 1 and 2, by which layer 10 tells their
-  windows apart.
+  or a plan written whole.
+  - `one-entry` is the plan layers 6 and 7 write their `match` or `record` into;
+  - `matching`, layer 8's, two MCP tools on one host and an HTTP operation on another, their records without measures;
+  - `worked-example` is the capture design's (railxia/docs' `design/2026-11-10-rc-dg-capture-plan/design.md` at
+    `95b5c7b`, its section 2) with its measures as this reader reads them;
+  - `two-groups` it with a smaller budget;
+  - `sixty-seconds` and `five-minutes` it with another window and their own `plan_version`s, 1 and 2, by which layer 10
+    tells their windows apart.
 
 ### Values
 
@@ -136,11 +142,13 @@ Layer 9's `sent` is what the sender gives the document: `document_id`, `generate
   it.
 - **Layer 5** wraps the op in a condition on `ticket.value` for a gateway policy, never resolved; a refusal comes before
   the value is looked at.
-- **What stays a Rust test,** not a vector: the Rust API (types, sharing, never panicking); this reader's own limits'
-  arithmetic (a vector pins a boundary's outcome, not its charges); invariants over generated inputs; log lines and an
-  error's wording; layers below these (the body's tree, an authority refused), but where a layer above reads their
-  outcome; the step budget shared by matching and its record, and a walk stopped by it, since layer 8 takes no step
-  limit.
+- **What stays a Rust test,** not a vector:
+  - the Rust API (types, sharing, never panicking);
+  - this reader's own limits' arithmetic (a vector pins a boundary's outcome, not its charges);
+  - invariants over generated inputs;
+  - log lines and an error's wording;
+  - layers below these (the body's tree, an authority refused), but where a layer above reads their outcome;
+  - the step budget shared by matching and its record, and a walk stopped by it, since layer 8 takes no step limit.
 
 ## Where the ported files come from
 
@@ -155,19 +163,26 @@ What changed on the way:
   shape.
 - **`policy/bundle.json`:** bundles filled in to the shape Rail Center publishes; the gateway's other expectations
   (names, conditions, actions, bindings, `ticket_fallback`) aren't asserted. Removed: 24 cases this reader answers
-  otherwise, all input Rail Center doesn't publish or a check made elsewhere (an `enabled` missing or not a boolean; a
-  priority written as a float; a name missing or not a string; an id of a shape this reader refuses and another reads:
-  odd hyphens, a leading minus, a braced URN, an upper-case URN prefix on an undashed id; a duplicate id beside a
-  disabled twin, or a bad id or priority on a disabled policy; a binding naming an unknown policy; an endpoint key not
-  of the form `<slug>#<path>#<method>#<call>`; a `content_hash` this reader reads opaque; a major version other than 2,
-  which the caller checks).
-- **`policy/judge.json`:** the whole-bundle cases of `decide.json` and those of `fallback.json`, bundles filled in to
-  2.0, both fallbacks `pass` unless a case is about one, a ticket the claims Rail Center mints where a case gives none;
-  `fallback.json`'s `<slug>.<tool>` keys rewritten `<slug>#/mcp#tools/call#<tool>`, its cases with no chain given one
-  inert alert. An `endpoint` is `keyless`, `unrecognised` or `{"resolved": key}`, the key without its slug. A chain is
-  `null` where a fallback denies at enforce; a refusal names the policy it was reached at. Removed: 5 with an action
-  other than block or alert, 2 with an `enabled` missing or not a boolean (this reader refuses the bundle; Rail Center
-  publishes neither), 2 with mode none, where the caller never judges.
+  otherwise, all input Rail Center doesn't publish or a check made elsewhere:
+  - an `enabled` missing or not a boolean;
+  - a priority written as a float;
+  - a name missing or not a string;
+  - an id of a shape this reader refuses and another reads: odd hyphens, a leading minus, a braced URN, an upper-case
+    URN prefix on an undashed id;
+  - a duplicate id beside a disabled twin, or a bad id or priority on a disabled policy;
+  - a binding naming an unknown policy;
+  - an endpoint key not of the form `<slug>#<path>#<method>#<call>`;
+  - a `content_hash` this reader reads opaque;
+  - a major version other than 2, which the caller checks.
+- **`policy/judge.json`:** the whole-bundle cases of `decide.json` and those of `fallback.json`:
+  - bundles filled in to 2.0, both fallbacks `pass` unless a case is about one, a ticket the claims Rail Center mints
+    where a case gives none;
+  - `fallback.json`'s `<slug>.<tool>` keys rewritten `<slug>#/mcp#tools/call#<tool>`, its cases with no chain given one
+    inert alert;
+  - an `endpoint` is `keyless`, `unrecognised` or `{"resolved": key}`, the key without its slug;
+  - a chain is `null` where a fallback denies at enforce; a refusal names the policy it was reached at;
+  - removed: 5 with an action other than block or alert, 2 with an `enabled` missing or not a boolean (this reader
+    refuses the bundle; Rail Center publishes neither), 2 with mode none, where the caller never judges.
 - **`policy/base64_ticket.json`:** verbatim; a valid case's token is the payload as sent. Removed: 8 about how the
   header arrives, which the runtime handles, and 4 about a nesting cap of 64, where this reader's is 128; the contract
   leaves the cap to each reader.

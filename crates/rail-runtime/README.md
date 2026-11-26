@@ -12,33 +12,46 @@ behave the same. See the [main README](../../README.md) for the system around it
 - **Rail Center:** `RailCenterClient`, the one client every Rail Center call goes through, on the `RailCenterThread`, a
   runtime of its own, so a burst of calls can't delay a refresh and a refresh's work can't stall a call.
 - **The holders:** `BundleHolder`, `KeySetHolder`, `TicketHolder` and `CapturePlanHolder` keep the policy bundle, the
-  signing keys, the ticket and the capture plan through Rail Center failures, refreshed on a jittered period: backing
-  off after a failure that may pass, and after a refusal too while nothing is held, or at any time for the keys and the
-  ticket, which lapse.
-- **The gateway:** `Gateway::gather` decides at a call's headers whether it's judged (a `POST`, for now): a judged
-  call's `RequestGatherer` keeps its header lines and its body within `RAIL_MAX_BODY_MB`, and any other goes on
-  unjudged, its body never gathered; `Gateway::handle` judges the request gathered against the bundle held, by its
-  deadline: forward it, deny it (403), refuse it as one the rules can't apply to (503), or one past the cap or cut short
-  (413), and hands its body back to send on. `DenialReporter` reports each denial without the call waiting.
-- **The proxy:** `XRailHeaders` are the proxy's changes to a request, for a protected host or any other.
-  `CallRecordReporter` sends each closed capture window holding a call or a drop to Rail Center as its call record
-  document, oldest first, one at a time, retrying with a backoff; an empty window isn't sent, and a document Rail Center
-  refuses (a 4xx other than 401, 403, 408 or 429) is dropped. Besides the oldest, it keeps up to the newest window's
-  plan's `max_unsent_windows` and up to two million records and steps, dropping the oldest past either; each drop is
-  counted in the next document. `Capture`, a task on the `CaptureThread`'s runtime, counts the calls the callouts hand
-  over through a `CaptureSender` in windows under the capture plan held, each closed window to the reporter, sent at
-  once when the plan goes: `is_capturing`, a plan held and the task taking calls, decides a call's capture at its
-  headers, and `send` never waits, a call the full queue of 4096 turns away counted as dropped. `hold` holds a call from
-  its headers, as a `HeldRequest`, until the callout tells how its body ended; dropped first, as if its stream ended
-  first. A **`RequestGatherer`** reads a request once from its header lines and its body: whole within its cap and its
-  budget (or adopted past the budget by the gateway's), else unread, as not sent, cut short (of its declared length, or
-  where its host may have cut it), or past either. Capture's keeps no header line and keeps its body within the 256 MiB
-  every body kept shares; the gateway's, from `Gateway::gather` and judged by `Gateway::handle`, keeps them, reads the
-  declared length unless its host turns off `checks_declared_length`, and shares a 256 MiB budget of its own: a body
-  adopted past it is kept, to send on, and only its tree and the headers conditions read are refused. Stopping `Capture`
-  counts the calls already handed over (at most 4096 waiting, untimed), closes the open window and sends the windows
-  waiting, waiting up to 2 s for them. Dropping it does the same, unawaited. `start_proxy` starts them all, with the
-  ticket, as `start_gateway` starts the gateway's: `ProxyStop` stops capture, then its threads.
+  signing keys, the ticket and the capture plan through Rail Center failures, refreshed on a jittered period, backing
+  off:
+  - after a failure that may pass;
+  - after a refusal too, while nothing is held, or at any time for the keys and the ticket, which lapse.
+- **The gateway:**
+  - `Gateway::gather` decides at a call's headers whether it's judged (a `POST`, for now): a judged call's
+    `RequestGatherer` keeps its header lines and its body within `RAIL_MAX_BODY_MB`, and any other goes on unjudged, its
+    body never gathered;
+  - `Gateway::handle` judges the request gathered against the bundle held, by its deadline, and hands its body back to
+    send on:
+    - forward it;
+    - deny it (403);
+    - refuse it as one the rules can't apply to (503), or one past the cap or cut short (413).
+  - `DenialReporter` reports each denial without the call waiting.
+- **The request:** a **`RequestGatherer`** reads a request once from its header lines and its body: whole within its cap
+  and its budget (or adopted past the budget by the gateway's), else unread, as not sent, cut short (of its declared
+  length, or where its host may have cut it), or past either.
+  - Capture's keeps no header line and keeps its body within the 256 MiB every body kept shares.
+  - The gateway's, from `Gateway::gather` and judged by `Gateway::handle`, keeps them, reads the declared length unless
+    its host turns off `checks_declared_length`, and shares a 256 MiB budget of its own: a body adopted past it is kept,
+    to send on, and only its tree and the headers conditions read are refused.
+- **The proxy:**
+  - `XRailHeaders` are the proxy's changes to a request, for a protected host or any other.
+  - `CallRecordReporter` sends each closed capture window holding a call or a drop to Rail Center as its call record
+    document, oldest first, one at a time, retrying with a backoff:
+    - an empty window isn't sent;
+    - a document Rail Center refuses (a 4xx other than 401, 403, 408 or 429) is dropped;
+    - besides the oldest, it keeps up to the newest window's plan's `max_unsent_windows` and up to two million records
+      and steps, dropping the oldest past either; each drop is counted in the next document.
+  - `Capture`, a task on the `CaptureThread`'s runtime, counts the calls the callouts hand over through a
+    `CaptureSender` in windows under the capture plan held, each closed window to the reporter, sent at once when the
+    plan goes:
+    - `is_capturing`, a plan held and the task taking calls, decides a call's capture at its headers;
+    - `send` never waits, a call the full queue of 4096 turns away counted as dropped;
+    - `hold` holds a call from its headers, as a `HeldRequest`, until the callout tells how its body ended; dropped
+      first, as if its stream ended first;
+    - stopping `Capture` counts the calls already handed over (at most 4096 waiting, untimed), closes the open window
+      and sends the windows waiting, waiting up to 2 s for them. Dropping it does the same, unawaited.
+  - `start_proxy` starts them all, with the ticket, as `start_gateway` starts the gateway's: `ProxyStop` stops capture,
+    then its threads.
 - **The log:** `logging` writes both hosts' log to stderr as JSON lines, Cloud Logging's on Cloud Run, or as text under
   `RAIL_LOG_FORMAT=text`, each field quoted or a JSON string, with what hides escaped, so a call's text can't forge a
   line.
