@@ -4,6 +4,8 @@ use serde::Serialize;
 use uuid::Uuid;
 
 use super::bundle::{Action, BindingMode, Bundle, EnforcementMode, Fallback};
+use crate::body::mcp::McpReading;
+use crate::body::{BodyRead, Unparsed};
 use crate::condition::{
     Budget, CompiledCondition, ConditionUse, Environment, Evaluation, Refusal, Verdict,
     compile_condition, evaluate_condition,
@@ -55,8 +57,11 @@ pub struct Outcome {
     /// judgement, so there's at most one.
     pub fallback_denials: Vec<FallbackDenial>,
     /// What the policies concluded, or `None` if they weren't consulted: at `enforce`, after a
-    /// fallback denied.
+    /// fallback denied, or past the budget.
     pub chain: Option<ChainOutcome>,
+    /// What it read passed the byte budget, its body's tree or its headers, after any ticket
+    /// fallback: the call can't be judged.
+    pub past_budget: bool,
 }
 
 /// A fallback that denies a call. No policy is named.
@@ -174,8 +179,15 @@ pub fn judge_traced(
             return Outcome {
                 fallback_denials,
                 chain: None,
+                past_budget: false,
             };
         }
+    }
+    // Before its endpoint, which would read a tree past the budget as naming no tool.
+    if let BodyRead::Whole(body) = environment.body()
+        && *body.mcp() == McpReading::Unparsed(Unparsed::PastBudget)
+    {
+        return past_budget(fallback_denials);
     }
     // A message naming no tool by design isn't an unbound endpoint: it faces the whole chain.
     // None, for a session message or an unread body, neither ever judged: unbound.
@@ -193,6 +205,7 @@ pub fn judge_traced(
             return Outcome {
                 fallback_denials,
                 chain: None,
+                past_budget: false,
             };
         }
     }
@@ -205,9 +218,25 @@ pub fn judge_traced(
         ),
         None => walk(bundle.chain.iter(), environment, budget, tracer),
     };
+    if let Decision::Refused {
+        refusal: Refusal::PastBudget,
+        ..
+    } = chain.decision
+    {
+        return past_budget(fallback_denials);
+    }
     Outcome {
         fallback_denials,
         chain: Some(chain),
+        past_budget: false,
+    }
+}
+
+fn past_budget(fallback_denials: Vec<FallbackDenial>) -> Outcome {
+    Outcome {
+        fallback_denials,
+        chain: None,
+        past_budget: true,
     }
 }
 

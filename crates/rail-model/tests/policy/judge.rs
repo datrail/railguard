@@ -1,11 +1,13 @@
-use rail_model::body::{BodyRead, Unread};
+use std::sync::Arc;
+
+use rail_model::body::{BodyBuffer, BodyRead, ByteBudget, Unread};
 use rail_model::condition::{Budget, Environment, Evaluation, Refusal, Verdict};
 use rail_model::endpoint::Endpoint;
 use rail_model::policy::{
     Decision, EnforcementMode, FallbackDenial, JudgingMode, Outcome, Tracer, compile_bundle, judge,
     judge_traced, parse_bundle,
 };
-use rail_model::request::Headers;
+use rail_model::request::{Headers, ObservedRequest};
 use serde_json::{Value, json};
 use uuid::Uuid;
 
@@ -279,5 +281,75 @@ fn test_reads_an_endpoint_not_read_as_unbound() {
             &mut Budget::default(),
         );
         assert_eq!(outcome.fallback_denials, [FallbackDenial::Binding]);
+    }
+}
+
+// A request whose body or headers pass a budget of 64 bytes: its body kept outside it, past it.
+fn past_budget(body: &[u8], header: &str) -> ObservedRequest {
+    let mut buffer = BodyBuffer::new(usize::MAX, &ByteBudget::new(64));
+    buffer.keep_past_budget();
+    buffer.adopt(body.to_vec());
+    let body = BodyRead::Whole(Arc::new(buffer.finish().unwrap()));
+    let lines = vec![(b"x-a".to_vec(), header.as_bytes().to_vec())];
+    ObservedRequest::new(
+        Vec::new(),
+        b"POST".to_vec(),
+        b"/mcp".to_vec(),
+        lines,
+        body,
+        0,
+    )
+}
+
+// After the ticket fallback, which denies at enforce first; never read as naming no tool.
+#[test]
+fn test_reads_a_request_past_the_budget_after_the_ticket_fallback() {
+    let tree = br#"{"method": "tools/call", "params": {"name": "a-tool-named-at-length"}}"#;
+    let long = "a".repeat(1 << 10);
+    let cases = [
+        (
+            &tree[..],
+            "1",
+            JudgingMode::Enforce,
+            "block",
+            &[FallbackDenial::Ticket][..],
+            false,
+        ),
+        (
+            tree,
+            "1",
+            JudgingMode::Observe,
+            "block",
+            &[FallbackDenial::Ticket],
+            true,
+        ),
+        (tree, "1", JudgingMode::Enforce, "pass", &[], true),
+        (b"{}", &long, JudgingMode::Enforce, "pass", &[], true),
+    ];
+    for (body, header, mode, ticket_fallback, denials, past) in cases {
+        let bundle = json!({
+            "schema_version": "2.0",
+            "content_hash": "past-budget",
+            "enforcement": {"mode": "enforce"},
+            "policies": [traced_policy(1, json!({"path": "request.headers.x-a", "op": "existing"}), "block")],
+            "bindings": [],
+            "binding_fallback": "block",
+            "ticket_fallback": ticket_fallback,
+        });
+        let bundle = compile_bundle(&parse_bundle(&bundle.to_string()).unwrap());
+        let request = past_budget(body, header);
+        let outcome = judge(
+            &bundle,
+            &Environment::of(&request, None),
+            mode,
+            &mut Budget::default(),
+        );
+        let expected = (denials, past, None);
+        let got = (
+            &outcome.fallback_denials[..],
+            outcome.past_budget,
+            outcome.chain,
+        );
+        assert_eq!(got, expected, "{mode:?} {ticket_fallback} {}", body.len());
     }
 }
