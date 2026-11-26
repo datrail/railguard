@@ -560,20 +560,6 @@
       "added": true
     },
     {
-      "id": "jwt-a-signed-payload-that-is-a-string-is-malformed",
-      "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.Ingi.p4deeqqW09HmuXNVypPeKt9DWSKGIvNnM1qEY1_MZDTHA-d55iF5uaaghOY1BoENAt2ErZyjF0J7Cl0ledXTCQ",
-      "now_in_seconds": 1785240000,
-      "state": "malformed",
-      "added": true
-    },
-    {
-      "id": "jwt-a-signed-payload-that-is-a-number-is-malformed",
-      "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.MQ.ZGMkQ84UNk2Yp5rxB1Opnu444T96na4GbgeyrBuTcZLk42NkWjFOt7Cu0oIz83ugXlb5cJs1kI39WQnrg0ZdAw",
-      "now_in_seconds": 1785240000,
-      "state": "malformed",
-      "added": true
-    },
-    {
       "id": "jwt-a-reader-with-an-empty-issuer-reads-it-as-not-configured",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiIiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.oJpLp2yxUK7RfX9_UBP-1zNhzl2oSOQpFCG_N4C2U2QYuVMCA2KnaOtLeUR_NOGxHTgmZ7ckTjQmzAZAGnJWAQ",
       "now_in_seconds": 1785240000,

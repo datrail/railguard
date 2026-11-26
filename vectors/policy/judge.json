@@ -2866,8 +2866,10 @@
         "bindings": [
           {
             "endpoint_key": "finretail#/mcp#tools/call#refund_order",
-            "mode": "open",
-            "policy_ids": []
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000c1"
+            ]
           },
           {
             "endpoint_key": "finretail#/other#tools/call#refund_order",

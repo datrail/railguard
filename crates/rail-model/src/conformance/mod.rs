@@ -120,8 +120,8 @@ fn to_seconds(time: SystemTime) -> Result<u64, String> {
         .map_err(|e| e.to_string())
 }
 
-// The bytes a case's bodies and trees share where it gives no `byte_budget`: past any case's, but
-// finite, so a parser that never stops runs out of it.
+// A body's budget, shared with its tree, where a case gives none: past any case's, but finite, so a
+// parser that never stops runs out of it.
 const DEFAULT_BYTE_BUDGET: usize = 32 << 20;
 
 // A case's step limit, the default where it gives none.

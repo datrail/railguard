@@ -470,6 +470,15 @@
       }
     },
     {
+      "id": "plan-host-dotted",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": "request.host",
+      "expect": {
+        "string": "api.github.com"
+      }
+    },
+    {
       "id": "plan-host-costs-no-step",
       "environment": "capture-sample",
       "use": "capture_plan",
@@ -1747,7 +1756,7 @@
     },
     {
       "id": "plan-body-key-folding-a-dotted-capital-i-ambiguous",
-      "note": "İ folds to i, as Unicode folds case.",
+      "note": "İ folds to i, as a server folding single letters reads it.",
       "environment": "capture-body-keys-folded",
       "use": "capture_plan",
       "path": [

@@ -77,7 +77,8 @@ a Rust test's.
 - **A call:** its `authority`, `method` and `path` as sent; its `body` as text, as `{"hex": …}` for bytes that aren't
   UTF-8, as `{"unread": why}` (`past_cap`, `past_budget`, `not_sent`, `cut_short`), or as `{"text": …, "bytes": n}`,
   where `<N bytes>` stands for N bytes of `x` and the text is padded with spaces to `bytes`; `body_bytes`, its length as
-  the call declares it; `byte_budget`, where a case is about passing the bytes every body and its tree share.
+  the call declares it; `byte_budget`, where a case is about passing the bytes a body and its tree share (where none is
+  given, a finite one past any case's body).
 - **`capture/plans.json`:** named plans. A case's `plan` is a name, its `entries`, where given, in place of the plan's;
   or a plan written whole. `one-entry` is the plan layers 6 and 7 write their `match` or `record` into; `matching`,
   layer 8's, two MCP tools on one host and an HTTP operation on another, their records the built-in measures alone;

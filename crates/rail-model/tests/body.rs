@@ -5,9 +5,9 @@ use std::sync::Arc;
 
 use rail_model::body::{BodyBuffer, ByteBudget, RequestBody, Unkept, Unread};
 
-// A body kept whole, within no cap; a budget only so a parser that never stops runs out.
+// A body kept whole, within no cap.
 fn keep(body: &[u8]) -> RequestBody {
-    keep_within(&ByteBudget::new(32 << 20), body).unwrap()
+    keep_within(&ByteBudget::new(crate::BYTE_BUDGET_BYTES), body).unwrap()
 }
 
 fn keep_within(budget: &Arc<ByteBudget>, body: &[u8]) -> Result<RequestBody, Unkept> {

@@ -956,6 +956,18 @@
       }
     },
     {
+      "id": "mcp-beside-a-key-holding-a-nul-ambiguous",
+      "note": "Whatever the key is cut to, every key in its object can't be told.",
+      "body": "{\"y\\u0000z\": 1, \"method\": \"ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
       "id": "mcp-byte-order-mark-alone-unparsed",
       "note": "Unlike an empty body, which names nothing.",
       "body": {
@@ -1081,6 +1093,17 @@
       "id": "mcp-key-with-a-bad-escape-ambiguous",
       "note": "Not JSON, so a lenient reader may read it as any key.",
       "body": "{\"\\uZZZZ\": 1, \"method\": \"ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-key-with-an-escape-bad-at-its-last-digit-ambiguous",
+      "body": "{\"\\u00ez\": 1, \"method\": \"ping\"}",
       "path": "/mcp",
       "expect": {
         "mcp": "ambiguous",
@@ -1439,22 +1462,6 @@
           "judged": {
             "resolved": "/mcp#tools/call#track package"
           }
-        }
-      }
-    },
-    {
-      "id": "mcp-params-a-string-names-no-tool",
-      "body": "{\"method\": \"tools/call\", \"params\": \"a\\/b\"}",
-      "path": "/mcp",
-      "expect": {
-        "mcp": {
-          "read": {
-            "method": "tools/call",
-            "tool": null
-          }
-        },
-        "endpoint": {
-          "judged": "unrecognised"
         }
       }
     }

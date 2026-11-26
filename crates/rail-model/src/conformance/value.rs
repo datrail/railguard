@@ -51,7 +51,13 @@ pub(super) fn encode_lookup(lookup: &Lookup) -> Value {
         Lookup::Number(number) => json!({"number": encode_number(*number)}),
         Lookup::Bool(value) => json!({"bool": value}),
         Lookup::List(items) => {
-            json!({"list": items.iter().map(|item| encode_lookup(&item)).collect::<Vec<_>>()})
+            // No more items than the list has bytes, so a tree that never ends still ends here.
+            let most = match items {
+                Items::Values(values) => values.len(),
+                Items::Body(node) => node.raw().len(),
+            };
+            let items = items.iter().take(most + 1);
+            json!({"list": items.map(|item| encode_lookup(&item)).collect::<Vec<_>>()})
         }
         Lookup::Object => json!("object"),
         Lookup::Ambiguous => json!("ambiguous"),

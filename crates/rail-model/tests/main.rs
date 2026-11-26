@@ -11,9 +11,12 @@ mod request_line;
 mod sanitize;
 mod vectors;
 
-// A body kept whole, within no cap; a budget only so a parser that never stops runs out.
+// A test body's budget: past any test's, but finite, so a parser that never stops runs out.
+const BYTE_BUDGET_BYTES: usize = 32 << 20;
+
+// A body kept whole, within no cap.
 fn keep_body(body: &[u8]) -> BodyRead {
-    let mut buffer = BodyBuffer::new(usize::MAX, &ByteBudget::new(32 << 20));
+    let mut buffer = BodyBuffer::new(usize::MAX, &ByteBudget::new(BYTE_BUDGET_BYTES));
     buffer.append(body);
     BodyRead::Whole(Arc::new(buffer.finish().unwrap()))
 }

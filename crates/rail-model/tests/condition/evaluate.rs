@@ -1,14 +1,18 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use rail_model::body::BodyRead;
 use rail_model::condition::{
-    Budget, Condition, ConditionUse, Environment, Headers, Refusal, Verdict, compile_condition,
-    evaluate_condition,
+    Budget, Condition, ConditionUse, Environment, Headers, Predicate, Refusal, Verdict,
+    compile_condition, evaluate_condition,
 };
 use rail_model::endpoint::Endpoint;
+use rail_model::request_line::RequestLine;
 use serde::Deserialize;
 use serde_json::value::RawValue;
 use serde_json::{Map, Value, json};
+
+use crate::keep_body;
 
 const VECTORS: &str = include_str!("../../../../vectors/judge_condition_conformance_cases.json");
 
@@ -85,11 +89,28 @@ fn evaluate_on_header(condition: Value, value: &str, budget: &mut Budget) -> Ver
 }
 
 #[test]
+fn test_refuses_past_the_step_limit_and_not_before() {
+    let condition = json!({"path": "request.headers.x-a", "op": "eq", "value": "a"});
+
+    // One step for the condition, and one for each of the three values.
+    assert_eq!(
+        evaluate_on_header(condition.clone(), "a,a,a", &mut Budget::new(4)),
+        Verdict::Holds
+    );
+    assert_eq!(
+        evaluate_on_header(condition, "a,a,a", &mut Budget::new(3)),
+        Verdict::Refused(Refusal::BudgetExceeded)
+    );
+}
+
+#[test]
 fn test_refuses_an_in_or_a_match_past_the_step_limit_and_not_before() {
     let is_in = json!({"path": "request.headers.x-a", "op": "in", "value": ["b", "c", "a"]});
     let matches = json!({"path": "request.headers.x-a", "op": "matches", "value": "a*a"});
     let long = "a".repeat(200);
     let cases = [
+        // The condition, then one per operand item.
+        (&is_in, "a".to_owned(), 4),
         // The condition, one per value, then each value against each operand item.
         (&is_in, "a,a".to_owned(), 9),
         // The condition, then one per scan and one per 64 bytes of value and pattern.
@@ -155,5 +176,68 @@ fn test_charges_a_long_value_by_its_length() {
     assert_eq!(
         evaluate_on_header(condition, &value, &mut Budget::new(102)),
         Verdict::Holds
+    );
+}
+
+// As a plan writes a condition, its path a list.
+fn evaluate_on_call(condition: Value, body: &BodyRead, budget: &mut Budget) -> Verdict {
+    let request_line = RequestLine::read(b"mcp.example", b"POST", b"/finretail-production-mcp/mcp");
+    let predicate: Predicate = serde_json::from_value(condition).unwrap();
+    let environment = Environment::for_capture(&request_line, body);
+    evaluate_condition(
+        &compile_condition(&Condition::Valid(predicate), ConditionUse::CapturePlan),
+        &environment,
+        budget,
+    )
+    .verdict
+}
+
+fn condition(path: Value, op: &str, value: Value) -> Value {
+    json!({"path": path, "op": op, "value": value})
+}
+
+#[test]
+fn test_charges_an_index_by_the_items_it_passes() {
+    let body = keep_body(br#"{"items": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]}"#);
+    let at = |index: usize| {
+        condition(
+            json!(["request", "body", "items", index]),
+            "existing",
+            json!(null),
+        )
+    };
+    assert_eq!(
+        evaluate_on_call(at(8), &body, &mut Budget::new(11)),
+        Verdict::Holds
+    );
+    assert_eq!(
+        evaluate_on_call(at(9), &body, &mut Budget::new(11)),
+        Verdict::Refused(Refusal::BudgetExceeded)
+    );
+    // Charged only what it passes: past the end, and past any number a step can hold.
+    assert_eq!(
+        evaluate_on_call(at(200_000), &body, &mut Budget::new(12)),
+        Verdict::DoesNotHold
+    );
+    assert_eq!(
+        evaluate_on_call(at(usize::MAX), &body, &mut Budget::new(12)),
+        Verdict::DoesNotHold
+    );
+}
+
+// Every member read, as a key repeated past the first must be.
+#[test]
+fn test_charges_a_key_by_the_members_it_reads() {
+    let body = keep_body(
+        br#"{"a": 0, "b": 1, "c": 2, "d": 3, "e": 4, "f": 5, "g": 6, "h": 7, "i": 8, "j": 9}"#,
+    );
+    let first = || condition(json!(["request", "body", "a"]), "existing", json!(null));
+    assert_eq!(
+        evaluate_on_call(first(), &body, &mut Budget::new(11)),
+        Verdict::Holds
+    );
+    assert_eq!(
+        evaluate_on_call(first(), &body, &mut Budget::new(10)),
+        Verdict::Refused(Refusal::BudgetExceeded)
     );
 }

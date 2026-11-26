@@ -4,6 +4,8 @@ use super::keep;
 
 // Strings as Rust quotes them, `?` for one that doesn't read, other values as sent.
 pub(super) fn render(node: Node) -> String {
+    // No more children than the node has bytes, so a tree that never ends still ends here.
+    let most = node.raw().len() + 1;
     let text = |node: Node| {
         node.text()
             .map_or("?".to_string(), |text| format!("{text:?}"))
@@ -12,12 +14,13 @@ pub(super) fn render(node: Node) -> String {
         Kind::Object => {
             let members: Vec<String> = node
                 .members()
+                .take(most)
                 .map(|(key, value)| format!("{}:{}", text(key), render(value)))
                 .collect();
             format!("{{{}}}", members.join(","))
         }
         Kind::Array => {
-            let items: Vec<String> = node.items().map(render).collect();
+            let items: Vec<String> = node.items().take(most).map(render).collect();
             format!("[{}]", items.join(","))
         }
         Kind::String => text(node),
@@ -44,6 +47,10 @@ fn test_walks_keys_and_indexes() {
     let root = body.json().unwrap();
     let found = |steps: &[Step]| describe(root.walk(steps));
     use Step::{Index, Key};
+    // Containers' raw text too, from their opening to their closing byte.
+    let list = root.walk(&[Key("a"), Key("b")]).found().unwrap();
+    assert_eq!(list.raw(), br#"[10, {"c": "x"}, null]"#);
+    assert_eq!(root.raw(), body.as_bytes());
     for (steps, walked, why) in [
         (&[Key("a"), Key("b"), Index(0)][..], "10", "an index"),
         (
