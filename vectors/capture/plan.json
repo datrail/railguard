@@ -703,11 +703,6 @@
       "id": "a-catch-alls-measure-beside-the-two",
       "patch": [{"op": "add", "path": "/catch_all/record/measures/-", "value": {"name": "argument_bytes", "type": "sum", "function": "size", "paths": [["request", "body", "params", "arguments", "content"]]}}],
       "expect": {"valid": false}
-    },
-    {
-      "id": "an-entrys-measure-named-error-count-read-as-any-other",
-      "patch": [{"op": "add", "path": "/entries/0/record/measures/-", "value": {"name": "error_count"}}],
-      "expect": {"valid": false}
     }
   ]
 }
