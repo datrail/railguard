@@ -11,7 +11,7 @@ from datrail_model._native import DEFAULT_STEP_LIMIT, CompiledBundle
 
 _EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 # Why a condition was refused, each cause its own.
-_Refusal = Literal["unknown_op", "invalid", "not_for_use", "budget_exceeded"]
+_Refusal = Literal["unknown_op", "invalid", "not_for_use", "budget_exceeded", "past_budget"]
 # Past what `rail-model` reads (128), and short of `json.dumps`'s recursion limit.
 _MAX_WALK_DEPTH = 200
 
@@ -91,7 +91,7 @@ class ResolvedValue:
 @dataclass(frozen=True)
 class TraceStep:
     policy: UUID
-    # `None` when no path was resolved: the condition can't be read, or the budget ran out first.
+    # `None` when no path was resolved: the condition can't be read, or the step budget ran out first.
     resolved: ResolvedValue | None
     # `ambiguous` and `body_unread` as for `ResolvedValue`.
     verdict: Literal["holds", "does_not_hold", "ambiguous", "body_unread", "refused"]

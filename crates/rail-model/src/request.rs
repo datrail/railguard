@@ -8,12 +8,9 @@ use percent_encoding::percent_decode_str;
 use serde_json::Value;
 
 use crate::body::mcp::read_endpoint;
-use crate::body::{BodyRead, Unread};
+use crate::body::{BodyRead, Charge, Unread};
 use crate::endpoint::Resolution;
 use crate::request_line::RequestLine;
-
-/// The ticket, for the gateway to check.
-pub const XRAIL: &str = "x-rail";
 
 /// An agent's request as a host received it, before any rewrite.
 pub struct ObservedRequest {
@@ -29,7 +26,8 @@ pub struct ObservedRequest {
     pub(crate) body_bytes: u64,
     // Each read once, by whichever use asks first, on whichever thread.
     request_line: OnceLock<RequestLine>,
-    headers: OnceLock<Headers>,
+    // `None` past the budget; else the headers and the charge they hold.
+    headers: OnceLock<Option<(Headers, Option<Charge>)>>,
     endpoint: OnceLock<Resolution>,
 }
 
@@ -92,16 +90,23 @@ impl ObservedRequest {
     }
 
     /// Its header lines as conditions read them, its authority as `host` where no `host` line was
-    /// sent: rules read `host` whether the request came as HTTP/1 or HTTP/2.
-    pub(crate) fn headers(&self) -> &Headers {
-        self.headers.get_or_init(|| {
+    /// sent: rules read `host` whether the request came as HTTP/1 or HTTP/2. Charged to its body's
+    /// budget if its body is whole; `None` past it, or for a body kept outside it.
+    pub(crate) fn headers(&self) -> Option<&Headers> {
+        let held = self.headers.get_or_init(|| {
             let sent = self
                 .header_lines()
                 .any(|(name, _)| name.eq_ignore_ascii_case("host"));
             let authority = (!self.authority.as_bytes().is_empty() && !sent)
                 .then(|| ("host", self.authority.as_str()));
-            Headers::from_lines(self.header_lines().chain(authority))
-        })
+            let lines = || self.header_lines().chain(authority);
+            let charge = match &self.body {
+                BodyRead::Whole(body) => Some(body.charge_for(Headers::bytes_for(lines()))?),
+                BodyRead::Unread(_) => None,
+            };
+            Some((Headers::from_lines(lines()), charge))
+        });
+        held.as_ref().map(|(headers, _)| headers)
     }
 
     /// What its decoded path and MCP message name, unless its body is unread.
@@ -163,13 +168,6 @@ impl WireText {
     }
 }
 
-/// Whether an agent's header is kept from the upstream: an x-rail header, or any name with `_`.
-/// Takes a lowercased name.
-pub fn is_withheld_header(name: &str) -> bool {
-    // Some upstreams read `_` and `-` alike, so `x_rail` could pass for `x-rail`.
-    name == XRAIL || name.starts_with("x-rail-") || name.contains('_')
-}
-
 /// The path of `uri`, without the query, percent-decoded: an invalid escape is kept, and invalid
 /// UTF-8 replaced.
 pub fn read_path(uri: &str) -> String {
@@ -206,6 +204,17 @@ impl Headers {
             );
         }
         Self(headers)
+    }
+
+    // About what `from_lines` takes for `lines`, charged before it's built.
+    fn bytes_for<'l>(lines: impl Iterator<Item = (&'l str, &'l str)>) -> usize {
+        let part_bytes = size_of::<Value>() + size_of::<String>();
+        lines
+            .map(|(name, value)| {
+                let parts = value.bytes().filter(|&byte| byte == b',').count() + 1;
+                name.len() + size_of::<(String, Vec<Value>)>() + value.len() + parts * part_bytes
+            })
+            .sum()
     }
 
     pub(crate) fn get(&self, name: &str) -> Option<&[Value]> {

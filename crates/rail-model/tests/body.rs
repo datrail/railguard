@@ -3,7 +3,8 @@ mod tree;
 
 use std::sync::Arc;
 
-use rail_model::body::{BodyBuffer, ByteBudget, RequestBody, Unkept, Unread};
+use rail_model::body::mcp::McpReading;
+use rail_model::body::{BodyBuffer, ByteBudget, RequestBody, Unkept, Unparsed, Unread};
 
 // A body kept whole, within no cap.
 fn keep(body: &[u8]) -> RequestBody {
@@ -51,6 +52,41 @@ fn test_adopts_a_body_as_appending_it_would() {
     let mut roomy = BodyBuffer::new(5, &budget);
     roomy.adopt(Vec::with_capacity(9));
     assert_eq!(roomy.finish().unwrap_err(), Unkept::PastBudget);
+}
+
+// For a host that sends it back: a first body adopted past the budget is kept outside it, so
+// another body still fits and only what's read from it is refused, an empty last chunk too.
+#[test]
+fn test_keeps_a_body_adopted_past_the_budget_outside_it() {
+    let budget = ByteBudget::new(8);
+    let mut kept = keeping(&budget);
+    kept.adopt(br#"{"method": "x"}"#.to_vec());
+    kept.append(b"");
+    let kept = kept.finish().unwrap();
+    assert_eq!(*kept.mcp(), McpReading::Unparsed(Unparsed::PastBudget));
+    assert!(keep_within(&budget, b"01234567").is_ok());
+    assert_eq!(kept.into_bytes(), br#"{"method": "x"}"#);
+}
+
+// A chunk joining a body kept outside the budget charges it whole: dropped only if that's past it.
+#[test]
+fn test_charges_a_body_kept_outside_the_budget_once_a_chunk_joins_it() {
+    let budget = ByteBudget::new(8);
+    let full = keep_within(&budget, b"01234567").unwrap();
+    let (mut refused, mut later) = (keeping(&budget), keeping(&budget));
+    refused.adopt(b"0123".to_vec());
+    later.adopt(b"0123".to_vec());
+    refused.append(b"4");
+    assert_eq!(refused.finish().unwrap_err(), Unkept::PastBudget);
+    drop(full);
+    later.append(b"4");
+    assert_eq!(later.finish().unwrap().as_bytes(), b"01234");
+}
+
+fn keeping(budget: &Arc<ByteBudget>) -> BodyBuffer {
+    let mut buffer = BodyBuffer::new(usize::MAX, budget);
+    buffer.keep_past_budget();
+    buffer
 }
 
 #[test]

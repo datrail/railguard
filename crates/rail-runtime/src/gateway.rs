@@ -7,15 +7,15 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use rail_model::condition::{Budget, DEFAULT_STEP_LIMIT, Environment};
 use rail_model::endpoint::{Endpoint, Resolution};
 use rail_model::policy::{
-    Decision, DecodedTicket, JudgingMode, Outcome, SignedTicketConfig, TicketState, decode_ticket,
-    judge,
+    Decision, DecodedTicket, EnforcementMode, Fallback, JudgingMode, Outcome, SignedTicketConfig,
+    TicketState, decode_ticket, judge,
 };
-use rail_model::request::{ObservedRequest, XRAIL};
+use rail_model::request::ObservedRequest;
 
 use crate::bundle_holder::HeldBundle;
 use crate::denial::{Denial, DeniedBy, ticket_state};
 use crate::key_set::KeySet;
-use crate::xrail::XRAIL_STATUS;
+use crate::xrail::{XRAIL, XRAIL_STATUS};
 
 /// How every call is judged, the same for each.
 #[derive(Clone, Copy, Debug)]
@@ -74,6 +74,25 @@ pub(crate) struct Unit {
     pub(crate) stop: Arc<AtomicBool>,
 }
 
+/// What `bundle` falls back to for a call it can't judge: its `judge_fallback` at enforce, else
+/// forwarding.
+pub(crate) fn unjudged_fallback(bundle: &HeldBundle) -> Fallback {
+    match bundle.posture.mode {
+        EnforcementMode::Enforce => bundle.posture.judge_fallback,
+        _ => Fallback::Pass,
+    }
+}
+
+/// What `fallback` answers a call left unjudged for `why`, logged as an error.
+pub(crate) fn answer_unjudged(fallback: Fallback, why: &str) -> Answer {
+    let answer = match fallback {
+        Fallback::Pass => Answer::Forward,
+        Fallback::Block => Answer::CannotApply,
+    };
+    tracing::error!(?answer, "{why}; the call went unjudged");
+    answer
+}
+
 /// Judges `unit`'s call against its bundle. A denial acted on goes to `report`, which mustn't
 /// wait.
 pub(crate) fn judge_call(unit: Unit, report: &dyn Fn(&Denial)) -> Answer {
@@ -121,6 +140,12 @@ pub(crate) fn judge_call(unit: Unit, report: &dyn Fn(&Denial)) -> Answer {
         return Answer::Forward;
     }
     log_outcome(&outcome, mode, named, ticket_state(&ticket));
+    if outcome.past_budget {
+        return answer_unjudged(
+            unjudged_fallback(&bundle),
+            "what it reads is past the memory budget",
+        );
+    }
     if mode == JudgingMode::Observe {
         return Answer::Forward;
     }

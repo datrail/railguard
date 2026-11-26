@@ -79,6 +79,8 @@ async fn serve(role: Role, config: Config, startup: &Startup) -> ExitCode {
     };
     let settings = GatewaySettings {
         max_body_bytes: config.max_body_bytes,
+        // Apigee decodes a gzipped body before its callout, so its `content-length` may be the wire's.
+        checks_declared_length: false,
         ..GatewaySettings::default()
     };
     let started = config

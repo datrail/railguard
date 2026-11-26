@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use rail_model::body::BodyRead;
+use rail_model::body::{BodyBuffer, BodyRead, ByteBudget};
 use rail_model::condition::{
     Budget, Condition, ConditionUse, Environment, Predicate, Refusal, Verdict, compile_condition,
     evaluate_condition,
@@ -230,4 +230,57 @@ fn test_reads_a_policys_headers_from_an_observed_request() {
         .verdict;
         assert_eq!(verdict, Verdict::Holds, "{authority:?} {lines:?}");
     }
+}
+
+// Charged to its body's budget, by their size and their comma parts: past it, they can't be read.
+#[test]
+fn test_refuses_headers_past_the_budget() {
+    let long = "a".repeat(256 << 10);
+    let commas = |count: usize| ",".repeat(count);
+    let cases: [(&[(&str, &str)], _); 4] = [
+        (
+            &[("x-a", &commas(64 << 10))],
+            Verdict::Refused(Refusal::PastBudget),
+        ),
+        (&[("x-a", &commas(4 << 10))], Verdict::Holds),
+        (&[("x-a", &long)], Verdict::Holds),
+        (&[("x-a", "1"), (&long, "1")], Verdict::Holds),
+    ];
+    for (lines, verdict) in cases {
+        let budget = ByteBudget::new(1 << 20);
+        let request = crate::request_on(&budget, b"{}", lines);
+        assert_eq!(read_x_a(&request), verdict, "{}", lines.len());
+    }
+}
+
+// Their charge held while the request is, and given back with it.
+#[test]
+fn test_holds_the_headers_charge_until_the_request_is_dropped() {
+    let budget = ByteBudget::new(1 << 10);
+    let request = crate::request_on(&budget, b"{}", &[("x-a", "1")]);
+    let fits = || {
+        let mut other = BodyBuffer::new(usize::MAX, &budget);
+        other.append(&vec![0; (1 << 10) - 2]);
+        other.is_kept()
+    };
+    assert!(fits());
+    assert_eq!(read_x_a(&request), Verdict::Holds);
+    assert!(!fits());
+    drop(request);
+    assert!(fits());
+}
+
+// Whether `request` has an `x-a` header, as a policy reads it.
+fn read_x_a(request: &ObservedRequest) -> Verdict {
+    let condition = json!({"path": "request.headers.x-a", "op": "existing"});
+    let compiled = compile_condition(
+        &serde_json::from_value(condition).unwrap(),
+        ConditionUse::GatewayPolicy,
+    );
+    evaluate_condition(
+        &compiled,
+        &Environment::of(request, None),
+        &mut Budget::default(),
+    )
+    .verdict
 }

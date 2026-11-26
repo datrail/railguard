@@ -175,20 +175,23 @@ flowchart LR
 `rail gateway` judges each call whole, its headers and its body, through the same gateway as rail-apigee: the same
 waits, deadline, posture, fallbacks, denial reports and answers. A call allowed goes on without the agent's `x-rail`,
 `x-rail-*` and `_` headers; one refused gets 403 `{"error": "denied by policy"}`, or 503
-`{"error": "policy ruleset cannot be applied"}`, or, past `RAIL_MAX_BODY_MB`, 413 `{"error": "request body too large"}`.
+`{"error": "policy ruleset cannot be applied"}`, or, past `RAIL_MAX_BODY_MB` or shorter than its `Content-Length` but
+not empty, 413 `{"error": "request body too large"}`. A `POST` sending no body though its `Content-Length` isn't 0
+gets 503.
 
 - **ext_proc** must send the request's headers, and its body `FULL_DUPLEX_STREAMED` or `BUFFERED`:
   - **full duplex** (GCP's load balancer): every answer is held until the body ends, by its last chunk or the trailers
     (`request_trailer_mode: SEND`); then the headers are answered, the body sent back in chunks of at most 64 KiB, and
-    the trailers. A streamed body is refused as soon as it's past the cap;
+    the trailers. A streamed body is refused as soon as it's past the cap or the memory budget;
   - **buffered:** the headers are answered at once, and the one body message judged; Envoy holds the body up to the
     listener's `per_connection_buffer_limit_bytes` (1 MiB by default), and answers 413 itself past it. Set
     `request_trailer_mode: SEND` too, or a request with trailers and no body goes on unjudged;
   - **any other body mode** (`STREAMED`, the load balancer's default, `BUFFERED_PARTIAL`, `NONE`, Envoy's), or a stream
     that doesn't say its mode, is refused with 503 and an error line naming it, since the whole body can't be seen
     first. A stream in `observability_mode`, whose answers Envoy ignores, ends in a gRPC error instead.
-- **ext_authz** must send the body: `with_request_body`, with `allow_partial_message: false`. A body cut short is
-  refused 413, and a `POST` with none, unless its size is known to be 0, 503: never judged as if whole.
+- **ext_authz** must send the body: `with_request_body`, with `allow_partial_message: false`. A body Envoy flags as cut
+  (`x-envoy-auth-partial-body`) is refused 413, and a `POST` with none, unless its `Content-Length` is 0, 503: never
+  judged as if whole.
 - **Fail closed:** `failure_mode_allow: false`, on either filter, so a call the gateway didn't answer never reaches the
   server. A stream that fails before its call is answered, such as with a buffered body past
   `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`, ends in an error, never as if answered.
@@ -243,7 +246,9 @@ beside counting those calls; the gateway's Rail Center thread has 1 s, so 6 s.
   supports full duplex.
 - **The gateway's memory:** it holds each call's body until it's judged, which can take up to about twice
   `RAIL_MAX_BODY_MB` per call in flight, and reading its endpoint parses it into a tree of up to 16 times the body, for
-  a body of small array items. Size its memory for the calls it serves at once.
+  a body of small array items. The bodies within it, their trees and the headers conditions read share 256 MiB; past it,
+  a call is unjudged, 503 at enforce, forwarded at observe and none, a body adopted past it still held, to send on; a
+  full-duplex body whose later chunk passes it is dropped, so 503. Size its memory for the calls it serves at once.
 - **The proxy's memory:** each ext_authz request, and each ext_proc body message, is held whole, up to
   `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB`, while it's answered; the bodies kept for capture, up to `RAIL_MAX_BODY_MB` each,
   share 256 MiB, and up to 4096 calls wait for capture's thread.

@@ -14,7 +14,8 @@ for CPython 3.12 or later.
 - **`check_condition`** reports every problem with a condition, read for a gateway policy or, with
   `use_case="capture_plan"`, a capture plan entry's match, and whether every reader refuses it or only Rail Center;
 - **`compile_bundle`** and **`judge_sample`** judge a sample call against a bundle and trace the policies evaluated; a
-  refusal names its cause: `unknown_op`, `invalid`, `not_for_use` (a path a policy doesn't read) or `budget_exceeded`;
+  refusal names its cause: `unknown_op`, `invalid`, `not_for_use` (a path a policy doesn't read), `budget_exceeded` or
+  `past_budget` (the gateway's memory budget, never a sample call's);
 - **`read_ticket`** reads an `x-rail` value into the claims `judge_sample` takes.
 
 Each result but the compiled bundle is a frozen dataclass with a tag field (`kind`, `decision`, `verdict`), and fields

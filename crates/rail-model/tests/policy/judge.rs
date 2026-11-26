@@ -1,4 +1,4 @@
-use rail_model::body::{BodyRead, Unread};
+use rail_model::body::{BodyRead, ByteBudget, Unread};
 use rail_model::condition::{Budget, Environment, Evaluation, Refusal, Verdict};
 use rail_model::endpoint::Endpoint;
 use rail_model::policy::{
@@ -279,5 +279,50 @@ fn test_reads_an_endpoint_not_read_as_unbound() {
             &mut Budget::default(),
         );
         assert_eq!(outcome.fallback_denials, [FallbackDenial::Binding]);
+    }
+}
+
+// A tree past the budget after the ticket fallback, before the binding one; headers past it in
+// the walk.
+#[test]
+fn test_reads_a_request_past_the_budget_after_the_ticket_fallback() {
+    use FallbackDenial::Ticket;
+    use JudgingMode::{Enforce, Observe};
+    let call = br#"{"method": "tools/call", "params": {"name": "t"}}"#;
+    let long = "a".repeat(32 << 10);
+    // A tree's least reservation passes 64 bytes; 16 KiB holds it, not the long header.
+    let cases = [
+        (64, "1", Enforce, "block", "block", &[Ticket][..], false),
+        (64, "1", Observe, "block", "block", &[Ticket], true),
+        (16 << 10, &long[..], Enforce, "pass", "pass", &[], true),
+    ];
+    for (budget_bytes, header, mode, ticket_fallback, binding_fallback, denials, past) in cases {
+        let bundle = json!({
+            "schema_version": "2.0",
+            "content_hash": "past-budget",
+            "enforcement": {"mode": "enforce"},
+            "policies": [traced_policy(1, json!({"path": "request.headers.x-a", "op": "existing"}), "block")],
+            "bindings": [],
+            "binding_fallback": binding_fallback,
+            "ticket_fallback": ticket_fallback,
+        });
+        let bundle = compile_bundle(&parse_bundle(&bundle.to_string()).unwrap());
+        let request = crate::request_on(&ByteBudget::new(budget_bytes), call, &[("x-a", header)]);
+        let outcome = judge(
+            &bundle,
+            &Environment::of(&request, None),
+            mode,
+            &mut Budget::default(),
+        );
+        let got = (
+            &outcome.fallback_denials[..],
+            outcome.past_budget,
+            outcome.chain,
+        );
+        assert_eq!(
+            got,
+            (denials, past, None),
+            "{mode:?} {ticket_fallback} {budget_bytes}"
+        );
     }
 }

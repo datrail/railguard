@@ -29,8 +29,8 @@ flowchart TD
   grpc -->|no| disabled
   disabled -->|true| f1
   disabled -->|false| whole
-  whole -->|"no: ext_proc's body mode isn't full duplex or buffered,<br>ext_proc sent the body before its headers,<br>or ext_authz sent a POST without its body"| r1
-  whole -->|"no: ext_authz sent part of the body,<br>or ext_proc's body gathered past RAIL_MAX_BODY_MB"| r2
+  whole -->|"no: ext_proc's body mode isn't full duplex or buffered,<br>ext_proc sent the body before its headers,<br>ext_authz sent a POST without its body,<br>a POST sent no body though its Content-Length isn't 0,<br>or a full-duplex body whose later chunk passes the 256 MiB memory budget"| r1
+  whole -->|"no: ext_authz sent part of the body,<br>the body is shorter than its Content-Length but not empty,<br>or ext_proc's body gathered past RAIL_MAX_BODY_MB"| r2
   whole -->|"no: buffered, with trailers and no body,<br>and request_trailer_mode isn't SEND"| f2
   whole -->|yes| both
 
@@ -141,6 +141,7 @@ flowchart TD
   ticket -->|"no, ticket_fallback is block, at enforce"| deny
   ticket -->|"no, ticket_fallback is block, at observe:<br>logged as it would be denied"| endpoint
   ticket -->|"yes, or ticket_fallback is pass"| endpoint
+  endpoint -->|"its body's tree past<br>the 256 MiB memory budget"| refused
   endpoint -->|"another method, naming no tool"| chain
   endpoint -->|"a tool whose key is bound, gated"| bound
   endpoint -->|"a tool whose key is bound, open"| allow
@@ -151,7 +152,7 @@ flowchart TD
   chain --> walk
   bound --> walk
   walk -->|"a block policy holds"| deny
-  walk -->|"a condition can't be read,<br>or 100,000 steps spent;<br>no alert logged"| refused
+  walk -->|"a condition can't be read, 100,000 steps spent,<br>or the headers past the 256 MiB memory budget;<br>no alert logged"| refused
   walk -->|"no block policy holds"| allow
   deny -->|enforce| r1
   deny -->|observe| f1

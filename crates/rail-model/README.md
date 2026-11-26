@@ -20,7 +20,8 @@ before publishing it, and RailDash to try a rule on a sample call.
 By module:
 
 - **`policy`:** **`parse_bundle`** reads a policy bundle, refusing one it can't use with why; **`compile_bundle`** makes
-  it a `CompiledBundle`, ready to judge with. **`judge`** judges one call against a `CompiledBundle`; **`judge_traced`**
+  it a `CompiledBundle`, ready to judge with. **`judge`** judges one call against a `CompiledBundle`, its `Outcome`
+  telling a call whose body's tree (after any ticket fallback) or headers passed the byte budget; **`judge_traced`**
   also hands a `Tracer` each policy evaluated. **`parse_ticket`** reads an `x-rail` value: base64, or a signed JWT
   checked against a `SignedTicketConfig`'s keys, issuer and audience. **`parse_key_set`** reads Rail Center's signing
   keys.
@@ -35,9 +36,8 @@ By module:
 - **`request`:** **`ObservedRequest`**, an agent's request as a host received it, before any rewrite: its request line
   as sent, the header lines its host passes (capture's carry none), its body as a `BodyRead` and its length; its
   **`RequestLine`**, its **`Headers`** as conditions read them (names lowercased, values split on commas, its authority
-  as `host` where no `host` line was sent) and the endpoint it names, each read once, when first read. **`read_path`**
-  reads a URI's path as an endpoint key reads it; **`XRAIL`** is the header carrying an agent's ticket;
-  **`is_withheld_header`** tells an agent's header kept from the upstream: `x-rail`, `x-rail-*`, or any name with `_`.
+  as `host` where no `host` line was sent; charged to its body's budget, refused past it) and the endpoint it names,
+  each read once, when first read. **`read_path`** reads a URI's path as an endpoint key reads it.
 - **`endpoint`:** **`Endpoint`** and **`ResolvedKey`**, the endpoint a call asks for, keyed as a bundle binds it, and
   **`Resolution`**, whether a message is judged at all.
 - **`agent`:** **`AgentId`**, which agent a host serves, as Rail Center names it: its tickets are fetched for it, and a
@@ -45,9 +45,10 @@ By module:
 - **`authority`:** **`parse_authority`** reads a host and port from an `:authority`, spelled one way wherever a host is
   compared.
 - **`body`:** **`BodyBuffer`** keeps a body as it arrives, up to a cap and within a **`ByteBudget`** every kept body
-  shares, as a **`RequestBody`**: read once into a JSON tree (**`json`**, walked with `tree::Node`, a walk finding a
-  value, nothing, or one that can't be told) and an MCP reading (**`mcp`**, or why it names nothing). **`BodyRead`** is
-  a call's body as a reader has it: kept whole, or unread and why.
+  shares (or, for a host that sends it back, a first body adopted past it outside it, `keep_past_budget`), as a
+  **`RequestBody`**: read once into a JSON tree (**`json`**, walked with `tree::Node`, a walk finding a value, nothing,
+  or one that can't be told; charged to the budget, refused past it) and an MCP reading (**`mcp`**, or why it names
+  nothing). **`BodyRead`** is a call's body as a reader has it: kept whole, or unread and why.
 - **`capture`:** **`parse_plan`** reads a capture plan as `parse_bundle` reads a bundle, passing over fields it doesn't
   know, refusing one that breaks the field reference with why (**`InvalidPlan`**). A **`Plan`**'s entries keep their
   conditions as written, checked when compiled; its values are as Rail Center writes them. It checks the proxy's

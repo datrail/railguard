@@ -65,6 +65,8 @@ fn a_body_is_read_whole_only_if_it_came_whole_within_the_cap_and_the_budget() {
         (&["3"], None, Whole, roomy, Err(Unread::NotSent), 3),
         (&["3"], None, CutShort, roomy, Err(Unread::CutShort), 3),
         (&[], Some(b"ab"), Whole, 1, Err(Unread::PastBudget), 2),
+        // Past the budget before its declared end, which its host may then not send.
+        (&["3"], Some(b"ab"), Whole, 1, Err(Unread::PastBudget), 3),
     ];
     for (declared, sent, ending, budget_bytes, body, body_bytes) in cases {
         assert_eq!(

@@ -1,6 +1,7 @@
 use serde_json::{Map, Value};
 
-use crate::body::{BodyRead, Unread};
+use crate::body::mcp::McpReading;
+use crate::body::{BodyRead, Unparsed, Unread};
 use crate::endpoint::{Endpoint, Resolution};
 use crate::request::{Headers, ObservedRequest};
 use crate::request_line::RequestLine;
@@ -52,10 +53,11 @@ impl<'a> Environment<'a> {
         }
     }
 
-    pub(crate) fn headers(&self) -> &'a Headers {
+    /// `None` past the budget.
+    pub(crate) fn headers(&self) -> Option<&'a Headers> {
         match self.request {
             Request::Observed(request) => request.headers(),
-            Request::Sample { headers, .. } => headers,
+            Request::Sample { headers, .. } => Some(headers),
         }
     }
 
@@ -68,6 +70,12 @@ impl<'a> Environment<'a> {
             },
             Request::Sample { endpoint, .. } => Ok(Some(endpoint)),
         }
+    }
+
+    /// Whether its body is whole but its tree past the budget.
+    pub(crate) fn is_tree_past_budget(&self) -> bool {
+        matches!(self.body(), BodyRead::Whole(body)
+            if *body.mcp() == McpReading::Unparsed(Unparsed::PastBudget))
     }
 
     pub(crate) fn body(&self) -> &'a BodyRead {

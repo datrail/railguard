@@ -153,6 +153,31 @@ async fn a_body_past_the_cap_or_cut_short_is_refused_unjudged_whatever_the_metho
     assert_eq!(started.sink.reports().len(), 1);
 }
 
+// Kept past the memory budget, it's unjudged by the fallback, and its bytes sent back.
+#[tokio::test(start_paused = true)]
+async fn a_body_kept_past_the_budget_is_unjudged_and_sent_back() {
+    let clock = TestClock::new();
+    let bundle = bundles::denying_unticketed(json!({"enforcement": {"mode": "enforce"}}));
+    let settings = GatewaySettings {
+        max_body_bytes: 512 << 20,
+        ..GatewaySettings::default()
+    };
+    let started = start(
+        &clock,
+        Script::new(&clock, move |_| bundles::ok(&bundle)),
+        settings,
+    );
+    until(&clock, 0).await;
+    let mut gatherer = started
+        .gateway
+        .gather([(":method", "POST"), (":path", "/mcp")]);
+    // Zeroed lazily, so it takes no memory until read.
+    assert!(gatherer.adopt(vec![0; 257 << 20]));
+    let (answer, back) = started.gateway.handle(gatherer, BodyEnding::Whole).await;
+    assert_eq!(answer, Answer::CannotApply);
+    assert_eq!(back.len(), 257 << 20);
+}
+
 #[tokio::test(start_paused = true)]
 async fn a_key_not_held_is_waited_for_only_where_the_bundle_can_accept_a_signed_ticket() {
     let tenant = json!({"ticket_issuer": "https://rc/tenants/t", "ticket_audience": "t"});

@@ -23,6 +23,20 @@ fn keep_body(body: &[u8]) -> BodyRead {
     BodyRead::Whole(Arc::new(buffer.finish().unwrap()))
 }
 
+// A POST to `/mcp` sending `lines` and `body`, adopted on `budget`, kept outside it if past it.
+fn request_on(budget: &Arc<ByteBudget>, body: &[u8], lines: &[(&str, &str)]) -> ObservedRequest {
+    let mut buffer = BodyBuffer::new(usize::MAX, budget);
+    buffer.keep_past_budget();
+    buffer.adopt(body.to_vec());
+    let read = BodyRead::Whole(Arc::new(buffer.finish().unwrap()));
+    let lines = lines
+        .iter()
+        .map(|(name, value)| (name.as_bytes().to_vec(), value.as_bytes().to_vec()))
+        .collect();
+    let (method, path) = (b"POST".to_vec(), b"/mcp".to_vec());
+    ObservedRequest::new(Vec::new(), method, path, lines, read, body.len() as u64)
+}
+
 // A request with no header lines, as the proxy hands one to capture.
 fn observed(
     authority: &str,

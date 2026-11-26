@@ -2,8 +2,11 @@
 
 use std::sync::Arc;
 
-use rail_model::body::{BodyBuffer, BodyRead, ByteBudget, Unread};
+use rail_model::body::{BodyBuffer, BodyRead, ByteBudget, Unkept, Unread};
 use rail_model::request::ObservedRequest;
+
+// What every body a role keeps, and what's read from their requests, may take together.
+pub(crate) const BODY_BUDGET_BYTES: usize = 256 * 1024 * 1024;
 
 /// A request as its host is sent it: its request line, declared length and the header lines it
 /// keeps from its headers, then its body, kept up to a cap within a budget.
@@ -108,6 +111,10 @@ impl RequestGatherer {
         self.declared = None;
     }
 
+    pub(crate) fn keep_past_budget(&mut self) {
+        self.body.keep_past_budget();
+    }
+
     /// Keeps `body`, without a copy if it's the first; whether it's still kept, else past the cap
     /// or the budget, so a host refusing it can stop.
     pub fn adopt(&mut self, body: Vec<u8>) -> bool {
@@ -115,9 +122,9 @@ impl RequestGatherer {
         self.body.is_kept()
     }
 
-    /// The request, its body read whole if it came whole within the cap and the budget, else
-    /// unread: not sent, cut short (of its declared length, or where the host may have cut it), or
-    /// past either.
+    /// The request, its body read whole if it came whole within the cap and the budget (or was
+    /// adopted keeping past it), else unread: not sent, cut short (of its declared length, or
+    /// where the host may have cut it), or past either.
     pub fn finish(self, ending: BodyEnding) -> ObservedRequest {
         let received_bytes = self.body.received_bytes();
         // A declared length below what was sent isn't the body's.
@@ -127,10 +134,14 @@ impl RequestGatherer {
         // A `Content-Length` tells a body that may be cut itself; without one, the host's ending does.
         let cut = ending == BodyEnding::CutShort
             || (ending == BodyEnding::MayBeCut && self.declared.is_none());
+        // Past the budget before cut short: a host may stop sending a body dropped past it.
+        let kept = self.body.finish();
         let body = if unsent {
             BodyRead::Unread(Unread::NotSent)
         } else if body_bytes > self.cap_bytes as u64 {
             BodyRead::Unread(Unread::PastCap)
+        } else if let Err(Unkept::PastBudget) = kept {
+            BodyRead::Unread(Unread::PastBudget)
         } else if cut {
             BodyRead::Unread(Unread::CutShort)
         } else if received_bytes < body_bytes {
@@ -141,7 +152,7 @@ impl RequestGatherer {
             };
             BodyRead::Unread(unread)
         } else {
-            match self.body.finish() {
+            match kept {
                 Ok(body) => BodyRead::Whole(Arc::new(body)),
                 Err(unkept) => BodyRead::Unread(unkept.into()),
             }

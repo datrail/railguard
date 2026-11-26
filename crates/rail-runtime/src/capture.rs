@@ -18,14 +18,11 @@ use tokio::time::sleep;
 use crate::call_record::CallRecordReporter;
 use crate::capture_plan_holder::CapturePlanHolder;
 use crate::clock::WallClock;
-use crate::gather::{BodyEnding, RequestGatherer};
+use crate::gather::{BODY_BUDGET_BYTES, BodyEnding, RequestGatherer};
 use crate::runtime_thread::RuntimeThread;
 
 // Calls waiting for the capture task: past it, a call is dropped and counted.
 const QUEUE: usize = 4_096;
-
-// What every body kept for capture may take together.
-const BODY_BUDGET_BYTES: usize = 256 * 1024 * 1024;
 
 // The longest the task sleeps with a window open, a minute, the shortest window: a clock stepped
 // back is seen though no call comes.

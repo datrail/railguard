@@ -17,8 +17,10 @@ use crate::bundle_holder::{BundleHolder, HeldBundle};
 use crate::callout::{GATEWAY_MAX_BODY_MB, MB};
 use crate::clock::WallClock;
 use crate::denial::DenialReporter;
-use crate::gateway::{Answer, Unit, UnitSettings, decode_x_rail, judge_call};
-use crate::gather::{BodyEnding, RequestGatherer};
+use crate::gateway::{
+    Answer, Unit, UnitSettings, answer_unjudged, decode_x_rail, judge_call, unjudged_fallback,
+};
+use crate::gather::{BODY_BUDGET_BYTES, BodyEnding, RequestGatherer};
 use crate::key_set::KeySetHolder;
 
 // The longest a call waits for a bundle, and for a key it names: each within the deadline too.
@@ -39,6 +41,9 @@ pub struct GatewaySettings {
     pub no_bundle_fallback: Fallback,
     /// The largest body judged; a call past it is refused unjudged, 413.
     pub max_body_bytes: usize,
+    /// Whether a body shorter than its `Content-Length` is cut short: not where a host may hand
+    /// over a body decoded with its length as sent.
+    pub checks_declared_length: bool,
     /// How each call is judged.
     pub unit: UnitSettings,
 }
@@ -50,6 +55,7 @@ impl Default for GatewaySettings {
             max_concurrent_judgements: available_parallelism().unwrap_or(NonZeroUsize::MIN),
             no_bundle_fallback: Fallback::Pass,
             max_body_bytes: GATEWAY_MAX_BODY_MB * MB,
+            checks_declared_length: true,
             unit: UnitSettings::default(),
         }
     }
@@ -63,7 +69,6 @@ pub struct Gateway {
     reporter: Arc<DenialReporter>,
     now: WallClock,
     judgements: Arc<Semaphore>,
-    // Unbounded: a body is bounded by the cap alone.
     budget: Arc<ByteBudget>,
     settings: GatewaySettings,
 }
@@ -84,13 +89,13 @@ impl Gateway {
             reporter,
             now,
             judgements: Arc::new(Semaphore::new(settings.max_concurrent_judgements.get())),
-            budget: ByteBudget::new(usize::MAX),
+            budget: ByteBudget::new(BODY_BUDGET_BYTES),
             settings,
         }
     }
 
-    /// The call whose header lines are `lines`, its body to gather within the cap. Its declared
-    /// length isn't checked against its body.
+    /// The call whose header lines are `lines`, its body to gather within the cap; a body adopted
+    /// past the budget is kept, to send on.
     pub fn gather<N, V>(&self, lines: impl IntoIterator<Item = (N, V)>) -> RequestGatherer
     where
         N: AsRef<[u8]>,
@@ -98,7 +103,10 @@ impl Gateway {
     {
         let mut gatherer =
             RequestGatherer::keeping_lines(lines, self.settings.max_body_bytes, &self.budget);
-        gatherer.ignore_declared_length();
+        gatherer.keep_past_budget();
+        if !self.settings.checks_declared_length {
+            gatherer.ignore_declared_length();
+        }
         gatherer
     }
 
@@ -113,7 +121,7 @@ impl Gateway {
 
     /// What to do with the call `gatherer` gathered, its body ended as `ending`, by its deadline,
     /// and its body back for the host to send on. Only a `POST` is judged, and no call whose body
-    /// is past `max_body_bytes` or cut short is forwarded.
+    /// is past `max_body_bytes`, cut short, or dropped past the memory budget is forwarded.
     pub async fn handle(&self, gatherer: RequestGatherer, ending: BodyEnding) -> (Answer, Vec<u8>) {
         let call = Arc::new(gatherer.finish(ending));
         let answer = self.answer(&call).await;
@@ -123,7 +131,7 @@ impl Gateway {
     async fn answer(&self, call: &Arc<ObservedRequest>) -> Answer {
         let bytes = call.body_bytes();
         match call.body() {
-            BodyRead::Unread(Unread::PastCap | Unread::PastBudget) => {
+            BodyRead::Unread(Unread::PastCap) => {
                 tracing::warn!(
                     bytes,
                     limit = self.settings.max_body_bytes,
@@ -131,13 +139,21 @@ impl Gateway {
                 );
                 return Answer::TooLarge;
             }
+            // Only chunks gathered past it: its bytes are gone, so it can't be sent on.
+            BodyRead::Unread(Unread::PastBudget) => {
+                tracing::error!(
+                    bytes,
+                    "refused unjudged: the body is past the memory budget"
+                );
+                return Answer::CannotApply;
+            }
             // A body cut short could read as another call, so it's never judged as whole.
             BodyRead::Unread(Unread::CutShort) => {
                 tracing::warn!(bytes, "refused unjudged: the host sent part of the body");
                 return Answer::TooLarge;
             }
             _ if call.method() != "POST" => return Answer::Forward,
-            // Logged by its host, which knows what it wasn't configured to send.
+            // Logged by its host where it wasn't configured to send it, not where it declared a length.
             BodyRead::Unread(Unread::NotSent) => return Answer::CannotApply,
             BodyRead::Whole(_) => {}
         }
@@ -148,9 +164,7 @@ impl Gateway {
         let within =
             |limit: Duration| limit.min(deadline.saturating_duration_since(Instant::now()));
         let Some(bundle) = self.bundles.wait_for_bundle(within(MAX_WAIT)).await else {
-            let answer = answer_unjudged(None, self.settings.no_bundle_fallback);
-            tracing::error!(?answer, "no policy bundle held; the call went unjudged");
-            return answer;
+            return answer_unjudged(self.settings.no_bundle_fallback, "no policy bundle held");
         };
         let ticket = decode_x_rail(call);
         // Only where a signed ticket can be read and accepted: any caller can name a key.
@@ -161,11 +175,7 @@ impl Gateway {
             }
             _ => self.key_sets.keys(),
         };
-        let unjudged = |why: &str| {
-            let answer = answer_unjudged(Some(&bundle), self.settings.no_bundle_fallback);
-            tracing::error!(?answer, "{why}; the call went unjudged");
-            answer
-        };
+        let unjudged = |why: &str| answer_unjudged(unjudged_fallback(&bundle), why);
         let Ok(Ok(slot)) = timeout_at(deadline, Arc::clone(&self.judgements).acquire_owned()).await
         else {
             return unjudged("its deadline passed waiting for a free slot");
@@ -223,21 +233,6 @@ impl Drop for StopOnDrop {
 fn names_tenant(bundle: &HeldBundle) -> bool {
     let named = |claim: &Option<String>| claim.as_deref().is_some_and(|claim| !claim.is_empty());
     named(&bundle.ticket_issuer) && named(&bundle.ticket_audience)
-}
-
-// With a bundle, its `judge_fallback`, acted on at `enforce` only; without, the setting's.
-fn answer_unjudged(bundle: Option<&HeldBundle>, no_bundle_fallback: Fallback) -> Answer {
-    let fallback = match bundle {
-        Some(bundle) if bundle.posture.mode == EnforcementMode::Enforce => {
-            bundle.posture.judge_fallback
-        }
-        Some(_) => Fallback::Pass,
-        None => no_bundle_fallback,
-    };
-    match fallback {
-        Fallback::Pass => Answer::Forward,
-        Fallback::Block => Answer::CannotApply,
-    }
 }
 
 fn epoch_seconds(now: SystemTime) -> i64 {

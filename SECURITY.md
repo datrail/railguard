@@ -51,7 +51,10 @@ Anything that gets a call past rail-apigee that its rules refuse:
   flight, 16 of them naming no policy, a report is dropped and logged; the call stays denied.
 
 A refusal names no policy: 403 for a denial, 503 for a call the rules can't be applied to, and at `enforce` for one not
-judged within 5 s or whose judgement panicked (logged as an error). A body past `RAIL_MAX_BODY_MB` is refused unjudged,
+judged within 5 s, whose judgement panicked, or past the gateway's 256 MiB memory budget (logged as an error), and in
+any mode for a full-duplex body dropped past that budget. The bodies the gateway keeps, their trees and the headers
+conditions read share those 256 MiB, so many large calls at once can't exhaust its memory. A body past
+`RAIL_MAX_BODY_MB`, or cut short (on Envoy: flagged by it, or shorter than its `Content-Length`), is refused unjudged,
 413; on Apigee, so is a request past 4 MiB less 1 KiB. If the callout is down or answers no decision, the reference
 Apigee proxy refuses the call, 503.
 

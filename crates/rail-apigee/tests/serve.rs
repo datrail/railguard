@@ -327,10 +327,19 @@ async fn the_gateway_judges_every_header_item_and_the_decoded_path() {
     );
     let mut by_path = call(r#"{"method": "tools/call", "params": {"name": "t"}}"#);
     by_path.request.as_mut().unwrap().uri = "/m%63p?x=1".to_owned();
+    // Past its content, as for a gzipped body Apigee decoded: still judged.
+    let mut declared = call(CONTENT);
+    declared.request.as_mut().unwrap().headers.insert(
+        "content-length".to_owned(),
+        Strings {
+            strings: vec!["999".to_owned()],
+        },
+    );
 
     let allowed = client.process_message(call(CONTENT)).await.unwrap();
     let by_header = client.process_message(by_header).await.unwrap();
     let by_path = client.process_message(by_path).await.unwrap();
+    let declared = client.process_message(declared).await.unwrap();
 
     assert_eq!(
         flow(allowed.get_ref(), "rail.decision").as_deref(),
@@ -343,6 +352,10 @@ async fn the_gateway_judges_every_header_item_and_the_decoded_path() {
     assert_eq!(
         flow(by_path.get_ref(), "rail.decision").as_deref(),
         Some("refuse")
+    );
+    assert_eq!(
+        flow(declared.get_ref(), "rail.decision").as_deref(),
+        Some("allow")
     );
 }
 

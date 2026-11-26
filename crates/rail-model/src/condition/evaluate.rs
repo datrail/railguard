@@ -76,6 +76,8 @@ pub enum Refusal {
     NotForUse,
     /// The step budget spent, or the evaluation stopped by its caller.
     BudgetExceeded,
+    /// What it reads would pass the byte budget.
+    PastBudget,
 }
 
 /// A condition in the form it is evaluated in.
@@ -370,11 +372,13 @@ fn resolve_request<'a>(
             Ok(_) => Lookup::Absent,
             Err(why) => Lookup::BodyUnread(BodyUnread::Unread(why)),
         },
-        RequestPath::Header(name) => match environment.headers().get(name) {
-            None => Lookup::Absent,
-            Some([value]) => read_value(value),
-            Some(values) => Lookup::List(Items::Values(values)),
-        },
+        RequestPath::Header(name) => {
+            match environment.headers().ok_or(Refusal::PastBudget)?.get(name) {
+                None => Lookup::Absent,
+                Some([value]) => read_value(value),
+                Some(values) => Lookup::List(Items::Values(values)),
+            }
+        }
         RequestPath::Host => text(request_line().map(RequestLine::host)),
         RequestPath::Method => text(request_line().map(RequestLine::method)),
         RequestPath::Path(None) => text(request_line().map(RequestLine::path)),

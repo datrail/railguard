@@ -311,7 +311,7 @@ impl Exchange {
                 self.refuse(Answer::CannotApply)
             }
             Stage::Gathering(mut pending) => {
-                // Past the cap, it's refused as soon as it is.
+                // Past the cap or the budget, it's refused as soon as it is.
                 let kept = pending.gatherer.adopt(body.body);
                 // Buffered, the one message is the whole body, trailers or not.
                 if kept && !body.end_of_stream && self.mode != Some(BodySendMode::Buffered) {
