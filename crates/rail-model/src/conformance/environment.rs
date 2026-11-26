@@ -10,7 +10,7 @@ use super::value::{Bytes, decode_unread, keep};
 use super::{DEFAULT_BYTE_BUDGET, read_written};
 use crate::body::BodyRead;
 use crate::capture::capture_environment;
-use crate::condition::{self, Environment, Headers};
+use crate::condition::{Environment, Headers};
 use crate::endpoint::Endpoint;
 use crate::request::ObservedRequest;
 
@@ -127,7 +127,7 @@ fn expand(text: &str, bytes: Option<usize>) -> Result<Vec<u8>, String> {
     Ok((expanded + &" ".repeat(padding)).into_bytes())
 }
 
-/// An environment's sources, owned.
+/// What an environment reads, owned.
 pub(super) enum Built {
     Judging {
         ticket: Option<Map<String, Value>>,
@@ -135,7 +135,7 @@ pub(super) enum Built {
         headers: Headers,
     },
     Capture {
-        call: ObservedRequest,
+        call: Box<ObservedRequest>,
     },
 }
 
@@ -152,7 +152,7 @@ impl Built {
                 endpoint,
                 headers,
             )),
-            Self::Capture { call } => read(&capture_environment(&condition::Sources::new(call))),
+            Self::Capture { call } => read(&capture_environment(call)),
         }
     }
 
@@ -195,7 +195,7 @@ impl Named {
                 headers: Headers::from_lines(headers.iter().map(|(name, value)| (name, value))),
             },
             Spec::Capture { call } => Built::Capture {
-                call: call.to_call()?,
+                call: Box::new(call.to_call()?),
             },
         })
     }

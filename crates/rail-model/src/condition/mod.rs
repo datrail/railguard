@@ -9,7 +9,7 @@ pub use check::{
     ConditionProblem, LocationSegment, OperandShape, ProblemCode, ProblemScope, TicketClaimsSchema,
     check_condition,
 };
-pub use environment::{Environment, Headers, Sources};
+pub use environment::{Environment, Headers};
 #[cfg(feature = "conformance")]
 pub(crate) use evaluate::apply_condition;
 pub(crate) use evaluate::resolve_path;

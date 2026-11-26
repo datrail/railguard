@@ -1,5 +1,5 @@
 use rail_model::body::{BodyRead, Unread};
-use rail_model::condition::{Budget, Environment, Evaluation, Headers, Refusal, Sources, Verdict};
+use rail_model::condition::{Budget, Environment, Evaluation, Headers, Refusal, Verdict};
 use rail_model::endpoint::Endpoint;
 use rail_model::policy::{
     Decision, EnforcementMode, FallbackDenial, JudgingMode, Outcome, Tracer, compile_bundle, judge,
@@ -270,8 +270,7 @@ fn test_reads_an_endpoint_not_read_as_unbound() {
         BodyRead::Unread(Unread::CutShort),
     ] {
         let request = crate::observed("a.test", "POST", "/mcp", body, 0);
-        let sources = Sources::new(&request);
-        let environment = Environment::of(&sources, None);
+        let environment = Environment::of(&request, None);
         let outcome = judge(
             &bundle,
             &environment,

@@ -16,7 +16,7 @@ use super::document::{
 };
 use super::plan::{CatchAll, ContextKey, Record};
 use crate::body::{Unparsed, Unread};
-use crate::condition::{BodyUnread, Sources};
+use crate::condition::BodyUnread;
 use crate::redaction::REDACTED;
 use crate::request::ObservedRequest;
 use crate::request_line::{HostReading, ReportedMethod, RequestLine};
@@ -117,9 +117,8 @@ impl Window {
     /// taken it.
     pub fn record(&mut self, call: &ObservedRequest, at: SystemTime) -> Option<BodyUnreadReason> {
         let plan = Arc::clone(&self.plan);
-        let sources = Sources::new(call);
-        let mut reader = CallReader::new(&sources);
-        let request_line = sources.request_line();
+        let mut reader = CallReader::new(call);
+        let request_line = call.request_line();
         let taken = reader.take(&plan);
         let reason = body_unread_reason(&taken);
         if let Some(reason) = reason {

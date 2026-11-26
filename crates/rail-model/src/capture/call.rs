@@ -6,8 +6,8 @@ use sha2::{Digest, Sha256};
 use super::compile::{CompiledEntry, CompiledPlan, EntryRefusal};
 use super::plan::{CatchAll, ContextKey, Entry, KeyFunction, Measure, MeasureFunction, Record};
 use crate::condition::{
-    BodyPath, BodyUnread, Budget, Environment, Items, Lookup, Path, Refusal, RequestPath, Sources,
-    Verdict, evaluate_condition, resolve_path,
+    BodyPath, BodyUnread, Budget, Environment, Items, Lookup, Path, Refusal, RequestPath, Verdict,
+    evaluate_condition, resolve_path,
 };
 use crate::redaction::{REDACTED, is_secret_token};
 use crate::request::ObservedRequest;
@@ -127,20 +127,19 @@ pub enum Replacement {
 impl CompiledPlan {
     /// Matches `call`, then reads what the record counting it holds.
     pub fn capture(&self, call: &ObservedRequest) -> CapturedCall<'_> {
-        let sources = Sources::new(call);
-        let mut reader = CallReader::new(&sources);
+        let mut reader = CallReader::new(call);
         let taken = reader.take(self);
         let record = reader.read(taken.record().1);
         CapturedCall { taken, record }
     }
 
     // The first entry taking the call, unless the walk stops first.
-    fn walk(&self, sources: &Sources, budget: &mut Budget) -> Result<&Entry, Untaken<'_>> {
-        let request_line = sources.request_line();
+    fn walk(&self, call: &ObservedRequest, budget: &mut Budget) -> Result<&Entry, Untaken<'_>> {
+        let request_line = call.request_line();
         if let Some(why) = request_line.unmatchable() {
             return Err(Untaken::Unmatchable(why));
         }
-        let environment = capture_environment(sources);
+        let environment = capture_environment(call);
         for (entry, compiled) in self.entries_for(request_line.host()) {
             if let Some(refused) = compiled.refusal() {
                 return Err(Untaken::Refused(entry, refused));
@@ -157,24 +156,24 @@ impl CompiledPlan {
     }
 }
 
-/// One call as it's read: its sources, and its step budget, spent by matching it and reading its
+/// One call as it's read: the call, and its step budget, spent by matching it and reading its
 /// record alike.
 pub(crate) struct CallReader<'c> {
-    sources: &'c Sources<'c>,
+    call: &'c ObservedRequest,
     budget: Budget,
 }
 
 impl<'c> CallReader<'c> {
-    pub(crate) fn new(sources: &'c Sources<'c>) -> Self {
+    pub(crate) fn new(call: &'c ObservedRequest) -> Self {
         Self {
-            sources,
+            call,
             budget: Budget::default(),
         }
     }
 
     /// Which of `plan`'s records counts the call.
     pub(crate) fn take<'p>(&mut self, plan: &'p CompiledPlan) -> Taken<'p> {
-        match plan.walk(self.sources, &mut self.budget) {
+        match plan.walk(self.call, &mut self.budget) {
             Ok(entry) => Taken::Entry(entry),
             Err(why) => Taken::CatchAll(&plan.plan().catch_all, why),
         }
@@ -182,13 +181,13 @@ impl<'c> CallReader<'c> {
 
     /// What `record` reads of the call.
     pub(crate) fn read(&mut self, record: &Record) -> RecordReading {
-        read_record(record, self.sources, &mut self.budget)
+        read_record(record, self.call, &mut self.budget)
     }
 }
 
 // The proxy reads no ticket: it strips the agent's.
-pub(crate) fn capture_environment<'a>(sources: &'a Sources<'a>) -> Environment<'a> {
-    Environment::of(sources, None)
+pub(crate) fn capture_environment(call: &ObservedRequest) -> Environment<'_> {
+    Environment::of(call, None)
 }
 
 // The entry's "and": a condition that doesn't hold, or a refusal, decides it; else the first that
@@ -215,12 +214,12 @@ pub(crate) fn answer(
 
 pub(crate) fn read_record(
     record: &Record,
-    sources: &Sources,
+    call: &ObservedRequest,
     budget: &mut Budget,
 ) -> RecordReading {
-    let request_line = sources.request_line();
-    let environment = &capture_environment(sources);
-    let body_bytes = sources.request.body_bytes;
+    let request_line = call.request_line();
+    let environment = &capture_environment(call);
+    let body_bytes = call.body_bytes;
     let context_keys = record
         .context_keys
         .iter()

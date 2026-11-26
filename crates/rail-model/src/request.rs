@@ -7,7 +7,9 @@ use percent_encoding::percent_decode_str;
 
 use crate::body::mcp::read_endpoint;
 use crate::body::{BodyRead, Unread};
+use crate::condition::Headers;
 use crate::endpoint::Resolution;
+use crate::request_line::RequestLine;
 
 /// The ticket, for the gateway to check.
 pub const XRAIL: &str = "x-rail";
@@ -24,7 +26,9 @@ pub struct ObservedRequest {
     pub(crate) body: BodyRead,
     /// Every byte of the body the host was sent, kept or not.
     pub(crate) body_bytes: u64,
-    // Read once, by whichever use asks first, on whichever thread.
+    // Each read once, by whichever use asks first, on whichever thread.
+    request_line: OnceLock<RequestLine>,
+    headers_read: OnceLock<Headers>,
     endpoint: OnceLock<Resolution>,
 }
 
@@ -48,8 +52,31 @@ impl ObservedRequest {
                 .collect(),
             body,
             body_bytes,
+            request_line: OnceLock::new(),
+            headers_read: OnceLock::new(),
             endpoint: OnceLock::new(),
         }
+    }
+
+    pub(crate) fn request_line(&self) -> &RequestLine {
+        self.request_line.get_or_init(|| {
+            RequestLine::read(
+                self.authority.as_bytes(),
+                self.method.as_bytes(),
+                self.path.as_bytes(),
+            )
+        })
+    }
+
+    /// Its header lines as conditions read them.
+    pub(crate) fn headers(&self) -> &Headers {
+        self.headers_read.get_or_init(|| {
+            Headers::from_lines(
+                self.headers
+                    .iter()
+                    .map(|(name, value)| (name.as_str(), value.as_str())),
+            )
+        })
     }
 
     /// What its decoded path and MCP message name, unless its body is unread.

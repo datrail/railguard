@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use rail_model::body::BodyRead;
 use rail_model::condition::{
-    Budget, Condition, ConditionUse, Environment, Headers, Predicate, Refusal, Sources, Verdict,
+    Budget, Condition, ConditionUse, Environment, Headers, Predicate, Refusal, Verdict,
     compile_condition, evaluate_condition,
 };
 use rail_model::endpoint::Endpoint;
@@ -124,9 +124,8 @@ fn evaluate_on_call(condition: Value, body: &BodyRead, budget: &mut Budget) -> V
         body.clone(),
         0,
     );
-    let sources = Sources::new(&request);
     let predicate: Predicate = serde_json::from_value(condition).unwrap();
-    let environment = Environment::of(&sources, None);
+    let environment = Environment::of(&request, None);
     evaluate_condition(
         &compile_condition(&Condition::Valid(predicate), ConditionUse::CapturePlan),
         &environment,
@@ -191,13 +190,12 @@ fn test_reads_a_policys_headers_from_an_observed_request() {
     let header = vec![(b"X-A".to_vec(), b"1, a\xff".to_vec())];
     let (authority, method, path) = (b"mcp.example".to_vec(), b"POST".to_vec(), b"/mcp".to_vec());
     let request = ObservedRequest::new(authority, method, path, header, keep_body(b"{}"), 2);
-    let sources = Sources::new(&request);
     let condition = json!({"path": "request.headers.x-a", "op": "contains", "value": "a\u{fffd}"});
     let compiled = compile_condition(
         &serde_json::from_value(condition).unwrap(),
         ConditionUse::GatewayPolicy,
     );
-    let environment = Environment::of(&sources, None);
+    let environment = Environment::of(&request, None);
     assert_eq!(
         evaluate_condition(&compiled, &environment, &mut Budget::default()).verdict,
         Verdict::Holds
