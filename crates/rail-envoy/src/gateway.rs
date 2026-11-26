@@ -23,7 +23,7 @@ use rail_runtime::{Answer, Call, Gateway, read_path, withheld_headers};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::headers::value_of;
+use crate::headers::{PARTIAL_BODY, value_of};
 use crate::services::{ProcessStream, continue_unchanged};
 use crate::xrail::{raw_value_option, value_option};
 use tokio_stream::StreamExt;
@@ -31,9 +31,6 @@ use tonic::{Status, Streaming};
 
 // Envoy recommends full-duplex chunks of at most 64 KiB; GCP's load balancer takes 128 kB.
 const CHUNK_BYTES: usize = 64 * 1024;
-
-// Set by Envoy when `allow_partial_message` cut the body at `max_request_bytes`.
-const PARTIAL_BODY: &str = "x-envoy-auth-partial-body";
 
 /// Both callouts in the gateway role; with no gateway, Rail Center is disabled and every request
 /// forwarded.

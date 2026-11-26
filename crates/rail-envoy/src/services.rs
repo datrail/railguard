@@ -3,23 +3,19 @@ use std::sync::Arc;
 
 use envoy_types::ext_authz::v3::CheckResponseExt;
 use envoy_types::ext_authz::v3::pb::{Authorization, CheckRequest, CheckResponse, OkHttpResponse};
-use envoy_types::pb::envoy::extensions::filters::http::ext_proc::v3::processing_mode::BodySendMode;
-use envoy_types::pb::envoy::service::auth::v3::attribute_context::HttpRequest;
 use envoy_types::pb::envoy::service::ext_proc::v3::external_processor_server::ExternalProcessor;
 use envoy_types::pb::envoy::service::ext_proc::v3::processing_request::Request;
 use envoy_types::pb::envoy::service::ext_proc::v3::processing_response::Response;
 use envoy_types::pb::envoy::service::ext_proc::v3::{
-    BodyResponse, CommonResponse, HeaderMutation, HeadersResponse, HttpBody, HttpHeaders,
-    ProcessingRequest, ProcessingResponse, ProtocolConfiguration, TrailersResponse,
+    BodyResponse, CommonResponse, HeaderMutation, HeadersResponse, ProcessingRequest,
+    ProcessingResponse, TrailersResponse,
 };
-use rail_runtime::{
-    CaptureSender, ProtectedHosts, Route, SentBody, SentRequest, TicketHolder, XRailHeader,
-    XRailHeaders,
-};
+use rail_runtime::{CaptureSender, ProtectedHosts, Route, TicketHolder, XRailHeader, XRailHeaders};
 use tokio_stream::{Stream, StreamExt};
 use tonic::{Status, Streaming};
 
-use crate::headers::{find_value, read_length};
+use crate::capture::{StreamCapture, hand_over};
+use crate::headers::find_value;
 use crate::xrail::{as_raw_value, as_value};
 
 /// Both callouts, which change a request alike: one clone serves each.
@@ -39,12 +35,12 @@ impl Authorization for Callouts {
         &self,
         request: tonic::Request<CheckRequest>,
     ) -> Result<tonic::Response<CheckResponse>, Status> {
-        let http = request
-            .get_ref()
+        let owned = request
+            .into_inner()
             .attributes
-            .as_ref()
-            .and_then(|attributes| attributes.request.as_ref())
-            .and_then(|request| request.http.as_ref());
+            .and_then(|attributes| attributes.request)
+            .and_then(|request| request.http);
+        let http = owned.as_ref();
         // Envoy sends the headers in one of the two, `header_map` when asked for raw headers.
         let sent = http.into_iter().flat_map(|http| {
             http.headers.keys().map(String::as_str).chain(
@@ -58,10 +54,8 @@ impl Authorization for Callouts {
         let ticket = self.tickets.as_deref().map(TicketHolder::current);
         let headers = XRailHeaders::of(ticket, authority, &self.protected_hosts, sent);
         log_request("ext_authz", authority, &headers);
-        if let (Some(capture), Some(http)) = (&self.capture, http)
-            && capture.is_capturing()
-        {
-            capture.send_request(observe(http));
+        if let (Some(capture), Some(http)) = (&self.capture, owned) {
+            hand_over(capture, http);
         }
         let mut response = CheckResponse::with_status(Status::ok(""));
         response.set_http_response(OkHttpResponse {
@@ -71,41 +65,6 @@ impl Authorization for Callouts {
         });
         Ok(tonic::Response::new(response))
     }
-}
-
-// The call as Envoy sent it: the body is `raw_body` with `pack_as_bytes`, `body` without. Envoy's
-// `size` and partial-body header tell the bytes sent, not the body's, once it's cut short.
-fn observe(http: &HttpRequest) -> SentRequest<'_> {
-    let sent = if http.raw_body.is_empty() {
-        http.body.as_bytes()
-    } else {
-        &http.raw_body
-    };
-    let declared = declared_length(http);
-    // A POST sends a body: none, of a size not known to be 0, is one Envoy wasn't asked to send.
-    let unsent = sent.is_empty() && http.method == "POST" && http.size != 0 && declared != Some(0);
-    let body = if unsent {
-        SentBody::NotSent { declared }
-    } else {
-        SentBody::Sent {
-            bytes: sent,
-            declared,
-        }
-    };
-    SentRequest {
-        authority: http.host.as_bytes(),
-        method: http.method.as_bytes(),
-        path: http.path.as_bytes(),
-        body,
-    }
-}
-
-// `Content-Length` as sent, from either header field.
-fn declared_length(http: &HttpRequest) -> Option<u64> {
-    let header_map = http.header_map.iter().flat_map(|map| &map.headers);
-    find_value(header_map, "content-length")
-        .or_else(|| http.headers.get("content-length").map(String::as_bytes))
-        .and_then(read_length)
 }
 
 pub(crate) type ProcessStream =
@@ -127,11 +86,11 @@ impl ExternalProcessor for Callouts {
         let mut capture = self.capture.clone().map(StreamCapture::new);
         let replies = request.into_inner().map(move |message| {
             let message = message?;
-            let request = message
+            let mut request = message
                 .request
                 .ok_or_else(|| Status::invalid_argument("the message names no phase"))?;
             if let Some(capture) = &mut capture {
-                capture.on(message.protocol_config.as_ref(), &request);
+                capture.on(message.protocol_config.as_ref(), &mut request);
             }
             Ok(ProcessingResponse {
                 response: Some(continue_after(
@@ -177,138 +136,6 @@ fn continue_after(
             })
         }
         other => continue_unchanged(other),
-    }
-}
-
-// One ext_proc stream's call for capture, held from its headers until its body is sent, or handed
-// over as cut short when the stream ends first.
-struct StreamCapture {
-    sender: CaptureSender,
-    // Sent in the stream's first message; none is `NONE`, Envoy's default.
-    mode: BodySendMode,
-    held: Option<HeldCall>,
-}
-
-// A call's request line and declared length, read at its headers.
-struct HeldCall {
-    authority: Vec<u8>,
-    method: Vec<u8>,
-    path: Vec<u8>,
-    declared: Option<u64>,
-}
-
-impl StreamCapture {
-    fn new(sender: CaptureSender) -> Self {
-        Self {
-            sender,
-            mode: BodySendMode::None,
-            held: None,
-        }
-    }
-
-    fn on(&mut self, config: Option<&ProtocolConfiguration>, request: &Request) {
-        if let Some(config) = config {
-            self.mode = config.request_body_mode();
-        }
-        match request {
-            Request::RequestHeaders(headers) => self.on_headers(headers),
-            Request::RequestBody(body) => self.on_body(body),
-            Request::RequestTrailers(_) => self.on_trailers(),
-            _ => {}
-        }
-    }
-
-    fn on_headers(&mut self, headers: &HttpHeaders) {
-        if !self.sender.is_capturing() {
-            return;
-        }
-        let call = HeldCall::read(headers);
-        if headers.end_of_stream {
-            let empty = SentBody::Sent {
-                bytes: &[],
-                declared: call.declared,
-            };
-            call.send(&self.sender, empty);
-        } else if matches!(
-            self.mode,
-            BodySendMode::Buffered | BodySendMode::BufferedPartial
-        ) {
-            self.held = Some(call);
-        } else {
-            // `NONE` sends no body; the streamed modes' aren't kept yet.
-            let unsent = SentBody::NotSent {
-                declared: call.declared,
-            };
-            call.send(&self.sender, unsent);
-        }
-    }
-
-    // Buffered, the body is one message: `BUFFERED` refuses one past its limit, `BUFFERED_PARTIAL`
-    // stops there, not ending the stream, as trailers following would.
-    fn on_body(&mut self, body: &HttpBody) {
-        let Some(call) = self.held.take() else {
-            return;
-        };
-        let declared = call.declared;
-        let whole = body.end_of_stream || self.mode == BodySendMode::Buffered;
-        // A `Content-Length` tells a body cut short itself; without one, the stream not ending does.
-        let sent = if whole || declared.is_some() {
-            SentBody::Sent {
-                bytes: &body.body,
-                declared,
-            }
-        } else {
-            SentBody::CutShort {
-                sent_bytes: body.body.len() as u64,
-                declared,
-            }
-        };
-        call.send(&self.sender, sent);
-    }
-
-    // Trailers with the call still held: no body message came, so the body was empty.
-    fn on_trailers(&mut self) {
-        if let Some(call) = self.held.take() {
-            let empty = SentBody::Sent {
-                bytes: &[],
-                declared: call.declared,
-            };
-            call.send(&self.sender, empty);
-        }
-    }
-}
-
-impl Drop for StreamCapture {
-    fn drop(&mut self) {
-        if let Some(call) = self.held.take() {
-            let ended = SentBody::CutShort {
-                sent_bytes: 0,
-                declared: call.declared,
-            };
-            call.send(&self.sender, ended);
-        }
-    }
-}
-
-impl HeldCall {
-    fn read(headers: &HttpHeaders) -> Self {
-        let sent = headers.headers.iter().flat_map(|map| &map.headers);
-        let find = |name| find_value(sent.clone(), name).unwrap_or_default().to_vec();
-        Self {
-            authority: find(":authority"),
-            method: find(":method"),
-            path: find(":path"),
-            declared: find_value(sent, "content-length").and_then(read_length),
-        }
-    }
-
-    fn send(&self, sender: &CaptureSender, body: SentBody<'_>) {
-        sender.send_request(SentRequest {
-            authority: &self.authority,
-            method: &self.method,
-            path: &self.path,
-            body,
-        });
     }
 }
 

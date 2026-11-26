@@ -83,8 +83,8 @@ past the 256 MiB every body kept shares isn't read: the call is still counted, u
 have read its body, and the document counts it in `truncated.body_unread`. ext_proc's `NONE`, or no mode named, sends no
 body, and its streamed modes' bodies aren't kept yet. A body is cut short:
 
-- with ext_authz, of its `Content-Length`. Envoy's `x-envoy-auth-partial-body` isn't read, since it stays `false` when
-  Envoy stops at `max_request_bytes`; a chunked body cut there is told only by passing the cap, so set
+- with ext_authz, of its `Content-Length`, or when Envoy's `x-envoy-auth-partial-body` is `true`. It stays `false` when
+  Envoy stops at `max_request_bytes`, so a chunked body cut there is told only by passing the cap: set
   `max_request_bytes` above `RAIL_MAX_BODY_MB`;
 - with ext_proc, of its `Content-Length`, or, in `BUFFERED_PARTIAL` and chunked, when its message doesn't end the
   request, as one followed by trailers doesn't either;
