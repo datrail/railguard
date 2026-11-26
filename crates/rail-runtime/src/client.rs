@@ -4,7 +4,8 @@ use std::io::{self, Write};
 use std::sync::Arc;
 use std::time::Duration;
 
-use flate2::write::GzDecoder;
+use flate2::Compression;
+use flate2::write::{GzDecoder, GzEncoder};
 use rail_model::agent::AgentId;
 use reqwest::header::{
     ACCEPT, ACCEPT_ENCODING, AUTHORIZATION, CACHE_CONTROL, CONTENT_ENCODING, CONTENT_TYPE,
@@ -18,6 +19,10 @@ use crate::rail_center::{AUTH_MODE, AUTH_TOKEN, CenterUrl, RailCenterSettings};
 // An answer's body not read, drained only so its connection can be kept, for no longer than this.
 const MAX_DRAINED_BYTES: usize = 8 * 1024;
 const DRAIN_TIMEOUT: Duration = Duration::from_secs(1);
+
+// Under this, gzip's header and work buy little; past it, a window's repetitive JSON shrinks
+// several times over.
+const GZIP_PAST_BYTES: usize = 10 * 1024;
 
 /// What one caller allows a fetch.
 #[derive(Clone, Copy, Debug)]
@@ -38,6 +43,44 @@ pub struct Response {
     pub status: StatusCode,
     /// Empty unless the status is a success.
     pub body: Vec<u8>,
+}
+
+/// A JSON body as it's posted: gzipped past 10 KiB, once, so each attempt sends the same bytes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PostBody {
+    bytes: Vec<u8>,
+    gzipped: bool,
+}
+
+impl PostBody {
+    pub fn new(json: Vec<u8>) -> Self {
+        if json.len() <= GZIP_PAST_BYTES {
+            return Self {
+                bytes: json,
+                gzipped: false,
+            };
+        }
+        // The fastest level: on the Rail Center thread, it's most of the shrinking for a
+        // fraction of the work.
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::fast());
+        encoder
+            .write_all(&json)
+            .expect("writing to a Vec can't fail");
+        Self {
+            bytes: encoder.finish().expect("writing to a Vec can't fail"),
+            gzipped: true,
+        }
+    }
+
+    /// The bytes sent, gzip's if `is_gzipped`.
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    /// Whether it's sent with `Content-Encoding: gzip`.
+    pub fn is_gzipped(&self) -> bool {
+        self.gzipped
+    }
 }
 
 /// Why a fetch got no response: never the credential, route or query (a TLS error names the host).
@@ -127,16 +170,21 @@ impl RailCenterClient {
         body: Vec<u8>,
         limits: Limits,
     ) -> Result<Response, FetchError> {
+        // A denial report is a few hundred bytes: always sent as it is.
+        let body = PostBody {
+            bytes: body,
+            gzipped: false,
+        };
         self.fetch(self.post_request(route, body), limits).await
     }
 
-    /// `POST` `body`, JSON, to `route`, in one attempt, its answer read for its status alone: the
+    /// `POST` `body` to `route`, in one attempt, its answer read for its status alone: the
     /// deadline bounds the upload and the wait for the status, and the body is drained as an
     /// error's is, for up to 1 s more, so a success's can't fail it.
     pub(crate) async fn post_for_status(
         &self,
         route: &str,
-        body: Vec<u8>,
+        body: PostBody,
         deadline: Duration,
     ) -> Result<StatusCode, FetchError> {
         let mut response = timeout(deadline, self.post_request(route, body).send())
@@ -147,12 +195,15 @@ impl RailCenterClient {
         Ok(response.status())
     }
 
-    fn post_request(&self, route: &str, body: Vec<u8>) -> RequestBuilder {
+    fn post_request(&self, route: &str, body: PostBody) -> RequestBuilder {
         let url = self.url.endpoint(route, &[]);
-        self.http
-            .post(url)
-            .header(CONTENT_TYPE, "application/json")
-            .body(body)
+        let request = self.http.post(url).header(CONTENT_TYPE, "application/json");
+        let request = if body.gzipped {
+            request.header(CONTENT_ENCODING, "gzip")
+        } else {
+            request
+        };
+        request.body(body.bytes)
     }
 
     async fn fetch(&self, request: RequestBuilder, limits: Limits) -> Result<Response, FetchError> {

@@ -36,7 +36,7 @@ behave the same. See the [main README](../../README.md) for the system around it
 - **The proxy:**
   - `XRailHeaders` are the proxy's changes to a request, for a protected host or any other.
   - `CallRecordReporter` sends each closed capture window holding a call or a drop to Rail Center as its call record
-    document, oldest first, one at a time, retrying with a backoff:
+    document, gzipped past 10 KiB, oldest first, one at a time, retrying with a backoff as the same bytes:
     - an empty window isn't sent;
     - a document Rail Center refuses (a 4xx other than 401, 403, 408 or 429) is dropped;
     - besides the oldest, it keeps up to the newest window's plan's `max_unsent_windows` and up to two million records

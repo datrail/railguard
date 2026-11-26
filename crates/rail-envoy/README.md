@@ -72,9 +72,9 @@ valid ticket, a protected host's calls carry `x-rail-status`:
 With Rail Center on, the proxy fetches this agent's capture plan (`GET /v1/capture-plan`, every
 `RAIL_CAPTURE_PLAN_REFRESH_SECONDS`) and, while it holds one, counts each call ext_authz or ext_proc sees in windows of
 the plan's length, grouped by the plan's entry taking it and the values its record keeps, such as a tool's repository.
-Each window holding a call or a drop is posted as a call record document (`POST /v1/call-records`), retried while Rail
-Center is down. A call is never delayed by it: it's handed to capture's own thread, and one past the 4096 waiting is
-dropped and counted.
+Each window holding a call or a drop is posted as a call record document (`POST /v1/call-records`), gzipped past 10 KiB
+(`Content-Encoding: gzip`), retried while Rail Center is down. A call is never delayed by it: it's handed to capture's
+own thread, and one past the 4096 waiting is dropped and counted.
 
 The body read is the one Envoy sends, up to `RAIL_MAX_BODY_MB` (1 MiB by default): ext_authz's (`with_request_body`,
 with `pack_as_bytes: true`, so a body that isn't UTF-8 arrives unchanged), or ext_proc's `BUFFERED` or

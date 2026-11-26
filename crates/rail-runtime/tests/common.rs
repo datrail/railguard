@@ -29,27 +29,40 @@ pub enum Reply {
 pub struct Server {
     pub url: String,
     pub requests: Arc<Mutex<Vec<String>>>,
+    // Each request's body as sent, which `requests` holds only as text.
+    pub bodies: Arc<Mutex<Vec<Vec<u8>>>>,
+}
+
+// Where `read_head` keeps what it reads.
+#[derive(Clone, Default)]
+pub struct Seen {
+    requests: Arc<Mutex<Vec<String>>>,
+    bodies: Arc<Mutex<Vec<Vec<u8>>>>,
 }
 
 pub async fn serve(reply: impl Fn(usize) -> Reply + Send + Sync + 'static) -> Server {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("http://{}", listener.local_addr().unwrap());
-    let requests = Arc::new(Mutex::new(Vec::new()));
-    let seen = Arc::clone(&requests);
+    let seen = Seen::default();
+    let Seen { requests, bodies } = seen.clone();
     tokio::spawn(async move {
         let mut count = 0;
         loop {
             let (stream, _) = listener.accept().await.unwrap();
-            let seen = Arc::clone(&seen);
+            let seen = seen.clone();
             let reply = reply(count);
             count += 1;
             tokio::spawn(async move { answer(stream, reply, &seen).await });
         }
     });
-    Server { url, requests }
+    Server {
+        url,
+        requests,
+        bodies,
+    }
 }
 
-pub async fn answer(mut stream: TcpStream, reply: Reply, seen: &Mutex<Vec<String>>) {
+pub async fn answer(mut stream: TcpStream, reply: Reply, seen: &Seen) {
     if !read_head(&mut stream, seen).await {
         return;
     }
@@ -86,7 +99,7 @@ pub async fn answer(mut stream: TcpStream, reply: Reply, seen: &Mutex<Vec<String
 
 // Reads one request, its head and any body it declares, into `seen`; false if the peer closed
 // first.
-async fn read_head(stream: &mut TcpStream, seen: &Mutex<Vec<String>>) -> bool {
+async fn read_head(stream: &mut TcpStream, seen: &Seen) -> bool {
     let mut head = Vec::new();
     let mut byte = [0];
     while !head.ends_with(b"\r\n\r\n") {
@@ -108,8 +121,9 @@ async fn read_head(stream: &mut TcpStream, seen: &Mutex<Vec<String>>) -> bool {
     if stream.read_exact(&mut body).await.is_err() {
         return false;
     }
-    request.push_str(&String::from_utf8(body).unwrap());
-    seen.lock().unwrap().push(request);
+    request.push_str(&String::from_utf8_lossy(&body));
+    seen.requests.lock().unwrap().push(request);
+    seen.bodies.lock().unwrap().push(body);
     true
 }
 

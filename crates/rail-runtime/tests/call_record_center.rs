@@ -2,11 +2,13 @@
 // Shared by both test binaries, and each uses only part of it.
 #![allow(dead_code)]
 
+use std::io::Read;
 use std::sync::{Arc, Mutex};
 
+use flate2::read::GzDecoder;
 use rail_model::body::{BodyRead, Unread};
 use rail_model::capture::{ClosedWindow, Window, compile_plan, parse_plan};
-use rail_runtime::{CallRecordReporter, CallRecordSink, FetchError, Jitter};
+use rail_runtime::{CallRecordReporter, CallRecordSink, FetchError, Jitter, PostBody};
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 use tokio::runtime::Handle;
@@ -23,7 +25,7 @@ use crate::scripted::{Answer, Script, answer};
 pub struct Center {
     pub script: Script,
     pub release: Arc<Semaphore>,
-    pub bodies: Arc<Mutex<Vec<Vec<u8>>>>,
+    pub bodies: Arc<Mutex<Vec<PostBody>>>,
 }
 
 impl Center {
@@ -64,25 +66,32 @@ impl Center {
         self.script.fetched_at()
     }
 
-    pub fn bodies(&self) -> Vec<Vec<u8>> {
+    pub fn bodies(&self) -> Vec<PostBody> {
         self.bodies.lock().unwrap().clone()
     }
 
     pub fn documents(&self) -> Vec<Value> {
-        self.bodies()
-            .iter()
-            .map(|body| serde_json::from_slice(body).unwrap())
-            .collect()
+        self.bodies().iter().map(document).collect()
     }
 }
 
 impl CallRecordSink for Center {
-    async fn send(&self, body: Vec<u8>) -> Result<StatusCode, FetchError> {
+    async fn send(&self, body: PostBody) -> Result<StatusCode, FetchError> {
         self.bodies.lock().unwrap().push(body);
         let answer = self.script.answer().await;
         self.release.acquire().await.unwrap().forget();
         answer.map(|response| response.status)
     }
+}
+
+// The JSON `body` carries, gunzipped if it's gzipped.
+pub fn document(body: &PostBody) -> Value {
+    if !body.is_gzipped() {
+        return serde_json::from_slice(body.bytes()).unwrap();
+    }
+    let mut json = Vec::new();
+    GzDecoder::new(body.bytes()).read_to_end(&mut json).unwrap();
+    serde_json::from_slice(&json).unwrap()
 }
 
 pub fn accepted() -> Answer {
@@ -102,6 +111,12 @@ pub fn window(max_unsent_windows: u32, paths: &[&str]) -> ClosedWindow {
         window.record(&call, clock.at(1));
     }
     window.close(clock.at(2))
+}
+
+// A window holding a call to each of 100 paths: a document well past the size it's gzipped at.
+pub fn large_window() -> ClosedWindow {
+    let paths: Vec<String> = (0..100).map(|n| format!("/{n}")).collect();
+    window(8, &paths.iter().map(String::as_str).collect::<Vec<_>>())
 }
 
 // A window under the vectors' plan at the ceiling of steps, holding `calls` calls to one path:
