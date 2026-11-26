@@ -130,18 +130,9 @@ async fn ext_authz_calls_are_counted_and_their_window_sent_when_stopped() {
         ..post(&whole, Some(whole.len()))
     };
     check(&callouts, as_text).await;
-    // Empty, of a size Envoy knows is 0: read, so not counted; not sent, of a size it doesn't know.
+    // Empty, of a size Envoy knows is 0: read, so not counted.
     check(&callouts, post(b"", None)).await;
-    check(
-        &callouts,
-        HttpRequest {
-            size: -1,
-            ..post(b"", None)
-        },
-    )
-    .await;
-    // Cut short of a `Content-Length` sent as a header, or raw in `header_map`.
-    check(&callouts, post(&whole[..10], Some(whole.len()))).await;
+    // Cut short of a `Content-Length` sent raw in `header_map`.
     let raw_length = HeaderMap {
         headers: vec![HeaderValue {
             key: "content-length".to_owned(),
@@ -154,17 +145,6 @@ async fn ext_authz_calls_are_counted_and_their_window_sent_when_stopped() {
         ..post(&whole[..10], None)
     };
     check(&callouts, in_header_map).await;
-    // Cut where Envoy says it may be, with no `Content-Length` to tell.
-    let partial = HttpRequest {
-        headers: HashMap::from([("x-envoy-auth-partial-body".to_owned(), "true".to_owned())]),
-        ..post(&whole[..10], None)
-    };
-    check(&callouts, partial).await;
-    let not_partial = HttpRequest {
-        headers: HashMap::from([("x-envoy-auth-partial-body".to_owned(), "false".to_owned())]),
-        ..post(&whole, None)
-    };
-    check(&callouts, not_partial).await;
     // As the binary stops it, once its server has drained.
     tokio::task::spawn_blocking(move || stop.stop())
         .await
@@ -182,12 +162,12 @@ async fn ext_authz_calls_are_counted_and_their_window_sent_when_stopped() {
             .unwrap_or_else(|| panic!("{document}"))
     };
     assert_eq!(e1("docs")["entry_id"], "e1");
-    assert_eq!(e1("docs")["measures"]["call_count"], 3);
-    assert_eq!(e1("docs")["measures"]["request_bytes"], 3 * whole.len());
+    assert_eq!(e1("docs")["measures"]["call_count"], 2);
+    assert_eq!(e1("docs")["measures"]["request_bytes"], 2 * whole.len());
     let unread = &document["truncated"]["body_unread"];
     assert_eq!(
         (&unread["not_sent"], &unread["cut_short"]),
-        (&Value::from(1), &Value::from(3)),
+        (&Value::from(0), &Value::from(1)),
         "{document}"
     );
 }

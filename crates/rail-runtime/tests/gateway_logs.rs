@@ -5,11 +5,11 @@ use std::time::Duration;
 use rail_runtime::{Answer, Gateway, GatewaySettings};
 
 use crate::bundles::{self, Script};
-use crate::calls::{Call, handle};
+use crate::calls::{Call, call, handle, scanned_call};
 use crate::holder::{TestClock, until};
 use crate::keys;
 use crate::logs::{Logs, lines_with};
-use crate::scanning::{SCANNED, scanning, scanning_settings};
+use crate::scanning::{scanning, scanning_settings};
 use crate::sink::Sink;
 
 #[tokio::test(start_paused = true)]
@@ -31,14 +31,12 @@ async fn a_body_past_the_cap_is_warned_of_with_its_size_and_the_cap() {
             ..GatewaySettings::default()
         },
     );
-    let call = Call {
-        path: "/mcp".into(),
-        method: "POST".into(),
-        body: "12345".to_owned(),
-        headers: Vec::new(),
+    let past = Call {
+        body: "12345".into(),
+        ..call("POST", None)
     };
 
-    assert_eq!(handle(&gateway, call).await.0, Answer::TooLarge);
+    assert_eq!(handle(&gateway, past).await.0, Answer::TooLarge);
 
     let logs = logs.text();
     let lines = lines_with(&logs, "past RAIL_MAX_BODY_MB");
@@ -67,22 +65,11 @@ async fn a_call_with_no_verdict_by_its_deadline_is_forwarded_at_observe() {
         scanning_settings(Duration::from_millis(100)),
     );
     until(&clock, 0).await;
-    let call = || Call {
-        path: "/mcp".into(),
-        method: "POST".into(),
-        body: r#"{"method": "resources/read"}"#.to_owned(),
-        headers: Vec::new(),
-    };
-    let scanned = Call {
-        headers: vec![("x-a".into(), "a".repeat(SCANNED))],
-        ..call()
-    };
-
     // Left unpolled once it holds the slot, so its deadline can't stop its judgement.
-    let mut judged = pin!(handle(&gateway, scanned));
+    let mut judged = pin!(handle(&gateway, scanned_call()));
     let unfinished = tokio::time::timeout(Duration::from_millis(20), judged.as_mut()).await;
     assert!(unfinished.is_err());
-    let (waiting, _) = handle(&gateway, call()).await;
+    let (waiting, _) = handle(&gateway, call("POST", None)).await;
     let (judged, _) = judged.await;
 
     assert_eq!(waiting, Answer::Forward);

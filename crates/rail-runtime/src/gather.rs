@@ -29,19 +29,38 @@ pub enum BodyEnding {
     NotSent,
 }
 
-/// Which header lines a request keeps: capture's none, since plans read none.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum HeaderLines {
-    Kept,
-    Dropped,
-}
-
 impl RequestGatherer {
-    /// From the header lines as sent, pseudo-headers included: the first `:authority`, `:method`
-    /// and `:path` are its request line, the first `content-length` its declared length.
+    /// From the header lines as sent, pseudo-headers included: the first non-empty `:authority`,
+    /// `:method` and `:path` are its request line, the first `content-length` its declared length.
+    /// It keeps no header line: capture reads none.
     pub fn start<N, V>(
         lines: impl IntoIterator<Item = (N, V)>,
-        keep: HeaderLines,
+        cap_bytes: usize,
+        budget: &Arc<ByteBudget>,
+    ) -> Self
+    where
+        N: AsRef<[u8]>,
+        V: AsRef<[u8]> + Into<Vec<u8>>,
+    {
+        Self::read(lines, false, cap_bytes, budget)
+    }
+
+    /// As `start`, keeping every header line but the pseudo-headers.
+    pub(crate) fn keeping_lines<N, V>(
+        lines: impl IntoIterator<Item = (N, V)>,
+        cap_bytes: usize,
+        budget: &Arc<ByteBudget>,
+    ) -> Self
+    where
+        N: AsRef<[u8]>,
+        V: AsRef<[u8]> + Into<Vec<u8>>,
+    {
+        Self::read(lines, true, cap_bytes, budget)
+    }
+
+    fn read<N, V>(
+        lines: impl IntoIterator<Item = (N, V)>,
+        keep: bool,
         cap_bytes: usize,
         budget: &Arc<ByteBudget>,
     ) -> Self
@@ -64,7 +83,7 @@ impl RequestGatherer {
                         length_seen = true;
                         declared = read_length(value.as_ref());
                     }
-                    if keep == HeaderLines::Kept {
+                    if keep {
                         header_lines.push((name.to_vec(), value.into()));
                     }
                     continue;

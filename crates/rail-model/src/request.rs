@@ -95,11 +95,11 @@ impl ObservedRequest {
     /// sent: rules read `host` whether the request came as HTTP/1 or HTTP/2.
     pub(crate) fn headers(&self) -> &Headers {
         self.headers.get_or_init(|| {
-            let host = !self.authority.as_bytes().is_empty()
-                && !self
-                    .header_lines()
-                    .any(|(name, _)| name.eq_ignore_ascii_case("host"));
-            let authority = host.then(|| ("host", self.authority.as_str()));
+            let sent = self
+                .header_lines()
+                .any(|(name, _)| name.eq_ignore_ascii_case("host"));
+            let authority = (!self.authority.as_bytes().is_empty() && !sent)
+                .then(|| ("host", self.authority.as_str()));
             Headers::from_lines(self.header_lines().chain(authority))
         })
     }

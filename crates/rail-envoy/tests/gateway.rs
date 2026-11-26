@@ -468,14 +468,6 @@ async fn a_streamed_body_past_the_cap_is_refused_as_soon_as_it_is() {
     .await
     .unwrap();
     assert!(streamed_back(&forwarded[1..]).0 == at_cap);
-
-    // ext_authz, whole and past it.
-    let past = tool_call("allowed", 1024 * 1024);
-    let size = i64::try_from(past.len()).unwrap();
-    assert_eq!(
-        check(&socket.path, &[], &past, size).await.unwrap_err().0,
-        413
-    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -611,7 +603,7 @@ async fn check(
 #[tokio::test(flavor = "multi_thread")]
 async fn ext_authz_judges_the_body_sent_and_never_a_body_cut_short() {
     let socket = TempSocket::new("gw-authz");
-    let (_server, _rail_center) = judging(&socket.path, DENYING_FORBIDDEN, &[]).await;
+    let (mut server, _rail_center) = judging(&socket.path, DENYING_FORBIDDEN, &[]).await;
     let allowed = tool_call("allowed", 0);
     let forbidden = tool_call("forbidden", 0);
     let length = |body: &[u8]| i64::try_from(body.len()).unwrap();
@@ -663,20 +655,21 @@ async fn ext_authz_judges_the_body_sent_and_never_a_body_cut_short() {
             "{flag:?}"
         );
     }
-    // `:authority` reads as `host`, and a `host` line sent stands alone.
-    for host in [(":authority", "denied.example"), ("host", "denied.example")] {
-        assert_eq!(
-            check(&socket.path, &[host], &allowed, length(&allowed))
-                .await
-                .unwrap_err()
-                .0,
-            403,
-            "{host:?}"
-        );
-    }
+    // A sent `:authority` reads as `host`, before ext_authz's own.
+    let authority = [(":authority", "denied.example")];
+    assert_eq!(
+        check(&socket.path, &authority, &allowed, length(&allowed))
+            .await
+            .unwrap_err()
+            .0,
+        403
+    );
     // A declared length isn't checked against the body yet.
     let declared = [("content-length", "99")];
     assert!(check(&socket.path, &declared, &allowed, -1).await.is_ok());
+    server.terminate();
+    let logs = tokio::task::block_in_place(|| server.read_logs());
+    assert_eq!(logs.matches("needs with_request_body").count(), 1, "{logs}");
 }
 
 #[tokio::test(flavor = "multi_thread")]

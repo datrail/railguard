@@ -73,8 +73,9 @@ impl ExternalCalloutService for Callout {
                 let mut gatherer = gateway.gather(line.into_iter().chain(items));
                 // Moved in and back out: it can be up to 4 MiB.
                 gatherer.adopt(std::mem::take(&mut request.content).into_bytes());
-                let (answer, content) = gateway.handle(gatherer.finish(BodyEnding::Whole)).await;
-                // It came as a `String`, so it's UTF-8.
+                let (answer, content) = gateway.handle(gatherer, BodyEnding::Whole).await;
+                // It came as a `String`, so it's UTF-8; empty for a body refused past the cap: nothing
+                // is forwarded.
                 request.content = String::from_utf8(content).unwrap_or_default();
                 answer
             }
@@ -85,7 +86,7 @@ impl ExternalCalloutService for Callout {
 }
 
 /// The received context, with only our changes in its maps: Apigee's own fields are returned as
-/// received, so none of them changes, but a body refused past the cap, returned empty.
+/// received, so none of them changes.
 pub fn build_answer(mut context: MessageContext, answer: Answer) -> MessageContext {
     let request = context.request.get_or_insert_default();
     // An empty list removes the header. `x-rail` is always named: a header that isn't there is

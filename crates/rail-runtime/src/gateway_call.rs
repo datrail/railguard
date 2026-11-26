@@ -18,7 +18,7 @@ use crate::callout::{GATEWAY_MAX_BODY_MB, MB};
 use crate::clock::WallClock;
 use crate::denial::DenialReporter;
 use crate::gateway::{Answer, Unit, UnitSettings, decode_x_rail, judge_call};
-use crate::gather::{HeaderLines, RequestGatherer};
+use crate::gather::{BodyEnding, RequestGatherer};
 use crate::key_set::KeySetHolder;
 
 // The longest a call waits for a bundle, and for a key it names: each within the deadline too.
@@ -96,12 +96,8 @@ impl Gateway {
         N: AsRef<[u8]>,
         V: AsRef<[u8]> + Into<Vec<u8>>,
     {
-        let mut gatherer = RequestGatherer::start(
-            lines,
-            HeaderLines::Kept,
-            self.settings.max_body_bytes,
-            &self.budget,
-        );
+        let mut gatherer =
+            RequestGatherer::keeping_lines(lines, self.settings.max_body_bytes, &self.budget);
         gatherer.ignore_declared_length();
         gatherer
     }
@@ -115,11 +111,11 @@ impl Gateway {
         }
     }
 
-    /// What to do with `request`, by its deadline, and its body back for the host to send on. Only
-    /// a `POST` is judged, and no call whose body is past `max_body_bytes` or cut short is
-    /// forwarded.
-    pub async fn handle(&self, request: ObservedRequest) -> (Answer, Vec<u8>) {
-        let call = Arc::new(request);
+    /// What to do with the call `gatherer` gathered, its body ended as `ending`, by its deadline,
+    /// and its body back for the host to send on. Only a `POST` is judged, and no call whose body
+    /// is past `max_body_bytes` or cut short is forwarded.
+    pub async fn handle(&self, gatherer: RequestGatherer, ending: BodyEnding) -> (Answer, Vec<u8>) {
+        let call = Arc::new(gatherer.finish(ending));
         let answer = self.answer(&call).await;
         (answer, into_bytes(call))
     }
@@ -127,7 +123,6 @@ impl Gateway {
     async fn answer(&self, call: &Arc<ObservedRequest>) -> Answer {
         let bytes = call.body_bytes();
         match call.body() {
-            // The budget is unbounded, so only the cap stops a body.
             BodyRead::Unread(Unread::PastCap | Unread::PastBudget) => {
                 tracing::warn!(
                     bytes,

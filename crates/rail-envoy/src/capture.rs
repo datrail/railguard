@@ -6,7 +6,8 @@ use envoy_types::pb::envoy::service::ext_proc::v3::processing_request::Request;
 use envoy_types::pb::envoy::service::ext_proc::v3::{HttpBody, HttpHeaders, ProtocolConfiguration};
 use rail_runtime::{BodyEnding, CaptureSender, HeldRequest};
 
-use crate::headers::{check_lines, take_body, value_of};
+use crate::check::{check_lines, take_body};
+use crate::headers::process_lines;
 
 /// ext_authz's call, handed over if capturing.
 pub(crate) fn hand_over(sender: &CaptureSender, mut http: HttpRequest) {
@@ -54,11 +55,7 @@ impl StreamCapture {
     }
 
     fn on_headers(&mut self, headers: &HttpHeaders) {
-        let sent = headers.headers.iter().flat_map(|map| &map.headers);
-        let Some(held) = self
-            .sender
-            .hold(sent.map(|header| (header.key.as_bytes(), value_of(header))))
-        else {
+        let Some(held) = self.sender.hold(process_lines(headers)) else {
             return;
         };
         if headers.end_of_stream {

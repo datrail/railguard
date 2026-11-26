@@ -12,6 +12,7 @@
 //! drive.
 
 mod capture;
+mod check;
 mod config;
 mod gateway;
 mod headers;

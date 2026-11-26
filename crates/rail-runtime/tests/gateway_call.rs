@@ -9,28 +9,16 @@ use tokio::time::Instant;
 use tokio::time::timeout;
 
 use crate::bundles::{self, Script};
-use crate::calls::{Call, handle, handle_ended};
+use crate::calls::{Call, call, handle, scanned_call};
 use crate::holder::{TestClock, until};
 use crate::keys;
-use crate::scanning::{SCANNED, scanning, scanning_settings};
+use crate::scanning::{scanning, scanning_settings};
 use crate::sink::Sink;
 
 // Signed, naming the key `new`, and signed by nobody: only the key it names is read here.
 const NAMING_NEW: &str = "eyJhbGciOiAiRWREU0EiLCAia2lkIjogIm5ldyJ9.e30.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 // As `NAMING_NEW`, but `alg: none`.
 const NAMING_NEW_UNSIGNABLE: &str = "eyJhbGciOiAibm9uZSIsICJraWQiOiAibmV3In0.e30.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-
-fn call(method: &str, x_rail: Option<&str>) -> Call {
-    Call {
-        path: "/mcp".into(),
-        method: method.into(),
-        body: r#"{"method": "resources/read"}"#.into(),
-        headers: x_rail
-            .map(|ticket| ("x-rail".into(), ticket.into()))
-            .into_iter()
-            .collect(),
-    }
-}
 
 // A gateway on `bundles`, its reports, and the key source it fetches from.
 struct Started {
@@ -58,6 +46,28 @@ fn start(clock: &TestClock, bundles: Script, settings: GatewaySettings) -> Start
         sink,
         keys,
     }
+}
+
+// Every header line but the pseudo-headers, for the policies; capture's request keeps none.
+#[tokio::test(start_paused = true)]
+async fn the_gateways_request_keeps_its_header_lines() {
+    let clock = TestClock::new();
+    let started = start(
+        &clock,
+        Script::new(&clock, |_| bundles::failed()),
+        GatewaySettings::default(),
+    );
+    let lines = [
+        (":method", "POST"),
+        (":scheme", "https"),
+        ("x-a", "1"),
+        ("X-B", "2"),
+    ];
+    let request = started.gateway.gather(lines).finish(BodyEnding::Whole);
+    assert_eq!(
+        request.header_lines().collect::<Vec<_>>(),
+        [("x-a", "1"), ("X-B", "2")]
+    );
 }
 
 #[tokio::test(start_paused = true)]
@@ -118,18 +128,18 @@ async fn a_body_past_the_cap_or_cut_short_is_refused_unjudged_whatever_the_metho
     };
 
     for method in ["POST", "GET"] {
-        let sent = past(method);
-        let (answer, _) = handle(&started.gateway, sent.clone()).await;
+        let (answer, back) = handle(&started.gateway, past(method)).await;
         assert_eq!(answer, Answer::TooLarge, "{method}");
+        assert!(back.is_empty(), "{method}");
     }
     // Cut short, refused whatever the method; not sent, a GET is still forwarded.
     for (ending, answer) in [
         (BodyEnding::CutShort, Answer::TooLarge),
         (BodyEnding::NotSent, Answer::Forward),
     ] {
-        let get = call("GET", None);
+        let get = started.gateway.gather([(":method", "GET")]);
         assert_eq!(
-            handle_ended(&started.gateway, get, ending).await.0,
+            started.gateway.handle(get, ending).await.0,
             answer,
             "{ending:?}"
         );
@@ -180,14 +190,6 @@ async fn a_key_not_held_is_waited_for_only_where_the_bundle_can_accept_a_signed_
             Duration::from_secs(waited),
             "{with} {x_rail:?}"
         );
-    }
-}
-
-// A call `scanning`'s policies are slow to judge.
-fn scanned_call() -> Call {
-    Call {
-        headers: vec![("x-a".into(), "a".repeat(SCANNED))],
-        ..call("POST", None)
     }
 }
 

@@ -22,7 +22,8 @@ use rail_runtime::{Answer, BodyEnding, Gateway, RequestGatherer, withheld_header
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::headers::{check_lines, take_body, value_of};
+use crate::check::{check_lines, take_body};
+use crate::headers::process_lines;
 use crate::services::{ProcessStream, continue_unchanged};
 use crate::xrail::{raw_value_option, value_option};
 use tokio_stream::StreamExt;
@@ -63,7 +64,7 @@ impl Authorization for GatewayCallouts {
                     );
                 }
                 gatherer.adopt(body);
-                gateway.handle(gatherer.finish(ending)).await.0
+                gateway.handle(gatherer, ending).await.0
             }
         };
         let response = match answer.refusal() {
@@ -261,11 +262,7 @@ impl Exchange {
         if !matches!(self.stage, Stage::Headers) {
             return Answers::Now(Vec::new());
         }
-        let sent = headers
-            .headers
-            .iter()
-            .flat_map(|map| &map.headers)
-            .map(|header| (header.key.as_str(), value_of(header)));
+        let sent = process_lines(&headers);
         let removed = withheld_headers(sent.clone().map(|(name, _)| name));
         let Some(gateway) = self.gateway.clone() else {
             // Disabled: nothing to judge, so nothing to gather.
@@ -347,7 +344,7 @@ async fn judge(pending: Pending, ending: EndedBy, mode: Option<BodySendMode>) ->
         removed,
         gatherer,
     } = pending;
-    let (answer, body) = gateway.handle(gatherer.finish(BodyEnding::Whole)).await;
+    let (answer, body) = gateway.handle(gatherer, BodyEnding::Whole).await;
     if answer != Answer::Forward {
         return Answers::Now(vec![immediate(answer)]);
     }

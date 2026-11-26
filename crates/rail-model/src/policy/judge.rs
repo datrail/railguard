@@ -178,7 +178,7 @@ pub fn judge_traced(
         }
     }
     // A message naming no tool by design isn't an unbound endpoint: it faces the whole chain.
-    // None read, a session message's or a body unread's (never judged): unbound.
+    // None, for a session message or an unread body, neither ever judged: unbound.
     let (narrowed, unbound) = match environment.endpoint() {
         Ok(Some(Endpoint::Keyless)) => (None, false),
         Ok(Some(Endpoint::Unrecognised) | None) | Err(_) => (None, true),
