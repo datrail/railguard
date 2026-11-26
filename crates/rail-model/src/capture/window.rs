@@ -411,7 +411,6 @@ fn write(
         .iter()
         .map(|reading| match reading {
             MeasureReading::CallCount => 1,
-            MeasureReading::RequestBytes(bytes) => *bytes,
             MeasureReading::SizeInBytes(paths) => paths
                 .iter()
                 .map(|path| match path {

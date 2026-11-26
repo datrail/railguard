@@ -70,7 +70,12 @@ fn test_reads_the_worked_example_as_written() {
         entry.record.measures,
         [
             Measure::CallCount,
-            Measure::RequestBytes,
+            Measure::Named {
+                name: "request_bytes".into(),
+                combine: Combine::Sum,
+                function: MeasureFunction::SizeInBytes,
+                paths: vec![body(&[])],
+            },
             Measure::Named {
                 name: "argument_bytes".into(),
                 combine: Combine::Sum,
@@ -91,7 +96,15 @@ fn test_reads_the_worked_example_as_written() {
     );
     assert_eq!(
         plan.catch_all.record.measures,
-        [Measure::CallCount, Measure::RequestBytes]
+        [
+            Measure::CallCount,
+            Measure::Named {
+                name: "request_bytes".into(),
+                combine: Combine::Sum,
+                function: MeasureFunction::SizeInBytes,
+                paths: vec![body(&[])],
+            },
+        ]
     );
 }
 

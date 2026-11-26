@@ -7,7 +7,7 @@ use std::ops::RangeInclusive;
 
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
-use serde_json::{Value, json};
+use serde_json::Value;
 
 use crate::agent::AgentId;
 use crate::condition::{BodyStep, Condition, Path, RequestPath};
@@ -106,8 +106,6 @@ pub enum ContextKey {
 #[serde(try_from = "Fields")]
 pub enum Measure {
     CallCount,
-    /// The whole body's size, as sent.
-    RequestBytes,
     Named {
         name: String,
         combine: Combine,
@@ -158,7 +156,6 @@ impl Measure {
     pub(crate) fn name(&self) -> &str {
         match self {
             Self::CallCount => "call_count",
-            Self::RequestBytes => "request_bytes",
             Self::Named { name, .. } => name,
         }
     }
@@ -270,13 +267,11 @@ fn check_catch_all(catch_all: &CatchAll) -> Result<(), String> {
     check_measures(&catch_all.record.measures)
 }
 
-// A set by name, holding the two every record does.
+// A set by name, holding the count every record does.
 fn check_measures(measures: &[Measure]) -> Result<(), String> {
     unique("measure", measures.iter().map(Measure::name))?;
-    for built_in in [Measure::CallCount, Measure::RequestBytes] {
-        if !measures.contains(&built_in) {
-            return Err(format!("no {} measure", built_in.name()));
-        }
+    if !measures.contains(&Measure::CallCount) {
+        return Err("no call_count measure".to_owned());
     }
     Ok(())
 }
@@ -365,15 +360,6 @@ impl TryFrom<Fields> for Measure {
         let combine = present(fields.combine, "type", &at)?;
         let function = present(fields.function, "function", &at)?;
         let paths = present(fields.paths, "paths", &at)?;
-        if name == "request_bytes" {
-            let whole_body = json!([["request", "body"]]);
-            if (combine, function, paths) != (json!("sum"), json!("size"), whole_body) {
-                return Err(format!(
-                    "{at}: not a sum of size over [[\"request\", \"body\"]]"
-                ));
-            }
-            return Ok(Self::RequestBytes);
-        }
         let unlisted = |field: &str| format!("{at}: its {field} is none the reference lists");
         let combine: Combine = read_listed(combine).ok_or_else(|| unlisted("type"))?;
         let function: MeasureFunction =

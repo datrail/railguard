@@ -545,27 +545,7 @@
       "expect": {"valid": false}
     },
     {
-      "id": "an-entrys-measures-without-request-bytes",
-      "patch": [{"op": "remove", "path": "/entries/0/record/measures/1"}],
-      "expect": {"valid": false}
-    },
-    {
-      "id": "request-bytes-over-the-body-as-its-own-root",
-      "patch": [{"op": "replace", "path": "/entries/0/record/measures/1/paths", "value": [["body"]]}],
-      "expect": {"valid": false}
-    },
-    {
-      "id": "request-bytes-of-a-type-but-sum",
-      "patch": [{"op": "replace", "path": "/entries/0/record/measures/1/type", "value": "max"}],
-      "expect": {"valid": false}
-    },
-    {
-      "id": "request-bytes-of-a-function-but-size",
-      "patch": [{"op": "replace", "path": "/entries/0/record/measures/1/function", "value": "count"}],
-      "expect": {"valid": false}
-    },
-    {
-      "id": "request-bytes-with-no-type",
+      "id": "a-measure-with-no-type",
       "patch": [{"op": "remove", "path": "/entries/0/record/measures/1/type"}],
       "expect": {"valid": false}
     },
