@@ -73,7 +73,7 @@ impl ByteBudget {
 }
 
 // Bytes held against a budget, given back when dropped.
-struct Charge {
+pub(crate) struct Charge {
     budget: Arc<ByteBudget>,
     bytes: usize,
 }
@@ -87,7 +87,7 @@ impl Charge {
     }
 
     // Takes `bytes` more, unless that would pass the budget.
-    fn grow(&mut self, bytes: usize) -> bool {
+    pub(crate) fn grow(&mut self, bytes: usize) -> bool {
         let limit = self.budget.limit_bytes;
         let taken = self
             .budget
@@ -123,6 +123,8 @@ pub struct BodyBuffer {
     cap_bytes: usize,
     received_bytes: u64,
     charge: Charge,
+    // Adopted past the budget, kept outside it.
+    uncharged: bool,
     unkept: Option<Unkept>,
 }
 
@@ -133,6 +135,7 @@ impl BodyBuffer {
             cap_bytes,
             received_bytes: 0,
             charge: Charge::new(budget),
+            uncharged: false,
             unkept: None,
         }
     }
@@ -143,6 +146,9 @@ impl BodyBuffer {
         self.received_bytes += chunk.len() as u64;
         if self.unkept.is_some() {
             return;
+        }
+        if self.uncharged {
+            return self.drop_bytes(Unkept::PastBudget);
         }
         let length_bytes = self.bytes.len() + chunk.len();
         if length_bytes > self.cap_bytes {
@@ -162,17 +168,31 @@ impl BodyBuffer {
 
     /// Keeps `body` as `append` would, without a copy if it's the first: its capacity charged.
     pub fn adopt(&mut self, body: Vec<u8>) {
+        self.adopt_or_keep(body, false);
+    }
+
+    /// As `adopt`, but the first body past the budget is kept outside it, its tree refused, and
+    /// any chunk after it isn't kept: a host sending it back holds it already.
+    pub fn adopt_keeping(&mut self, body: Vec<u8>) {
+        self.adopt_or_keep(body, true);
+    }
+
+    fn adopt_or_keep(&mut self, body: Vec<u8>, keep: bool) {
         if self.received_bytes != 0 || self.bytes.capacity() != 0 || body.len() > self.cap_bytes {
             return self.append(&body);
         }
         self.received_bytes = body.len() as u64;
         if !self.charge.grow(body.capacity()) {
-            return self.drop_bytes(Unkept::PastBudget);
+            if !keep {
+                return self.drop_bytes(Unkept::PastBudget);
+            }
+            self.uncharged = true;
         }
         self.bytes = body;
     }
 
-    /// Whether every byte so far is kept: none is past the cap or the budget.
+    /// Whether every byte so far is kept: none is past the cap, nor past the budget unless adopted
+    /// keeping it.
     pub fn is_kept(&self) -> bool {
         self.unkept.is_none()
     }
@@ -188,7 +208,7 @@ impl BodyBuffer {
         }
         Ok(RequestBody {
             bytes: self.bytes,
-            charge: self.charge,
+            charge: (!self.uncharged).then_some(self.charge),
             tree: OnceLock::new(),
             mcp: OnceLock::new(),
         })
@@ -196,6 +216,7 @@ impl BodyBuffer {
 
     fn drop_bytes(&mut self, why: Unkept) {
         self.unkept = Some(why);
+        self.uncharged = false;
         self.bytes = Vec::new();
         self.charge.release();
     }
@@ -205,7 +226,8 @@ impl BodyBuffer {
 /// is computed once, by whichever caller asks first.
 pub struct RequestBody {
     bytes: Vec<u8>,
-    charge: Charge,
+    // `None` for a body kept outside the budget.
+    charge: Option<Charge>,
     // With its own charge, on the same budget.
     tree: OnceLock<Result<(Tree, Charge), Unparsed>>,
     mcp: OnceLock<McpReading>,
@@ -224,7 +246,7 @@ impl RequestBody {
     /// The body read as JSON: its top value, past one UTF-8 BOM.
     pub fn json(&self) -> Result<Node<'_>, Unparsed> {
         let tree = self.tree.get_or_init(|| {
-            let mut charge = Charge::new(&self.charge.budget);
+            let mut charge = self.new_charge().ok_or(Unparsed::PastBudget)?;
             let tree = json::parse(self.content(), &mut |bytes| charge.grow(bytes))?;
             Ok((tree, charge))
         });
@@ -237,6 +259,13 @@ impl RequestBody {
     pub fn mcp(&self) -> &McpReading {
         self.mcp
             .get_or_init(|| McpReading::of(self.content(), self.json()))
+    }
+
+    // A charge on its budget, for what's read from the request; `None` outside the budget.
+    pub(crate) fn new_charge(&self) -> Option<Charge> {
+        self.charge
+            .as_ref()
+            .map(|charge| Charge::new(&charge.budget))
     }
 
     // What the readings parse: the bytes as sent, until `Content-Encoding` is decoded.

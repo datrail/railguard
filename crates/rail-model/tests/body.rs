@@ -3,7 +3,8 @@ mod tree;
 
 use std::sync::Arc;
 
-use rail_model::body::{BodyBuffer, ByteBudget, RequestBody, Unkept, Unread};
+use rail_model::body::mcp::McpReading;
+use rail_model::body::{BodyBuffer, ByteBudget, RequestBody, Unkept, Unparsed, Unread};
 
 // A body kept whole, within no cap.
 fn keep(body: &[u8]) -> RequestBody {
@@ -51,6 +52,27 @@ fn test_adopts_a_body_as_appending_it_would() {
     let mut roomy = BodyBuffer::new(5, &budget);
     roomy.adopt(Vec::with_capacity(9));
     assert_eq!(roomy.finish().unwrap_err(), Unkept::PastBudget);
+}
+
+// For a host that sends it back: kept outside the budget, so another body still fits, and only
+// what's read from it refused; a chunk after it isn't kept.
+#[test]
+fn test_keeps_a_body_adopted_past_the_budget_outside_it() {
+    let budget = ByteBudget::new(8);
+    let mut kept = BodyBuffer::new(usize::MAX, &budget);
+    kept.adopt_keeping(br#"{"method": "x"}"#.to_vec());
+    assert!(kept.is_kept());
+    let kept = kept.finish().unwrap();
+    assert_eq!(kept.json().unwrap_err(), Unparsed::PastBudget);
+    assert_eq!(*kept.mcp(), McpReading::Unparsed(Unparsed::PastBudget));
+    assert!(keep_within(&budget, b"01234567").is_ok());
+    assert_eq!(kept.into_bytes(), br#"{"method": "x"}"#);
+
+    let mut more = BodyBuffer::new(usize::MAX, &budget);
+    more.adopt_keeping(vec![b'0'; 9]);
+    more.append(b"0");
+    assert!(!more.is_kept());
+    assert_eq!(more.finish().unwrap_err(), Unkept::PastBudget);
 }
 
 #[test]

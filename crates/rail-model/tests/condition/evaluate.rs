@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use rail_model::body::BodyRead;
+use rail_model::body::{BodyBuffer, BodyRead, ByteBudget};
 use rail_model::condition::{
     Budget, Condition, ConditionUse, Environment, Predicate, Refusal, Verdict, compile_condition,
     evaluate_condition,
@@ -229,5 +229,42 @@ fn test_reads_a_policys_headers_from_an_observed_request() {
         )
         .verdict;
         assert_eq!(verdict, Verdict::Holds, "{authority:?} {lines:?}");
+    }
+}
+
+// Charged to its body's budget: past it, or with a body kept outside it, its headers can't be read.
+#[test]
+fn test_refuses_a_header_past_the_budget() {
+    let body = |budget_bytes: usize, keeping: bool| {
+        let mut buffer = BodyBuffer::new(usize::MAX, &ByteBudget::new(budget_bytes));
+        if keeping {
+            buffer.adopt_keeping(b"{}".to_vec());
+        } else {
+            buffer.adopt(b"{}".to_vec());
+        }
+        BodyRead::Whole(Arc::new(buffer.finish().unwrap()))
+    };
+    for (budget_bytes, keeping, verdict) in [
+        (1 << 10, false, Verdict::Holds),
+        (16, false, Verdict::Refused(Refusal::PastBudget)),
+        (1, true, Verdict::Refused(Refusal::PastBudget)),
+    ] {
+        let (method, path) = (b"POST".to_vec(), b"/mcp".to_vec());
+        let lines = vec![(b"x-a".to_vec(), b"1".to_vec())];
+        let body = body(budget_bytes, keeping);
+        let request = ObservedRequest::new(Vec::new(), method, path, lines, body, 2);
+        let compiled = compile_condition(
+            &serde_json::from_value(
+                json!({"path": "request.headers.x-a", "op": "eq", "value": "1"}),
+            )
+            .unwrap(),
+            ConditionUse::GatewayPolicy,
+        );
+        let evaluated = evaluate_condition(
+            &compiled,
+            &Environment::of(&request, None),
+            &mut Budget::default(),
+        );
+        assert_eq!(evaluated.verdict, verdict, "{budget_bytes} {keeping}");
     }
 }

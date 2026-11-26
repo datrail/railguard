@@ -52,10 +52,11 @@ impl<'a> Environment<'a> {
         }
     }
 
-    pub(crate) fn headers(&self) -> &'a Headers {
+    /// `None` past the budget.
+    pub(crate) fn headers(&self) -> Option<&'a Headers> {
         match self.request {
             Request::Observed(request) => request.headers(),
-            Request::Sample { headers, .. } => headers,
+            Request::Sample { headers, .. } => Some(headers),
         }
     }
 

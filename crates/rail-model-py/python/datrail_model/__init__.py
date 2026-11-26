@@ -11,7 +11,7 @@ from datrail_model._native import DEFAULT_STEP_LIMIT, CompiledBundle
 
 _EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 # Why a condition was refused, each cause its own.
-_Refusal = Literal["unknown_op", "invalid", "not_for_use", "budget_exceeded"]
+_Refusal = Literal["unknown_op", "invalid", "not_for_use", "budget_exceeded", "past_budget"]
 # Past what `rail-model` reads (128), and short of `json.dumps`'s recursion limit.
 _MAX_WALK_DEPTH = 200
 
