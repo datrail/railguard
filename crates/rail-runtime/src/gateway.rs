@@ -4,9 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use rail_model::body::mcp::McpReading;
-use rail_model::body::{BodyRead, Unparsed};
-use rail_model::condition::{Budget, DEFAULT_STEP_LIMIT, Environment, Refusal};
+use rail_model::condition::{Budget, DEFAULT_STEP_LIMIT, Environment};
 use rail_model::endpoint::{Endpoint, Resolution};
 use rail_model::policy::{
     Decision, DecodedTicket, EnforcementMode, Fallback, JudgingMode, Outcome, SignedTicketConfig,
@@ -107,12 +105,6 @@ pub(crate) fn judge_call(unit: Unit, report: &dyn Fn(&Denial)) -> Answer {
         settings,
         stop,
     } = unit;
-    // Checked first: its endpoint would read the call as naming no tool.
-    if let BodyRead::Whole(body) = call.body()
-        && *body.mcp() == McpReading::Unparsed(Unparsed::PastBudget)
-    {
-        return answer_unjudged(&bundle, "its body's tree is past the memory budget");
-    }
     let endpoint = match call.endpoint() {
         Ok(Resolution::Discovery) => {
             tracing::debug!("forwarded a session message, unjudged");
@@ -147,14 +139,10 @@ pub(crate) fn judge_call(unit: Unit, report: &dyn Fn(&Denial)) -> Answer {
     if stop.swap(true, Ordering::AcqRel) {
         return Answer::Forward;
     }
-    if let Some(Decision::Refused {
-        refusal: Refusal::PastBudget,
-        ..
-    }) = outcome.chain.as_ref().map(|chain| &chain.decision)
-    {
-        return answer_unjudged(&bundle, "its headers are past the memory budget");
-    }
     log_outcome(&outcome, mode, named, ticket_state(&ticket));
+    if outcome.past_budget {
+        return answer_unjudged(&bundle, "what it reads is past the memory budget");
+    }
     if mode == JudgingMode::Observe {
         return Answer::Forward;
     }

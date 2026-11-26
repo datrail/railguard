@@ -157,6 +157,7 @@ fn what_denied_is_the_first_fallback_else_the_policy_and_never_a_refusal() {
             Outcome {
                 fallback_denials: vec![FallbackDenial::Ticket, FallbackDenial::Binding],
                 chain: chain(Decision::Denied(POLICY)),
+                past_budget: false,
             },
             Some(DeniedBy::Fallback(FallbackDenial::Ticket)),
         ),
@@ -164,6 +165,7 @@ fn what_denied_is_the_first_fallback_else_the_policy_and_never_a_refusal() {
             Outcome {
                 fallback_denials: Vec::new(),
                 chain: chain(Decision::Denied(POLICY)),
+                past_budget: false,
             },
             Some(DeniedBy::Policy(POLICY)),
         ),
@@ -174,6 +176,7 @@ fn what_denied_is_the_first_fallback_else_the_policy_and_never_a_refusal() {
                     policy: POLICY,
                     refusal: Refusal::BudgetExceeded,
                 }),
+                past_budget: false,
             },
             None,
         ),

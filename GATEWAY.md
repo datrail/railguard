@@ -105,8 +105,8 @@ flowchart TD
   session -->|no| mode
   mode -->|none| f4
   mode -->|observe or enforce| judged
-  deadline -->|"past it, judging panicked, or the body's tree<br>or the headers past the 256 MiB memory budget,<br>at enforce"| r2
-  deadline -->|"past it, judging panicked, or the body's tree<br>or the headers past the 256 MiB memory budget,<br>at observe or none"| f5
+  deadline -->|"past it, or judging panicked,<br>at enforce"| r2
+  deadline -->|"past it, or judging panicked,<br>at observe or none"| f5
 
   style deadline fill:#eceff1,stroke:#90a4ae,color:#263238
 
@@ -141,6 +141,7 @@ flowchart TD
   ticket -->|"no, ticket_fallback is block, at enforce"| deny
   ticket -->|"no, ticket_fallback is block, at observe:<br>logged as it would be denied"| endpoint
   ticket -->|"yes, or ticket_fallback is pass"| endpoint
+  endpoint -->|"its body's tree past<br>the 256 MiB memory budget"| refused
   endpoint -->|"another method, naming no tool"| chain
   endpoint -->|"a tool whose key is bound, gated"| bound
   endpoint -->|"a tool whose key is bound, open"| allow
@@ -151,7 +152,7 @@ flowchart TD
   chain --> walk
   bound --> walk
   walk -->|"a block policy holds"| deny
-  walk -->|"a condition can't be read,<br>or 100,000 steps spent;<br>no alert logged"| refused
+  walk -->|"a condition can't be read, 100,000 steps spent,<br>or the headers past the 256 MiB memory budget;<br>no alert logged"| refused
   walk -->|"no block policy holds"| allow
   deny -->|enforce| r1
   deny -->|observe| f1
