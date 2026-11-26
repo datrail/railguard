@@ -2013,6 +2013,20 @@
       }
     },
     {
+      "id": "plan-body-negative-zero",
+      "note": "Its sign kept.",
+      "environment": "capture-body-written-forms",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "negative_zero"
+      ],
+      "expect": {
+        "number": -0.0
+      }
+    },
+    {
       "id": "plan-body-large-whole-number",
       "note": "Past what a double tells apart in whole numbers, written as a double.",
       "environment": "capture-body-written-forms",

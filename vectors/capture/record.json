@@ -5143,7 +5143,7 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 60
+            "request_bytes": 81
           },
           "m": {
             "size_in_bytes": [
@@ -5208,7 +5208,7 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 60
+            "request_bytes": 81
           }
         }
       }
@@ -5258,7 +5258,7 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 60
+            "request_bytes": 81
           },
           "m": {
             "size_in_bytes": [

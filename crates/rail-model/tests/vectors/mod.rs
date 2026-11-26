@@ -93,3 +93,35 @@ fn test_a_wrong_expect_is_told() {
     assert_eq!(outcomes[0].got["unmatchable"], serde_json::Value::Null);
     assert_eq!(outcomes[0].got["segments"], outcomes[0].expect["segments"]);
 }
+
+// A case whose inputs contradict each other fails its file, so none is silently run another way.
+#[test]
+fn test_a_malformed_case_is_refused() {
+    let call = |extra: &str| {
+        format!(
+            r#"{{"authority": "a.example", "method": "POST", "path": "/mcp", "body": {{"unread": "not_sent"}}, "body_bytes": 0{extra}}}"#
+        )
+    };
+    let matching = |plan: &str, extra: &str| {
+        format!(
+            r#"{{"cases": [{{"id": "a", "plan": {plan}, "entries": [], "call": {}, "expect": null}}]}}"#,
+            call(extra)
+        )
+    };
+    let mut texts = read_texts();
+    let whole_plan = r#"{"schema_version": "1.0"}"#;
+    for (case, why) in [
+        (
+            matching(r#""matching""#, r#", "byte_budget": 1"#),
+            "byte_budget",
+        ),
+        (
+            matching(whole_plan, ""),
+            "entries beside a plan written whole",
+        ),
+    ] {
+        texts.insert("capture/matching.json".to_owned(), case);
+        let refused = run_vectors("capture/matching.json", &texts).unwrap_err();
+        assert!(refused.contains(why), "{refused}");
+    }
+}

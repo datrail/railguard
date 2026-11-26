@@ -2461,6 +2461,58 @@
       }
     },
     {
+      "id": "eq-on-a-list-of-past-a-negative-double-and-the-lowest-double-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "number": "-inf"
+          }
+        ]
+      },
+      "op": "eq",
+      "operand": -1.7976931348623157e+308,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-a-list-of-past-a-double-and-a-large-double-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "number": "inf"
+          }
+        ]
+      },
+      "op": "eq",
+      "operand": 1e+308,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-a-list-of-a-string-with-a-quote-and-a-backslash-holds",
+      "value": {
+        "list": [
+          {
+            "string": "a\"b\\"
+          }
+        ]
+      },
+      "op": "eq",
+      "operand": "a\"b\\",
+      "expect": "holds"
+    },
+    {
+      "id": "unknown-op-past-the-step-limit-is-refused-for-its-steps",
+      "note": "The condition's step is charged before its refusal is told.",
+      "value": {
+        "string": "a"
+      },
+      "op": "nope",
+      "operand": "a",
+      "step_limit": 0,
+      "expect": {
+        "refused": "budget_exceeded"
+      }
+    },
+    {
       "id": "unknown-op-on-what-cant-be-told-is-refused",
       "note": "A refusal comes before what the value is.",
       "value": "ambiguous",
