@@ -61,10 +61,10 @@ impl NamedPlans {
     pub(super) fn compile_edited(
         &self,
         name: &str,
-        edit: impl FnOnce(&mut Value),
+        edit: impl FnOnce(&mut Value) -> Result<(), String>,
     ) -> Result<CompiledPlan, String> {
         let mut plan = self.get(name)?;
-        edit(&mut plan);
+        edit(&mut plan)?;
         compile_written(&plan)
     }
 }

@@ -16,34 +16,6 @@
   },
   "cases": [
     {
-      "id": "reads-eq-on-a-number",
-      "condition": {
-        "path": "ticket.posture.overall.score",
-        "op": "eq",
-        "value": 1
-      },
-      "use": "gateway_policy",
-      "expect": {
-        "reading": "valid",
-        "compiled": "evaluable",
-        "problems": []
-      }
-    },
-    {
-      "id": "reads-ne-on-a-number",
-      "condition": {
-        "path": "ticket.posture.overall.score",
-        "op": "ne",
-        "value": 1
-      },
-      "use": "gateway_policy",
-      "expect": {
-        "reading": "valid",
-        "compiled": "evaluable",
-        "problems": []
-      }
-    },
-    {
       "id": "reads-contains-a-number",
       "condition": {
         "path": "ticket.skills",
@@ -463,6 +435,57 @@
               "path"
             ],
             "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-path-an-empty-list",
+      "condition": {
+        "path": [],
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-ticket-path-listed-with-an-index",
+      "note": "A ticket path is read as keys only.",
+      "condition": {
+        "path": [
+          "ticket",
+          "roles",
+          0
+        ],
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
             "scope": "enforcement"
           }
         ]
@@ -5245,23 +5268,6 @@
       }
     },
     {
-      "id": "plan-match-host",
-      "condition": {
-        "path": [
-          "request",
-          "host"
-        ],
-        "op": "eq",
-        "value": "api.github.com"
-      },
-      "use": "capture_plan",
-      "expect": {
-        "reading": "valid",
-        "compiled": "evaluable",
-        "problems": []
-      }
-    },
-    {
       "id": "plan-match-body-any-op",
       "condition": {
         "path": [
@@ -5307,26 +5313,34 @@
       }
     },
     {
-      "id": "plan-match-op-not-for-a-string",
+      "id": "plan-match-empty-in-refused-by-the-writer-on-a-path-not-read",
+      "note": "The operand is checked whatever the path.",
       "condition": {
-        "path": [
-          "request",
-          "host"
-        ],
-        "op": "lt",
-        "value": 1
+        "path": "ticket.a",
+        "op": "in",
+        "value": []
       },
       "use": "capture_plan",
       "expect": {
         "reading": "valid",
-        "compiled": "evaluable",
+        "compiled": {
+          "refused": "not_for_use"
+        },
         "problems": [
           {
             "location": [
-              "op"
+              "path"
             ],
-            "code": "op_not_for_path",
-            "scope": "authoring"
+            "code": "unknown_source",
+            "scope": "enforcement"
+          },
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "authoring",
+            "expected_shape": "list"
           }
         ]
       }

@@ -33,6 +33,19 @@
       }
     },
     {
+      "id": "policy-ticket-key-costs-no-step",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "ticket",
+        "team"
+      ],
+      "step_limit": 0,
+      "expect": {
+        "string": "payments"
+      }
+    },
+    {
       "id": "plan-ticket-key",
       "environment": "capture-sample",
       "use": "capture_plan",
@@ -431,6 +444,19 @@
         "request",
         "host"
       ],
+      "expect": {
+        "string": "api.github.com"
+      }
+    },
+    {
+      "id": "plan-host-costs-no-step",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "host"
+      ],
+      "step_limit": 0,
       "expect": {
         "string": "api.github.com"
       }
@@ -1197,6 +1223,15 @@
       }
     },
     {
+      "id": "policy-in-a-capture-environment-header-not-filled",
+      "environment": "capture-body-empty",
+      "use": "gateway_policy",
+      "path": "request.headers.accept",
+      "expect": {
+        "refused": "not_for_use"
+      }
+    },
+    {
       "id": "policy-in-a-capture-environment-endpoint-key-not-filled",
       "environment": "capture-body-empty",
       "use": "gateway_policy",
@@ -1356,16 +1391,6 @@
       ],
       "expect": {
         "refused_reading": "invalid"
-      }
-    },
-    {
-      "id": "record-dotted-query-parsed-not-for-a-record",
-      "note": "Read as a query, but a record reads only a path spelled as a list.",
-      "environment": "capture-sample",
-      "use": "record",
-      "path": "request.query.repo",
-      "expect": {
-        "refused_reading": "not_for_record"
       }
     },
     {
@@ -2041,6 +2066,33 @@
       }
     },
     {
+      "id": "plan-body-whole-number-below-2-53-written-as-an-integer",
+      "environment": "capture-body-written-forms",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "below_2_53"
+      ],
+      "expect": {
+        "number": 9007199254740991
+      }
+    },
+    {
+      "id": "plan-body-whole-number-at-2-53-written-as-a-double",
+      "note": "From 2^53, a double's whole numbers skip some integers.",
+      "environment": "capture-body-written-forms",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "at_2_53"
+      ],
+      "expect": {
+        "number": 9007199254740992.0
+      }
+    },
+    {
       "id": "plan-mcp-tool-of-a-batch",
       "environment": "capture-body-batch",
       "use": "capture_plan",
@@ -2122,6 +2174,22 @@
       ],
       "step_limit": 11,
       "expect": "absent"
+    },
+    {
+      "id": "plan-body-index-past-the-end-past-the-step-limit",
+      "note": "One step short of what the index passes, so the index costs its steps where it's never found.",
+      "environment": "capture-body-ten-items",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "items",
+        200000
+      ],
+      "step_limit": 10,
+      "expect": {
+        "refused": "budget_exceeded"
+      }
     },
     {
       "id": "plan-body-index-past-any-number-charged-what-it-passes",

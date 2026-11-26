@@ -93,6 +93,53 @@
       }
     },
     {
+      "id": "host-port-with-leading-zeros-dropped",
+      "authority": "mcp.example.com:08443",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "host-ipv4-shaped-out-of-range-read-as-a-name",
+      "authority": "999.0.0.1",
+      "method": "POST",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "999.0.0.1"
+        },
+        "method": "POST",
+        "reported_method": "POST",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      },
+      "note": "An address is read as a host name, so nothing past 255 refuses it."
+    },
+    {
       "id": "host-highest-port-dropped",
       "authority": "mcp.example.com:65535",
       "method": "POST",
@@ -669,6 +716,144 @@
         },
         "method": "PATCH",
         "reported_method": "PATCH",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "method-get-reported-as-sent",
+      "authority": "mcp.example.com",
+      "method": "GET",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "GET",
+        "reported_method": "GET",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "method-head-reported-as-sent",
+      "authority": "mcp.example.com",
+      "method": "HEAD",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "HEAD",
+        "reported_method": "HEAD",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "method-put-reported-as-sent",
+      "authority": "mcp.example.com",
+      "method": "PUT",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "PUT",
+        "reported_method": "PUT",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "method-delete-reported-as-sent",
+      "authority": "mcp.example.com",
+      "method": "DELETE",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "DELETE",
+        "reported_method": "DELETE",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "method-options-reported-as-sent",
+      "authority": "mcp.example.com",
+      "method": "OPTIONS",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "OPTIONS",
+        "reported_method": "OPTIONS",
+        "path": "/mcp",
+        "redacted_path": "/mcp",
+        "segments": [
+          "mcp"
+        ],
+        "redacted_segments": [
+          "mcp"
+        ],
+        "query": {},
+        "unmatchable": null
+      }
+    },
+    {
+      "id": "method-trace-reported-as-sent",
+      "authority": "mcp.example.com",
+      "method": "TRACE",
+      "path": "/mcp",
+      "expect": {
+        "host": {
+          "read": "mcp.example.com"
+        },
+        "method": "TRACE",
+        "reported_method": "TRACE",
         "path": "/mcp",
         "redacted_path": "/mcp",
         "segments": [

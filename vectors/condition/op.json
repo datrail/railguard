@@ -107,6 +107,14 @@
       "expect": "does_not_hold"
     },
     {
+      "id": "not-existing-on-the-empty-string-does-not-hold",
+      "value": {
+        "string": ""
+      },
+      "op": "not_existing",
+      "expect": "does_not_hold"
+    },
+    {
       "id": "not-existing-on-number-does-not-hold",
       "value": {
         "number": 1
@@ -118,6 +126,22 @@
       "id": "not-existing-on-bool-does-not-hold",
       "value": {
         "bool": true
+      },
+      "op": "not_existing",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "existing-on-false-holds",
+      "value": {
+        "bool": false
+      },
+      "op": "existing",
+      "expect": "holds"
+    },
+    {
+      "id": "not-existing-on-false-does-not-hold",
+      "value": {
+        "bool": false
       },
       "op": "not_existing",
       "expect": "does_not_hold"
@@ -1334,7 +1358,7 @@
     },
     {
       "id": "eq-on-integers-a-double-cant-tell-apart-holds",
-      "note": "The operand read as a double, as every reader reads it.",
+      "note": "Both read as doubles.",
       "value": {
         "number": 9007199254740992
       },
@@ -1445,7 +1469,7 @@
     },
     {
       "id": "ne-on-a-string-and-a-number-holds",
-      "note": "Kinds that never compare differ.",
+      "note": "A string and a number never equal, so they differ; a value neither never differs.",
       "value": {
         "string": "a"
       },
@@ -1696,7 +1720,7 @@
       "expect": "holds"
     },
     {
-      "id": "in-a-list-holding-null-on-absent-does-not-hold",
+      "id": "in-a-null-operand-item-on-absent-does-not-hold",
       "value": "absent",
       "op": "in",
       "operand": [
@@ -2208,7 +2232,7 @@
     },
     {
       "id": "matches-a-value-shorter-than-both-ends-does-not-hold",
-      "note": "Its two ends' lengths added, not multiplied: 2 against 1.",
+      "note": "The two ends can't share its one character.",
       "value": {
         "string": "a"
       },
@@ -2475,6 +2499,7 @@
     },
     {
       "id": "eq-on-a-list-of-past-a-double-and-a-large-double-does-not-hold",
+      "note": "Against the codec's writing a list's item past a double as a finite number.",
       "value": {
         "list": [
           {
@@ -2488,6 +2513,7 @@
     },
     {
       "id": "eq-on-a-list-of-a-string-with-a-quote-and-a-backslash-holds",
+      "note": "Against the codec's writing a list's string item unescaped.",
       "value": {
         "list": [
           {
@@ -2523,7 +2549,8 @@
       }
     },
     {
-      "id": "refused-op-on-a-body-unread-is-refused",
+      "id": "invalid-condition-on-a-body-unread-is-refused",
+      "note": "A refusal comes before a body unread.",
       "value": {
         "body_unread": {
           "unread": "not_sent"

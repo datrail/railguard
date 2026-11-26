@@ -481,7 +481,7 @@
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDM2MDAsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTAwNzE5OTI1NDc0MDk5M319fQ",
       "now_in_seconds": 1700000000,
       "state": "valid",
-      "note": "9007199254740993 and 9007199254740992 are two integers and one double. Left unnarrowed, an eq rule answers differently on the two sides.",
+      "note": "9007199254740993 and 9007199254740992 are two integers and one double. Left unnarrowed, two readers would answer an eq rule differently.",
       "token": {
         "agent_id": "a",
         "exp": 1700003600,

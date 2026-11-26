@@ -518,7 +518,7 @@
           "alerts": []
         }
       },
-      "note": "An implementation reading two equal priorities must not be free to choose, or the two sides disagree exactly where the policies conflict."
+      "note": "An implementation reading two equal priorities must not be free to choose, or two readers would answer differently exactly where the policies conflict."
     },
     {
       "id": "a-non-canonically-spelled-id-is-reported-canonically",

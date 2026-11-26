@@ -2298,7 +2298,7 @@
     },
     {
       "id": "an-id-carrying-a-leading-plus",
-      "note": "int(x, 16) accepts a leading sign.",
+      "note": "A sign is no hex digit, though some integer parsers accept one.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],

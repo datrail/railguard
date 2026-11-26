@@ -247,7 +247,7 @@
     },
     {
       "id": "mcp-method-repeated-in-another-case-ambiguous",
-      "note": "Readers differ on which they keep.",
+      "note": "Letter case ignored: a reader folding case reads two methods.",
       "body": "{\"Method\": \"ping\", \"method\": \"tools/call\", \"params\": {\"name\": \"a\"}}",
       "path": "/mcp",
       "expect": {
@@ -280,8 +280,60 @@
       }
     },
     {
+      "id": "mcp-params-repeated-in-another-case-ambiguous",
+      "body": "{\"method\": \"tools/call\", \"params\": {\"name\": \"a\"}, \"Params\": {\"name\": \"b\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-params-repeated-with-a-long-s-ambiguous",
+      "note": "ſ folds to s, as Unicode folds case.",
+      "body": "{\"method\": \"tools/call\", \"params\": {\"name\": \"a\"}, \"paramſ\": {\"name\": \"b\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-params-spelled-with-a-long-s-alone-names-no-tool",
+      "note": "A key folding to params only makes a repeat; it's never the key read.",
+      "body": "{\"method\": \"tools/call\", \"paramſ\": {\"name\": \"a\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": null
+          }
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
       "id": "mcp-name-repeated-in-another-case-ambiguous",
       "body": "{\"method\": \"tools/call\", \"params\": {\"name\": \"c\", \"NAME\": \"a\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-name-beside-a-key-outside-json-ambiguous",
+      "note": "A key a reader may read as name, at each object read.",
+      "body": "{\"method\": \"tools/call\", \"params\": {\"name\": \"a\", \"na\\me\": \"b\"}}",
       "path": "/mcp",
       "expect": {
         "mcp": "ambiguous",
@@ -864,7 +916,7 @@
       }
     },
     {
-      "id": "mcp-params-not-an-object-on-a-keyless-method",
+      "id": "mcp-params-not-an-object-unread-on-a-keyless-method",
       "body": "{\"method\": \"resources/read\", \"params\": [1]}",
       "path": "/mcp",
       "expect": {

@@ -549,7 +549,7 @@
     },
     {
       "id": "a-minute-back-absorbed-across-a-plan-change",
-      "note": "Up to 60 s back reads as the latest time written, 110.",
+      "note": "60 s back, the most absorbed, reads as the latest time written, 110.",
       "plans": [
         "sixty-seconds",
         "five-minutes"
@@ -647,6 +647,84 @@
             "calls_at": [
               110
             ],
+            "calls_dropped": 0
+          },
+          "open_until": null
+        }
+      ]
+    },
+    {
+      "id": "a-clock-stepped-back-just-past-a-minute-reads-as-it-is",
+      "plans": [
+        "five-minutes"
+      ],
+      "events": [
+        {
+          "hold": {
+            "plan": "five-minutes",
+            "at": 0
+          }
+        },
+        {
+          "record": {
+            "plan": "five-minutes",
+            "at": 110,
+            "call": {
+              "authority": "api.github.com",
+              "method": "GET",
+              "path": "/a",
+              "body": {
+                "unread": "not_sent"
+              },
+              "body_bytes": 0
+            }
+          }
+        },
+        {
+          "hold": {
+            "plan": "five-minutes",
+            "at": 49
+          }
+        },
+        {
+          "hold": {
+            "plan": null,
+            "at": 55
+          }
+        }
+      ],
+      "expect": [
+        {
+          "closed": null,
+          "open_until": 300
+        },
+        {
+          "closed": null,
+          "outcome": {
+            "counted": {
+              "body_unread": null
+            }
+          },
+          "open_until": 300
+        },
+        {
+          "closed": {
+            "plan": "five-minutes",
+            "start": 0,
+            "end": 110,
+            "calls_at": [
+              110
+            ],
+            "calls_dropped": 0
+          },
+          "open_until": 300
+        },
+        {
+          "closed": {
+            "plan": "five-minutes",
+            "start": 49,
+            "end": 55,
+            "calls_at": [],
             "calls_dropped": 0
           },
           "open_until": null
@@ -791,6 +869,129 @@
             "end": 30,
             "calls_at": [],
             "calls_dropped": 5
+          },
+          "open_until": null
+        }
+      ]
+    },
+    {
+      "id": "drops-told-past-the-end-count-in-the-window-they-close",
+      "note": "Told before the call that closes it, they're the window's open until then.",
+      "plans": [
+        "sixty-seconds"
+      ],
+      "events": [
+        {
+          "hold": {
+            "plan": "sixty-seconds",
+            "at": 0
+          }
+        },
+        {
+          "count_dropped": 2
+        },
+        {
+          "record": {
+            "plan": "sixty-seconds",
+            "at": 90,
+            "call": {
+              "authority": "api.github.com",
+              "method": "GET",
+              "path": "/a",
+              "body": {
+                "unread": "not_sent"
+              },
+              "body_bytes": 0
+            }
+          }
+        },
+        {
+          "hold": {
+            "plan": null,
+            "at": 100
+          }
+        }
+      ],
+      "expect": [
+        {
+          "closed": null,
+          "open_until": 60
+        },
+        {
+          "open_until": 60
+        },
+        {
+          "closed": {
+            "plan": "sixty-seconds",
+            "start": 0,
+            "end": 60,
+            "calls_at": [],
+            "calls_dropped": 2
+          },
+          "outcome": {
+            "counted": {
+              "body_unread": null
+            }
+          },
+          "open_until": 120
+        },
+        {
+          "closed": {
+            "plan": "sixty-seconds",
+            "start": 90,
+            "end": 100,
+            "calls_at": [
+              90
+            ],
+            "calls_dropped": 0
+          },
+          "open_until": null
+        }
+      ]
+    },
+    {
+      "id": "drops-past-the-largest-count-stay-at-it",
+      "plans": [
+        "sixty-seconds"
+      ],
+      "events": [
+        {
+          "hold": {
+            "plan": "sixty-seconds",
+            "at": 0
+          }
+        },
+        {
+          "count_dropped": 18446744073709551615
+        },
+        {
+          "count_dropped": 1
+        },
+        {
+          "hold": {
+            "plan": null,
+            "at": 10
+          }
+        }
+      ],
+      "expect": [
+        {
+          "closed": null,
+          "open_until": 60
+        },
+        {
+          "open_until": 60
+        },
+        {
+          "open_until": 60
+        },
+        {
+          "closed": {
+            "plan": "sixty-seconds",
+            "start": 0,
+            "end": 10,
+            "calls_at": [],
+            "calls_dropped": 18446744073709551615
           },
           "open_until": null
         }

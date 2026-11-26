@@ -190,9 +190,13 @@ impl HeldValue {
                     ("list", Value::Array(_)) => {
                         let mut text = String::new();
                         write_body_text(value, &mut text)?;
-                        Self::List(
-                            keep(text.as_bytes(), usize::MAX).map_err(|why| format!("{why:?}"))?,
-                        )
+                        let body =
+                            keep(text.as_bytes(), usize::MAX).map_err(|why| format!("{why:?}"))?;
+                        // `lookup` reads it back as JSON.
+                        if body.json().is_err() {
+                            return Err(format!("not a list: {value}"));
+                        }
+                        Self::List(body)
                     }
                     ("body_unread", why) => Self::BodyUnread(decode_body_unread(why)?),
                     _ => return Err(format!("not a value: {value}")),

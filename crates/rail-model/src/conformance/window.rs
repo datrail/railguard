@@ -57,7 +57,7 @@ fn run_case(case: &Case, plans: &NamedPlans) -> Result<Value, String> {
     window.count_dropped(case.calls_dropped);
     for received in &case.calls {
         // What it says of the call is the windowing's layer.
-        let _ = window.record(&received.call.to_call()?, to_time(received.at));
+        window.record(&received.call.to_call()?, to_time(received.at));
     }
     let document = window.close(to_time(case.end)).into_document(
         case.sent.document_id,

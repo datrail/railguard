@@ -11,7 +11,7 @@ use time::format_description::well_known::Rfc3339;
 use uuid::Uuid;
 
 use super::environment::CallSpec;
-use super::plans::NamedPlans;
+use super::plans::{NamedPlans, PlanSpec};
 use super::{Outcome, read_cases, read_written, run_each, to_seconds, to_time};
 use crate::capture::{BodyUnreadReason, CallOutcome, ClosedWindow, CompiledPlan, Windowing};
 
@@ -68,7 +68,7 @@ fn run_case(case: &Case, plans: &NamedPlans) -> Result<Value, String> {
     let mut held: BTreeMap<&str, Arc<CompiledPlan>> = BTreeMap::new();
     let mut names: BTreeMap<u64, &str> = BTreeMap::new();
     for name in &case.plans {
-        let plan = plans.compile_edited(name, |_| {})?;
+        let plan = plans.compile(&PlanSpec::Named(name.clone()), None)?;
         if names.insert(plan.plan().plan_version, name).is_some() {
             return Err(format!("two plans of version {}", plan.plan().plan_version));
         }

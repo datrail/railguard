@@ -53,9 +53,11 @@ fn run_case(case: &Case, environments: &Named, plans: &NamedPlans) -> Result<Val
         RecordOf::CatchAll => ("/catch_all/record", |plan| &plan.catch_all.record),
     };
     let plan = plans.compile_edited("one-entry", |plan| {
-        if let Some(record) = plan.pointer_mut(pointer) {
-            *record = case.record.clone();
-        }
+        let record = plan
+            .pointer_mut(pointer)
+            .ok_or_else(|| format!("one-entry has no {pointer}"))?;
+        *record = case.record.clone();
+        Ok(())
     })?;
     let record = written(plan.plan());
     let mut budget = build_budget(case.step_limit);

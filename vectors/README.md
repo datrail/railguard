@@ -52,7 +52,7 @@ the call, and a window writes them.
 | `condition/path.json`       | 3. A path, read for a use, resolved                          | `environment`; `use`: `gateway_policy`, `capture_plan` or `record`; `path`, either spelling; `step_limit` | the value, or a refusal                                                                                                                            |
 | `condition/condition.json`  | 4. A condition read, compiled for a use, checked             | `condition` as sent; `use`; the file's `ticket_claims_schema`                                             | `reading`; `compiled`: `evaluable` or a refusal; `problems`, Rail Center's check's, each without its wording                                       |
 | `condition/op.json`         | 5. An op on a value                                          | `value`; `op`; `operand`, none for no operand; `step_limit`                                               | a verdict                                                                                                                                          |
-| `capture/entry.json`        | 6. An entry's "and"                                          | `environment`; `match`, an entry's conditions                                                             | a verdict                                                                                                                                          |
+| `capture/entry.json`        | 6. An entry's "and"                                          | `environment`; `match`, an entry's conditions; `step_limit`                                               | a verdict                                                                                                                                          |
 | `capture/record.json`       | 7. What a record reads of a call                             | `environment`; `record_of`: `entry` or `catch_all`; `record`, as a plan writes it; `step_limit`           | `context_keys` and `measures`, each reading by its name                                                                                            |
 | `capture/matching.json`     | 8. A plan compiled, and the record taking a call             | `plan`; `entries`; `call`                                                                                 | `refused` entries, `entries_skipped`, `taken`                                                                                                      |
 | `capture/window.json`       | 9. A window's calls, closed into its document                | `plan`; `entries`; `start`, `end`; `calls`, each at a time; `calls_dropped`; `sent`, the sender's values  | the whole document                                                                                                                                 |
@@ -64,8 +64,9 @@ the call, and a window writes them.
 | `policy/jwt_ticket.json`    | A signed ticket read                                         | `header`, `now_in_seconds`; `reader`, in place of the file's                                              | `state`; a valid one's `token` and `exp_in_seconds`                                                                                                |
 | `capture/plan.json`         | A capture plan read                                          | `patch` on the file's `plan`, none for the plan as written                                                | `valid`; `conditions`, the first entry's as read: `valid`, `unknown` or `invalid`, each checked when compiled                                      |
 
-Times are Unix seconds. A value's whole number is written as an integer (`1`, never `1.0`); every number is compared as
-written.
+Times are Unix seconds. A value's whole number below 2^53 is written as an integer (`1`, never `1.0`), from 2^53 as a
+double; every number is compared as written. An object's keys are compared in any order, so a document's field order is
+a Rust test's.
 
 ### Shared inputs
 
@@ -121,9 +122,10 @@ Layer 9's `sent` is what the sender gives the document: `document_id`, `generate
 
 ### Order, and what a layer leaves to another
 
-- **Layer 6** compiles a one-entry plan, which puts the request line's conditions before the body's; its verdict doesn't
-  depend on that order but for which of two conditions that can't be told is the answer, both being the body's. An entry
-  compiling refuses is matching's (layer 8): a walk never answers it.
+- **Layer 6** compiles a one-entry plan, which puts the request line's conditions before the body's; within a step limit
+  that order decides whether the body is read at all; without one, it decides only which of two conditions that can't be
+  told is the answer, both being the body's. An entry compiling refuses is matching's (layer 8): a walk never answers
+  it.
 - **Layer 5** wraps the op in a condition on `ticket.value` for a gateway policy, never resolved; a refusal comes before
   the value is looked at.
 - **What stays a Rust test,** not a vector: the Rust API (types, sharing, never panicking); this reader's own limits'
@@ -157,11 +159,11 @@ Each names its source in `_source`; what changed on the way:
 - **`policy/base64_ticket.json`:** verbatim; a valid case's token is the payload as sent. Removed: 8 about how the
   header arrives, which the runtime handles, and 4 about a nesting cap of 64, where this reader's is 128; the contract
   leaves the cap to each reader.
-- **`policy/jwt_ticket.json`:** the file's headers verbatim, only the state asserted; an `added` case is signed with the
-  same key, whose seed the source publishes. The file's reader is its `kid` and `public_key`, the key it holds, and its
-  `issuer` and `audience`; a case's `reader` replaces it: `holds_keys` false is an empty key set, a `null` issuer or
-  audience one not configured. Removed: 2 about requiring signatures, which the runtime decides. The keys sign nothing
-  but these cases.
+- **`policy/jwt_ticket.json`:** the file's headers verbatim, the ticket's reading asserted, not the source's decision; a
+  valid case's token is the payload as sent; an `added` case is signed with the same key, whose seed the source
+  publishes. The file's reader is its `kid` and `public_key`, the key it holds, and its `issuer` and `audience`; a
+  case's `reader` replaces it: `holds_keys` false is an empty key set, a `null` issuer or audience one not configured.
+  Removed: 2 about requiring signatures, which the runtime decides. The keys sign nothing but these cases.
 - **`capture/plan.json`:** the worked example, a record's `measure` named `measures`, its paths under `request`; each
   case that plan with its RFC 6902 `patch` applied (add, remove, replace). A field the reader doesn't know is passed
   over. A named context key's `function` is `none` (also absent or `null`) or `sha256`; a built-in key takes none. The

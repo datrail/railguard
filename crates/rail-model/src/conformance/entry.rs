@@ -6,9 +6,8 @@ use serde_json::Value;
 use super::environment::Named;
 use super::plans::NamedPlans;
 use super::value::encode_verdict;
-use super::{Outcome, read_cases, run_each};
+use super::{Outcome, build_budget, read_cases, run_each};
 use crate::capture::answer;
-use crate::condition::Budget;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -19,6 +18,7 @@ struct Case {
     environment: String,
     #[serde(rename = "match")]
     entry_match: Value,
+    step_limit: Option<u64>,
     expect: Value,
 }
 
@@ -36,13 +36,21 @@ pub(super) fn run_cases(
 fn run_case(case: &Case, environments: &Named, plans: &NamedPlans) -> Result<Value, String> {
     let sources = environments.build(&case.environment)?;
     let plan = plans.compile_edited("one-entry", |plan| {
-        plan["entries"][0]["match"] = case.entry_match.clone();
+        let entry_match = plan
+            .pointer_mut("/entries/0/match")
+            .ok_or("one-entry has no /entries/0/match")?;
+        *entry_match = case.entry_match.clone();
+        Ok(())
     })?;
     let entry = plan.entry(0).ok_or("the plan has no entry")?;
     // A walk never answers it: the entry's refusal is matching's layer.
     if entry.refusal().is_some() {
         return Err("an entry its plan's compiling refuses".into());
     }
-    let verdict = answer(entry, &sources.environment(), &mut Budget::default());
+    let verdict = answer(
+        entry,
+        &sources.environment(),
+        &mut build_budget(case.step_limit),
+    );
     Ok(encode_verdict(verdict))
 }

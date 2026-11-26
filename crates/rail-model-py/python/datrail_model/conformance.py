@@ -26,6 +26,6 @@ def run_vectors(file: str, texts: Mapping[str, str]) -> list[VectorOutcome]:
     """Every case of `file`, one of `FILES`, run by its layer; `texts` holds, by path under
     `vectors/`, `file` and each of `SHARED`."""
     return [
-        VectorOutcome(id, json.loads(expect), json.loads(got), matches)
-        for id, expect, got, matches in _native.run_vectors(file, dict(texts))
+        VectorOutcome(case_id, json.loads(expect), json.loads(got), matches)
+        for case_id, expect, got, matches in _native.run_vectors(file, dict(texts))
     ]

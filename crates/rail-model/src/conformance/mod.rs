@@ -9,7 +9,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 
-use crate::condition::{Budget, DEFAULT_STEP_LIMIT};
+use crate::condition::{Budget, ConditionUse, DEFAULT_STEP_LIMIT};
 
 mod condition;
 mod entry;
@@ -142,10 +142,10 @@ enum Use {
 }
 
 impl Use {
-    fn condition_use(self) -> Option<crate::condition::ConditionUse> {
+    fn condition_use(self) -> Option<ConditionUse> {
         match self {
-            Self::GatewayPolicy => Some(crate::condition::ConditionUse::GatewayPolicy),
-            Self::CapturePlan => Some(crate::condition::ConditionUse::CapturePlan),
+            Self::GatewayPolicy => Some(ConditionUse::GatewayPolicy),
+            Self::CapturePlan => Some(ConditionUse::CapturePlan),
             Self::Record => None,
         }
     }

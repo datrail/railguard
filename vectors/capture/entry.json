@@ -72,30 +72,6 @@
       "expect": "does_not_hold"
     },
     {
-      "id": "first-not-holding-does-not-hold",
-      "environment": "capture-sample",
-      "match": [
-        {
-          "path": [
-            "request",
-            "host"
-          ],
-          "op": "eq",
-          "value": "example.com"
-        },
-        {
-          "path": [
-            "request",
-            "mcp",
-            "tool"
-          ],
-          "op": "eq",
-          "value": "create_or_update_file"
-        }
-      ],
-      "expect": "does_not_hold"
-    },
-    {
       "id": "ambiguous-and-the-rest-holding-is-ambiguous",
       "environment": "capture-sample",
       "match": [
@@ -297,6 +273,112 @@
           "value": "x"
         }
       ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "body-unread-then-holding-is-body-unread",
+      "environment": "capture-body-not-sent",
+      "match": [
+        {
+          "path": [
+            "request",
+            "mcp",
+            "tool"
+          ],
+          "op": "existing"
+        },
+        {
+          "path": [
+            "request",
+            "body",
+            "x"
+          ],
+          "op": "not_existing"
+        }
+      ],
+      "expect": {
+        "body_unread": {
+          "unread": "not_sent"
+        }
+      }
+    },
+    {
+      "id": "not-holding-then-body-unread-does-not-hold",
+      "environment": "capture-body-batch-holding-what-cant-be-told",
+      "match": [
+        {
+          "path": [
+            "request",
+            "body",
+            0,
+            "method"
+          ],
+          "op": "eq",
+          "value": "x"
+        },
+        {
+          "path": [
+            "request",
+            "mcp",
+            "tool"
+          ],
+          "op": "existing"
+        }
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "a-refusal-decides-after-what-cant-be-told",
+      "note": "dup costs 11 steps and can't be told; esc then passes the limit.",
+      "environment": "capture-body-values",
+      "match": [
+        {
+          "path": [
+            "request",
+            "body",
+            "dup"
+          ],
+          "op": "eq",
+          "value": 1
+        },
+        {
+          "path": [
+            "request",
+            "body",
+            "esc"
+          ],
+          "op": "eq",
+          "value": "payroll"
+        }
+      ],
+      "step_limit": 15,
+      "expect": {
+        "refused": "budget_exceeded"
+      }
+    },
+    {
+      "id": "the-request-lines-conditions-are-evaluated-before-the-bodys",
+      "note": "In plan order, the body's key would pass the limit first.",
+      "environment": "capture-body-ten-members",
+      "match": [
+        {
+          "path": [
+            "request",
+            "body",
+            "a"
+          ],
+          "op": "existing"
+        },
+        {
+          "path": [
+            "request",
+            "host"
+          ],
+          "op": "eq",
+          "value": "other.example.com"
+        }
+      ],
+      "step_limit": 5,
       "expect": "does_not_hold"
     }
   ]

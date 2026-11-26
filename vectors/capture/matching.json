@@ -672,6 +672,201 @@
       }
     },
     {
+      "id": "entries-for-a-host-and-for-none-tried-interleaved-in-plan-order",
+      "plan": "matching",
+      "entries": [
+        {
+          "id": "e1",
+          "match": [
+            {
+              "path": [
+                "request",
+                "host"
+              ],
+              "op": "eq",
+              "value": "api.github.com"
+            },
+            {
+              "path": [
+                "request",
+                "redacted_path"
+              ],
+              "op": "eq",
+              "value": "/mcp"
+            },
+            {
+              "path": [
+                "request",
+                "mcp",
+                "method"
+              ],
+              "op": "eq",
+              "value": "tools/call"
+            },
+            {
+              "path": [
+                "request",
+                "mcp",
+                "tool"
+              ],
+              "op": "eq",
+              "value": "get_file"
+            }
+          ],
+          "record": {
+            "context_keys": [],
+            "measures": [
+              {
+                "name": "call_count"
+              },
+              {
+                "name": "error_count"
+              },
+              {
+                "name": "request_bytes",
+                "type": "sum",
+                "function": "size",
+                "paths": [
+                  [
+                    "request",
+                    "body"
+                  ]
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "e2",
+          "match": [
+            {
+              "path": [
+                "request",
+                "redacted_path"
+              ],
+              "op": "eq",
+              "value": "/mcp"
+            },
+            {
+              "path": [
+                "request",
+                "mcp",
+                "method"
+              ],
+              "op": "eq",
+              "value": "tools/call"
+            },
+            {
+              "path": [
+                "request",
+                "mcp",
+                "tool"
+              ],
+              "op": "eq",
+              "value": "create_or_update_file"
+            }
+          ],
+          "record": {
+            "context_keys": [],
+            "measures": [
+              {
+                "name": "call_count"
+              },
+              {
+                "name": "error_count"
+              },
+              {
+                "name": "request_bytes",
+                "type": "sum",
+                "function": "size",
+                "paths": [
+                  [
+                    "request",
+                    "body"
+                  ]
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "e3",
+          "match": [
+            {
+              "path": [
+                "request",
+                "host"
+              ],
+              "op": "eq",
+              "value": "api.github.com"
+            },
+            {
+              "path": [
+                "request",
+                "redacted_path"
+              ],
+              "op": "eq",
+              "value": "/mcp"
+            },
+            {
+              "path": [
+                "request",
+                "mcp",
+                "method"
+              ],
+              "op": "eq",
+              "value": "tools/call"
+            },
+            {
+              "path": [
+                "request",
+                "mcp",
+                "tool"
+              ],
+              "op": "eq",
+              "value": "create_or_update_file"
+            }
+          ],
+          "record": {
+            "context_keys": [],
+            "measures": [
+              {
+                "name": "call_count"
+              },
+              {
+                "name": "error_count"
+              },
+              {
+                "name": "request_bytes",
+                "type": "sum",
+                "function": "size",
+                "paths": [
+                  [
+                    "request",
+                    "body"
+                  ]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "call": {
+        "authority": "api.github.com",
+        "method": "POST",
+        "path": "/mcp",
+        "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"create_or_update_file\", \"arguments\": {}}}",
+        "body_bytes": 113
+      },
+      "expect": {
+        "refused": [],
+        "entries_skipped": 0,
+        "taken": {
+          "entry": "e2"
+        }
+      }
+    },
+    {
       "id": "a-host-implied-by-an-eq-anywhere-in-the-match",
       "note": "Implying its host, the refused entry stops only that host's walk. starts_with is an op this reader doesn't know.",
       "plan": "matching",
@@ -888,24 +1083,6 @@
               ],
               "op": "eq",
               "value": "/mcp"
-            },
-            {
-              "path": [
-                "request",
-                "mcp",
-                "method"
-              ],
-              "op": "eq",
-              "value": "tools/call"
-            },
-            {
-              "path": [
-                "request",
-                "mcp",
-                "tool"
-              ],
-              "op": "eq",
-              "value": "search_code"
             }
           ],
           "record": {
@@ -987,8 +1164,8 @@
         "authority": "api.github.com",
         "method": "POST",
         "path": "/mcp",
-        "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"search_code\", \"arguments\": {}}}",
-        "body_bytes": 103
+        "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"create_or_update_file\", \"arguments\": {}}}",
+        "body_bytes": 113
       },
       "expect": {
         "refused": [
@@ -3596,6 +3773,17 @@
             {
               "path": [
                 "request",
+                "body",
+                "params",
+                "arguments",
+                "repo"
+              ],
+              "op": "eq",
+              "value": "docs"
+            },
+            {
+              "path": [
+                "request",
                 "mcp",
                 "method"
               ],
@@ -3610,17 +3798,6 @@
               ],
               "op": "eq",
               "value": "create_or_update_file"
-            },
-            {
-              "path": [
-                "request",
-                "body",
-                "params",
-                "arguments",
-                "repo"
-              ],
-              "op": "eq",
-              "value": "docs"
             }
           ],
           "record": {
@@ -3722,6 +3899,165 @@
           "entry": "e2"
         }
       }
+    },
+    {
+      "id": "an-entry-not-holding-lets-the-walk-go-on-past-a-body-unread",
+      "plan": "matching",
+      "entries": [
+        {
+          "id": "e1",
+          "match": [
+            {
+              "path": [
+                "request",
+                "host"
+              ],
+              "op": "eq",
+              "value": "api.github.com"
+            },
+            {
+              "path": [
+                "request",
+                "redacted_path"
+              ],
+              "op": "eq",
+              "value": "/mcp"
+            },
+            {
+              "path": [
+                "request",
+                "mcp",
+                "method"
+              ],
+              "op": "eq",
+              "value": "tools/call"
+            },
+            {
+              "path": [
+                "request",
+                "mcp",
+                "tool"
+              ],
+              "op": "eq",
+              "value": "create_or_update_file"
+            },
+            {
+              "path": [
+                "request",
+                "body",
+                "params",
+                "name"
+              ],
+              "op": "eq",
+              "value": "create_or_update_file"
+            }
+          ],
+          "record": {
+            "context_keys": [],
+            "measures": [
+              {
+                "name": "call_count"
+              },
+              {
+                "name": "error_count"
+              },
+              {
+                "name": "request_bytes",
+                "type": "sum",
+                "function": "size",
+                "paths": [
+                  [
+                    "request",
+                    "body"
+                  ]
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "e2",
+          "match": [
+            {
+              "path": [
+                "request",
+                "host"
+              ],
+              "op": "eq",
+              "value": "api.github.com"
+            },
+            {
+              "path": [
+                "request",
+                "redacted_path"
+              ],
+              "op": "eq",
+              "value": "/mcp"
+            },
+            {
+              "path": [
+                "request",
+                "mcp",
+                "method"
+              ],
+              "op": "eq",
+              "value": "tools/call"
+            },
+            {
+              "path": [
+                "request",
+                "mcp",
+                "tool"
+              ],
+              "op": "eq",
+              "value": "search_code"
+            }
+          ],
+          "record": {
+            "context_keys": [],
+            "measures": [
+              {
+                "name": "call_count"
+              },
+              {
+                "name": "error_count"
+              },
+              {
+                "name": "request_bytes",
+                "type": "sum",
+                "function": "size",
+                "paths": [
+                  [
+                    "request",
+                    "body"
+                  ]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "call": {
+        "authority": "api.github.com",
+        "method": "POST",
+        "path": "/mcp",
+        "body": "[{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"create_or_update_file\", \"arguments\": {}}}]",
+        "body_bytes": 115
+      },
+      "expect": {
+        "refused": [],
+        "entries_skipped": 0,
+        "taken": {
+          "catch_all": "catch_all",
+          "why": {
+            "body_unread": {
+              "entry": "e2",
+              "why": "batch"
+            }
+          }
+        }
+      },
+      "note": "A batch leaves e1's MCP reading unread, but its body's params.name, read as written, doesn't hold."
     },
     {
       "id": "an-entry-that-cant-be-told-stops-the-walk",
