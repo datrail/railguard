@@ -457,7 +457,7 @@ fn is_record_path(path: &Path) -> bool {
     )
 }
 
-fn read_record_path(steps: &Value) -> Result<Path, String> {
+pub(crate) fn read_record_path(steps: &Value) -> Result<Path, String> {
     let path = steps
         .as_array()
         .and_then(|steps| Path::from_steps(steps))

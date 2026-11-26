@@ -1,0 +1,1483 @@
+{
+  "cases": [
+    {
+      "id": "mcp-tools-call-names-its-method-and-tool",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"a\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "a"
+          }
+        },
+        "endpoint": {
+          "judged": {
+            "resolved": "/mcp#tools/call#a"
+          }
+        }
+      }
+    },
+    {
+      "id": "mcp-tool-read-only-on-a-tools-call",
+      "body": "{\"method\": \"resources/read\", \"params\": {\"name\": \"a\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "resources/read",
+            "tool": null
+          }
+        },
+        "endpoint": {
+          "judged": "keyless"
+        }
+      }
+    },
+    {
+      "id": "mcp-method-not-a-string-names-none",
+      "body": "{\"method\": 1, \"params\": {\"name\": \"a\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": null,
+            "tool": null
+          }
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-tool-not-a-string-names-none",
+      "body": "{\"method\": \"tools/call\", \"params\": {\"name\": 1}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": null
+          }
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-params-not-an-object-names-no-tool",
+      "body": "{\"method\": \"tools/call\", \"params\": [\"name\", \"a\"]}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": null
+          }
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-empty-body-names-nothing",
+      "note": "An event stream's GET.",
+      "body": "",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": null,
+            "tool": null
+          }
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-json-not-json-rpc-names-nothing",
+      "body": "{\"jsonrpc\": \"2.0\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": null,
+            "tool": null
+          }
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-json-scalar-names-nothing",
+      "body": "5",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": null,
+            "tool": null
+          }
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-batch-not-read",
+      "body": "[{\"method\": \"tools/call\", \"params\": {\"name\": \"a\"}}]",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "batch",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-not-json-unparsed",
+      "body": "not json",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-whitespace-alone-unparsed",
+      "body": " ",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-trailing-value-unparsed",
+      "body": "{\"method\": \"tools/call\", \"params\": {\"name\": \"a\"}} {}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-tool-not-utf8-ambiguous",
+      "note": "{\"method\": \"tools/call\", \"params\": {\"name\": \"a\\xff\"}}",
+      "body": {
+        "hex": "7b226d6574686f64223a2022746f6f6c732f63616c6c222c2022706172616d73223a207b226e616d65223a202261ff227d7d"
+      },
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-not-utf8-outside-a-string-unparsed",
+      "note": "{\\xff\"method\": \"ping\"}",
+      "body": {
+        "hex": "7bff226d6574686f64223a202270696e67227d"
+      },
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-byte-order-mark-read-past",
+      "body": "﻿{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"a\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "a"
+          }
+        },
+        "endpoint": {
+          "judged": {
+            "resolved": "/mcp#tools/call#a"
+          }
+        }
+      }
+    },
+    {
+      "id": "mcp-method-only-in-another-case-names-none",
+      "body": "{\"Method\": \"tools/call\", \"params\": {\"name\": \"a\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": null,
+            "tool": null
+          }
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-method-repeated-in-another-case-ambiguous",
+      "note": "Letter case ignored: a reader folding case reads two methods.",
+      "body": "{\"Method\": \"ping\", \"method\": \"tools/call\", \"params\": {\"name\": \"a\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-method-repeated-ambiguous",
+      "body": "{\"method\": \"ping\", \"method\": \"tools/call\", \"params\": {\"name\": \"a\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-params-repeated-ambiguous",
+      "body": "{\"method\": \"tools/call\", \"params\": {\"name\": \"c\"}, \"params\": {\"name\": \"a\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-params-repeated-in-another-case-ambiguous",
+      "body": "{\"method\": \"tools/call\", \"params\": {\"name\": \"a\"}, \"Params\": {\"name\": \"b\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-params-repeated-with-a-long-s-ambiguous",
+      "note": "ſ folds to s, as Unicode folds case.",
+      "body": "{\"method\": \"tools/call\", \"params\": {\"name\": \"a\"}, \"paramſ\": {\"name\": \"b\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-params-spelled-with-a-long-s-alone-names-no-tool",
+      "note": "A key folding to params only makes a repeat; it's never the key read.",
+      "body": "{\"method\": \"tools/call\", \"paramſ\": {\"name\": \"a\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": null
+          }
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-name-repeated-in-another-case-ambiguous",
+      "body": "{\"method\": \"tools/call\", \"params\": {\"name\": \"c\", \"NAME\": \"a\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-name-beside-a-key-outside-json-ambiguous",
+      "note": "A key a reader may read as name, at each object read.",
+      "body": "{\"method\": \"tools/call\", \"params\": {\"name\": \"a\", \"na\\me\": \"b\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-arguments-repeated-in-another-case-ambiguous",
+      "body": "{\"method\": \"resources/read\", \"params\": {\"arguments\": {}, \"Arguments\": {}}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-beside-a-key-outside-json-ambiguous",
+      "note": "A lenient reader may read the key as method.",
+      "body": "{\"method\": \"tools/list\", \"\\method\": \"tools/call\", \"params\": {\"name\": \"a\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-method-not-decoding-ambiguous",
+      "body": "{\"method\": \"\\ud800\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-tool-not-decoding-ambiguous",
+      "body": "{\"method\": \"tools/call\", \"params\": {\"name\": \"\\ud800\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-method-holding-a-nul-ambiguous",
+      "note": "A reader cutting strings at a NUL reads it short.",
+      "body": "{\"method\": \"tools/call\\u0000x\", \"params\": {\"name\": \"a\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-tool-holding-a-nul-ambiguous",
+      "body": "{\"method\": \"tools/call\", \"params\": {\"name\": \"a\\u0000b\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-name-on-another-method-not-read",
+      "body": "{\"method\": \"resources/read\", \"params\": {\"name\": \"\\ud800\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "resources/read",
+            "tool": null
+          }
+        },
+        "endpoint": {
+          "judged": "keyless"
+        }
+      }
+    },
+    {
+      "id": "mcp-keys-with-escapes-read-as-spelled",
+      "body": "{\"\\u006dethod\": \"tools/call\", \"params\": {\"\\u006eame\": \"a\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "a"
+          }
+        },
+        "endpoint": {
+          "judged": {
+            "resolved": "/mcp#tools/call#a"
+          }
+        }
+      }
+    },
+    {
+      "id": "mcp-keys-not-decoding-read-past",
+      "body": "{\"\\ud800\": 0, \"method\": \"tools/call\", \"params\": {\"\\udfff\": 1, \"name\": \"a\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "a"
+          }
+        },
+        "endpoint": {
+          "judged": {
+            "resolved": "/mcp#tools/call#a"
+          }
+        }
+      }
+    },
+    {
+      "id": "mcp-escaped-slash-in-a-string-read",
+      "body": "{\"method\": \"tools\\/call\", \"params\": {\"name\": \"a\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "a"
+          }
+        },
+        "endpoint": {
+          "judged": {
+            "resolved": "/mcp#tools/call#a"
+          }
+        }
+      }
+    },
+    {
+      "id": "mcp-nested-256-levels-read",
+      "body": "{\"method\": \"tools/call\", \"params\": {\"name\": \"a\", \"arguments\": {\"q\": [[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]], \"r\": [[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]}}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "a"
+          }
+        },
+        "endpoint": {
+          "judged": {
+            "resolved": "/mcp#tools/call#a"
+          }
+        }
+      }
+    },
+    {
+      "id": "mcp-nested-past-256-levels-unparsed",
+      "body": "{\"method\": \"tools/call\", \"params\": {\"name\": \"a\", \"arguments\": {\"q\": [[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]], \"r\": [[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]}}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-brackets-in-a-string-not-nesting",
+      "body": "{\"method\": \"tools/call\", \"params\": {\"name\": \"a\", \"q\": \"\\\"[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "a"
+          }
+        },
+        "endpoint": {
+          "judged": {
+            "resolved": "/mcp#tools/call#a"
+          }
+        }
+      }
+    },
+    {
+      "id": "mcp-number-past-a-double-elsewhere-read",
+      "body": "{\"method\": \"resources/read\", \"params\": 1e400}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "resources/read",
+            "tool": null
+          }
+        },
+        "endpoint": {
+          "judged": "keyless"
+        }
+      }
+    },
+    {
+      "id": "endpoint-initialize-discovery",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"initialize\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "initialize",
+            "tool": null
+          }
+        },
+        "endpoint": "discovery"
+      }
+    },
+    {
+      "id": "endpoint-ping-discovery",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "ping",
+            "tool": null
+          }
+        },
+        "endpoint": "discovery"
+      }
+    },
+    {
+      "id": "endpoint-notifications-initialized-discovery",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"notifications/initialized\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "notifications/initialized",
+            "tool": null
+          }
+        },
+        "endpoint": "discovery"
+      }
+    },
+    {
+      "id": "endpoint-notifications-cancelled-discovery",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"notifications/cancelled\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "notifications/cancelled",
+            "tool": null
+          }
+        },
+        "endpoint": "discovery"
+      }
+    },
+    {
+      "id": "endpoint-tools-list-discovery",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/list\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/list",
+            "tool": null
+          }
+        },
+        "endpoint": "discovery"
+      }
+    },
+    {
+      "id": "endpoint-prompts-list-discovery",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"prompts/list\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "prompts/list",
+            "tool": null
+          }
+        },
+        "endpoint": "discovery"
+      }
+    },
+    {
+      "id": "endpoint-resources-list-discovery",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"resources/list\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "resources/list",
+            "tool": null
+          }
+        },
+        "endpoint": "discovery"
+      }
+    },
+    {
+      "id": "endpoint-resources-templates-list-discovery",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"resources/templates/list\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "resources/templates/list",
+            "tool": null
+          }
+        },
+        "endpoint": "discovery"
+      }
+    },
+    {
+      "id": "endpoint-notificationsx-keyless",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"notificationsx\", \"params\": {\"name\": \"track_package\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "notificationsx",
+            "tool": null
+          }
+        },
+        "endpoint": {
+          "judged": "keyless"
+        }
+      }
+    },
+    {
+      "id": "endpoint-method-empty-unrecognised",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "",
+            "tool": null
+          }
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "endpoint-tools-call-without-a-name-unrecognised",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": null
+          }
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "endpoint-tools-call-empty-name-unrecognised",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": ""
+          }
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "endpoint-tool-name-with-letter-case-kept-verbatim",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"Track_Package\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "Track_Package"
+          }
+        },
+        "endpoint": {
+          "judged": {
+            "resolved": "/mcp#tools/call#Track_Package"
+          }
+        }
+      }
+    },
+    {
+      "id": "endpoint-tool-name-with-dot-kept-verbatim",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"orders.v2\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "orders.v2"
+          }
+        },
+        "endpoint": {
+          "judged": {
+            "resolved": "/mcp#tools/call#orders.v2"
+          }
+        }
+      }
+    },
+    {
+      "id": "endpoint-tool-name-with-a-control-character-kept-verbatim",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"track\\u001bpackage\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "track\u001bpackage"
+          }
+        },
+        "endpoint": {
+          "judged": {
+            "resolved": "/mcp#tools/call#track\u001bpackage"
+          }
+        }
+      }
+    },
+    {
+      "id": "endpoint-tool-name-with-a-newline-kept-verbatim",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"track\\npackage\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "track\npackage"
+          }
+        },
+        "endpoint": {
+          "judged": {
+            "resolved": "/mcp#tools/call#track\npackage"
+          }
+        }
+      }
+    },
+    {
+      "id": "endpoint-tool-name-with-hash-kept-verbatim",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"a#b\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "a#b"
+          }
+        },
+        "endpoint": {
+          "judged": {
+            "resolved": "/mcp#tools/call#a#b"
+          }
+        }
+      }
+    },
+    {
+      "id": "endpoint-key-of-255-characters-ascii-resolved",
+      "note": "Rail Center's cap, in characters.",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"ttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "ttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt"
+          }
+        },
+        "endpoint": {
+          "judged": {
+            "resolved": "/mcp#tools/call#ttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt"
+          }
+        }
+      }
+    },
+    {
+      "id": "endpoint-key-past-255-characters-ascii-unrecognised",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt"
+          }
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "endpoint-key-of-255-characters-two-byte-resolved",
+      "note": "Rail Center's cap, in characters.",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+          }
+        },
+        "endpoint": {
+          "judged": {
+            "resolved": "/mcp#tools/call#ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+          }
+        }
+      }
+    },
+    {
+      "id": "endpoint-key-past-255-characters-two-byte-unrecognised",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+          }
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "endpoint-on-an-empty-path-unrecognised",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"track_package\"}}",
+      "path": "",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "track_package"
+          }
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "endpoint-key-holds-the-path-as-given",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"a\"}}",
+      "path": "/team/fr/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "a"
+          }
+        },
+        "endpoint": {
+          "judged": {
+            "resolved": "/team/fr/mcp#tools/call#a"
+          }
+        }
+      }
+    },
+    {
+      "id": "mcp-params-not-an-object-unread-on-a-keyless-method",
+      "body": "{\"method\": \"resources/read\", \"params\": [1]}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "resources/read",
+            "tool": null
+          }
+        },
+        "endpoint": {
+          "judged": "keyless"
+        }
+      }
+    },
+    {
+      "id": "mcp-name-repeated-on-another-method-ambiguous",
+      "note": "params.name is checked for a repeat before the method is read, whatever the method.",
+      "body": "{\"method\": \"resources/read\", \"params\": {\"name\": \"a\", \"NAME\": \"b\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-key-holding-a-nul-ambiguous",
+      "note": "A reader cutting strings at a NUL reads it as method.",
+      "body": "{\"method\\u0000\": \"x\", \"method\": \"tools/call\", \"params\": {\"name\": \"a\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-beside-a-key-holding-a-nul-ambiguous",
+      "note": "Whatever the key is cut to, every key in its object can't be told.",
+      "body": "{\"y\\u0000z\": 1, \"method\": \"ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-byte-order-mark-alone-unparsed",
+      "note": "Unlike an empty body, which names nothing.",
+      "body": {
+        "hex": "efbbbf"
+      },
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "endpoint-discovery-method-in-another-case-keyless",
+      "note": "Matched exactly.",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"Ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "Ping",
+            "tool": null
+          }
+        },
+        "endpoint": {
+          "judged": "keyless"
+        }
+      }
+    },
+    {
+      "id": "endpoint-notifications-prefix-alone-discovery",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"notifications/\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "notifications/",
+            "tool": null
+          }
+        },
+        "endpoint": "discovery"
+      }
+    },
+    {
+      "id": "endpoint-key-past-255-characters-by-its-path-unrecognised",
+      "note": "The cap counts the whole key, its path too.",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"abcdefghij\"}}",
+      "path": "/pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "abcdefghij"
+          }
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-unescaped-space-in-a-string-read",
+      "body": "{\"method\": \"a b\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "a b",
+            "tool": null
+          }
+        },
+        "endpoint": {
+          "judged": "keyless"
+        }
+      }
+    },
+    {
+      "id": "mcp-control-byte-in-a-string-ambiguous",
+      "note": "A string with a raw control byte doesn't decode.",
+      "body": "{\"method\": \"tools\u0001/call\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-key-of-a-lone-surrogate-after-an-escape-read-past",
+      "note": "Still JSON, though no string holds it.",
+      "body": "{\"\\n\\ud800\": 1, \"method\": \"ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "ping",
+            "tool": null
+          }
+        },
+        "endpoint": "discovery"
+      }
+    },
+    {
+      "id": "mcp-key-with-a-space-and-a-lone-surrogate-read-past",
+      "note": "A space is no control byte: the key is JSON.",
+      "body": "{\"a b\\ud800\": 1, \"method\": \"ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "ping",
+            "tool": null
+          }
+        },
+        "endpoint": "discovery"
+      }
+    },
+    {
+      "id": "mcp-key-with-a-bad-escape-ambiguous",
+      "note": "Not JSON, so a lenient reader may read it as any key.",
+      "body": "{\"\\uZZZZ\": 1, \"method\": \"ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-key-with-an-escape-bad-at-its-last-digit-ambiguous",
+      "body": "{\"\\u00ez\": 1, \"method\": \"ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-key-not-utf8-ambiguous",
+      "note": "{\"\\xff\": 1, \"method\": \"ping\"}",
+      "body": {
+        "hex": "7b22ff223a20312c20226d6574686f64223a202270696e67227d"
+      },
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-key-overlong-utf8-ambiguous",
+      "note": "0xC1 0xAD, an overlong '-' a lenient reader decodes: not UTF-8.",
+      "body": {
+        "hex": "7b22c1ad223a20312c20226d6574686f64223a202270696e67227d"
+      },
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-close-past-the-top-value-unparsed",
+      "body": "{\"method\": \"ping\"}]",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-list-closed-as-an-object-unparsed",
+      "body": "[1}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-object-closed-as-a-list-unparsed",
+      "body": "{\"method\": \"ping\"]",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-number-with-a-leading-zero-unparsed",
+      "body": "{\"method\": \"ping\", \"a\": 01}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-number-with-a-point-without-digits-unparsed",
+      "body": "{\"method\": \"ping\", \"a\": 1.}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-number-with-an-exponent-without-digits-unparsed",
+      "body": "{\"method\": \"ping\", \"a\": 1e}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-key-with-a-control-byte-ambiguous",
+      "note": "Not JSON: a key with a raw control byte.",
+      "body": "{\"\t\": 1, \"method\": \"ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-key-holding-a-nul-and-a-lone-surrogate-ambiguous",
+      "note": "Not read past as a lone surrogate's key: a reader cutting at the NUL reads y.",
+      "body": "{\"y\\u0000\\ud800\": 1, \"method\": \"ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-key-with-an-escaped-backslash-before-u0000-read-past",
+      "note": "The backslash escaped, the NUL is only text.",
+      "body": "{\"\\\\u0000\\ud800\": 1, \"method\": \"ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "ping",
+            "tool": null
+          }
+        },
+        "endpoint": "discovery"
+      }
+    },
+    {
+      "id": "mcp-key-with-an-escaped-control-character-and-a-lone-surrogate-read-past",
+      "body": "{\"\\u0001\\ud800\": 1, \"method\": \"ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "ping",
+            "tool": null
+          }
+        },
+        "endpoint": "discovery"
+      }
+    },
+    {
+      "id": "mcp-two-byte-order-marks-unparsed",
+      "note": "Only one is read past.",
+      "body": "﻿﻿{\"method\": \"ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-number-with-a-signed-exponent-read",
+      "body": "{\"method\": \"ping\", \"a\": 1E+5}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "ping",
+            "tool": null
+          }
+        },
+        "endpoint": "discovery"
+      }
+    },
+    {
+      "id": "mcp-member-without-a-value-unparsed",
+      "body": "{\"a\":}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-object-trailing-comma-unparsed",
+      "body": "{\"a\":1,}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-list-trailing-comma-unparsed",
+      "body": "[1,]",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-items-without-a-comma-unparsed",
+      "body": "[1 2]",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-key-not-a-string-unparsed",
+      "body": "{1:2}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-literal-followed-by-letters-unparsed",
+      "body": "truex",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-literal-cut-short-unparsed",
+      "body": "nul",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-string-unterminated-unparsed",
+      "body": "\"abc",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-string-ending-in-an-escaped-quote-unparsed",
+      "body": "\"abc\\\"",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-single-quoted-key-unparsed",
+      "body": "{'a':1}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-key-of-a-lone-surrogate-among-every-escape-read-past",
+      "body": "{\"\\ud800\\\"\\\\\\/\\b\\f\\n\\r\\t\\u00e9\": 1, \"method\": \"ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "ping",
+            "tool": null
+          }
+        },
+        "endpoint": "discovery"
+      }
+    },
+    {
+      "id": "endpoint-tool-name-with-a-bidi-override-kept-verbatim",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"track‮package\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "track‮package"
+          }
+        },
+        "endpoint": {
+          "judged": {
+            "resolved": "/mcp#tools/call#track‮package"
+          }
+        }
+      }
+    },
+    {
+      "id": "endpoint-tool-name-with-a-line-separator-kept-verbatim",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"track package\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "track package"
+          }
+        },
+        "endpoint": {
+          "judged": {
+            "resolved": "/mcp#tools/call#track package"
+          }
+        }
+      }
+    }
+  ]
+}

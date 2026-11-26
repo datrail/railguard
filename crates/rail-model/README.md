@@ -7,7 +7,7 @@ host a call names, judges the call against the rules, and reads a call's request
 [main README](../../README.md) for the system around it.
 
 It's one crate, used everywhere a rule is read, so a rule means the same thing where it's written and where it's
-enforced. The conformance cases in [`vectors/`](../../vectors) define its behaviour.
+enforced. The conformance cases in [`vectors/`](../../vectors/README.md) define its behaviour.
 
 ## Who uses it
 
@@ -81,6 +81,9 @@ By module:
 - **`redaction`:** RailMon's rule for a path, at **`REDACTION_VERSION`**, as Rail Center writes a capture plan's paths.
 - **`sanitize`:** **`sanitize`**, **`sanitize_quoted`**, **`sanitize_unquoted`** and **`sanitize_for_json`** make text
   from a call safe to log.
+- **`conformance`,** with the `conformance` feature: the [vectors](../../vectors/README.md)' runner. **`run_vectors`**
+  runs a file of **`FILES`**, given its text and **`SHARED`**'s, and gives each case's `expect` and what this reader
+  found. Only the tests have it.
 
 ## What it doesn't do
 

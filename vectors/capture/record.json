@@ -1,0 +1,5723 @@
+{
+  "cases": [
+    {
+      "id": "key-body-string",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "params",
+              "arguments",
+              "repo"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "payments-internal"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          }
+        }
+      }
+    },
+    {
+      "id": "size-body-string",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body",
+                "params",
+                "arguments",
+                "repo"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 19
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "key-body-string-with-an-escape",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "params",
+              "arguments",
+              "message"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "café"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          }
+        }
+      }
+    },
+    {
+      "id": "size-body-string-with-an-escape",
+      "note": "A size is the value as the body writes it, its quotes and escapes included.",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body",
+                "params",
+                "arguments",
+                "message"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 11
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "key-body-list-item-key",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "params",
+              "arguments",
+              "files",
+              1,
+              "path"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "b.txt"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          }
+        }
+      }
+    },
+    {
+      "id": "size-body-list-item-key",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body",
+                "params",
+                "arguments",
+                "files",
+                1,
+                "path"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 7
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "key-body-list",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "params",
+              "arguments",
+              "files"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": "not_a_string"
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          }
+        }
+      }
+    },
+    {
+      "id": "size-body-list",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body",
+                "params",
+                "arguments",
+                "files"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 38
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "size-of-a-list-as-written-its-tabs-line-breaks-and-escaped-quote-included",
+      "environment": "capture-body-spaced-list",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body",
+                "blocks"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 27
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 15
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "key-body-object",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "params",
+              "arguments"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": "not_a_string"
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          }
+        }
+      }
+    },
+    {
+      "id": "size-body-object",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body",
+                "params",
+                "arguments"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 178
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "key-body-false",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "params",
+              "arguments",
+              "draft"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": "not_a_string"
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          }
+        }
+      }
+    },
+    {
+      "id": "size-body-false",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body",
+                "params",
+                "arguments",
+                "draft"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 5
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "key-body-number",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "params",
+              "arguments",
+              "size"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": "not_a_string"
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          }
+        }
+      }
+    },
+    {
+      "id": "size-body-number",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body",
+                "params",
+                "arguments",
+                "size"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 2
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "key-body-null",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "params",
+              "arguments",
+              "note"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": "absent"
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          }
+        }
+      }
+    },
+    {
+      "id": "size-body-null",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body",
+                "params",
+                "arguments",
+                "note"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          },
+          "m": {
+            "size_in_bytes": [
+              "absent"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "key-body-missing",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "params",
+              "arguments",
+              "owner"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": "absent"
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          }
+        }
+      }
+    },
+    {
+      "id": "size-body-missing",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body",
+                "params",
+                "arguments",
+                "owner"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          },
+          "m": {
+            "size_in_bytes": [
+              "absent"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "key-body-key-in-another-case",
+      "note": "Readers differ on which of the two they keep.",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "params",
+              "arguments",
+              "labels"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": "ambiguous"
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          }
+        }
+      }
+    },
+    {
+      "id": "size-body-key-in-another-case",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body",
+                "params",
+                "arguments",
+                "labels"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          },
+          "m": {
+            "size_in_bytes": [
+              "ambiguous"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "key-body-whole",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": "not_a_string"
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          }
+        }
+      }
+    },
+    {
+      "id": "size-body-whole",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 289
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "key-query-one-value",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "query",
+              "repo"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "docs"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          }
+        }
+      }
+    },
+    {
+      "id": "size-query-one-value",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "query",
+                "repo"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 4
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "key-query-several-values",
+      "note": "Which value a server reads differs, so a key can't tell; a size adds them all.",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "query",
+              "tag"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": "ambiguous"
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          }
+        }
+      }
+    },
+    {
+      "id": "size-query-several-values",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "query",
+                "tag"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 4
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "key-query-value-at-index",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "query",
+              "tag",
+              1
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "b c"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          }
+        }
+      }
+    },
+    {
+      "id": "size-query-value-at-index",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "query",
+                "tag",
+                1
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 3
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "key-query-empty-value",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "query",
+              "empty"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": ""
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          }
+        }
+      }
+    },
+    {
+      "id": "size-query-empty-value",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "query",
+                "empty"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 0
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "key-path-segment",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "path",
+              0
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "finretail-production-mcp"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          }
+        }
+      }
+    },
+    {
+      "id": "size-path-segment",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "path",
+                0
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 24
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "key-redacted-path-segment",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "redacted_path",
+              0
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "[redacted]"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          }
+        }
+      }
+    },
+    {
+      "id": "size-redacted-path-segment",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "redacted_path",
+                0
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 10
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "key-redacted-path-segment-kept",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "redacted_path",
+              1
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "mcp"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          }
+        }
+      }
+    },
+    {
+      "id": "size-redacted-path-segment-kept",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "redacted_path",
+                1
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 3
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "size-of-several-paths-each-read",
+      "note": "One reading per path; the window adds them.",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body",
+                "params",
+                "arguments",
+                "repo"
+              ],
+              [
+                "request",
+                "body",
+                "params",
+                "arguments",
+                "owner"
+              ],
+              [
+                "request",
+                "query",
+                "repo"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 19
+                }
+              },
+              "absent",
+              {
+                "found": {
+                  "bytes": 4
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "keys-read-in-the-plans-order",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "params",
+              "arguments",
+              "repo"
+            ],
+            "field_type": "unknown"
+          },
+          {
+            "name": "j",
+            "path": [
+              "request",
+              "path",
+              1
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "payments-internal"
+              }
+            }
+          },
+          "j": {
+            "path": {
+              "found": {
+                "string": "mcp"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          }
+        }
+      }
+    },
+    {
+      "id": "key-of-256-characters-kept",
+      "note": "Counted in characters, not bytes: these are 512.",
+      "environment": "capture-body-strings",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "longest"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 3211
+          }
+        }
+      }
+    },
+    {
+      "id": "key-past-256-characters-replaced",
+      "environment": "capture-body-strings",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "past_longest"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "past_longest"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 3211
+          }
+        }
+      }
+    },
+    {
+      "id": "key-redaction-marker-in-a-body-kept",
+      "environment": "capture-body-strings",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "marker"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "[redacted]"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 3211
+          }
+        }
+      }
+    },
+    {
+      "id": "key-hashed",
+      "note": "The SHA-256 of its UTF-8 bytes, its escapes undone, its spaces kept.",
+      "environment": "capture-body-strings",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "spaced"
+            ],
+            "field_type": "unknown",
+            "function": "sha256"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "hashed": "b7c5ddcbb130c790cdd943748d06ada55e979f282805a58b04443301ede180c3"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 3211
+          }
+        }
+      }
+    },
+    {
+      "id": "key-key-shape-hashed-not-replaced",
+      "environment": "capture-body-strings",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "key"
+            ],
+            "field_type": "unknown",
+            "function": "sha256"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "hashed": "4a15b04cb7d210f268a833cbc41da641367d9d633855742f33185b1041b3b2fe"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 3211
+          }
+        }
+      }
+    },
+    {
+      "id": "key-past-256-characters-hashed",
+      "note": "A hash leaves none of the string, so no bound applies.",
+      "environment": "capture-body-strings",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "past_longest"
+            ],
+            "field_type": "unknown",
+            "function": "sha256"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "hashed": "db33c4ce9e8a72562c8f24aa67b7abbabdb848426e8ddfff4ee08f6ae04d1b17"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 3211
+          }
+        }
+      }
+    },
+    {
+      "id": "key-redaction-marker-in-a-body-hashed",
+      "note": "Only a redacted path's marker is kept.",
+      "environment": "capture-body-strings",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "marker"
+            ],
+            "field_type": "unknown",
+            "function": "sha256"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "hashed": "017ad73325fcf108a972edac618f9edfc957c5b1de10f8b371b0a8bfa4f59e2d"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 3211
+          }
+        }
+      }
+    },
+    {
+      "id": "key-redacted-segment-marker-kept-not-hashed",
+      "note": "So the loss still reads as one.",
+      "environment": "capture-body-strings",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "redacted_path",
+              0
+            ],
+            "field_type": "unknown",
+            "function": "sha256"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "[redacted]"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 3211
+          }
+        }
+      }
+    },
+    {
+      "id": "key-redacted-segment-kept-hashed",
+      "environment": "capture-body-strings",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "redacted_path",
+              1
+            ],
+            "field_type": "unknown",
+            "function": "sha256"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "hashed": "10182ab855ff772753c05b2fea333666b5f312835d32936b6b03e08ef2cbd6d3"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 3211
+          }
+        }
+      }
+    },
+    {
+      "id": "key-path-segment-hashed",
+      "environment": "capture-body-strings",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "path",
+              0
+            ],
+            "field_type": "unknown",
+            "function": "sha256"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "hashed": "4a3057fd3371720d01f5d351fecab0d7948fd22e15a5c2c2b92b0b2696d3eeca"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 3211
+          }
+        }
+      }
+    },
+    {
+      "id": "key-hashed-not-a-string",
+      "environment": "capture-body-strings",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body"
+            ],
+            "field_type": "unknown",
+            "function": "sha256"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": "not_a_string"
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 3211
+          }
+        }
+      }
+    },
+    {
+      "id": "key-hashed-absent",
+      "environment": "capture-body-strings",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "missing"
+            ],
+            "field_type": "unknown",
+            "function": "sha256"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": "absent"
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 3211
+          }
+        }
+      }
+    },
+    {
+      "id": "key-function-none-written",
+      "environment": "capture-body-strings",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "spaced"
+            ],
+            "field_type": "unknown",
+            "function": "none"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": " Ué "
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 3211
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-sk-dash-replaced",
+      "note": "The whole of it in a shape some vendor issues credentials in.",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "sk_dash"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-sk-dash-short-kept",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "sk_dash_short"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "sk-abc1234"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-stripe-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "stripe"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-stripe-underscore-kept",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "stripe_underscore"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "sk_live_aaaaaaaaaaaaaaaaaaa_"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-github-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "github"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-github-short-kept",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "github_short"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "ghp_A1A1A1A1A1A"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-github-pat-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "github_pat"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-github-pat-dash-kept",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "github_pat_dash"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "github_pat_a-a-a-a-a-a-a-a-a-a-"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-gitlab-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "gitlab"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-slack-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "slack"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-slack-underscore-kept",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "slack_underscore"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "xoxb-123_abc_de"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-slack-app-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "slack_app"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-npm-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "npm"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-shopify-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "shopify"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-shopify-upper-hex-kept",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "shopify_upper_hex"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "shpat_0A0A0A0A0A0A0A0A0A0A"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-hugging-face-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "hugging_face"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-digital-ocean-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "digital_ocean"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-digital-ocean-short-kept",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "digital_ocean_short"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "dop_v1_fffffffffffffffffffffffffffffff"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-google-api-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "google_api"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-google-oauth-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "google_oauth"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-aws-replaced",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "aws"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "replaced": "key_shape"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-aws-one-more-kept",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "aws_one_more"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "AKIAABCD1234EFGH56789"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "key-shape-aws-lower-kept",
+      "environment": "capture-body-key-shapes",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "aws_lower"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "AKIAabcd1234efgh5678"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 972
+          }
+        }
+      }
+    },
+    {
+      "id": "built-in-keys-of-the-sample",
+      "environment": "capture-sample",
+      "record_of": "catch_all",
+      "record": {
+        "context_keys": [
+          {
+            "name": "host"
+          },
+          {
+            "name": "path_prefix",
+            "segments": 1
+          },
+          {
+            "name": "method"
+          },
+          {
+            "name": "operation"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "host": {
+            "host": {
+              "read": "api.github.com"
+            }
+          },
+          "path_prefix": {
+            "path_prefix": "/[redacted]"
+          },
+          "method": {
+            "method": "POST"
+          },
+          "operation": {
+            "operation": {
+              "found": {
+                "string": "create_or_update_file"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          }
+        }
+      }
+    },
+    {
+      "id": "built-in-path-prefix-of-3-segments",
+      "note": "The redacted path's first segments, as many as there are.",
+      "environment": "capture-sample",
+      "record_of": "catch_all",
+      "record": {
+        "context_keys": [
+          {
+            "name": "host"
+          },
+          {
+            "name": "path_prefix",
+            "segments": 3
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "host": {
+            "host": {
+              "read": "api.github.com"
+            }
+          },
+          "path_prefix": {
+            "path_prefix": "/[redacted]/mcp"
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          }
+        }
+      }
+    },
+    {
+      "id": "built-in-host-unparseable",
+      "environment": "capture-host-unparseable",
+      "record_of": "catch_all",
+      "record": {
+        "context_keys": [
+          {
+            "name": "host"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "host": {
+            "host": "refused"
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "built-in-operation-of-a-batch-unread",
+      "environment": "capture-body-batch",
+      "record_of": "catch_all",
+      "record": {
+        "context_keys": [
+          {
+            "name": "host"
+          },
+          {
+            "name": "operation"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "host": {
+            "host": {
+              "read": "mcp.example.com"
+            }
+          },
+          "operation": {
+            "operation": {
+              "body_unread": "batch"
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 51
+          }
+        }
+      }
+    },
+    {
+      "id": "built-in-operation-of-an-empty-body-absent",
+      "environment": "capture-body-empty",
+      "record_of": "catch_all",
+      "record": {
+        "context_keys": [
+          {
+            "name": "host"
+          },
+          {
+            "name": "operation"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "host": {
+            "host": {
+              "read": "mcp.example.com"
+            }
+          },
+          "operation": {
+            "operation": "absent"
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "built-in-operation-ambiguous",
+      "environment": "capture-body-mcp-ambiguous",
+      "record_of": "catch_all",
+      "record": {
+        "context_keys": [
+          {
+            "name": "host"
+          },
+          {
+            "name": "operation"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "host": {
+            "host": {
+              "read": "mcp.example.com"
+            }
+          },
+          "operation": {
+            "operation": "ambiguous"
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 62
+          }
+        }
+      }
+    },
+    {
+      "id": "unread-body-key",
+      "environment": "capture-body-not-sent",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "params",
+              "arguments",
+              "repo"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "body_unread": {
+                "unread": "not_sent"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 120
+          }
+        }
+      }
+    },
+    {
+      "id": "unread-body-size",
+      "environment": "capture-body-not-sent",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body",
+                "params",
+                "arguments",
+                "repo"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 120
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "body_unread": {
+                  "unread": "not_sent"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "unread-whole-body-size-as-sent",
+      "note": "The whole body's size needs no read: it's body_bytes, the length the call declares.",
+      "environment": "capture-body-not-sent",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 120
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 120
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "past-cap-whole-body-size-as-sent",
+      "note": "A length no kept body could have.",
+      "environment": "capture-body-past-cap",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 70000
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 70000
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "unparsed-body-key",
+      "environment": "capture-body-not-json",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "a"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "body_unread": {
+                "unparsed": "malformed"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 8
+          }
+        }
+      }
+    },
+    {
+      "id": "unparsed-whole-body-size-as-sent",
+      "note": "Its size needs no parse.",
+      "environment": "capture-body-not-json",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 8
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 8
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "empty-body-key-absent",
+      "environment": "capture-body-empty",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "a"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": "absent"
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "unread-request-line-key-read",
+      "environment": "capture-body-not-sent",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "path",
+              0
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "finretail-production-mcp"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 120
+          }
+        }
+      }
+    },
+    {
+      "id": "unread-operation",
+      "environment": "capture-body-not-sent",
+      "record_of": "catch_all",
+      "record": {
+        "context_keys": [
+          {
+            "name": "host"
+          },
+          {
+            "name": "operation"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "host": {
+            "host": {
+              "read": "mcp.example.com"
+            }
+          },
+          "operation": {
+            "operation": {
+              "body_unread": {
+                "unread": "not_sent"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 120
+          }
+        }
+      }
+    },
+    {
+      "id": "key-within-the-step-limit",
+      "environment": "capture-body-ten-members",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "a"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "step_limit": 10,
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": "not_a_string"
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 80
+          }
+        }
+      }
+    },
+    {
+      "id": "key-past-the-step-limit-refused",
+      "environment": "capture-body-ten-members",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "a"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "step_limit": 9,
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "refused": "budget_exceeded"
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 80
+          }
+        }
+      }
+    },
+    {
+      "id": "size-past-the-step-limit-refused",
+      "environment": "capture-body-ten-members",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body",
+                "a"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "step_limit": 9,
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 80
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "refused": "budget_exceeded"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "whole-body-size-read-with-no-steps",
+      "note": "It reads nothing of the body.",
+      "environment": "capture-body-ten-members",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "step_limit": 0,
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 80
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 80
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "keys-share-one-step-budget",
+      "note": "Each key reads every member, so the second passes what's left.",
+      "environment": "capture-body-ten-members",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "a"
+            ],
+            "field_type": "unknown"
+          },
+          {
+            "name": "j",
+            "path": [
+              "request",
+              "body",
+              "b"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "step_limit": 15,
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": "not_a_string"
+            }
+          },
+          "j": {
+            "path": {
+              "refused": "budget_exceeded"
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 80
+          }
+        }
+      }
+    },
+    {
+      "id": "size-of-a-number-as-written",
+      "note": "12.50 and 1e2, not as a number would be written again.",
+      "environment": "capture-body-written-forms",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body",
+                "price"
+              ],
+              [
+                "request",
+                "body",
+                "sci"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 142
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 5
+                }
+              },
+              {
+                "found": {
+                  "bytes": 3
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "key-of-a-string-that-doesnt-decode",
+      "environment": "capture-body-written-forms",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "bad"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": "ambiguous"
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 142
+          }
+        }
+      }
+    },
+    {
+      "id": "size-of-a-string-that-doesnt-decode-as-written",
+      "note": "Sized as the body writes it, though its value can't be told.",
+      "environment": "capture-body-written-forms",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body",
+                "bad"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 142
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 8
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "key-of-a-query-value-decoded",
+      "note": "Percent-decoded in either case, its bytes read as UTF-8.",
+      "environment": "capture-query-escaped",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "query",
+              "q"
+            ],
+            "field_type": "unknown"
+          },
+          {
+            "name": "j",
+            "path": [
+              "request",
+              "query",
+              "r"
+            ],
+            "field_type": "unknown"
+          },
+          {
+            "name": "l",
+            "path": [
+              "request",
+              "query",
+              "s"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": {
+                "string": "#ab"
+              }
+            }
+          },
+          "j": {
+            "path": {
+              "found": {
+                "string": "€"
+              }
+            }
+          },
+          "l": {
+            "path": {
+              "found": {
+                "string": "/x/"
+              }
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "size-of-a-query-value-decoded",
+      "note": "Its decoded bytes, not as sent.",
+      "environment": "capture-query-escaped",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "query",
+                "q"
+              ],
+              [
+                "request",
+                "query",
+                "r"
+              ],
+              [
+                "request",
+                "query",
+                "s"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 2
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 3
+                }
+              },
+              {
+                "found": {
+                  "bytes": 3
+                }
+              },
+              {
+                "found": {
+                  "bytes": 3
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

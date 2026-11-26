@@ -1,12 +1,11 @@
 {
-  "_comment": "Conformance cases for parse_jwt_ticket, taken from rail-center's api/tests/vectors/signed_tickets.json at 0485959. Headers are that file's, verbatim, and only the ticket state is asserted, not the decision. A case marked `added` is this reader's own, signed with the same key, whose seed that file publishes. A valid case's token is the payload as sent. A case's reader, where given, replaces the file's: holds_keys false is an empty key set, and a null issuer or audience is one not configured. Removed: the 2 cases about requiring signatures, which the runtime decides. The keys sign nothing but these cases.",
   "kid": "vector-key-1",
   "public_key": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg",
   "issuer": "https://rail-center.example/tenants/00000000-0000-4000-8000-0000000000aa",
   "audience": "00000000-0000-4000-8000-0000000000aa",
   "cases": [
     {
-      "name": "a ticket signed with a key the reader holds, for its tenant, is valid",
+      "id": "jwt-a-ticket-signed-with-a-key-the-reader-holds-for-its-tenant-is-valid",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.oekHwuTX__xItEg4dDfIw5UKptq2KYVEx_-OMH8_7gwMm3j5-fslkZ2gKzxUTQ1ce6fFNjMYNxRjObjkDFHuAg",
       "now_in_seconds": 1785240000,
       "state": "valid",
@@ -30,13 +29,13 @@
       "exp_in_seconds": 1785326400
     },
     {
-      "name": "a payload changed after signing is bad_signature, whatever it now claims",
+      "id": "jwt-a-payload-changed-after-signing-is-bad-signature-whatever-it-now-claims",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6MTAwLjAsImxldmVsIjoibG93In19LCJza2lsbHMiOlsiZmlucmV0YWlsLm9yZGVycyJdLCJleHAiOjE3ODUzMjY0MDAsIm5iZiI6MTc4NTI0MDAwMCwianRpIjoiZjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiaXNzIjoiaHR0cHM6Ly9yYWlsLWNlbnRlci5leGFtcGxlL3RlbmFudHMvMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMGFhIiwiYXVkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMGFhIn0.oekHwuTX__xItEg4dDfIw5UKptq2KYVEx_-OMH8_7gwMm3j5-fslkZ2gKzxUTQ1ce6fFNjMYNxRjObjkDFHuAg",
       "now_in_seconds": 1785240000,
       "state": "bad_signature"
     },
     {
-      "name": "a payload that is not JSON behind a signature that fails is bad_signature: it is never decoded",
+      "id": "jwt-a-payload-that-is-not-json-behind-a-signature-that-fails-is-bad-signature-it-is-never-decoded",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.bm90IGpzb24.oekHwuTX__xItEg4dDfIw5UKptq2KYVEx_-OMH8_7gwMm3j5-fslkZ2gKzxUTQ1ce6fFNjMYNxRjObjkDFHuAg",
       "now_in_seconds": 1785240000,
       "state": "bad_signature",
@@ -44,19 +43,19 @@
       "exp_in_seconds": null
     },
     {
-      "name": "a ticket naming a held kid but signed with another key is bad_signature",
+      "id": "jwt-a-ticket-naming-a-held-kid-but-signed-with-another-key-is-bad-signature",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.DC50OZ8Sr3O8B5VbCNTCk8VY1oIRricJSpe-pErVq7b0Xcm63m0OvK-bYvUJzZvImZ7gxlqwgZNzv17Vr-diAg",
       "now_in_seconds": 1785240000,
       "state": "bad_signature"
     },
     {
-      "name": "a kid the reader holds no key for is bad_signature",
+      "id": "jwt-a-kid-the-reader-holds-no-key-for-is-bad-signature",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMiJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.uiK6wV_1K3ssCVyg5XidST6cZLmN0jj2L_Un9-URuT8AeyB38dnzXIG9qVvUgSTAGw5IKX2rfqbFLjmU4i9MAw",
       "now_in_seconds": 1785240000,
       "state": "bad_signature"
     },
     {
-      "name": "a reader holding no key set reads every signed ticket as bad_signature",
+      "id": "jwt-a-reader-holding-no-key-set-reads-every-signed-ticket-as-bad-signature",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.oekHwuTX__xItEg4dDfIw5UKptq2KYVEx_-OMH8_7gwMm3j5-fslkZ2gKzxUTQ1ce6fFNjMYNxRjObjkDFHuAg",
       "now_in_seconds": 1785240000,
       "state": "bad_signature",
@@ -69,43 +68,43 @@
       }
     },
     {
-      "name": "alg none is bad_signature, not an unsigned ticket",
+      "id": "jwt-alg-none-is-bad-signature-not-an-unsigned-ticket",
       "header": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIiwia2lkIjoidmVjdG9yLWtleS0xIn0.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.O7aKkc3ss1w0cdyCGjpeECpHuyY1ATp0gMXma2VKejD8-lK6DfqX5e3beGjDUNUa6QnaKpi-f9zMivMfs9mgCw",
       "now_in_seconds": 1785240000,
       "state": "bad_signature"
     },
     {
-      "name": "an alg other than EdDSA is bad_signature",
+      "id": "jwt-an-alg-other-than-eddsa-is-bad-signature",
       "header": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.xpNsFg1CfEjvRmuJqSj1Z1RGZmS22Wdd-rkN-BIMElDsHjcqL_XpWrkTMbXfS0_W4z4J1v7k4a5SQuG0UOQiCQ",
       "now_in_seconds": 1785240000,
       "state": "bad_signature"
     },
     {
-      "name": "alg is compared exactly: eddsa is not EdDSA",
+      "id": "jwt-alg-is-compared-exactly-lower-case-eddsa-is-not-eddsa",
       "header": "eyJhbGciOiJlZGRzYSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.zKVEV6wRpfne0T0FkfCYDdGjUGPSLEsoIbJUPtWeNmgCnT7jfOcV8IINPXxzhGcnOHBL_yOwVLVadzzo-uNbDQ",
       "now_in_seconds": 1785240000,
       "state": "bad_signature"
     },
     {
-      "name": "a header with no kid is bad_signature",
+      "id": "jwt-a-header-with-no-kid-is-bad-signature",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.-q7OCRO9IZL8uyzbbh_qOSa7boNIFrbKAc-0Xb2c-aA7UUOZjz3G60SVDFKAgnPqkeekF-3nT35j764I7Er-Dg",
       "now_in_seconds": 1785240000,
       "state": "bad_signature"
     },
     {
-      "name": "a kid that is not a string is bad_signature",
+      "id": "jwt-a-kid-that-is-not-a-string-is-bad-signature",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6MX0.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.be4mnzp5An7DQbk6O2gM9sRjFp_fToTVZEfTYiCfzDCLFqPXAMchSnLRLXcsQhSrHKB5n3SaPeiojYSP3b8qBw",
       "now_in_seconds": 1785240000,
       "state": "bad_signature"
     },
     {
-      "name": "a header carrying crit is bad_signature",
+      "id": "jwt-a-header-carrying-crit-is-bad-signature",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSIsImNyaXQiOlsiZXhwIl19.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.fWgqFArDQApDZt0lpYgeh5kFjo40zf5v9pmc_HoIqhjU7z5wRUwgWK5-F0ecKtYsoe4P55lWGR6bgj5cPPnODg",
       "now_in_seconds": 1785240000,
       "state": "bad_signature"
     },
     {
-      "name": "typ is ignored: a header with none is read like any other",
+      "id": "jwt-typ-is-ignored-a-header-with-none-is-read-like-any-other",
       "header": "eyJhbGciOiJFZERTQSIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.Ie7g-HEBHYI-Zk0BAbz2ll9DuuU3doBOU9OkOpXSV4DBoQqs_esiFYJIkb7aWmky6IwEKoLSdUdGEn6XVzEWCA",
       "now_in_seconds": 1785240000,
       "state": "valid",
@@ -129,7 +128,7 @@
       "exp_in_seconds": 1785326400
     },
     {
-      "name": "a jku in the header is ignored: the key comes from the reader's own set",
+      "id": "jwt-a-jku-in-the-header-is-ignored-the-key-comes-from-the-readers-own-set",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSIsImprdSI6Imh0dHBzOi8vYXR0YWNrZXIuZXhhbXBsZS9qd2tzLmpzb24ifQ.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.k8s9_cX-oeHeh9iCRyM4AwtSl5x1_NmF-eC8e_zlH5YGEFtyVkQy2100MJwYtgtG4ULPycCIqwqfVyM2ntPLAQ",
       "now_in_seconds": 1785240000,
       "state": "valid",
@@ -153,7 +152,7 @@
       "exp_in_seconds": 1785326400
     },
     {
-      "name": "a jwk beside a held kid is ignored: a ticket signed with the key it carries is bad_signature",
+      "id": "jwt-a-jwk-beside-a-held-kid-is-ignored-a-ticket-signed-with-the-key-it-carries-is-bad-signature",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSIsImp3ayI6eyJrdHkiOiJPS1AiLCJjcnYiOiJFZDI1NTE5IiwieCI6IktheTY0VUc4eXZDeUxocVUwMDBMeHpZZVVtMExfaExJbDVTOGt5S1diZGMiLCJ1c2UiOiJzaWciLCJhbGciOiJFZERTQSJ9fQ.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.hZFc0dUP-G76aIZXS5vI06wkzYDNj5l1_t-dmQEC7iiUOBlYrYUwOe2iJWY6BWAG6kikZo4FZOQvYVR2ikFgDg",
       "now_in_seconds": 1785240000,
       "state": "bad_signature",
@@ -161,7 +160,7 @@
       "exp_in_seconds": null
     },
     {
-      "name": "a jwk naming the held kid as its own is ignored: the reader's key for that kid is the only one",
+      "id": "jwt-a-jwk-naming-the-held-kid-as-its-own-is-ignored-the-readers-key-for-that-kid-is-the-only-one",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSIsImp3ayI6eyJrdHkiOiJPS1AiLCJjcnYiOiJFZDI1NTE5IiwieCI6IktheTY0VUc4eXZDeUxocVUwMDBMeHpZZVVtMExfaExJbDVTOGt5S1diZGMiLCJ1c2UiOiJzaWciLCJhbGciOiJFZERTQSIsImtpZCI6InZlY3Rvci1rZXktMSJ9fQ.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.wzfGJEVbWmoRhmwsrH4GJtWSBx9xsjKeYpQRrwOwyTfl0YYCzbiI8SNQHd1YI6NXrCFb1zLyrPHjOH8WcFnVBw",
       "now_in_seconds": 1785240000,
       "state": "bad_signature",
@@ -169,7 +168,7 @@
       "exp_in_seconds": null
     },
     {
-      "name": "a jwk beside a kid the reader holds no key for is ignored: bad_signature",
+      "id": "jwt-a-jwk-beside-a-kid-the-reader-holds-no-key-for-is-ignored-bad-signature",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMiIsImp3ayI6eyJrdHkiOiJPS1AiLCJjcnYiOiJFZDI1NTE5IiwieCI6IktheTY0VUc4eXZDeUxocVUwMDBMeHpZZVVtMExfaExJbDVTOGt5S1diZGMiLCJ1c2UiOiJzaWciLCJhbGciOiJFZERTQSJ9fQ.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.as_g9D6RJelmkxG4gWG2nbC8dMAwPS0-P6dUPYCxCdwLOQQwW4BY6SBhN6wrNm8TE3fPH9IbO20eFxnMikREDg",
       "now_in_seconds": 1785240000,
       "state": "bad_signature",
@@ -177,7 +176,7 @@
       "exp_in_seconds": null
     },
     {
-      "name": "a jwk naming an unheld kid as its own is ignored: the reader holds no key for that kid",
+      "id": "jwt-a-jwk-naming-an-unheld-kid-as-its-own-is-ignored-the-reader-holds-no-key-for-that-kid",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMiIsImp3ayI6eyJrdHkiOiJPS1AiLCJjcnYiOiJFZDI1NTE5IiwieCI6IktheTY0VUc4eXZDeUxocVUwMDBMeHpZZVVtMExfaExJbDVTOGt5S1diZGMiLCJ1c2UiOiJzaWciLCJhbGciOiJFZERTQSIsImtpZCI6InZlY3Rvci1rZXktMiJ9fQ.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.8bgo14AfO46MBQDw0l2m59_G71_gd_mOqitMpb7dL3kyhCFaotGyz6vavkTJdE-o1tsNOXzJ-tvI2Wwx4H3jDg",
       "now_in_seconds": 1785240000,
       "state": "bad_signature",
@@ -185,7 +184,7 @@
       "exp_in_seconds": null
     },
     {
-      "name": "a jwk at a reader holding no key set is bad_signature: the header never stands in for the set",
+      "id": "jwt-a-jwk-at-a-reader-holding-no-key-set-is-bad-signature-the-header-never-stands-in-for-the-set",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSIsImp3ayI6eyJrdHkiOiJPS1AiLCJjcnYiOiJFZDI1NTE5IiwieCI6IktheTY0VUc4eXZDeUxocVUwMDBMeHpZZVVtMExfaExJbDVTOGt5S1diZGMiLCJ1c2UiOiJzaWciLCJhbGciOiJFZERTQSJ9fQ.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.hZFc0dUP-G76aIZXS5vI06wkzYDNj5l1_t-dmQEC7iiUOBlYrYUwOe2iJWY6BWAG6kikZo4FZOQvYVR2ikFgDg",
       "now_in_seconds": 1785240000,
       "state": "bad_signature",
@@ -198,7 +197,7 @@
       }
     },
     {
-      "name": "a jwk in a header with no kid does not rescue it: bad_signature",
+      "id": "jwt-a-jwk-in-a-header-with-no-kid-does-not-rescue-it-bad-signature",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImp3ayI6eyJrdHkiOiJPS1AiLCJjcnYiOiJFZDI1NTE5IiwieCI6IktheTY0VUc4eXZDeUxocVUwMDBMeHpZZVVtMExfaExJbDVTOGt5S1diZGMiLCJ1c2UiOiJzaWciLCJhbGciOiJFZERTQSJ9fQ.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.252HyWoeTboRDDZvdJLNvPo9DH-1jhXiaLWXBj8esRkdlh5TMYJ93x5BtYuq52WNzB3Dh7PrE2s3KU_0fnaJDg",
       "now_in_seconds": 1785240000,
       "state": "bad_signature",
@@ -206,7 +205,7 @@
       "exp_in_seconds": null
     },
     {
-      "name": "a jwk beside a kid that is not a string does not rescue it: bad_signature",
+      "id": "jwt-a-jwk-beside-a-kid-that-is-not-a-string-does-not-rescue-it-bad-signature",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6MSwiandrIjp7Imt0eSI6Ik9LUCIsImNydiI6IkVkMjU1MTkiLCJ4IjoiS2F5NjRVRzh5dkN5TGhxVTAwMEx4elllVW0wTF9oTElsNVM4a3lLV2JkYyIsInVzZSI6InNpZyIsImFsZyI6IkVkRFNBIn19.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.wzhXsK890uQgrAGtr7yXGRUlB_FSRa6rpNpqd6Cq0B4_JQdPJcyZ5o8ClskYcvjrIWdNNPTXf79pSUTkkGBvAQ",
       "now_in_seconds": 1785240000,
       "state": "bad_signature",
@@ -214,73 +213,73 @@
       "exp_in_seconds": null
     },
     {
-      "name": "two parts are undecodable",
+      "id": "jwt-two-parts-are-undecodable",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ",
       "now_in_seconds": 1785240000,
       "state": "undecodable"
     },
     {
-      "name": "four parts are undecodable",
+      "id": "jwt-four-parts-are-undecodable",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.oekHwuTX__xItEg4dDfIw5UKptq2KYVEx_-OMH8_7gwMm3j5-fslkZ2gKzxUTQ1ce6fFNjMYNxRjObjkDFHuAg.AAAA",
       "now_in_seconds": 1785240000,
       "state": "undecodable"
     },
     {
-      "name": "an empty signature part is undecodable",
+      "id": "jwt-an-empty-signature-part-is-undecodable",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.",
       "now_in_seconds": 1785240000,
       "state": "undecodable"
     },
     {
-      "name": "a part outside the base64url alphabet is undecodable",
+      "id": "jwt-a-part-outside-the-base64url-alphabet-is-undecodable",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.!!!!",
       "now_in_seconds": 1785240000,
       "state": "undecodable"
     },
     {
-      "name": "a header that is not JSON is undecodable",
+      "id": "jwt-a-header-that-is-not-json-is-undecodable",
       "header": "bm90IGpzb24.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.oekHwuTX__xItEg4dDfIw5UKptq2KYVEx_-OMH8_7gwMm3j5-fslkZ2gKzxUTQ1ce6fFNjMYNxRjObjkDFHuAg",
       "now_in_seconds": 1785240000,
       "state": "undecodable"
     },
     {
-      "name": "a header that is a JSON array is undecodable",
+      "id": "jwt-a-header-that-is-a-json-array-is-undecodable",
       "header": "WyJFZERTQSJd.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.oekHwuTX__xItEg4dDfIw5UKptq2KYVEx_-OMH8_7gwMm3j5-fslkZ2gKzxUTQ1ce6fFNjMYNxRjObjkDFHuAg",
       "now_in_seconds": 1785240000,
       "state": "undecodable"
     },
     {
-      "name": "a payload that verifies but is not JSON is undecodable",
+      "id": "jwt-a-payload-that-verifies-but-is-not-json-is-undecodable",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.bm90IGpzb24.rcBpnpeeSSXEsI-avyfujw94JEaOWc0QNrRemscnBmS0pGkjE3SJnPrSDU6HdLaVBxzCqY_JktOsF6nmsiyGCQ",
       "now_in_seconds": 1785240000,
       "state": "undecodable"
     },
     {
-      "name": "an iss other than the reader's tenant's is wrong_audience",
+      "id": "jwt-an-iss-other-than-the-readers-tenants-is-wrong-audience",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYmIiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.yZjlgEWeNz56aXAYO3YqaGvD0ZwutiX6Z1t5qO-Br4y2vVejRVsxIIpCTQUBwvNIDrynyG9fNToPbci6Xx7uCQ",
       "now_in_seconds": 1785240000,
       "state": "wrong_audience"
     },
     {
-      "name": "an aud other than the reader's tenant is wrong_audience",
+      "id": "jwt-an-aud-other-than-the-readers-tenant-is-wrong-audience",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYmIifQ.Ob5XNPKyycSYEaWtAWGDG_9WUDzHUNIzR5P-LmndL50839E9vxc5PjRjVnczDoApyRHsgnkznGqiwQEv27xQCg",
       "now_in_seconds": 1785240000,
       "state": "wrong_audience"
     },
     {
-      "name": "an aud given as a list is wrong_audience, even one holding the tenant",
+      "id": "jwt-an-aud-given-as-a-list-is-wrong-audience-even-one-holding-the-tenant",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOlsiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMGFhIl19.RgRjbgY4ha-G31Mcb8INUZrR7qizR1TEGnRrq25yQKk1SBhZYcJUi0dURxKcow3ghiOE--jo0sfPIGFyJEXWBw",
       "now_in_seconds": 1785240000,
       "state": "wrong_audience"
     },
     {
-      "name": "a ticket with no aud is wrong_audience",
+      "id": "jwt-a-ticket-with-no-aud-is-wrong-audience",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ._FgBt2KqxkbxpJ8EcwUtOUD1CNlw0H1Yr1xG7naLnRUAVqSaVZbdzm4dk9UrRN5dpHYck3qsHvsUyXSDTZALBw",
       "now_in_seconds": 1785240000,
       "state": "wrong_audience"
     },
     {
-      "name": "a reader configured with no issuer accepts no signed ticket",
+      "id": "jwt-a-reader-configured-with-no-issuer-accepts-no-signed-ticket",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.oekHwuTX__xItEg4dDfIw5UKptq2KYVEx_-OMH8_7gwMm3j5-fslkZ2gKzxUTQ1ce6fFNjMYNxRjObjkDFHuAg",
       "now_in_seconds": 1785240000,
       "state": "wrong_audience",
@@ -293,7 +292,7 @@
       }
     },
     {
-      "name": "a reader configured with no issuer refuses a ticket carrying no iss: the two do not agree by both being absent",
+      "id": "jwt-a-reader-configured-with-no-issuer-refuses-a-ticket-carrying-no-iss-the-two-do-not-agree-by-both-being-absent",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.KUUxsFAgZ4UV67nKD61_UPgrQT_PWe3ADnw3pyIjWBcZWpjDEkcA0saHzUrrSqkcaJ94mxf3rCIqvQnIATelDQ",
       "now_in_seconds": 1785240000,
       "state": "wrong_audience",
@@ -306,7 +305,7 @@
       }
     },
     {
-      "name": "a reader configured with no audience accepts no signed ticket",
+      "id": "jwt-a-reader-configured-with-no-audience-accepts-no-signed-ticket",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.oekHwuTX__xItEg4dDfIw5UKptq2KYVEx_-OMH8_7gwMm3j5-fslkZ2gKzxUTQ1ce6fFNjMYNxRjObjkDFHuAg",
       "now_in_seconds": 1785240000,
       "state": "wrong_audience",
@@ -319,7 +318,7 @@
       }
     },
     {
-      "name": "a forged ticket at a reader with no issuer configured is bad_signature: the signature is checked first",
+      "id": "jwt-a-forged-ticket-at-a-reader-with-no-issuer-configured-is-bad-signature-the-signature-is-checked-first",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6MTAwLjAsImxldmVsIjoibG93In19LCJza2lsbHMiOlsiZmlucmV0YWlsLm9yZGVycyJdLCJleHAiOjE3ODUzMjY0MDAsIm5iZiI6MTc4NTI0MDAwMCwianRpIjoiZjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiaXNzIjoiaHR0cHM6Ly9yYWlsLWNlbnRlci5leGFtcGxlL3RlbmFudHMvMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMGFhIiwiYXVkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMGFhIn0.oekHwuTX__xItEg4dDfIw5UKptq2KYVEx_-OMH8_7gwMm3j5-fslkZ2gKzxUTQ1ce6fFNjMYNxRjObjkDFHuAg",
       "now_in_seconds": 1785240000,
       "state": "bad_signature",
@@ -332,7 +331,7 @@
       }
     },
     {
-      "name": "an nbf 60 seconds ahead is within the allowance",
+      "id": "jwt-an-nbf-60-seconds-ahead-is-within-the-allowance",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDYwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.0jmC08mmZIjvZ5aqJq30mcveLtiiIOXM4vxKlfOVIVKl6AGZkocBoX8HmueF9K0NMPC4FZBf_uSSe4rDGExTAQ",
       "now_in_seconds": 1785240000,
       "state": "valid",
@@ -356,71 +355,71 @@
       "exp_in_seconds": 1785326400
     },
     {
-      "name": "an nbf 61 seconds ahead is wrong_audience",
+      "id": "jwt-an-nbf-61-seconds-ahead-is-wrong-audience",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDYxLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.r-f7BpqndtCfQ7KNbfijP4YMf-p7uEghV5me4AGyEwHEz_K_TqiYexOgvNqRtTMjuLpV4qWO_rhUxC030sHPAQ",
       "now_in_seconds": 1785240000,
       "state": "wrong_audience"
     },
     {
-      "name": "a signed ticket with no nbf is malformed",
+      "id": "jwt-a-signed-ticket-with-no-nbf-is-malformed",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwianRpIjoiZjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiaXNzIjoiaHR0cHM6Ly9yYWlsLWNlbnRlci5leGFtcGxlL3RlbmFudHMvMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMGFhIiwiYXVkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMGFhIn0.OVgIHdCx6Zo8GcHhuv8sFXBfHNsX8A-EhpbCqdll6r8-f0sHyr3pKDhH37I8KJcQE_MvGTCm5HVzp1DVcqQtBA",
       "now_in_seconds": 1785240000,
       "state": "malformed"
     },
     {
-      "name": "a fractional nbf is malformed",
+      "id": "jwt-a-fractional-nbf-is-malformed",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLjUsImp0aSI6ImYwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImlzcyI6Imh0dHBzOi8vcmFpbC1jZW50ZXIuZXhhbXBsZS90ZW5hbnRzLzAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBhYSIsImF1ZCI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBhYSJ9.lK3XUM4qMYvr_-uIIkDzTXjbWzo2zxH7uo-O_tx1JsUNGGZUZfeZLZV2_U8DxhPmfhnNpHREcQKh4GB1YcQLBA",
       "now_in_seconds": 1785240000,
       "state": "malformed"
     },
     {
-      "name": "a signed ticket dead at exp is expired",
+      "id": "jwt-a-signed-ticket-dead-at-exp-is-expired",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTI0MDAwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.JpDB1E5LAu2B6j0oCqOOjtjTiV-ixfhHlzIhbgEmAVIFvO7pwoTz_hgA0yXt4gWuYh7B64aqrZXeGS9UR0DqAQ",
       "now_in_seconds": 1785240000,
       "state": "expired"
     },
     {
-      "name": "audience is checked before expiry: expired and for another tenant is wrong_audience",
+      "id": "jwt-audience-is-checked-before-expiry-expired-and-for-another-tenant-is-wrong-audience",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTI0MDAwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYmIifQ.lmL_iPFwHJJlbD5JL7tfTjEU6W5Y8dNfcziV8K3R3i5mgozJtaZ3zS_XrM5lBjMxsvT7jlY1Pa6p-Q61UgJhDQ",
       "now_in_seconds": 1785240000,
       "state": "wrong_audience"
     },
     {
-      "name": "shape is checked before audience: no exp and for another tenant is malformed",
+      "id": "jwt-shape-is-checked-before-audience-no-exp-and-for-another-tenant-is-malformed",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sIm5iZiI6MTc4NTI0MDAwMCwianRpIjoiZjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiaXNzIjoiaHR0cHM6Ly9yYWlsLWNlbnRlci5leGFtcGxlL3RlbmFudHMvMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMGFhIiwiYXVkIjoib3RoZXIifQ.KmDSLZQ0bZQl0vNBjo47Mwyt7wzPO15nlhYzGI2mafVRsvyPfUowTpGq2bq4kOg9uB-yCrXcQLWsLSxoGfhaCw",
       "now_in_seconds": 1785240000,
       "state": "malformed"
     },
     {
-      "name": "the signature is checked before the payload is read: a forged payload that is not JSON is bad_signature",
+      "id": "jwt-the-signature-is-checked-before-the-payload-is-read-a-forged-payload-that-is-not-json-is-bad-signature",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.bm90IGpzb24.4_20otAMHGvPakbyph5vrO1ALQepq6o90btsdbY2VpIR3I0_SZpt5nYHjsfi8RmtTLckblfJnEad2Rn7GaznBQ",
       "now_in_seconds": 1785240000,
       "state": "bad_signature",
       "added": true
     },
     {
-      "name": "a fractional exp",
+      "id": "jwt-a-fractional-exp",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMC41LCJuYmYiOjE3ODUyNDAwMDAsImp0aSI6ImYwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImlzcyI6Imh0dHBzOi8vcmFpbC1jZW50ZXIuZXhhbXBsZS90ZW5hbnRzLzAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBhYSIsImF1ZCI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBhYSIsImlkIjoiMTAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwic2FuZGJveF9pZCI6InNhbmRib3gtMSIsInNhbmRib3hfdHlwZSI6Imt1YmVybmV0ZXMiLCJlbnZpcm9ubWVudF9maW5nZXJwcmludCI6ImZpbmdlcnByaW50LTEiLCJhbGlnbm1lbnQiOnsiYmFzZWxpbmUiOnsiaWQiOiIzMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDMiLCJsYWJlbCI6InByb2QifSwiZHJpZnRlZCI6W119LCJwb3N0dXJlIjp7Im92ZXJhbGwiOnsic2NvcmUiOjkyLjAsImxldmVsIjoibG93In0sImNhdGVnb3JpZXMiOnsiaWRlbnRpdHkiOnsic2NvcmUiOjkuNSwiY2FwcGVkIjpmYWxzZX0sImRhdGFfcmVhY2giOnsic2NvcmUiOm51bGwsImNhcHBlZCI6ZmFsc2V9fX19.FmV9_pmjwYFMUc03Crgsh6qIZvZbc5dKcr-NxBClxkeqXKNl18mwED8NHvR3LcFNBfoClx07RxU05JLE3xRDDw",
       "now_in_seconds": 1785240000,
       "state": "malformed",
       "added": true
     },
     {
-      "name": "exp true",
+      "id": "jwt-exp-true",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6dHJ1ZSwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsInNhbmRib3hfaWQiOiJzYW5kYm94LTEiLCJzYW5kYm94X3R5cGUiOiJrdWJlcm5ldGVzIiwiZW52aXJvbm1lbnRfZmluZ2VycHJpbnQiOiJmaW5nZXJwcmludC0xIiwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOltdfSwicG9zdHVyZSI6eyJvdmVyYWxsIjp7InNjb3JlIjo5Mi4wLCJsZXZlbCI6ImxvdyJ9LCJjYXRlZ29yaWVzIjp7ImlkZW50aXR5Ijp7InNjb3JlIjo5LjUsImNhcHBlZCI6ZmFsc2V9LCJkYXRhX3JlYWNoIjp7InNjb3JlIjpudWxsLCJjYXBwZWQiOmZhbHNlfX19fQ.nZCib03cEZVWmjsRYm4WQTDzrY3b0wifGgKsEl9YHkjydHksNvVsvuUe9BEfvUh3N1BV9mkKigMRbCvHXN_ADg",
       "now_in_seconds": 1785240000,
       "state": "malformed",
       "added": true
     },
     {
-      "name": "nbf true",
+      "id": "jwt-nbf-true",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjp0cnVlLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsInNhbmRib3hfaWQiOiJzYW5kYm94LTEiLCJzYW5kYm94X3R5cGUiOiJrdWJlcm5ldGVzIiwiZW52aXJvbm1lbnRfZmluZ2VycHJpbnQiOiJmaW5nZXJwcmludC0xIiwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOltdfSwicG9zdHVyZSI6eyJvdmVyYWxsIjp7InNjb3JlIjo5Mi4wLCJsZXZlbCI6ImxvdyJ9LCJjYXRlZ29yaWVzIjp7ImlkZW50aXR5Ijp7InNjb3JlIjo5LjUsImNhcHBlZCI6ZmFsc2V9LCJkYXRhX3JlYWNoIjp7InNjb3JlIjpudWxsLCJjYXBwZWQiOmZhbHNlfX19fQ.c57s81to946_M03AeeRfGCoLKc0mRFnBqphnZNCvKQr6dXj7eLyunxZ7HCqDgEhJCeZ8elcoWKROitB8V6ceCA",
       "now_in_seconds": 1785240000,
       "state": "malformed",
       "added": true
     },
     {
-      "name": "a ticket missing a claim other than exp and nbf is still valid",
+      "id": "jwt-a-ticket-missing-a-claim-other-than-exp-and-nbf-is-still-valid",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJza2lsbHMiOlsiZmlucmV0YWlsLm9yZGVycyJdLCJleHAiOjE3ODUzMjY0MDAsIm5iZiI6MTc4NTI0MDAwMCwianRpIjoiZjAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwiaXNzIjoiaHR0cHM6Ly9yYWlsLWNlbnRlci5leGFtcGxlL3RlbmFudHMvMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMGFhIiwiYXVkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMGFhIiwiaWQiOiIxMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJzYW5kYm94X2lkIjoic2FuZGJveC0xIiwic2FuZGJveF90eXBlIjoia3ViZXJuZXRlcyIsImVudmlyb25tZW50X2ZpbmdlcnByaW50IjoiZmluZ2VycHJpbnQtMSIsImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjMwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbXX0sInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifSwiY2F0ZWdvcmllcyI6eyJpZGVudGl0eSI6eyJzY29yZSI6OS41LCJjYXBwZWQiOmZhbHNlfSwiZGF0YV9yZWFjaCI6eyJzY29yZSI6bnVsbCwiY2FwcGVkIjpmYWxzZX19fX0.RAZgYCgrCjDhBD_F6jMDi9BYc2pQiCeNI0u_mA5jGhS8suz_LFU1NZteFxo9v2yCeT5m0ImtlotxqVysqeYaDw",
       "now_in_seconds": 1785240000,
       "state": "valid",
@@ -465,52 +464,116 @@
       "added": true
     },
     {
-      "name": "a ticket with no iss is wrong_audience",
+      "id": "jwt-a-ticket-with-no-iss-is-wrong-audience",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsInNhbmRib3hfaWQiOiJzYW5kYm94LTEiLCJzYW5kYm94X3R5cGUiOiJrdWJlcm5ldGVzIiwiZW52aXJvbm1lbnRfZmluZ2VycHJpbnQiOiJmaW5nZXJwcmludC0xIiwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOltdfSwicG9zdHVyZSI6eyJvdmVyYWxsIjp7InNjb3JlIjo5Mi4wLCJsZXZlbCI6ImxvdyJ9LCJjYXRlZ29yaWVzIjp7ImlkZW50aXR5Ijp7InNjb3JlIjo5LjUsImNhcHBlZCI6ZmFsc2V9LCJkYXRhX3JlYWNoIjp7InNjb3JlIjpudWxsLCJjYXBwZWQiOmZhbHNlfX19fQ.0ONcxYKczvrKkHXUwLviamOT2c6j9G5nPAo-NzYHfMk8lxDa3hCb4OiPYnG3ot6ULiJjG0y1YC-t3VaDxELRDg",
       "now_in_seconds": 1785240000,
       "state": "wrong_audience",
       "added": true
     },
     {
-      "name": "iss is compared exactly: upper case is wrong_audience",
+      "id": "jwt-iss-is-compared-exactly-upper-case-is-wrong-audience",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJIVFRQUzovL1JBSUwtQ0VOVEVSLkVYQU1QTEUvVEVOQU5UUy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwQUEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsInNhbmRib3hfaWQiOiJzYW5kYm94LTEiLCJzYW5kYm94X3R5cGUiOiJrdWJlcm5ldGVzIiwiZW52aXJvbm1lbnRfZmluZ2VycHJpbnQiOiJmaW5nZXJwcmludC0xIiwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOltdfSwicG9zdHVyZSI6eyJvdmVyYWxsIjp7InNjb3JlIjo5Mi4wLCJsZXZlbCI6ImxvdyJ9LCJjYXRlZ29yaWVzIjp7ImlkZW50aXR5Ijp7InNjb3JlIjo5LjUsImNhcHBlZCI6ZmFsc2V9LCJkYXRhX3JlYWNoIjp7InNjb3JlIjpudWxsLCJjYXBwZWQiOmZhbHNlfX19fQ.wZpu70dbq7jwYLkntWvemvC74vy3cJLBnSe6cMohhlku_tK5Lkbj2sNLjt-0QSy_WelqXwr1IIlEoYwXLqF4CA",
       "now_in_seconds": 1785240000,
       "state": "wrong_audience",
       "added": true
     },
     {
-      "name": "iss is compared exactly: a trailing slash is wrong_audience",
+      "id": "jwt-iss-is-compared-exactly-a-trailing-slash-is-wrong-audience",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEvIiwiYXVkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMGFhIiwiaWQiOiIxMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJzYW5kYm94X2lkIjoic2FuZGJveC0xIiwic2FuZGJveF90eXBlIjoia3ViZXJuZXRlcyIsImVudmlyb25tZW50X2ZpbmdlcnByaW50IjoiZmluZ2VycHJpbnQtMSIsImFsaWdubWVudCI6eyJiYXNlbGluZSI6eyJpZCI6IjMwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsImxhYmVsIjoicHJvZCJ9LCJkcmlmdGVkIjpbXX0sInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifSwiY2F0ZWdvcmllcyI6eyJpZGVudGl0eSI6eyJzY29yZSI6OS41LCJjYXBwZWQiOmZhbHNlfSwiZGF0YV9yZWFjaCI6eyJzY29yZSI6bnVsbCwiY2FwcGVkIjpmYWxzZX19fX0.pzXXO8KJ_58sYcDqXerpkCfDkTR_VgK68D_rZH3m5taj-5_jSNcr3vW3spDQK2zS3TwHTrlk1BILDMwOqJyoBw",
       "now_in_seconds": 1785240000,
       "state": "wrong_audience",
       "added": true
     },
     {
-      "name": "a null crit is still a crit",
+      "id": "jwt-a-null-crit-is-still-a-crit",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSIsImNyaXQiOm51bGx9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsInNhbmRib3hfaWQiOiJzYW5kYm94LTEiLCJzYW5kYm94X3R5cGUiOiJrdWJlcm5ldGVzIiwiZW52aXJvbm1lbnRfZmluZ2VycHJpbnQiOiJmaW5nZXJwcmludC0xIiwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOltdfSwicG9zdHVyZSI6eyJvdmVyYWxsIjp7InNjb3JlIjo5Mi4wLCJsZXZlbCI6ImxvdyJ9LCJjYXRlZ29yaWVzIjp7ImlkZW50aXR5Ijp7InNjb3JlIjo5LjUsImNhcHBlZCI6ZmFsc2V9LCJkYXRhX3JlYWNoIjp7InNjb3JlIjpudWxsLCJjYXBwZWQiOmZhbHNlfX19fQ.BKfyEZrBMGAPAkzTB5kqBVoufjoT2kFT0VrI8Z2YtDZ5hr893_OvJTTtREJW22Bf5Xpbnm9gVpH07m7sBXbnAw",
       "now_in_seconds": 1785240000,
       "state": "bad_signature",
       "added": true
     },
     {
-      "name": "a kid the reader holds no key for, signed by a key it holds",
+      "id": "jwt-a-kid-the-reader-holds-no-key-for-signed-by-a-key-it-holds",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InVua25vd24ifQ.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsInNhbmRib3hfaWQiOiJzYW5kYm94LTEiLCJzYW5kYm94X3R5cGUiOiJrdWJlcm5ldGVzIiwiZW52aXJvbm1lbnRfZmluZ2VycHJpbnQiOiJmaW5nZXJwcmludC0xIiwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOltdfSwicG9zdHVyZSI6eyJvdmVyYWxsIjp7InNjb3JlIjo5Mi4wLCJsZXZlbCI6ImxvdyJ9LCJjYXRlZ29yaWVzIjp7ImlkZW50aXR5Ijp7InNjb3JlIjo5LjUsImNhcHBlZCI6ZmFsc2V9LCJkYXRhX3JlYWNoIjp7InNjb3JlIjpudWxsLCJjYXBwZWQiOmZhbHNlfX19fQ.ooXh3ilE-U_MK_3wdEk51Oyv9GiFAMY0CdFaoyqW38omOL5pUTIkiXlN-Cc0MF6vW9N_APwl3PqGcOT65k6CAA",
       "now_in_seconds": 1785240000,
       "state": "bad_signature",
       "added": true
     },
     {
-      "name": "a signature one byte short is bad_signature",
+      "id": "jwt-a-signature-one-byte-short-is-bad-signature",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJpZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsInNhbmRib3hfaWQiOiJzYW5kYm94LTEiLCJzYW5kYm94X3R5cGUiOiJrdWJlcm5ldGVzIiwiZW52aXJvbm1lbnRfZmluZ2VycHJpbnQiOiJmaW5nZXJwcmludC0xIiwiYWxpZ25tZW50Ijp7ImJhc2VsaW5lIjp7ImlkIjoiMzAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwibGFiZWwiOiJwcm9kIn0sImRyaWZ0ZWQiOltdfSwicG9zdHVyZSI6eyJvdmVyYWxsIjp7InNjb3JlIjo5Mi4wLCJsZXZlbCI6ImxvdyJ9LCJjYXRlZ29yaWVzIjp7ImlkZW50aXR5Ijp7InNjb3JlIjo5LjUsImNhcHBlZCI6ZmFsc2V9LCJkYXRhX3JlYWNoIjp7InNjb3JlIjpudWxsLCJjYXBwZWQiOmZhbHNlfX19fQ.HaNdyXCLYIcyNuPlT0JSErOqdGIxG-BNYnalZerQhU0iyN2x1UTORpqj21hPtRSm26StJ3Ysb6eP8ER3Gt6y",
       "now_in_seconds": 1785240000,
       "state": "bad_signature",
       "added": true
     },
     {
-      "name": "an empty payload part is undecodable",
+      "id": "jwt-an-empty-payload-part-is-undecodable",
       "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9..HaNdyXCLYIcyNuPlT0JSErOqdGIxG-BNYnalZerQhU0iyN2x1UTORpqj21hPtRSm26StJ3Ysb6eP8ER3Gt6yDg",
       "now_in_seconds": 1785240000,
       "state": "undecodable",
+      "added": true
+    },
+    {
+      "id": "jwt-an-empty-header-is-absent",
+      "header": "",
+      "now_in_seconds": 1785240000,
+      "state": "absent",
+      "added": true
+    },
+    {
+      "id": "jwt-parts-padded-and-in-the-standard-alphabet-read",
+      "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpPU0UiLCJraWQiOiJ2ZWN0b3Ita2V5LTEifQ==.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJ4IjoiPz8/In0=.H9PJvYlxko9mNJCGPSd1BNUVXvOm-JgBe4xx_SlIePISZcIyeACW8WX6HkAsJu_6NdUndwBFtOK5VOAVLuFLBQ==",
+      "now_in_seconds": 1785240000,
+      "state": "valid",
+      "token": {
+        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "low"
+          }
+        },
+        "skills": [
+          "finretail.orders"
+        ],
+        "exp": 1785326400,
+        "nbf": 1785240000,
+        "jti": "f0000000-0000-4000-8000-000000000001",
+        "iss": "https://rail-center.example/tenants/00000000-0000-4000-8000-0000000000aa",
+        "aud": "00000000-0000-4000-8000-0000000000aa",
+        "x": "???"
+      },
+      "exp_in_seconds": 1785326400,
+      "added": true
+    },
+    {
+      "id": "jwt-a-signed-payload-that-is-a-list-is-malformed",
+      "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.W10.t__Zl6wkfLfkFmaZRNs8xRHAUxoUlfMReAmzgrPfL_VIKVpjsTNsxg7bqa1BbaRwQDR3W1-6-tMQ5xinAO-vBA",
+      "now_in_seconds": 1785240000,
+      "state": "malformed",
+      "added": true
+    },
+    {
+      "id": "jwt-a-reader-with-an-empty-issuer-reads-it-as-not-configured",
+      "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiIiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.oJpLp2yxUK7RfX9_UBP-1zNhzl2oSOQpFCG_N4C2U2QYuVMCA2KnaOtLeUR_NOGxHTgmZ7ckTjQmzAZAGnJWAQ",
+      "now_in_seconds": 1785240000,
+      "state": "wrong_audience",
+      "reader": {
+        "holds_keys": true,
+        "issuer": "",
+        "audience": "00000000-0000-4000-8000-0000000000aa"
+      },
+      "added": true
+    },
+    {
+      "id": "jwt-a-reader-with-an-empty-audience-reads-it-as-not-configured",
+      "header": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIifQ.nAv5qCJCl_SIKLXpUA92V6_Y5-x37gI0THeaMf1ZcXwcqDkUUnAY_i4JcnmXoTjnetbjoR28gO_MyrWGc32LBQ",
+      "now_in_seconds": 1785240000,
+      "state": "wrong_audience",
+      "reader": {
+        "holds_keys": true,
+        "issuer": "https://rail-center.example/tenants/00000000-0000-4000-8000-0000000000aa",
+        "audience": ""
+      },
       "added": true
     }
   ]

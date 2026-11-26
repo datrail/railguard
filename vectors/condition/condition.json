@@ -1,0 +1,5666 @@
+{
+  "ticket_claims_schema": {
+    "agent_id": "string",
+    "sandbox_type": "string",
+    "skills": "list",
+    "posture": {
+      "overall": {
+        "score": "number",
+        "level": "string"
+      },
+      "admin": "bool"
+    },
+    "alignment": {
+      "drifted": "list"
+    }
+  },
+  "cases": [
+    {
+      "id": "reads-contains-a-number",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "contains",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-in-with-an-item-not-a-scalar",
+      "note": "An item that isn't a string or a number is a member of nothing.",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "in",
+        "value": [
+          "a",
+          1,
+          true
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-an-integer-past-u64-as-a-double",
+      "condition": {"path": "ticket.posture.overall.score", "op": "lt", "value": 18446744073709551616},
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-a-path-in-the-list-spelling",
+      "condition": {
+        "path": [
+          "ticket",
+          "posture"
+        ],
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "reads-extra-keys-past",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": "existing",
+        "value": 1,
+        "note": "x"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "unreadable-an-integer-past-a-double",
+      "note": "Not JSON serde_json holds; another reader may hold it.",
+      "condition": {"path": "ticket.posture.overall.score", "op": "lt", "value": 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [],
+            "code": "unreadable",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unreadable-an-exponent-past-a-double",
+      "condition": {"path": "ticket.posture.overall.score", "op": "lt", "value": 1e400},
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [],
+            "code": "unreadable",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unreadable-a-list-item-past-a-double",
+      "condition": {"path": "ticket.skills", "op": "in", "value": [1, 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000]},
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [],
+            "code": "unreadable",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unreadable-nesting-past-what-it-holds",
+      "condition": {"path": "ticket.skills", "op": "in", "value": [[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[1]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]},
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [],
+            "code": "unreadable",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unreadable-a-lone-surrogate",
+      "condition": {"path": "ticket.sandbox_type", "op": "eq", "value": "\ud800"},
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [],
+            "code": "unreadable",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-op",
+      "note": "A newer Rail Center can publish it, so only the writer refuses it.",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": "unknown",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "unknown",
+        "compiled": {
+          "refused": "unknown_op"
+        },
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "unknown_op",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-op-empty",
+      "condition": {
+        "op": ""
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "unknown",
+        "compiled": {
+          "refused": "unknown_op"
+        },
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "unknown_op",
+            "scope": "authoring"
+          },
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-op-on-an-unknown-path",
+      "note": "A newer reader's op may come with a path only it knows.",
+      "condition": {
+        "path": "request.method",
+        "op": "near"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "unknown",
+        "compiled": {
+          "refused": "unknown_op"
+        },
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "unknown_op",
+            "scope": "authoring"
+          },
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-op-on-a-path-under-no-source",
+      "condition": {
+        "path": "body.x",
+        "op": "near",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "unknown",
+        "compiled": {
+          "refused": "unknown_op"
+        },
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "unknown_op",
+            "scope": "authoring"
+          },
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-a-string",
+      "condition": "not an object",
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [],
+            "code": "not_an_object",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-a-list",
+      "condition": [
+        "lt",
+        "ticket.sandbox_type",
+        5
+      ],
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [],
+            "code": "not_an_object",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-a-list-of-one",
+      "condition": [
+        {
+          "path": "ticket.sandbox_type",
+          "op": "existing"
+        }
+      ],
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [],
+            "code": "not_an_object",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-null",
+      "condition": null,
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [],
+            "code": "not_an_object",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-an-empty-object",
+      "condition": {},
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "unknown_op",
+            "scope": "enforcement"
+          },
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-op-missing",
+      "condition": {
+        "path": "ticket.sandbox_type"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "unknown_op",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-path-missing",
+      "condition": {
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-path-a-number",
+      "condition": {
+        "path": 1,
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-path-an-empty-list",
+      "condition": {
+        "path": [],
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-ticket-path-listed-with-an-index",
+      "note": "A ticket path is read as keys only.",
+      "condition": {
+        "path": [
+          "ticket",
+          "roles",
+          0
+        ],
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-op-a-number",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "unknown_op",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-source-unknown",
+      "condition": {
+        "path": "session.a",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-source-missing-dotted",
+      "condition": {
+        "path": "body.x",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-source-missing-listed",
+      "condition": {
+        "path": [
+          "body",
+          "x"
+        ],
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-path-empty",
+      "condition": {
+        "path": "",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-request-field-unknown",
+      "condition": {
+        "path": "request.nothing",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-lt-missing-its-operand",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "lt"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "number"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-eq-a-bool",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": "eq",
+        "value": true
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "scalar"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-ne-a-bool",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": "ne",
+        "value": true
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "scalar"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-eq-null",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": "eq",
+        "value": null
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "scalar"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-in-a-string",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "in",
+        "value": "x"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "list"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-matches-a-number",
+      "condition": {
+        "path": "ticket.sandbox_type",
+        "op": "matches",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "string"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-keys-other-than-path-and-op",
+      "condition": {
+        "field": "endpoint_key",
+        "operator": "eq",
+        "value": "x"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "unknown_op",
+            "scope": "enforcement"
+          },
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-for-use-request-field",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": {
+          "refused": "not_for_use"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-for-use-body",
+      "condition": {
+        "path": "request.body.x",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": {
+          "refused": "not_for_use"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-for-use-ticket-in-a-plan",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": {
+          "refused": "not_for_use"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-for-use-header-in-a-plan",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": {
+          "refused": "not_for_use"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-for-use-record-path-in-a-plan",
+      "condition": {
+        "path": [
+          "request",
+          "query",
+          "a"
+        ],
+        "op": "existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": {
+          "refused": "not_for_use"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-for-use-endpoint-key-in-a-plan",
+      "condition": {
+        "path": [
+          "request",
+          "endpoint_key"
+        ],
+        "op": "existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": {
+          "refused": "not_for_use"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-for-use-redacted-path-segment-in-a-plan",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path",
+          0
+        ],
+        "op": "eq",
+        "value": "mcp"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": {
+          "refused": "not_for_use"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "operand-shape-before-an-unknown-path",
+      "condition": {
+        "path": "ticket.nope",
+        "op": "lt",
+        "value": "x"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "number"
+          },
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "operand-shape-before-an-op-not-for-the-path",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "lt",
+        "value": "x"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "number"
+          },
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "authoring-ticket-path-not-in-the-schema",
+      "note": "Any ticket path is evaluable; only Rail Center refuses one its schema lacks.",
+      "condition": {
+        "path": "ticket.posture.score",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "authoring-ticket-path-under-a-list",
+      "condition": {
+        "path": "ticket.skills.agent_id",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "authoring-header-name-upper-case",
+      "condition": {
+        "path": "request.headers.X-A",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "authoring-header-name-empty",
+      "condition": {
+        "path": "request.headers.",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "authoring-header-name-non-ascii-upper-case",
+      "condition": {
+        "path": "request.headers.É",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "authoring-nested-32-levels-accepted",
+      "note": "Rail Center renders a condition no deeper than 32 levels.",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "in",
+        "value": [
+          [
+            [
+              [
+                [
+                  [
+                    [
+                      [
+                        [
+                          [
+                            [
+                              [
+                                [
+                                  [
+                                    [
+                                      [
+                                        [
+                                          [
+                                            [
+                                              [
+                                                [
+                                                  [
+                                                    [
+                                                      [
+                                                        [
+                                                          [
+                                                            [
+                                                              [
+                                                                [
+                                                                  [
+                                                                    1
+                                                                  ]
+                                                                ]
+                                                              ]
+                                                            ]
+                                                          ]
+                                                        ]
+                                                      ]
+                                                    ]
+                                                  ]
+                                                ]
+                                              ]
+                                            ]
+                                          ]
+                                        ]
+                                      ]
+                                    ]
+                                  ]
+                                ]
+                              ]
+                            ]
+                          ]
+                        ]
+                      ]
+                    ]
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "authoring-nested-33-levels-too-deep",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "in",
+        "value": [
+          [
+            [
+              [
+                [
+                  [
+                    [
+                      [
+                        [
+                          [
+                            [
+                              [
+                                [
+                                  [
+                                    [
+                                      [
+                                        [
+                                          [
+                                            [
+                                              [
+                                                [
+                                                  [
+                                                    [
+                                                      [
+                                                        [
+                                                          [
+                                                            [
+                                                              [
+                                                                [
+                                                                  [
+                                                                    [
+                                                                      1
+                                                                    ]
+                                                                  ]
+                                                                ]
+                                                              ]
+                                                            ]
+                                                          ]
+                                                        ]
+                                                      ]
+                                                    ]
+                                                  ]
+                                                ]
+                                              ]
+                                            ]
+                                          ]
+                                        ]
+                                      ]
+                                    ]
+                                  ]
+                                ]
+                              ]
+                            ]
+                          ]
+                        ]
+                      ]
+                    ]
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [],
+            "code": "too_deep",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "authoring-empty-in-for-a-policy-accepted",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "in",
+        "value": []
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "existing-on-the-ticket-source-path-accepted",
+      "condition": {
+        "path": "ticket",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-existing-on-the-ticket-source-path-accepted",
+      "condition": {
+        "path": "ticket",
+        "op": "not_existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "eq-on-the-ticket-source-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket",
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ne-on-the-ticket-source-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket",
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lt-on-the-ticket-source-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket",
+        "op": "lt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lte-on-the-ticket-source-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket",
+        "op": "lte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gt-on-the-ticket-source-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket",
+        "op": "gt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gte-on-the-ticket-source-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket",
+        "op": "gte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "in-on-the-ticket-source-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket",
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "contains-on-the-ticket-source-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket",
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-contains-on-the-ticket-source-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket",
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "matches-on-the-ticket-source-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket",
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "existing-on-an-object-path-accepted",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-existing-on-an-object-path-accepted",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "not_existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "eq-on-an-object-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ne-on-an-object-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lt-on-an-object-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "lt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lte-on-an-object-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "lte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gt-on-an-object-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "gt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gte-on-an-object-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "gte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "in-on-an-object-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "contains-on-an-object-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-contains-on-an-object-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "matches-on-an-object-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture",
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "existing-on-a-bool-path-accepted",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-existing-on-a-bool-path-accepted",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "not_existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "eq-on-a-bool-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ne-on-a-bool-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lt-on-a-bool-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "lt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lte-on-a-bool-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "lte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gt-on-a-bool-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "gt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gte-on-a-bool-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "gte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "in-on-a-bool-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "contains-on-a-bool-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-contains-on-a-bool-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "matches-on-a-bool-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.admin",
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "existing-on-a-string-path-accepted",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-existing-on-a-string-path-accepted",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "not_existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "eq-on-a-string-path-accepted",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "ne-on-a-string-path-accepted",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "lt-on-a-string-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "lt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lte-on-a-string-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "lte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gt-on-a-string-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "gt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gte-on-a-string-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "gte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "in-on-a-string-path-accepted",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "contains-on-a-string-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-contains-on-a-string-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "matches-on-a-string-path-accepted",
+      "condition": {
+        "path": "ticket.agent_id",
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "existing-on-a-number-path-accepted",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-existing-on-a-number-path-accepted",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "not_existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "eq-on-a-number-path-accepted",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "eq",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "ne-on-a-number-path-accepted",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "ne",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "lt-on-a-number-path-accepted",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "lt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "lte-on-a-number-path-accepted",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "lte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "gt-on-a-number-path-accepted",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "gt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "gte-on-a-number-path-accepted",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "gte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "in-on-a-number-path-accepted",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "in",
+        "value": [
+          1
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "contains-on-a-number-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-contains-on-a-number-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "matches-on-a-number-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "existing-on-a-list-path-accepted",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-existing-on-a-list-path-accepted",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "not_existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "eq-on-a-list-path-accepted",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "ne-on-a-list-path-accepted",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "lt-on-a-list-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "lt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lte-on-a-list-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "lte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gt-on-a-list-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "gt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gte-on-a-list-path-refused-by-the-writer",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "gte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "in-on-a-list-path-accepted",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "contains-on-a-list-path-accepted",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-contains-on-a-list-path-accepted",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "matches-on-a-list-path-accepted",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "existing-on-a-header-path-accepted",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-existing-on-a-header-path-accepted",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "not_existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "eq-on-a-header-path-accepted",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "ne-on-a-header-path-accepted",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "lt-on-a-header-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "lt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lte-on-a-header-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "lte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gt-on-a-header-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "gt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gte-on-a-header-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "gte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "in-on-a-header-path-accepted",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "contains-on-a-header-path-accepted",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-contains-on-a-header-path-accepted",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "matches-on-a-header-path-accepted",
+      "condition": {
+        "path": "request.headers.x-a",
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "existing-on-an-endpoint-key-path-accepted",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-existing-on-an-endpoint-key-path-accepted",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "not_existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "eq-on-an-endpoint-key-path-accepted",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "ne-on-an-endpoint-key-path-accepted",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "lt-on-an-endpoint-key-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "lt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lte-on-an-endpoint-key-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "lte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gt-on-an-endpoint-key-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "gt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gte-on-an-endpoint-key-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "gte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "in-on-an-endpoint-key-path-accepted",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "contains-on-an-endpoint-key-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-contains-on-an-endpoint-key-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "matches-on-an-endpoint-key-path-accepted",
+      "condition": {
+        "path": "request.endpoint_key",
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "existing-on-the-headers-path-accepted",
+      "condition": {
+        "path": "request.headers",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-existing-on-the-headers-path-accepted",
+      "condition": {
+        "path": "request.headers",
+        "op": "not_existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "eq-on-the-headers-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers",
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ne-on-the-headers-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers",
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lt-on-the-headers-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers",
+        "op": "lt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lte-on-the-headers-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers",
+        "op": "lte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gt-on-the-headers-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers",
+        "op": "gt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gte-on-the-headers-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers",
+        "op": "gte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "in-on-the-headers-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers",
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "contains-on-the-headers-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers",
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-contains-on-the-headers-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers",
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "matches-on-the-headers-path-refused-by-the-writer",
+      "condition": {
+        "path": "request.headers",
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "existing-on-the-request-path-accepted",
+      "condition": {
+        "path": "request",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-existing-on-the-request-path-accepted",
+      "condition": {
+        "path": "request",
+        "op": "not_existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "eq-on-the-request-path-refused-by-the-writer",
+      "condition": {
+        "path": "request",
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ne-on-the-request-path-refused-by-the-writer",
+      "condition": {
+        "path": "request",
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lt-on-the-request-path-refused-by-the-writer",
+      "condition": {
+        "path": "request",
+        "op": "lt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lte-on-the-request-path-refused-by-the-writer",
+      "condition": {
+        "path": "request",
+        "op": "lte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gt-on-the-request-path-refused-by-the-writer",
+      "condition": {
+        "path": "request",
+        "op": "gt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gte-on-the-request-path-refused-by-the-writer",
+      "condition": {
+        "path": "request",
+        "op": "gte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "in-on-the-request-path-refused-by-the-writer",
+      "condition": {
+        "path": "request",
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "contains-on-the-request-path-refused-by-the-writer",
+      "condition": {
+        "path": "request",
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-contains-on-the-request-path-refused-by-the-writer",
+      "condition": {
+        "path": "request",
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "matches-on-the-request-path-refused-by-the-writer",
+      "condition": {
+        "path": "request",
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-existing-on-the-host-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-not-existing-on-the-host-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "not_existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-eq-on-the-host-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-ne-on-the-host-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-lt-on-the-host-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "lt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-lte-on-the-host-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "lte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gt-on-the-host-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "gt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gte-on-the-host-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "gte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-in-on-the-host-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-contains-on-the-host-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-not-contains-on-the-host-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-matches-on-the-host-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-existing-on-the-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-not-existing-on-the-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "not_existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-eq-on-the-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-ne-on-the-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-lt-on-the-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "lt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-lte-on-the-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "lte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gt-on-the-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "gt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gte-on-the-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "gte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-in-on-the-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-contains-on-the-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-not-contains-on-the-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-matches-on-the-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-existing-on-the-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-not-existing-on-the-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "not_existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-eq-on-the-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-ne-on-the-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-lt-on-the-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "lt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-lte-on-the-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "lte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gt-on-the-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "gt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gte-on-the-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "gte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-in-on-the-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-contains-on-the-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-not-contains-on-the-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-matches-on-the-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-existing-on-the-redacted-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-not-existing-on-the-redacted-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "not_existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-eq-on-the-redacted-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-ne-on-the-redacted-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-lt-on-the-redacted-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "lt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-lte-on-the-redacted-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "lte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gt-on-the-redacted-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "gt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gte-on-the-redacted-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "gte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-in-on-the-redacted-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-contains-on-the-redacted-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-not-contains-on-the-redacted-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-matches-on-the-redacted-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-existing-on-the-mcp-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-not-existing-on-the-mcp-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "not_existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-eq-on-the-mcp-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-ne-on-the-mcp-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-lt-on-the-mcp-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "lt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-lte-on-the-mcp-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "lte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gt-on-the-mcp-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "gt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gte-on-the-mcp-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "gte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-in-on-the-mcp-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-contains-on-the-mcp-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-not-contains-on-the-mcp-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-matches-on-the-mcp-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-existing-on-the-mcp-tool-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-not-existing-on-the-mcp-tool-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "not_existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-eq-on-the-mcp-tool-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-ne-on-the-mcp-tool-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-lt-on-the-mcp-tool-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "lt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-lte-on-the-mcp-tool-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "lte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gt-on-the-mcp-tool-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "gt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gte-on-the-mcp-tool-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "gte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-in-on-the-mcp-tool-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-contains-on-the-mcp-tool-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-not-contains-on-the-mcp-tool-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-matches-on-the-mcp-tool-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-existing-on-a-body-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-not-existing-on-a-body-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "not_existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-eq-on-a-body-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-ne-on-a-body-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-lt-on-a-body-accepted",
+      "note": "A body's value may be any kind, so any op can hold.",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "lt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-lte-on-a-body-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "lte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-gt-on-a-body-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "gt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-gte-on-a-body-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "gte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-in-on-a-body-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-contains-on-a-body-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-not-contains-on-a-body-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-matches-on-a-body-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-body-any-op",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a",
+          0
+        ],
+        "op": "lt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-empty-in-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "in",
+        "value": []
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "authoring",
+            "expected_shape": "list"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-empty-in-refused-by-the-writer-on-a-path-not-read",
+      "note": "The operand is checked whatever the path.",
+      "condition": {
+        "path": "ticket.a",
+        "op": "in",
+        "value": []
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": {
+          "refused": "not_for_use"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          },
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "authoring",
+            "expected_shape": "list"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-ordered-op-a-list-operand",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "gte",
+        "value": [
+          40
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "number"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-ordered-op-a-bool-operand",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "gt",
+        "value": true
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "number"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-ordered-op-a-null-operand",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "lte",
+        "value": null
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "number"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-eq-a-list-operand",
+      "condition": {
+        "path": "ticket.posture.overall.level",
+        "op": "eq",
+        "value": [
+          "low"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "scalar"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-contains-a-list-operand",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "contains",
+        "value": [
+          "x"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "scalar"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-not-contains-a-list-operand",
+      "condition": {
+        "path": "ticket.skills",
+        "op": "not_contains",
+        "value": [
+          "x"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "scalar"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-path-without-a-source",
+      "condition": {
+        "path": "posture_score",
+        "op": "lt",
+        "value": 40
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "path"
+            ],
+            "code": "unknown_source",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-ordered-op-a-string-operand",
+      "condition": {
+        "path": "ticket.posture.overall.score",
+        "op": "lt",
+        "value": "40"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [
+              "value"
+            ],
+            "code": "operand_shape",
+            "scope": "enforcement",
+            "expected_shape": "number"
+          }
+        ]
+      }
+    }
+  ]
+}

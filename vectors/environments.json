@@ -1,0 +1,341 @@
+{
+  "environments": {
+    "judging-sample": {
+      "for": "judging",
+      "ticket": {
+        "team": "payments",
+        "roles": [
+          "writer",
+          "reviewer"
+        ],
+        "limits": {
+          "daily": 100
+        },
+        "note": null,
+        "zero": 0,
+        "empty": ""
+      },
+      "endpoint": {
+        "resolved": "/finretail-production-mcp/mcp#tools/call#create_or_update_file"
+      },
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "Accept",
+          "application/json, text/event-stream"
+        ],
+        [
+          "X-Trace",
+          "a"
+        ],
+        [
+          "x-trace",
+          "b"
+        ]
+      ]
+    },
+    "judging-sample-without-a-ticket": {
+      "for": "judging",
+      "ticket": null,
+      "endpoint": {
+        "resolved": "/finretail-production-mcp/mcp#tools/call#create_or_update_file"
+      },
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "Accept",
+          "application/json, text/event-stream"
+        ],
+        [
+          "X-Trace",
+          "a"
+        ],
+        [
+          "x-trace",
+          "b"
+        ]
+      ]
+    },
+    "judging-keyless": {
+      "for": "judging",
+      "ticket": null,
+      "endpoint": "keyless",
+      "headers": []
+    },
+    "judging-unrecognised": {
+      "for": "judging",
+      "ticket": null,
+      "endpoint": "unrecognised",
+      "headers": []
+    },
+    "judging-headers-folded": {
+      "for": "judging",
+      "ticket": null,
+      "endpoint": "keyless",
+      "headers": [
+        [
+          "X-A",
+          "1, 2"
+        ],
+        [
+          "x-a",
+          "3"
+        ],
+        [
+          "x-b",
+          "a,,b "
+        ]
+      ]
+    },
+    "judging-ticket-dotted-claim": {
+      "for": "judging",
+      "ticket": {
+        "posture.score": 10
+      },
+      "endpoint": "keyless",
+      "headers": []
+    },
+    "judging-ticket-leaving-out": {
+      "for": "judging",
+      "ticket": {
+        "posture": {
+          "categories": {
+            "identity": {
+              "score": null,
+              "capped": true
+            }
+          }
+        },
+        "alignment": {
+          "drifted": []
+        },
+        "skills": [
+          "acme",
+          null,
+          {},
+          true,
+          1
+        ],
+        "lapsed": null,
+        "count": 5,
+        "grants": [
+          {
+            "scope": "repo"
+          }
+        ]
+      },
+      "endpoint": "keyless",
+      "headers": []
+    },
+    "capture-sample": {
+      "for": "capture",
+      "authority": "API.GitHub.com.:443",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp/?repo=docs&tag=a&tag=b+c&empty=#top",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 7, \"method\": \"tools/call\", \"params\": {\"name\": \"create_or_update_file\", \"arguments\": {\"repo\": \"payments-internal\", \"message\": \"caf\\u00e9\", \"files\": [{\"path\": \"a.txt\"}, {\"path\": \"b.txt\"}], \"draft\": false, \"size\": 12, \"note\": null, \"Labels\": [\"x\"], \"labels\": [\"y\"]}}}",
+      "body_bytes": 289
+    },
+    "capture-body-values": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": "{\"esc\": \"pay\\u0072oll\", \"items\": [\"a\", \"b\"], \"big\": 1e400, \"small\": -1e400, \"dup\": 1, \"Dup\": 2, \"bad\": \"\\ud800\", \"mixed\": [\"a\", \"\\ud800\"], \"nul\": \"a\\u0000b\", \"deep\": {\"a\": {\"b\": [null, {\"c\": true}]}}}",
+      "body_bytes": 200
+    },
+    "capture-body-empty": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": "",
+      "body_bytes": 0
+    },
+    "capture-body-not-json": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": "not json",
+      "body_bytes": 8
+    },
+    "capture-body-tree-past-budget": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": "{\"a\": 1}",
+      "body_bytes": 8,
+      "byte_budget": 8
+    },
+    "capture-body-past-the-byte-budget": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": "{\"a\": 1}",
+      "body_bytes": 8,
+      "byte_budget": 4
+    },
+    "capture-body-batch": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": "[{\"method\": \"tools/call\", \"params\": {\"name\": \"a\"}}]",
+      "body_bytes": 51
+    },
+    "capture-body-batch-holding-what-cant-be-told": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": "[{\"method\": \"tools/call\", \"params\": {\"name\": \"a\"}}, \"\\ud800\"]",
+      "body_bytes": 61
+    },
+    "capture-body-mcp-ambiguous": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": "{\"method\": \"tools/call\", \"params\": {\"name\": \"a\", \"Name\": \"b\"}}",
+      "body_bytes": 62
+    },
+    "capture-body-ten-items": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": "{\"items\": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]}",
+      "body_bytes": 41
+    },
+    "capture-body-ten-members": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": "{\"a\": 0, \"b\": 1, \"c\": 2, \"d\": 3, \"e\": 4, \"f\": 5, \"g\": 6, \"h\": 7, \"i\": 8, \"j\": 9}",
+      "body_bytes": 80
+    },
+    "capture-body-strings": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/s3cret-s3cret-s3cret/mcp",
+      "body": "{\"key\": \"ghp_a1B2a1B2a1B2a1B2a1B2a1B2a1B2a1B2a1B2\", \"longest\": \"\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\", \"past_longest\": \"\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\\u00e9\", \"spaced\": \" U\\u00e9 \", \"marker\": \"[redacted]\"}",
+      "body_bytes": 3211
+    },
+    "capture-body-written-forms": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": "{\"price\": 12.50, \"sci\": 1e2, \"large\": 1e20, \"negative_zero\": -0, \"bad\": \"\\uZZZZ\", \"below_2_53\": 9007199254740991, \"at_2_53\": 9007199254740992}",
+      "body_bytes": 142
+    },
+    "capture-query-escaped": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp?q=%23ab&r=%E2%82%AC&s=%2fx%2F",
+      "body": "{}",
+      "body_bytes": 2
+    },
+    "capture-body-key-shapes": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": "{\"sk_dash\": \"sk-abc_DEF-12\", \"sk_dash_short\": \"sk-abc1234\", \"stripe\": \"sk_live_a1a1a1a1a1a1a1a1a1a1\", \"stripe_underscore\": \"sk_live_aaaaaaaaaaaaaaaaaaa_\", \"github\": \"ghp_A1A1A1A1A1A1\", \"github_short\": \"ghp_A1A1A1A1A1A\", \"github_pat\": \"github_pat_a_a_a_a_a_a_a_a_a_a_\", \"github_pat_dash\": \"github_pat_a-a-a-a-a-a-a-a-a-a-\", \"gitlab\": \"glpat-a-b_c1\", \"slack\": \"xoxb-123-abc-de\", \"slack_underscore\": \"xoxb-123_abc_de\", \"slack_app\": \"xapp-1-A1B2-C3D4E\", \"npm\": \"npm_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"shopify\": \"shpat_0a0a0a0a0a0a0a0a0a0a\", \"shopify_upper_hex\": \"shpat_0A0A0A0A0A0A0A0A0A0A\", \"hugging_face\": \"hf_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"digital_ocean\": \"dop_v1_ffffffffffffffffffffffffffffffff\", \"digital_ocean_short\": \"dop_v1_fffffffffffffffffffffffffffffff\", \"google_api\": \"AIzaa_-1a_-1a_-1a_-1a_-1a_-1a_-1a_-1\", \"google_oauth\": \"ya29.a_-1a_-1a_-1a_-1a_-1\", \"aws\": \"AKIAABCD1234EFGH5678\", \"aws_one_more\": \"AKIAABCD1234EFGH56789\", \"aws_lower\": \"AKIAabcd1234efgh5678\"}",
+      "body_bytes": 972
+    },
+    "capture-body-not-sent": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": {
+        "unread": "not_sent"
+      },
+      "body_bytes": 120
+    },
+    "capture-body-past-cap": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": {
+        "unread": "past_cap"
+      },
+      "body_bytes": 70000
+    },
+    "capture-body-past-budget": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": {
+        "unread": "past_budget"
+      },
+      "body_bytes": 120
+    },
+    "capture-body-cut-short": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/finretail-production-mcp/mcp",
+      "body": {
+        "unread": "cut_short"
+      },
+      "body_bytes": 60
+    },
+    "capture-host-unparseable": {
+      "for": "capture",
+      "authority": "user@mcp.example.com",
+      "method": "POST",
+      "path": "/mcp",
+      "body": "{}",
+      "body_bytes": 2
+    },
+    "capture-path-not-utf8": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": {
+        "hex": "2f6d63702fff"
+      },
+      "body": "{}",
+      "body_bytes": 2
+    },
+    "capture-body-keys-folded": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp",
+      "body": "{\"\\u00c9\": 6, \"\\u00e9\": 7, \"\\u0130d\": 10, \"id\": 11}",
+      "body_bytes": 51
+    },
+    "capture-body-key-outside-json": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp",
+      "body": "{\"o\": {\"a\": 1, \"\\q\": 2}, \"b\": 3}",
+      "body_bytes": 32
+    },
+    "capture-body-spaced-list": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp",
+      "body": "{\"blocks\": [\t\"a\\\" b\",\r\n1 ]}",
+      "body_bytes": 27
+    }
+  }
+}

@@ -24,9 +24,9 @@ use tonic::transport::{Channel, Endpoint};
 
 use crate::common::{TempSocket, rail_envoy, serve, serve_ext_proc};
 
-const PLANS: &str = include_str!("../../../vectors/parse_plan_conformance_cases.json");
+const PLANS: &str = include_str!("../../../vectors/capture/plan.json");
 
-// The parse vectors' plan: `e1` takes a `create_or_update_file` call to GitHub's `/mcp`, its
+// The plan vectors' base plan: `e1` takes a `create_or_update_file` call to GitHub's `/mcp`, its
 // record keyed by the repository; its windows a day long, so a run straddles two only at midnight
 // UTC.
 fn worked_example() -> &'static str {

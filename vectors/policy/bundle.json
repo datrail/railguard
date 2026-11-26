@@ -1,8 +1,7 @@
 {
-  "_comment": "Conformance cases for parse_bundle, taken from datrail/gateway's gateway-core/tests/vectors/bundle.json at 041c92f (master). Bundles are filled in to the shape Rail Center publishes. A usable case carries the chain it resolves to, in evaluation order, and its priorities; the gateway's other expectations (names, conditions, actions, bindings, ticket_fallback) aren't asserted. Removed: 24 cases this parser answers differently from the gateway, all input Rail Center doesn't publish or a check made elsewhere: an enabled missing or not a boolean; a priority written as a float; a name missing or not a string; an id Python's uuid reads and the uuid crate doesn't (odd hyphens, a leading minus, a braced URN, an upper-case URN prefix on an undashed id); a duplicate id beside a disabled twin, or a bad id or priority on a disabled policy; a binding naming an unknown policy; an endpoint key not of the form <slug>#<path>#<method>#<call>; a content_hash the gateway checks, where this parser reads it opaque; and a major version other than 2, which the caller checks, a 1.x bundle among them. A case marked `added` is this reader's own.",
   "cases": [
     {
-      "name": "the contract's worked example",
+      "id": "the-contracts-worked-example",
       "note": "Shaped after the worked example in policy-evaluation-contract.md.",
       "bundle": {
         "binding_fallback": "block",
@@ -51,7 +50,7 @@
       ]
     },
     {
-      "name": "an empty bindings list narrows nothing, so the whole chain applies",
+      "id": "an-empty-bindings-list-narrows-nothing-so-the-whole-chain-applies",
       "note": "The rule read the other way round is a total loss of enforcement, which is why the contract states it twice.",
       "bundle": {
         "binding_fallback": "block",
@@ -93,7 +92,7 @@
       ]
     },
     {
-      "name": "a disabled policy is not in the chain",
+      "id": "a-disabled-policy-is-not-in-the-chain",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -132,7 +131,7 @@
       ]
     },
     {
-      "name": "the chain orders by priority ascending, not as listed",
+      "id": "the-chain-orders-by-priority-ascending-not-as-listed",
       "note": "Numerically. A string comparison puts 10 before 2.",
       "bundle": {
         "binding_fallback": "block",
@@ -184,7 +183,7 @@
       ]
     },
     {
-      "name": "a tie breaks by the canonical id, not by the spelling that arrived",
+      "id": "a-tie-breaks-by-the-canonical-id-not-by-the-spelling-that-arrived",
       "note": "Three orderings come apart here: canonical puts a9 first, the raw spelling puts b1 first, and the names put alpha first. An order that depends on how a bundle happened to spell an id, or on what an operator called a rule, is one two implementations will disagree about.",
       "bundle": {
         "binding_fallback": "block",
@@ -226,7 +225,7 @@
       ]
     },
     {
-      "name": "a tie breaks by canonical id, not by position",
+      "id": "a-tie-breaks-by-canonical-id-not-by-position",
       "note": "Two policies at one priority are never ordered by however the bundle happened to list them.",
       "bundle": {
         "binding_fallback": "block",
@@ -278,7 +277,7 @@
       ]
     },
     {
-      "name": "a negative priority orders ahead of a positive one",
+      "id": "a-negative-priority-orders-ahead-of-a-positive-one",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -319,7 +318,7 @@
       ]
     },
     {
-      "name": "every accepted id spelling normalises to the same policy",
+      "id": "every-accepted-id-spelling-normalises-to-the-same-policy",
       "note": "Braced, URN and undashed on the policy side; uppercase, URN and braced on the binding side. A raw comparison matches none of them, and an endpoint matching no policy is gated by nothing.",
       "bundle": {
         "binding_fallback": "block",
@@ -401,7 +400,7 @@
       ]
     },
     {
-      "name": "a bound id naming a disabled policy binds nothing either",
+      "id": "a-bound-id-naming-a-disabled-policy-binds-nothing-either",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [
@@ -448,7 +447,7 @@
       ]
     },
     {
-      "name": "a policy named with the empty string keeps that name",
+      "id": "a-policy-named-with-the-empty-string-keeps-that-name",
       "note": "The boundary between the rule this file states -- a name is used when it is a string -- and the falsy test that reads the same on every other input. An operator who names a rule nothing gets nothing, not the id.",
       "bundle": {
         "binding_fallback": "block",
@@ -480,7 +479,7 @@
       ]
     },
     {
-      "name": "a priority at the largest value a double separates",
+      "id": "a-priority-at-the-largest-value-a-double-separates",
       "note": "The bound itself is admitted; one past it is not. Both ends, because an absolute value is easy to leave out.",
       "bundle": {
         "binding_fallback": "block",
@@ -522,7 +521,7 @@
       ]
     },
     {
-      "name": "an endpoint key is carried exactly as it arrived",
+      "id": "an-endpoint-key-is-carried-exactly-as-it-arrived",
       "note": "Matched exactly: no case folding and no trimming. Folding it would let a bundle binding FinRetail.Orders as open disarm a request resolving to finretail.orders, which is the dangerous direction.",
       "bundle": {
         "binding_fallback": "block",
@@ -560,7 +559,7 @@
       ]
     },
     {
-      "name": "an endpoint key is not normalised either",
+      "id": "an-endpoint-key-is-not-normalised-either",
       "note": "Decomposed, and carried decomposed. The contract calls normalising both sides to NFC the more tempting of the two mistakes and says to compare the code points as they arrive: an endpoint registers under one form, and a rule written against the other must not match it.",
       "bundle": {
         "binding_fallback": "block",
@@ -598,7 +597,7 @@
       ]
     },
     {
-      "name": "a content hash is carried exactly as it arrived",
+      "id": "a-content-hash-is-carried-exactly-as-it-arrived",
       "note": "A reader re-fetches on a timer and re-parses only when this changes, so a content hash normalised on the way through would either re-parse on every fetch or never notice a change at all. Mixed case because folding it is the normalisation most easily reached for.",
       "bundle": {
         "binding_fallback": "block",
@@ -630,7 +629,7 @@
       ]
     },
     {
-      "name": "a content hash of exactly the length an endpoint key may be",
+      "id": "a-content-hash-of-exactly-the-length-an-endpoint-key-may-be",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -661,8 +660,8 @@
       ]
     },
     {
-      "name": "the URN prefix is matched whatever its case",
-      "note": "Rail Center refuses this one: uuid.UUID strips its `urn:` prefix case-sensitively. The contract says all five spellings parse in any mixture of case, so this file follows the contract.",
+      "id": "the-urn-prefix-is-matched-whatever-its-case",
+      "note": "The contract says all five spellings parse in any mixture of case.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -693,7 +692,7 @@
       ]
     },
     {
-      "name": "unrecognised keys are accepted rather than refused",
+      "id": "unrecognised-keys-are-accepted-rather-than-refused",
       "note": "Dropped rather than carried — nothing downstream reads them, and this validator returns a fixed shape. What matters is that they do not refuse the bundle: refusing would make adding a field to the grammar a flag day across two independently released implementations.",
       "bundle": {
         "binding_fallback": "block",
@@ -734,7 +733,7 @@
       ]
     },
     {
-      "name": "a bundle with no policies at all is usable and allows",
+      "id": "a-bundle-with-no-policies-at-all-is-usable-and-allows",
       "note": "Distinct from a fetch that failed, which is not an empty bundle.",
       "bundle": {
         "binding_fallback": "block",
@@ -753,12 +752,12 @@
       "chain_priorities": []
     },
     {
-      "name": "a response that is not an object",
+      "id": "a-response-that-is-not-an-object",
       "bundle": [],
       "usable": false
     },
     {
-      "name": "no policies key at all",
+      "id": "no-policies-key-at-all",
       "note": "Absent, not merely wrong-shaped. Read as an empty list it is a bundle that allows everything.",
       "bundle": {
         "binding_fallback": "block",
@@ -774,7 +773,7 @@
       "usable": false
     },
     {
-      "name": "no bindings key at all",
+      "id": "no-bindings-key-at-all",
       "note": "Always present, so a reader can tell 'no endpoint is narrowed' from 'this bundle does not describe bindings' without a special case. Defaulting it to empty erases that distinction.",
       "bundle": {
         "binding_fallback": "block",
@@ -790,12 +789,12 @@
       "usable": false
     },
     {
-      "name": "a response that is a JSON scalar",
+      "id": "a-response-that-is-a-json-scalar",
       "bundle": "nope",
       "usable": false
     },
     {
-      "name": "no content hash to cache on",
+      "id": "no-content-hash-to-cache-on",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -810,7 +809,7 @@
       "usable": false
     },
     {
-      "name": "a content hash that is not a string",
+      "id": "a-content-hash-that-is-not-a-string",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -826,7 +825,7 @@
       "usable": false
     },
     {
-      "name": "two bindings for one endpoint whose key carries a newline",
+      "id": "two-bindings-for-one-endpoint-whose-key-carries-a-newline",
       "note": "The duplicate refusal names the key, and this one is chosen by whoever produced the bundle.",
       "bundle": {
         "binding_fallback": "block",
@@ -863,7 +862,7 @@
       "usable": false
     },
     {
-      "name": "a binding whose key carries a newline and whose id cannot be compared",
+      "id": "a-binding-whose-key-carries-a-newline-and-whose-id-cannot-be-compared",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [
@@ -896,7 +895,7 @@
       "usable": false
     },
     {
-      "name": "an endpoint_key that is a long list",
+      "id": "an-endpoint-key-that-is-a-long-list",
       "note": "Reported by its kind, never by its content. Interpolating it puts the whole array in the log, and its length is whoever produced the bundle's to choose.",
       "bundle": {
         "binding_fallback": "block",
@@ -1429,7 +1428,7 @@
       "usable": false
     },
     {
-      "name": "an endpoint_key that is a list carrying a newline",
+      "id": "an-endpoint-key-that-is-a-list-carrying-a-newline",
       "note": "Not a string, so it is reported by its kind — which is the point: interpolating it directly would put its contents in the log.",
       "bundle": {
         "binding_fallback": "block",
@@ -1463,7 +1462,7 @@
       "usable": false
     },
     {
-      "name": "a refusal naming an endpoint_key that carries an escape sequence",
+      "id": "a-refusal-naming-an-endpoint-key-that-carries-an-escape-sequence",
       "note": "Refused for its empty gated ids, not for the escape sequence.",
       "bundle": {
         "binding_fallback": "block",
@@ -1495,7 +1494,7 @@
       "usable": false
     },
     {
-      "name": "a refusal naming an endpoint_key that carries a newline",
+      "id": "a-refusal-naming-an-endpoint-key-that-carries-a-newline",
       "note": "Refused for its empty gated ids. The mode is deliberately valid here, so the mode guard is not what answers and the message is reached with the newline in the key.",
       "bundle": {
         "binding_fallback": "block",
@@ -1527,7 +1526,7 @@
       "usable": false
     },
     {
-      "name": "a refusal naming both an unreadable mode and an unreadable key",
+      "id": "a-refusal-naming-both-an-unreadable-mode-and-an-unreadable-key",
       "note": "One message interpolates two wire values, and each needs its own guard — pinning the mode leaves the key beside it unpinned.",
       "bundle": {
         "binding_fallback": "block",
@@ -1559,7 +1558,7 @@
       "usable": false
     },
     {
-      "name": "a binding whose mode carries a bidi override",
+      "id": "a-binding-whose-mode-carries-a-bidi-override",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [
@@ -1590,7 +1589,7 @@
       "usable": false
     },
     {
-      "name": "a binding naming an id that carries a null byte",
+      "id": "a-binding-naming-an-id-that-carries-a-null-byte",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [
@@ -1623,7 +1622,7 @@
       "usable": false
     },
     {
-      "name": "a policy id carrying an escape sequence",
+      "id": "a-policy-id-carrying-an-escape-sequence",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -1648,7 +1647,7 @@
       "usable": false
     },
     {
-      "name": "policies is not a list",
+      "id": "policies-is-not-a-list",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -1664,7 +1663,7 @@
       "usable": false
     },
     {
-      "name": "bindings is not a list",
+      "id": "bindings-is-not-a-list",
       "bundle": {
         "binding_fallback": "block",
         "bindings": {},
@@ -1680,7 +1679,7 @@
       "usable": false
     },
     {
-      "name": "a policy that is not an object",
+      "id": "a-policy-that-is-not-an-object",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -1698,7 +1697,7 @@
       "usable": false
     },
     {
-      "name": "a refusal naming a policy entry that is a string with a newline",
+      "id": "a-refusal-naming-a-policy-entry-that-is-a-string-with-a-newline",
       "note": "The entry itself is interpolated, and here it is whoever produced the bundle's text rather than a shape.",
       "bundle": {
         "binding_fallback": "block",
@@ -1717,7 +1716,7 @@
       "usable": false
     },
     {
-      "name": "a refusal naming a priority that carries a newline",
+      "id": "a-refusal-naming-a-priority-that-carries-a-newline",
       "note": "A priority that is not a number is named in the refusal, and a string is what the wire can put there.",
       "bundle": {
         "binding_fallback": "block",
@@ -1743,8 +1742,8 @@
       "usable": false
     },
     {
-      "name": "a refusal naming a priority four thousand digits long",
-      "note": "Python's integers are unbounded, so without a cap the refusal carries all four thousand digits into the log on every failed refresh. The reference got this for nothing: every JSON number there is a double.",
+      "id": "a-refusal-naming-a-priority-four-thousand-digits-long",
+      "note": "A refusal's quote is capped, so a number of any length can't flood the log on every failed refresh.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -1769,7 +1768,7 @@
       "usable": false
     },
     {
-      "name": "a policy id that cannot be compared",
+      "id": "a-policy-id-that-cannot-be-compared",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -1794,7 +1793,7 @@
       "usable": false
     },
     {
-      "name": "a policy with no id at all",
+      "id": "a-policy-with-no-id-at-all",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -1818,7 +1817,7 @@
       "usable": false
     },
     {
-      "name": "a policy whose id is null",
+      "id": "a-policy-whose-id-is-null",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -1843,7 +1842,7 @@
       "usable": false
     },
     {
-      "name": "a policy id that is not a string",
+      "id": "a-policy-id-that-is-not-a-string",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -1868,7 +1867,7 @@
       "usable": false
     },
     {
-      "name": "a policy id that is thirty-two digits and not a string",
+      "id": "a-policy-id-that-is-thirty-two-digits-and-not-a-string",
       "note": "The length and alphabet checks both pass once it is stringified, so only the type check refuses it. A shorter number is refused by its length and pins nothing.",
       "bundle": {
         "binding_fallback": "block",
@@ -1894,7 +1893,7 @@
       "usable": false
     },
     {
-      "name": "a policy id one hex digit short",
+      "id": "a-policy-id-one-hex-digit-short",
       "note": "Thirty-one digits. The count is checked after hyphens are stripped, so a spelling cannot make it up.",
       "bundle": {
         "binding_fallback": "block",
@@ -1920,8 +1919,8 @@
       "usable": false
     },
     {
-      "name": "a policy id one hex digit long",
-      "note": "Thirty-three. Refused for the same reason, and by Rail Center too.",
+      "id": "a-policy-id-one-hex-digit-long",
+      "note": "Thirty-three. Refused for the same reason.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -1946,8 +1945,8 @@
       "usable": false
     },
     {
-      "name": "a policy id padded with spaces",
-      "note": "Whitespace is not stripped before the count and alphabet are checked, so the spaces are two characters that are not hex. Rail Center's uuid.UUID raises on it too; the TypeScript gateway being replaced trimmed first and read it, which is the divergence.",
+      "id": "a-policy-id-padded-with-spaces",
+      "note": "Whitespace isn't stripped before the count and the alphabet are checked, so the spaces are two characters that aren't hex.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -1972,8 +1971,8 @@
       "usable": false
     },
     {
-      "name": "a policy id padded with a tab and a newline",
-      "note": "Whitespace is not trimmed here. The TypeScript gateway trims and would read this; Rail Center does not and refuses it.",
+      "id": "a-policy-id-padded-with-a-tab-and-a-newline",
+      "note": "Whitespace isn't trimmed.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -1998,7 +1997,7 @@
       "usable": false
     },
     {
-      "name": "a policy id padded on the left only",
+      "id": "a-policy-id-padded-on-the-left-only",
       "note": "One side, because a partial trim is the reimplementation to catch and every other padded case pads both.",
       "bundle": {
         "binding_fallback": "block",
@@ -2024,7 +2023,7 @@
       "usable": false
     },
     {
-      "name": "a policy id padded on the right only",
+      "id": "a-policy-id-padded-on-the-right-only",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2049,7 +2048,7 @@
       "usable": false
     },
     {
-      "name": "a braced id padded inside its braces",
+      "id": "a-braced-id-padded-inside-its-braces",
       "note": "Stripping after the braces come off is the other half of the same reimplementation.",
       "bundle": {
         "binding_fallback": "block",
@@ -2075,7 +2074,7 @@
       "usable": false
     },
     {
-      "name": "a binding naming an id padded with spaces",
+      "id": "a-binding-naming-an-id-padded-with-spaces",
       "note": "The rule holds on a bound id as well as on a policy's own.",
       "bundle": {
         "binding_fallback": "block",
@@ -2109,7 +2108,7 @@
       "usable": false
     },
     {
-      "name": "an id opened with a brace and not closed",
+      "id": "an-id-opened-with-a-brace-and-not-closed",
       "note": "Both ends or neither: one brace alone leaves the other end unstripped and a brace among the digits.",
       "bundle": {
         "binding_fallback": "block",
@@ -2135,8 +2134,8 @@
       "usable": false
     },
     {
-      "name": "an id closed with a brace and not opened",
-      "note": "The same from the other side. Rail Center reads both, its strip taking any number from either end.",
+      "id": "an-id-closed-with-a-brace-and-not-opened",
+      "note": "The same from the other side: one brace alone is no pair.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2161,8 +2160,8 @@
       "usable": false
     },
     {
-      "name": "doubled braces around an id",
-      "note": "Exactly one pair is stripped here, so the inner pair is still there and the count is 34 rather than 32 — it is the length check that answers, before the alphabet is looked at. uuid.UUID strips braces from both ends however many there are, so Rail Center reads this.",
+      "id": "doubled-braces-around-an-id",
+      "note": "Exactly one pair is stripped, so the inner pair is still there and the count is 34 rather than 32: the length check answers, before the alphabet is looked at.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2187,7 +2186,7 @@
       "usable": false
     },
     {
-      "name": "an id carrying an interior urn:uuid: prefix",
+      "id": "an-id-carrying-an-interior-urn-uuid-prefix",
       "note": "The whole prefix, in the middle. Replacing it wherever it appears rather than stripping it from the front reads a policy id out of this; the shorter interior `uuid:` case below does not reach that.",
       "bundle": {
         "binding_fallback": "block",
@@ -2213,8 +2212,8 @@
       "usable": false
     },
     {
-      "name": "an id carrying an interior uuid: prefix",
-      "note": "uuid.UUID replaces `uuid:` anywhere in the string, not only at the front, so Rail Center reads a policy id out of this.",
+      "id": "an-id-carrying-an-interior-uuid-prefix",
+      "note": "Only a leading prefix is stripped.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2239,8 +2238,8 @@
       "usable": false
     },
     {
-      "name": "an id of thirty-three characters carrying an underscore",
-      "note": "Only hyphens are stripped. Stripping underscores too would leave thirty-two hex digits here and read a policy id out of it — and Rail Center refuses this one for its length, so the two would then disagree in the other direction as well.",
+      "id": "an-id-of-thirty-three-characters-carrying-an-underscore",
+      "note": "Only hyphens are stripped: stripping underscores too would leave thirty-two hex digits.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2265,8 +2264,8 @@
       "usable": false
     },
     {
-      "name": "an id carrying an underscore in place of a digit",
-      "note": "Thirty-two characters, so uuid.UUID's length check passes and int(x, 16) then reads the underscore as a digit separator. A thirty-three-character form with an underscore added rather than substituted is refused there for its length and would demonstrate nothing.",
+      "id": "an-id-carrying-an-underscore-in-place-of-a-digit",
+      "note": "An underscore is no hex digit, though some integer parsers read it as a digit separator.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2291,8 +2290,8 @@
       "usable": false
     },
     {
-      "name": "an id carrying a leading plus",
-      "note": "int(x, 16) accepts a leading sign.",
+      "id": "an-id-carrying-a-leading-plus",
+      "note": "A sign is no hex digit, though some integer parsers accept one.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2317,8 +2316,8 @@
       "usable": false
     },
     {
-      "name": "an id written in Arabic-Indic digits",
-      "note": "int(x, 16) accepts any Unicode decimal digit, so Rail Center reads an id here. The contract says hex, and hex is ASCII.",
+      "id": "an-id-written-in-arabic-indic-digits",
+      "note": "The contract says hex, and hex is ASCII.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2343,7 +2342,7 @@
       "usable": false
     },
     {
-      "name": "an id padded after its URN prefix",
+      "id": "an-id-padded-after-its-urn-prefix",
       "note": "The headline rule is that whitespace is not trimmed, and the padding that tests it has to sit where a prefix strip would otherwise absorb it.",
       "bundle": {
         "binding_fallback": "block",
@@ -2369,8 +2368,8 @@
       "usable": false
     },
     {
-      "name": "a leading minus in place of a digit",
-      "note": "Refused in Rail Center too — uuid.UUID strips hyphens, leaving 31 digits — which is what separates it from the leading plus above, where int(x, 16) reads the sign.",
+      "id": "a-leading-minus-in-place-of-a-digit",
+      "note": "Its hyphen stripped, it is 31 digits; unlike the leading plus above, which a lenient integer parser reads as a sign.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2395,7 +2394,7 @@
       "usable": false
     },
     {
-      "name": "an opening brace in front of thirty-three hex digits",
+      "id": "an-opening-brace-in-front-of-thirty-three-hex-digits",
       "note": "Stripping a leading brace without requiring its closer takes a character off the far end too, and thirty-three digits leaves thirty-two behind — a policy id read out of a value that is not one.",
       "bundle": {
         "binding_fallback": "block",
@@ -2421,7 +2420,7 @@
       "usable": false
     },
     {
-      "name": "thirty-three hex digits with a closing brace behind them",
+      "id": "thirty-three-hex-digits-with-a-closing-brace-behind-them",
       "note": "The same shape from the other side, for a reader that strips on either brace rather than on both.",
       "bundle": {
         "binding_fallback": "block",
@@ -2447,7 +2446,7 @@
       "usable": false
     },
     {
-      "name": "an undashed id closed with a brace but not opened",
+      "id": "an-undashed-id-closed-with-a-brace-but-not-opened",
       "note": "Thirty-two hex digits and a stray brace. Stripping a closing brace without requiring its opener reads a policy id out of this.",
       "bundle": {
         "binding_fallback": "block",
@@ -2473,7 +2472,7 @@
       "usable": false
     },
     {
-      "name": "a policy id of the right length that is not hex",
+      "id": "a-policy-id-of-the-right-length-that-is-not-hex",
       "note": "Thirty-two characters and none of them a hex digit, so only the alphabet check answers.",
       "bundle": {
         "binding_fallback": "block",
@@ -2499,7 +2498,7 @@
       "usable": false
     },
     {
-      "name": "a policy id whose last digit is not hex",
+      "id": "a-policy-id-whose-last-digit-is-not-hex",
       "note": "Thirty-two characters, hex up to the last one. A prefix match accepts it and reads a policy id out of a value that is not one.",
       "bundle": {
         "binding_fallback": "block",
@@ -2525,7 +2524,7 @@
       "usable": false
     },
     {
-      "name": "one policy id appearing twice",
+      "id": "one-policy-id-appearing-twice",
       "note": "Two entries sharing an id are two claims about the same rule, and nothing in a bundle says which is current. Refused at any priorities, not only equal ones.",
       "bundle": {
         "binding_fallback": "block",
@@ -2559,7 +2558,7 @@
       "usable": false
     },
     {
-      "name": "one policy id appearing twice in different spellings",
+      "id": "one-policy-id-appearing-twice-in-different-spellings",
       "note": "Canonicalised before the duplicate check, so two spellings of one id are one id.",
       "bundle": {
         "binding_fallback": "block",
@@ -2593,7 +2592,7 @@
       "usable": false
     },
     {
-      "name": "a policy with no priority",
+      "id": "a-policy-with-no-priority",
       "note": "Indistinguishable from an explicit null once read — `get` returns None for both — so there is one case rather than two.",
       "bundle": {
         "binding_fallback": "block",
@@ -2618,7 +2617,7 @@
       "usable": false
     },
     {
-      "name": "a fractional priority",
+      "id": "a-fractional-priority",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2643,8 +2642,8 @@
       "usable": false
     },
     {
-      "name": "a boolean priority",
-      "note": "isinstance(True, int) is true in Python and typeof true is 'boolean' in TypeScript. Unsaid, the two sides disagree.",
+      "id": "a-boolean-priority",
+      "note": "A bool is no integer, though some languages read true as 1.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2669,7 +2668,7 @@
       "usable": false
     },
     {
-      "name": "a priority past what a double separates",
+      "id": "a-priority-past-what-a-double-separates",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2694,8 +2693,8 @@
       "usable": false
     },
     {
-      "name": "a priority past the negative end of what a double separates",
-      "note": "Bounded on both sides. Comparing without an absolute value leaves the negative end unbounded, and Rail Center pins this case too.",
+      "id": "a-priority-past-the-negative-end-of-what-a-double-separates",
+      "note": "Bounded on both sides.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2720,7 +2719,7 @@
       "usable": false
     },
     {
-      "name": "a priority written as a string",
+      "id": "a-priority-written-as-a-string",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2745,7 +2744,7 @@
       "usable": false
     },
     {
-      "name": "a binding that is not an object",
+      "id": "a-binding-that-is-not-an-object",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [
@@ -2772,7 +2771,7 @@
       "usable": false
     },
     {
-      "name": "a binding that is a list",
+      "id": "a-binding-that-is-a-list",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [
@@ -2799,7 +2798,7 @@
       "usable": false
     },
     {
-      "name": "a refusal naming a binding entry that is a string with a newline",
+      "id": "a-refusal-naming-a-binding-entry-that-is-a-string-with-a-newline",
       "note": "The binding half of the policy case above. Both interpolate the entry, so both need the escaping.",
       "bundle": {
         "binding_fallback": "block",
@@ -2827,7 +2826,7 @@
       "usable": false
     },
     {
-      "name": "a binding whose endpoint_key is not a string",
+      "id": "a-binding-whose-endpoint-key-is-not-a-string",
       "note": "A language that coerces it narrows a request whose resolved key is the string \"123\".",
       "bundle": {
         "binding_fallback": "block",
@@ -2859,7 +2858,7 @@
       "usable": false
     },
     {
-      "name": "two bindings for one endpoint",
+      "id": "two-bindings-for-one-endpoint",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [
@@ -2897,8 +2896,8 @@
       "usable": false
     },
     {
-      "name": "a mode in the wrong case",
-      "note": "Exact, not folded. Folding turns an unreadable mode into a live narrowing; Rail Center refuses this too.",
+      "id": "a-mode-in-the-wrong-case",
+      "note": "Exact, not folded: folding turns an unreadable mode into a live narrowing.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [
@@ -2931,7 +2930,7 @@
       "usable": false
     },
     {
-      "name": "a mode with surrounding whitespace",
+      "id": "a-mode-with-surrounding-whitespace",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [
@@ -2964,7 +2963,7 @@
       "usable": false
     },
     {
-      "name": "a mode outside gated and open",
+      "id": "a-mode-outside-gated-and-open",
       "note": "The two guesses are 'the listed policies apply' and 'none do', which is the widest disagreement available.",
       "bundle": {
         "binding_fallback": "block",
@@ -2996,7 +2995,7 @@
       "usable": false
     },
     {
-      "name": "a missing mode",
+      "id": "a-missing-mode",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [
@@ -3026,7 +3025,7 @@
       "usable": false
     },
     {
-      "name": "a refusal naming a key with a newline whose policy_ids is not a list",
+      "id": "a-refusal-naming-a-key-with-a-newline-whose-policy-ids-is-not-a-list",
       "note": "One of two branches where the key is interpolated and no case paired it with an unsafe key.",
       "bundle": {
         "binding_fallback": "block",
@@ -3058,7 +3057,7 @@
       "usable": false
     },
     {
-      "name": "a refusal naming a key with a newline on an open binding that names policies",
+      "id": "a-refusal-naming-a-key-with-a-newline-on-an-open-binding-that-names-policies",
       "note": "The other.",
       "bundle": {
         "binding_fallback": "block",
@@ -3092,7 +3091,7 @@
       "usable": false
     },
     {
-      "name": "an open binding whose policy_ids is an empty string",
+      "id": "an-open-binding-whose-policy-ids-is-an-empty-string",
       "note": "Empty and falsy, so the open branch's check passes and nothing else looks at it. Only the type test refuses this.",
       "bundle": {
         "binding_fallback": "block",
@@ -3124,7 +3123,7 @@
       "usable": false
     },
     {
-      "name": "policy_ids given as an object",
+      "id": "policy-ids-given-as-an-object",
       "note": "An object iterates as its keys, so a reader that does not check the type binds the endpoint to whatever those happen to be.",
       "bundle": {
         "binding_fallback": "block",
@@ -3158,7 +3157,7 @@
       "usable": false
     },
     {
-      "name": "policy_ids given as a string",
+      "id": "policy-ids-given-as-a-string",
       "note": "Refused by its type. Under `gated` the bound-id check would refuse it anyway, one character at a time; the case pinning the type check itself is the open one above, where nothing else looks at it.",
       "bundle": {
         "binding_fallback": "block",
@@ -3190,7 +3189,7 @@
       "usable": false
     },
     {
-      "name": "an open binding that still names policies",
+      "id": "an-open-binding-that-still-names-policies",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [
@@ -3223,7 +3222,7 @@
       "usable": false
     },
     {
-      "name": "a gated binding naming no policy",
+      "id": "a-gated-binding-naming-no-policy",
       "note": "Read literally it disarms the endpoint completely — no threshold, and not even the rule denying a request that presents no ticket — without anyone having written open.",
       "bundle": {
         "binding_fallback": "block",
@@ -3255,7 +3254,7 @@
       "usable": false
     },
     {
-      "name": "a binding naming an id that cannot be compared",
+      "id": "a-binding-naming-an-id-that-cannot-be-compared",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [
@@ -3288,7 +3287,7 @@
       "usable": false
     },
     {
-      "name": "a binding naming a null id",
+      "id": "a-binding-naming-a-null-id",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [
@@ -3321,7 +3320,7 @@
       "usable": false
     },
     {
-      "name": "a bad binding is refused even when an earlier one is fine",
+      "id": "a-bad-binding-is-refused-even-when-an-earlier-one-is-fine",
       "note": "The whole set is checked, not only the entry a request needs. A lazy check surfaces the fault on whichever endpoint is called first.",
       "bundle": {
         "binding_fallback": "block",
@@ -3358,7 +3357,7 @@
       "usable": false
     },
     {
-      "name": "a bundle whose ninth policy cannot be ordered is refused whole",
+      "id": "a-bundle-whose-ninth-policy-cannot-be-ordered-is-refused-whole",
       "note": "Refused eagerly, whatever the walk would have answered: a block at priority 1 would have denied first and the bundle is still unusable.",
       "bundle": {
         "binding_fallback": "block",
@@ -3451,7 +3450,7 @@
       "usable": false
     },
     {
-      "name": "a higher minor of the supported major is read",
+      "id": "a-higher-minor-of-the-supported-major-is-read",
       "note": "The whole of why only the major is compared. A minor bump adds a field a reader may not know, and this reader already treats an unrecognised root field as a responder of a different age rather than a broken one — so refusing the number while accepting the field it announces would be two rules for one situation, and would make adding an optional field a breaking change after all.",
       "bundle": {
         "binding_fallback": "block",
@@ -3469,7 +3468,7 @@
       "chain_priorities": []
     },
     {
-      "name": "a minor far ahead of this reader is still read",
+      "id": "a-minor-far-ahead-of-this-reader-is-still-read",
       "note": "There is no ceiling on the minor. A reader that accepted 1.1 and refused 1.99 would be asserting a limit nobody wrote down, and a producer has no way to discover where it sits.",
       "bundle": {
         "binding_fallback": "block",
@@ -3487,7 +3486,7 @@
       "chain_priorities": []
     },
     {
-      "name": "a minor behind this reader is read",
+      "id": "a-minor-behind-this-reader-is-read",
       "note": "The other direction, and it is the ordinary case during a staged rollout: a component upgraded before its control plane meets the shape it was built on. An older minor is a subset this reader already understands.",
       "bundle": {
         "binding_fallback": "block",
@@ -3505,7 +3504,7 @@
       "chain_priorities": []
     },
     {
-      "name": "a leading zero in the major is read",
+      "id": "a-leading-zero-in-the-major-is-read",
       "note": "`01` is 1 to every integer parser a reimplementation would reach for. Stated as a case so it is a decision rather than an accident of whichever one is used.",
       "bundle": {
         "binding_fallback": "block",
@@ -3523,7 +3522,7 @@
       "chain_priorities": []
     },
     {
-      "name": "a version with no minor is refused",
+      "id": "a-version-with-no-minor-is-refused",
       "note": "`MAJOR.MINOR` is the whole grammar. A bare major is a producer saying something this reader has no rule for, and reading it as `1.0` would be inventing the missing half.",
       "bundle": {
         "binding_fallback": "block",
@@ -3539,7 +3538,7 @@
       "usable": false
     },
     {
-      "name": "a three-part version is refused",
+      "id": "a-three-part-version-is-refused",
       "note": "Not read as `1.0` with a patch ignored. The contract has two parts, and tolerating a third would mean tolerating whatever the next responder puts in that position.",
       "bundle": {
         "binding_fallback": "block",
@@ -3555,7 +3554,7 @@
       "usable": false
     },
     {
-      "name": "a pre-release suffix is refused",
+      "id": "a-pre-release-suffix-is-refused",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -3570,8 +3569,8 @@
       "usable": false
     },
     {
-      "name": "non-ASCII digits are refused",
-      "note": "Arabic-Indic `١٠`. The grammar is ASCII digits, and this case exists because the obvious implementation does not enforce that: Python's `str.isdigit` is true here and `int` parses it, so a reader written that way accepts a version a Go or TypeScript reimplementation refuses. The two must agree.",
+      "id": "non-ascii-digits-are-refused",
+      "note": "Arabic-Indic `١٠`. The grammar is ASCII digits, which some digit tests and integer parsers don't keep to.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -3586,7 +3585,7 @@
       "usable": false
     },
     {
-      "name": "fullwidth digits are refused",
+      "id": "fullwidth-digits-are-refused",
       "note": "The same hazard in a different block. `１` is also `isdigit`, and `int` parses it too.",
       "bundle": {
         "binding_fallback": "block",
@@ -3602,7 +3601,7 @@
       "usable": false
     },
     {
-      "name": "a version whose parts are not digits is refused",
+      "id": "a-version-whose-parts-are-not-digits-is-refused",
       "note": "The grammar is the whole of what leaves a run of digits for the reader to convert, so a part made of something else is refused by the grammar rather than by the conversion.",
       "bundle": {
         "binding_fallback": "block",
@@ -3618,7 +3617,7 @@
       "usable": false
     },
     {
-      "name": "a ticket fallback in the wrong case refuses the bundle",
+      "id": "a-ticket-fallback-in-the-wrong-case-refuses-the-bundle",
       "note": "The vocabulary is `block` and `pass`, exactly. A reader that tests only for `block` reads this as `pass` and admits every unticketed call Rail Center meant to refuse.",
       "bundle": {
         "binding_fallback": "block",
@@ -3635,7 +3634,7 @@
       "usable": false
     },
     {
-      "name": "a ticket fallback outside the vocabulary refuses the bundle",
+      "id": "a-ticket-fallback-outside-the-vocabulary-refuses-the-bundle",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -3651,8 +3650,8 @@
       "usable": false
     },
     {
-      "name": "a bound id naming no policy is refused",
-      "note": "Stricter than the contract, which says it binds nothing. Rail Center only binds policies it publishes.",
+      "id": "a-bound-id-naming-no-policy-is-refused",
+      "note": "Stricter than the contract, which says it binds nothing: a bundle binds only the policies it publishes.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [
@@ -3683,6 +3682,447 @@
         "ticket_fallback": "block"
       },
       "usable": false,
+      "added": true
+    },
+    {
+      "id": "two-bindings-differing-only-by-slug-are-one-endpoint",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#refund_order",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          },
+          {
+            "endpoint_key": "other#/mcp#tools/call#refund_order",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "lt",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false,
+      "added": true
+    },
+    {
+      "id": "an-endpoint-key-with-no-call",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "lt",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false,
+      "added": true
+    },
+    {
+      "id": "an-endpoint-key-with-an-empty-slug",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "#/mcp#tools/call#refund_order",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "lt",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false,
+      "added": true
+    },
+    {
+      "id": "an-endpoint-key-with-an-empty-path",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail##tools/call#refund_order",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "lt",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false,
+      "added": true
+    },
+    {
+      "id": "an-endpoint-key-with-an-empty-method",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp##refund_order",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "lt",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false,
+      "added": true
+    },
+    {
+      "id": "an-endpoint-key-with-an-empty-call",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "lt",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false,
+      "added": true
+    },
+    {
+      "id": "a-version-with-a-plus-sign-is-refused",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#refund_order",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "lt",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "+2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": false,
+      "added": true
+    },
+    {
+      "id": "a-version-with-an-empty-minor-is-refused",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#refund_order",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "lt",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.",
+        "ticket_fallback": "block"
+      },
+      "usable": false,
+      "added": true
+    },
+    {
+      "id": "a-version-with-a-trailing-space-is-refused",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#refund_order",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "lt",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0 ",
+        "ticket_fallback": "block"
+      },
+      "usable": false,
+      "added": true
+    },
+    {
+      "id": "a-condition-whose-op-this-reader-does-not-know-keeps-the-bundle",
+      "bundle": {
+        "binding_fallback": "block",
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#refund_order",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000a1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#get_order_status",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "content_hash": "a3f1c09e7b2d4485",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "generated_at": "2026-07-28T20:41:07.512247Z",
+        "policies": [
+          {
+            "action": "block",
+            "condition": {
+              "op": "unknown",
+              "path": "ticket.posture.overall.score",
+              "value": 40
+            },
+            "enabled": true,
+            "id": "5c8f1e42-0000-4000-8000-0000000000a1",
+            "name": "P1 — Deny critical-tier agents",
+            "priority": 1
+          }
+        ],
+        "schema_version": "2.0",
+        "ticket_fallback": "block"
+      },
+      "usable": true,
+      "chain": [
+        "5c8f1e42-0000-4000-8000-0000000000a1"
+      ],
+      "chain_priorities": [
+        1
+      ],
       "added": true
     }
   ]

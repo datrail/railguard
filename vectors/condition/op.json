@@ -1,0 +1,2777 @@
+{
+  "cases": [
+    {
+      "id": "existing-on-absent-does-not-hold",
+      "value": "absent",
+      "op": "existing",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "existing-on-string-holds",
+      "value": {
+        "string": "a"
+      },
+      "op": "existing",
+      "expect": "holds"
+    },
+    {
+      "id": "existing-on-number-holds",
+      "value": {
+        "number": 1
+      },
+      "op": "existing",
+      "expect": "holds"
+    },
+    {
+      "id": "existing-on-bool-holds",
+      "value": {
+        "bool": true
+      },
+      "op": "existing",
+      "expect": "holds"
+    },
+    {
+      "id": "existing-on-list-holds",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "b"
+          }
+        ]
+      },
+      "op": "existing",
+      "expect": "holds"
+    },
+    {
+      "id": "existing-on-empty-list-holds",
+      "value": {
+        "list": []
+      },
+      "op": "existing",
+      "expect": "holds"
+    },
+    {
+      "id": "existing-on-object-holds",
+      "value": "object",
+      "op": "existing",
+      "expect": "holds"
+    },
+    {
+      "id": "existing-on-ambiguous-is-ambiguous",
+      "value": "ambiguous",
+      "op": "existing",
+      "expect": "ambiguous"
+    },
+    {
+      "id": "existing-on-body-unread-is-body-unread",
+      "value": {
+        "body_unread": {
+          "unread": "not_sent"
+        }
+      },
+      "op": "existing",
+      "expect": {
+        "body_unread": {
+          "unread": "not_sent"
+        }
+      }
+    },
+    {
+      "id": "existing-on-list-holding-what-cant-be-told-is-ambiguous",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          "ambiguous"
+        ]
+      },
+      "op": "existing",
+      "expect": "ambiguous"
+    },
+    {
+      "id": "not-existing-on-absent-holds",
+      "value": "absent",
+      "op": "not_existing",
+      "expect": "holds"
+    },
+    {
+      "id": "not-existing-on-string-does-not-hold",
+      "value": {
+        "string": "a"
+      },
+      "op": "not_existing",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "not-existing-on-the-empty-string-does-not-hold",
+      "value": {
+        "string": ""
+      },
+      "op": "not_existing",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "not-existing-on-number-does-not-hold",
+      "value": {
+        "number": 1
+      },
+      "op": "not_existing",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "not-existing-on-bool-does-not-hold",
+      "value": {
+        "bool": true
+      },
+      "op": "not_existing",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "existing-on-false-holds",
+      "value": {
+        "bool": false
+      },
+      "op": "existing",
+      "expect": "holds"
+    },
+    {
+      "id": "not-existing-on-false-does-not-hold",
+      "value": {
+        "bool": false
+      },
+      "op": "not_existing",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "not-existing-on-list-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "b"
+          }
+        ]
+      },
+      "op": "not_existing",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "not-existing-on-empty-list-does-not-hold",
+      "value": {
+        "list": []
+      },
+      "op": "not_existing",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "not-existing-on-object-does-not-hold",
+      "value": "object",
+      "op": "not_existing",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "not-existing-on-ambiguous-is-ambiguous",
+      "value": "ambiguous",
+      "op": "not_existing",
+      "expect": "ambiguous"
+    },
+    {
+      "id": "not-existing-on-body-unread-is-body-unread",
+      "value": {
+        "body_unread": {
+          "unread": "past_cap"
+        }
+      },
+      "op": "not_existing",
+      "expect": {
+        "body_unread": {
+          "unread": "past_cap"
+        }
+      }
+    },
+    {
+      "id": "not-existing-on-list-holding-what-cant-be-told-is-ambiguous",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          "ambiguous"
+        ]
+      },
+      "op": "not_existing",
+      "expect": "ambiguous"
+    },
+    {
+      "id": "eq-on-absent-does-not-hold",
+      "value": "absent",
+      "op": "eq",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-string-holds",
+      "value": {
+        "string": "a"
+      },
+      "op": "eq",
+      "operand": "a",
+      "expect": "holds"
+    },
+    {
+      "id": "eq-on-number-does-not-hold",
+      "value": {
+        "number": 1
+      },
+      "op": "eq",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-bool-does-not-hold",
+      "value": {
+        "bool": true
+      },
+      "op": "eq",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-list-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "b"
+          }
+        ]
+      },
+      "op": "eq",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-empty-list-does-not-hold",
+      "value": {
+        "list": []
+      },
+      "op": "eq",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-object-does-not-hold",
+      "value": "object",
+      "op": "eq",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-ambiguous-is-ambiguous",
+      "value": "ambiguous",
+      "op": "eq",
+      "operand": "a",
+      "expect": "ambiguous"
+    },
+    {
+      "id": "eq-on-body-unread-is-body-unread",
+      "value": {
+        "body_unread": {
+          "unread": "past_budget"
+        }
+      },
+      "op": "eq",
+      "operand": "a",
+      "expect": {
+        "body_unread": {
+          "unread": "past_budget"
+        }
+      }
+    },
+    {
+      "id": "eq-on-list-holding-what-cant-be-told-is-ambiguous",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          "ambiguous"
+        ]
+      },
+      "op": "eq",
+      "operand": "a",
+      "expect": "ambiguous"
+    },
+    {
+      "id": "ne-on-absent-does-not-hold",
+      "value": "absent",
+      "op": "ne",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "ne-on-string-does-not-hold",
+      "value": {
+        "string": "a"
+      },
+      "op": "ne",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "ne-on-number-holds",
+      "value": {
+        "number": 1
+      },
+      "op": "ne",
+      "operand": "a",
+      "expect": "holds"
+    },
+    {
+      "id": "ne-on-bool-does-not-hold",
+      "value": {
+        "bool": true
+      },
+      "op": "ne",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "ne-on-list-holds",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "b"
+          }
+        ]
+      },
+      "op": "ne",
+      "operand": "a",
+      "expect": "holds"
+    },
+    {
+      "id": "ne-on-empty-list-does-not-hold",
+      "value": {
+        "list": []
+      },
+      "op": "ne",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "ne-on-object-does-not-hold",
+      "value": "object",
+      "op": "ne",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "ne-on-ambiguous-is-ambiguous",
+      "value": "ambiguous",
+      "op": "ne",
+      "operand": "a",
+      "expect": "ambiguous"
+    },
+    {
+      "id": "ne-on-body-unread-is-body-unread",
+      "value": {
+        "body_unread": {
+          "unread": "cut_short"
+        }
+      },
+      "op": "ne",
+      "operand": "a",
+      "expect": {
+        "body_unread": {
+          "unread": "cut_short"
+        }
+      }
+    },
+    {
+      "id": "ne-on-list-holding-what-cant-be-told-is-ambiguous",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          "ambiguous"
+        ]
+      },
+      "op": "ne",
+      "operand": "a",
+      "expect": "ambiguous"
+    },
+    {
+      "id": "lt-on-absent-does-not-hold",
+      "value": "absent",
+      "op": "lt",
+      "operand": 2,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "lt-on-string-does-not-hold",
+      "value": {
+        "string": "a"
+      },
+      "op": "lt",
+      "operand": 2,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "lt-on-number-holds",
+      "value": {
+        "number": 1
+      },
+      "op": "lt",
+      "operand": 2,
+      "expect": "holds"
+    },
+    {
+      "id": "lt-on-bool-does-not-hold",
+      "value": {
+        "bool": true
+      },
+      "op": "lt",
+      "operand": 2,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "lt-on-list-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "b"
+          }
+        ]
+      },
+      "op": "lt",
+      "operand": 2,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "lt-on-empty-list-does-not-hold",
+      "value": {
+        "list": []
+      },
+      "op": "lt",
+      "operand": 2,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "lt-on-object-does-not-hold",
+      "value": "object",
+      "op": "lt",
+      "operand": 2,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "lt-on-ambiguous-is-ambiguous",
+      "value": "ambiguous",
+      "op": "lt",
+      "operand": 2,
+      "expect": "ambiguous"
+    },
+    {
+      "id": "lt-on-body-unread-is-body-unread",
+      "value": {
+        "body_unread": {
+          "unparsed": "malformed"
+        }
+      },
+      "op": "lt",
+      "operand": 2,
+      "expect": {
+        "body_unread": {
+          "unparsed": "malformed"
+        }
+      }
+    },
+    {
+      "id": "lt-on-list-holding-what-cant-be-told-is-ambiguous",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          "ambiguous"
+        ]
+      },
+      "op": "lt",
+      "operand": 2,
+      "expect": "ambiguous"
+    },
+    {
+      "id": "lte-on-absent-does-not-hold",
+      "value": "absent",
+      "op": "lte",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "lte-on-string-does-not-hold",
+      "value": {
+        "string": "a"
+      },
+      "op": "lte",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "lte-on-number-holds",
+      "value": {
+        "number": 1
+      },
+      "op": "lte",
+      "operand": 1,
+      "expect": "holds"
+    },
+    {
+      "id": "lte-on-bool-does-not-hold",
+      "value": {
+        "bool": true
+      },
+      "op": "lte",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "lte-on-list-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "b"
+          }
+        ]
+      },
+      "op": "lte",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "lte-on-empty-list-does-not-hold",
+      "value": {
+        "list": []
+      },
+      "op": "lte",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "lte-on-object-does-not-hold",
+      "value": "object",
+      "op": "lte",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "lte-on-ambiguous-is-ambiguous",
+      "value": "ambiguous",
+      "op": "lte",
+      "operand": 1,
+      "expect": "ambiguous"
+    },
+    {
+      "id": "lte-on-body-unread-is-body-unread",
+      "value": {
+        "body_unread": {
+          "unparsed": "past_budget"
+        }
+      },
+      "op": "lte",
+      "operand": 1,
+      "expect": {
+        "body_unread": {
+          "unparsed": "past_budget"
+        }
+      }
+    },
+    {
+      "id": "lte-on-list-holding-what-cant-be-told-is-ambiguous",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          "ambiguous"
+        ]
+      },
+      "op": "lte",
+      "operand": 1,
+      "expect": "ambiguous"
+    },
+    {
+      "id": "gt-on-absent-does-not-hold",
+      "value": "absent",
+      "op": "gt",
+      "operand": 0,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "gt-on-string-does-not-hold",
+      "value": {
+        "string": "a"
+      },
+      "op": "gt",
+      "operand": 0,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "gt-on-number-holds",
+      "value": {
+        "number": 1
+      },
+      "op": "gt",
+      "operand": 0,
+      "expect": "holds"
+    },
+    {
+      "id": "gt-on-bool-does-not-hold",
+      "value": {
+        "bool": true
+      },
+      "op": "gt",
+      "operand": 0,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "gt-on-list-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "b"
+          }
+        ]
+      },
+      "op": "gt",
+      "operand": 0,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "gt-on-empty-list-does-not-hold",
+      "value": {
+        "list": []
+      },
+      "op": "gt",
+      "operand": 0,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "gt-on-object-does-not-hold",
+      "value": "object",
+      "op": "gt",
+      "operand": 0,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "gt-on-ambiguous-is-ambiguous",
+      "value": "ambiguous",
+      "op": "gt",
+      "operand": 0,
+      "expect": "ambiguous"
+    },
+    {
+      "id": "gt-on-body-unread-is-body-unread",
+      "value": {
+        "body_unread": "batch"
+      },
+      "op": "gt",
+      "operand": 0,
+      "expect": {
+        "body_unread": "batch"
+      }
+    },
+    {
+      "id": "gt-on-list-holding-what-cant-be-told-is-ambiguous",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          "ambiguous"
+        ]
+      },
+      "op": "gt",
+      "operand": 0,
+      "expect": "ambiguous"
+    },
+    {
+      "id": "gte-on-absent-does-not-hold",
+      "value": "absent",
+      "op": "gte",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "gte-on-string-does-not-hold",
+      "value": {
+        "string": "a"
+      },
+      "op": "gte",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "gte-on-number-holds",
+      "value": {
+        "number": 1
+      },
+      "op": "gte",
+      "operand": 1,
+      "expect": "holds"
+    },
+    {
+      "id": "gte-on-bool-does-not-hold",
+      "value": {
+        "bool": true
+      },
+      "op": "gte",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "gte-on-list-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "b"
+          }
+        ]
+      },
+      "op": "gte",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "gte-on-empty-list-does-not-hold",
+      "value": {
+        "list": []
+      },
+      "op": "gte",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "gte-on-object-does-not-hold",
+      "value": "object",
+      "op": "gte",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "gte-on-ambiguous-is-ambiguous",
+      "value": "ambiguous",
+      "op": "gte",
+      "operand": 1,
+      "expect": "ambiguous"
+    },
+    {
+      "id": "gte-on-body-unread-is-body-unread",
+      "value": {
+        "body_unread": {
+          "unread": "not_sent"
+        }
+      },
+      "op": "gte",
+      "operand": 1,
+      "expect": {
+        "body_unread": {
+          "unread": "not_sent"
+        }
+      }
+    },
+    {
+      "id": "gte-on-list-holding-what-cant-be-told-is-ambiguous",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          "ambiguous"
+        ]
+      },
+      "op": "gte",
+      "operand": 1,
+      "expect": "ambiguous"
+    },
+    {
+      "id": "in-on-absent-does-not-hold",
+      "value": "absent",
+      "op": "in",
+      "operand": [
+        "a",
+        1
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "in-on-string-holds",
+      "value": {
+        "string": "a"
+      },
+      "op": "in",
+      "operand": [
+        "a",
+        1
+      ],
+      "expect": "holds"
+    },
+    {
+      "id": "in-on-number-holds",
+      "value": {
+        "number": 1
+      },
+      "op": "in",
+      "operand": [
+        "a",
+        1
+      ],
+      "expect": "holds"
+    },
+    {
+      "id": "in-on-bool-does-not-hold",
+      "value": {
+        "bool": true
+      },
+      "op": "in",
+      "operand": [
+        "a",
+        1
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "in-on-list-holds",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "b"
+          }
+        ]
+      },
+      "op": "in",
+      "operand": [
+        "a",
+        1
+      ],
+      "expect": "holds"
+    },
+    {
+      "id": "in-on-empty-list-does-not-hold",
+      "value": {
+        "list": []
+      },
+      "op": "in",
+      "operand": [
+        "a",
+        1
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "in-on-object-does-not-hold",
+      "value": "object",
+      "op": "in",
+      "operand": [
+        "a",
+        1
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "in-on-ambiguous-is-ambiguous",
+      "value": "ambiguous",
+      "op": "in",
+      "operand": [
+        "a",
+        1
+      ],
+      "expect": "ambiguous"
+    },
+    {
+      "id": "in-on-body-unread-is-body-unread",
+      "value": {
+        "body_unread": {
+          "unread": "past_cap"
+        }
+      },
+      "op": "in",
+      "operand": [
+        "a",
+        1
+      ],
+      "expect": {
+        "body_unread": {
+          "unread": "past_cap"
+        }
+      }
+    },
+    {
+      "id": "in-on-list-holding-what-cant-be-told-is-ambiguous",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          "ambiguous"
+        ]
+      },
+      "op": "in",
+      "operand": [
+        "a",
+        1
+      ],
+      "expect": "ambiguous"
+    },
+    {
+      "id": "contains-on-absent-does-not-hold",
+      "value": "absent",
+      "op": "contains",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "contains-on-string-does-not-hold",
+      "note": "Not a substring test: only a list contains.",
+      "value": {
+        "string": "a"
+      },
+      "op": "contains",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "contains-on-number-does-not-hold",
+      "value": {
+        "number": 1
+      },
+      "op": "contains",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "contains-on-bool-does-not-hold",
+      "value": {
+        "bool": true
+      },
+      "op": "contains",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "contains-on-list-holds",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "b"
+          }
+        ]
+      },
+      "op": "contains",
+      "operand": "a",
+      "expect": "holds"
+    },
+    {
+      "id": "contains-on-empty-list-does-not-hold",
+      "value": {
+        "list": []
+      },
+      "op": "contains",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "contains-on-object-does-not-hold",
+      "value": "object",
+      "op": "contains",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "contains-on-ambiguous-is-ambiguous",
+      "value": "ambiguous",
+      "op": "contains",
+      "operand": "a",
+      "expect": "ambiguous"
+    },
+    {
+      "id": "contains-on-body-unread-is-body-unread",
+      "value": {
+        "body_unread": {
+          "unread": "past_budget"
+        }
+      },
+      "op": "contains",
+      "operand": "a",
+      "expect": {
+        "body_unread": {
+          "unread": "past_budget"
+        }
+      }
+    },
+    {
+      "id": "contains-on-list-holding-what-cant-be-told-is-ambiguous",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          "ambiguous"
+        ]
+      },
+      "op": "contains",
+      "operand": "a",
+      "expect": "ambiguous"
+    },
+    {
+      "id": "not-contains-on-absent-does-not-hold",
+      "value": "absent",
+      "op": "not_contains",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "not-contains-on-string-does-not-hold",
+      "value": {
+        "string": "a"
+      },
+      "op": "not_contains",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "not-contains-on-number-does-not-hold",
+      "value": {
+        "number": 1
+      },
+      "op": "not_contains",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "not-contains-on-bool-does-not-hold",
+      "value": {
+        "bool": true
+      },
+      "op": "not_contains",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "not-contains-on-list-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "b"
+          }
+        ]
+      },
+      "op": "not_contains",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "not-contains-on-empty-list-holds",
+      "value": {
+        "list": []
+      },
+      "op": "not_contains",
+      "operand": "a",
+      "expect": "holds"
+    },
+    {
+      "id": "not-contains-on-object-does-not-hold",
+      "value": "object",
+      "op": "not_contains",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "not-contains-on-ambiguous-is-ambiguous",
+      "value": "ambiguous",
+      "op": "not_contains",
+      "operand": "a",
+      "expect": "ambiguous"
+    },
+    {
+      "id": "not-contains-on-body-unread-is-body-unread",
+      "value": {
+        "body_unread": {
+          "unread": "cut_short"
+        }
+      },
+      "op": "not_contains",
+      "operand": "a",
+      "expect": {
+        "body_unread": {
+          "unread": "cut_short"
+        }
+      }
+    },
+    {
+      "id": "not-contains-on-list-holding-what-cant-be-told-is-ambiguous",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          "ambiguous"
+        ]
+      },
+      "op": "not_contains",
+      "operand": "a",
+      "expect": "ambiguous"
+    },
+    {
+      "id": "matches-on-absent-does-not-hold",
+      "value": "absent",
+      "op": "matches",
+      "operand": "a*",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-on-string-holds",
+      "value": {
+        "string": "a"
+      },
+      "op": "matches",
+      "operand": "a*",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-on-number-does-not-hold",
+      "value": {
+        "number": 1
+      },
+      "op": "matches",
+      "operand": "a*",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-on-bool-does-not-hold",
+      "value": {
+        "bool": true
+      },
+      "op": "matches",
+      "operand": "a*",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-on-list-holds",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "b"
+          }
+        ]
+      },
+      "op": "matches",
+      "operand": "a*",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-on-empty-list-does-not-hold",
+      "value": {
+        "list": []
+      },
+      "op": "matches",
+      "operand": "a*",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-on-object-does-not-hold",
+      "value": "object",
+      "op": "matches",
+      "operand": "a*",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-on-ambiguous-is-ambiguous",
+      "value": "ambiguous",
+      "op": "matches",
+      "operand": "a*",
+      "expect": "ambiguous"
+    },
+    {
+      "id": "matches-on-body-unread-is-body-unread",
+      "value": {
+        "body_unread": {
+          "unparsed": "malformed"
+        }
+      },
+      "op": "matches",
+      "operand": "a*",
+      "expect": {
+        "body_unread": {
+          "unparsed": "malformed"
+        }
+      }
+    },
+    {
+      "id": "matches-on-list-holding-what-cant-be-told-is-ambiguous",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          "ambiguous"
+        ]
+      },
+      "op": "matches",
+      "operand": "a*",
+      "expect": "ambiguous"
+    },
+    {
+      "id": "eq-on-a-string-differing-does-not-hold",
+      "value": {
+        "string": "b"
+      },
+      "op": "eq",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-a-string-in-another-case-does-not-hold",
+      "value": {
+        "string": "A"
+      },
+      "op": "eq",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-a-number-equal-holds",
+      "value": {
+        "number": 1
+      },
+      "op": "eq",
+      "operand": 1,
+      "expect": "holds"
+    },
+    {
+      "id": "eq-on-a-number-written-otherwise-holds",
+      "value": {
+        "number": 1
+      },
+      "op": "eq",
+      "operand": 1.0,
+      "expect": "holds"
+    },
+    {
+      "id": "lt-on-a-fraction-below-a-whole-operand-holds",
+      "value": {
+        "number": 39.5
+      },
+      "op": "lt",
+      "operand": 40,
+      "expect": "holds"
+    },
+    {
+      "id": "eq-on-zero-and-negative-zero-holds",
+      "value": {
+        "number": 0
+      },
+      "op": "eq",
+      "operand": -0.0,
+      "expect": "holds"
+    },
+    {
+      "id": "eq-on-a-number-and-its-string-does-not-hold",
+      "note": "A string and a number never compare.",
+      "value": {
+        "number": 1
+      },
+      "op": "eq",
+      "operand": "1",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-a-string-and-its-number-does-not-hold",
+      "value": {
+        "string": "1"
+      },
+      "op": "eq",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-the-empty-string-and-zero-does-not-hold",
+      "value": {
+        "string": ""
+      },
+      "op": "eq",
+      "operand": 0,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-a-bool-and-one-does-not-hold",
+      "note": "A bool never compares.",
+      "value": {
+        "bool": true
+      },
+      "op": "eq",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-a-bool-and-zero-does-not-hold",
+      "value": {
+        "bool": false
+      },
+      "op": "eq",
+      "operand": 0,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-integers-a-double-cant-tell-apart-holds",
+      "note": "Both read as doubles.",
+      "value": {
+        "number": 9007199254740992
+      },
+      "op": "eq",
+      "operand": 9007199254740993,
+      "expect": "holds"
+    },
+    {
+      "id": "eq-on-an-integer-past-u64-read-as-a-double-holds",
+      "value": {
+        "number": 1.8446744073709552e+19
+      },
+      "op": "eq",
+      "operand": 18446744073709551616,
+      "expect": "holds"
+    },
+    {
+      "id": "lt-on-integers-a-double-cant-tell-apart-does-not-hold",
+      "value": {
+        "number": 9007199254740992
+      },
+      "op": "lt",
+      "operand": 9007199254740993,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-past-a-double-and-the-largest-double-does-not-hold",
+      "value": {
+        "number": "inf"
+      },
+      "op": "eq",
+      "operand": 1.7976931348623157e+308,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-a-list-all-equal-holds",
+      "note": "Every item must equal.",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "a"
+          }
+        ]
+      },
+      "op": "eq",
+      "operand": "a",
+      "expect": "holds"
+    },
+    {
+      "id": "eq-on-a-list-of-one-equal-holds",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          }
+        ]
+      },
+      "op": "eq",
+      "operand": "a",
+      "expect": "holds"
+    },
+    {
+      "id": "eq-on-a-list-holding-a-null-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          "absent"
+        ]
+      },
+      "op": "eq",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-a-list-holding-a-bool-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "bool": true
+          }
+        ]
+      },
+      "op": "eq",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-a-list-holding-an-object-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          "object"
+        ]
+      },
+      "op": "eq",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "ne-on-a-string-differing-holds",
+      "value": {
+        "string": "b"
+      },
+      "op": "ne",
+      "operand": "a",
+      "expect": "holds"
+    },
+    {
+      "id": "ne-on-a-string-and-a-number-holds",
+      "note": "A string and a number never equal, so they differ; a value neither never differs.",
+      "value": {
+        "string": "a"
+      },
+      "op": "ne",
+      "operand": 1,
+      "expect": "holds"
+    },
+    {
+      "id": "ne-on-a-number-differing-holds",
+      "value": {
+        "number": 2
+      },
+      "op": "ne",
+      "operand": 1,
+      "expect": "holds"
+    },
+    {
+      "id": "ne-on-a-number-equal-does-not-hold",
+      "value": {
+        "number": 1
+      },
+      "op": "ne",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "ne-on-a-list-all-equal-does-not-hold",
+      "note": "Any item must differ.",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "a"
+          }
+        ]
+      },
+      "op": "ne",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "ne-on-a-list-holding-a-null-holds",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          "absent"
+        ]
+      },
+      "op": "ne",
+      "operand": "a",
+      "expect": "holds"
+    },
+    {
+      "id": "ne-on-a-list-holding-a-bool-holds",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "bool": true
+          }
+        ]
+      },
+      "op": "ne",
+      "operand": "a",
+      "expect": "holds"
+    },
+    {
+      "id": "ne-on-a-list-holding-an-object-holds",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          "object"
+        ]
+      },
+      "op": "ne",
+      "operand": "a",
+      "expect": "holds"
+    },
+    {
+      "id": "ne-on-a-list-of-a-numeric-string-holds",
+      "note": "No item is coerced.",
+      "value": {
+        "list": [
+          {
+            "string": "40"
+          }
+        ]
+      },
+      "op": "ne",
+      "operand": 40,
+      "expect": "holds"
+    },
+    {
+      "id": "lt-at-its-operand-does-not-hold",
+      "value": {
+        "number": 1
+      },
+      "op": "lt",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "lt-above-its-operand-does-not-hold",
+      "value": {
+        "number": 2
+      },
+      "op": "lt",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "lte-below-its-operand-holds",
+      "value": {
+        "number": 0
+      },
+      "op": "lte",
+      "operand": 1,
+      "expect": "holds"
+    },
+    {
+      "id": "lte-above-its-operand-does-not-hold",
+      "value": {
+        "number": 2
+      },
+      "op": "lte",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "gt-below-its-operand-does-not-hold",
+      "value": {
+        "number": 0
+      },
+      "op": "gt",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "gt-at-its-operand-does-not-hold",
+      "value": {
+        "number": 1
+      },
+      "op": "gt",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "gte-below-its-operand-does-not-hold",
+      "value": {
+        "number": 0
+      },
+      "op": "gte",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "gte-above-its-operand-holds",
+      "value": {
+        "number": 2
+      },
+      "op": "gte",
+      "operand": 1,
+      "expect": "holds"
+    },
+    {
+      "id": "gt-on-past-a-double-holds",
+      "note": "A body's number past a double saturated.",
+      "value": {
+        "number": "inf"
+      },
+      "op": "gt",
+      "operand": 1e+300,
+      "expect": "holds"
+    },
+    {
+      "id": "lt-on-past-a-negative-double-holds",
+      "value": {
+        "number": "-inf"
+      },
+      "op": "lt",
+      "operand": -1e+300,
+      "expect": "holds"
+    },
+    {
+      "id": "lt-on-a-numeric-string-does-not-hold",
+      "value": {
+        "string": "1"
+      },
+      "op": "lt",
+      "operand": 2,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "in-on-a-string-not-listed-does-not-hold",
+      "value": {
+        "string": "c"
+      },
+      "op": "in",
+      "operand": [
+        "a",
+        1
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "in-an-empty-operand-does-not-hold",
+      "value": {
+        "string": "a"
+      },
+      "op": "in",
+      "operand": [],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "in-on-a-numeric-string-does-not-hold",
+      "note": "No item is coerced.",
+      "value": {
+        "string": "40"
+      },
+      "op": "in",
+      "operand": [
+        40,
+        50
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "in-skips-operand-items-not-strings-or-numbers",
+      "note": "An operand item that isn't a string or a number is dropped, so it's never charged: one step for the condition, one for the item.",
+      "value": {
+        "string": "a"
+      },
+      "op": "in",
+      "operand": [
+        true,
+        null,
+        "a"
+      ],
+      "step_limit": 2,
+      "expect": "holds"
+    },
+    {
+      "id": "in-a-null-operand-item-on-absent-does-not-hold",
+      "value": "absent",
+      "op": "in",
+      "operand": [
+        null
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "in-on-a-list-any-item-a-member-holds",
+      "value": {
+        "list": [
+          {
+            "string": "c"
+          },
+          {
+            "number": 1
+          }
+        ]
+      },
+      "op": "in",
+      "operand": [
+        "a",
+        1
+      ],
+      "expect": "holds"
+    },
+    {
+      "id": "in-on-a-list-no-item-a-member-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "string": "c"
+          },
+          {
+            "number": 2
+          }
+        ]
+      },
+      "op": "in",
+      "operand": [
+        "a",
+        1
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "in-on-a-list-of-nulls-and-bools-does-not-hold",
+      "value": {
+        "list": [
+          "absent",
+          {
+            "bool": true
+          }
+        ]
+      },
+      "op": "in",
+      "operand": [
+        "a",
+        1
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "contains-on-a-list-not-holding-it-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "string": "b"
+          }
+        ]
+      },
+      "op": "contains",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "contains-a-number-on-a-list-holding-it-holds",
+      "value": {
+        "list": [
+          {
+            "number": 1
+          },
+          {
+            "string": "a"
+          }
+        ]
+      },
+      "op": "contains",
+      "operand": 1,
+      "expect": "holds"
+    },
+    {
+      "id": "contains-on-a-list-of-a-bool-and-one-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "bool": true
+          }
+        ]
+      },
+      "op": "contains",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "contains-on-a-list-of-objects-does-not-hold",
+      "value": {
+        "list": [
+          "object",
+          "object"
+        ]
+      },
+      "op": "contains",
+      "operand": "a.txt",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "contains-on-a-list-of-a-longer-string-does-not-hold",
+      "note": "An item equals, or doesn't: no substring.",
+      "value": {
+        "list": [
+          {
+            "string": "abc"
+          }
+        ]
+      },
+      "op": "contains",
+      "operand": "b",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "not-contains-on-a-list-not-holding-it-holds",
+      "value": {
+        "list": [
+          {
+            "string": "b"
+          }
+        ]
+      },
+      "op": "not_contains",
+      "operand": "a",
+      "expect": "holds"
+    },
+    {
+      "id": "not-contains-a-number-on-a-list-not-holding-it-holds",
+      "value": {
+        "list": [
+          {
+            "number": 2
+          }
+        ]
+      },
+      "op": "not_contains",
+      "operand": 1,
+      "expect": "holds"
+    },
+    {
+      "id": "not-contains-a-number-on-a-list-holding-it-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "number": 1
+          }
+        ]
+      },
+      "op": "not_contains",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "not-contains-on-a-list-of-objects-holds",
+      "value": {
+        "list": [
+          "object"
+        ]
+      },
+      "op": "not_contains",
+      "operand": "a.txt",
+      "expect": "holds"
+    },
+    {
+      "id": "not-contains-on-a-string-not-holding-it-does-not-hold",
+      "note": "Only a list holds or not.",
+      "value": {
+        "string": "b"
+      },
+      "op": "not_contains",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-no-star-whole-string-holds",
+      "value": {
+        "string": "abc"
+      },
+      "op": "matches",
+      "operand": "abc",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-no-star-part-of-the-string-does-not-hold",
+      "value": {
+        "string": "abc"
+      },
+      "op": "matches",
+      "operand": "ab",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-star-alone-on-the-empty-string-holds",
+      "value": {
+        "string": ""
+      },
+      "op": "matches",
+      "operand": "*",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-empty-pattern-on-the-empty-string-holds",
+      "value": {
+        "string": ""
+      },
+      "op": "matches",
+      "operand": "",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-empty-pattern-on-a-string-does-not-hold",
+      "value": {
+        "string": "a"
+      },
+      "op": "matches",
+      "operand": "",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-star-runs-across-slashes-holds",
+      "value": {
+        "string": "/team/fr/mcp"
+      },
+      "op": "matches",
+      "operand": "/*/mcp",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-anchored-at-the-start-does-not-hold",
+      "value": {
+        "string": "xabc"
+      },
+      "op": "matches",
+      "operand": "abc*",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-anchored-at-the-end-does-not-hold",
+      "value": {
+        "string": "abcx"
+      },
+      "op": "matches",
+      "operand": "*abc",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-prefix-holds",
+      "value": {
+        "string": "abc"
+      },
+      "op": "matches",
+      "operand": "ab*",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-suffix-holds",
+      "value": {
+        "string": "abc"
+      },
+      "op": "matches",
+      "operand": "*bc",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-ends-that-would-share-characters-do-not-hold",
+      "note": "The two ends can't overlap.",
+      "value": {
+        "string": "ab"
+      },
+      "op": "matches",
+      "operand": "ab*ab",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-ends-that-abut-hold",
+      "value": {
+        "string": "abab"
+      },
+      "op": "matches",
+      "operand": "ab*ab",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-ends-with-a-run-between-hold",
+      "value": {
+        "string": "abxab"
+      },
+      "op": "matches",
+      "operand": "ab*ab",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-interior-literals-in-order-hold",
+      "value": {
+        "string": "a-x-y-b"
+      },
+      "op": "matches",
+      "operand": "a*x*y*b",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-interior-literals-out-of-order-do-not-hold",
+      "value": {
+        "string": "a-y-x-b"
+      },
+      "op": "matches",
+      "operand": "a*x*y*b",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-an-interior-literal-isnt-reused-does-not-hold",
+      "value": {
+        "string": "axb"
+      },
+      "op": "matches",
+      "operand": "a*x*x*b",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-repeated-interior-literals-each-found-hold",
+      "value": {
+        "string": "xababy"
+      },
+      "op": "matches",
+      "operand": "x*ab*ab*y",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-an-interior-literal-must-fit-before-the-suffix-does-not-hold",
+      "value": {
+        "string": "abc"
+      },
+      "op": "matches",
+      "operand": "a*bc*bc",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-an-interior-literal-fits-where-the-value-carries-it-twice-holds",
+      "value": {
+        "string": "abcbc"
+      },
+      "op": "matches",
+      "operand": "a*bc*bc",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-two-stars-are-one-hold",
+      "value": {
+        "string": "ab"
+      },
+      "op": "matches",
+      "operand": "a**b",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-two-stars-are-one-over-a-run-hold",
+      "value": {
+        "string": "axyb"
+      },
+      "op": "matches",
+      "operand": "a**b",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-letter-case-in-the-value-matters-does-not-hold",
+      "value": {
+        "string": "ABC"
+      },
+      "op": "matches",
+      "operand": "abc",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-letter-case-in-the-pattern-matters-does-not-hold",
+      "value": {
+        "string": "abc"
+      },
+      "op": "matches",
+      "operand": "ABC",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-a-newline-is-an-ordinary-character-holds",
+      "value": {
+        "string": "a\nb"
+      },
+      "op": "matches",
+      "operand": "a\nb",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-a-star-matches-a-newline-holds",
+      "value": {
+        "string": "a\nb"
+      },
+      "op": "matches",
+      "operand": "a*b",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-a-literal-doesnt-match-a-trailing-newline-does-not-hold",
+      "value": {
+        "string": "abc\n"
+      },
+      "op": "matches",
+      "operand": "abc",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-no-unicode-normalisation-does-not-hold",
+      "note": "A decomposed é against a composed one.",
+      "value": {
+        "string": "é"
+      },
+      "op": "matches",
+      "operand": "é",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-the-same-unicode-form-holds",
+      "value": {
+        "string": "é"
+      },
+      "op": "matches",
+      "operand": "é",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-a-question-mark-is-a-literal-does-not-hold",
+      "value": {
+        "string": "abc"
+      },
+      "op": "matches",
+      "operand": "a?c",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-a-question-mark-matches-itself-holds",
+      "value": {
+        "string": "a?c"
+      },
+      "op": "matches",
+      "operand": "a?c",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-brackets-are-literals-hold",
+      "value": {
+        "string": "a[b]c"
+      },
+      "op": "matches",
+      "operand": "a[b]c",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-a-bracket-expression-is-no-class-does-not-hold",
+      "value": {
+        "string": "abc"
+      },
+      "op": "matches",
+      "operand": "a[b]c",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-a-backslash-is-a-literal-holds",
+      "value": {
+        "string": "a\\b"
+      },
+      "op": "matches",
+      "operand": "a\\b",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-a-backslash-escapes-no-star-holds",
+      "note": "The star still matches any run.",
+      "value": {
+        "string": "a\\xb"
+      },
+      "op": "matches",
+      "operand": "a\\*b",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-a-hostile-pattern-holds-in-one-scan",
+      "note": "Never backtracking.",
+      "value": {
+        "string": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab"
+      },
+      "op": "matches",
+      "operand": "*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*b",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-a-value-shorter-than-both-ends-does-not-hold",
+      "note": "The two ends can't share its one character.",
+      "value": {
+        "string": "a"
+      },
+      "op": "matches",
+      "operand": "a*a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-a-list-of-past-a-double-and-the-largest-double-does-not-hold",
+      "note": "A list's item past a double is read past it, as a body's is.",
+      "value": {
+        "list": [
+          {
+            "number": "inf"
+          }
+        ]
+      },
+      "op": "eq",
+      "operand": 1.7976931348623157e+308,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-on-a-list-holding-a-match-holds",
+      "value": {
+        "list": [
+          {
+            "bool": true
+          },
+          {
+            "string": "ab"
+          }
+        ]
+      },
+      "op": "matches",
+      "operand": "a*",
+      "expect": "holds"
+    },
+    {
+      "id": "matches-on-a-list-of-strings-none-matching-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "string": "x"
+          },
+          {
+            "string": "y"
+          }
+        ]
+      },
+      "op": "matches",
+      "operand": "a*",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-on-a-list-of-non-strings-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "bool": true
+          },
+          "absent",
+          {
+            "number": 1
+          }
+        ]
+      },
+      "op": "matches",
+      "operand": "*",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "lt-on-a-list-of-a-number-meeting-it-does-not-hold",
+      "note": "An ordered op reads no list.",
+      "value": {
+        "list": [
+          {
+            "number": 1
+          }
+        ]
+      },
+      "op": "lt",
+      "operand": 2,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "lte-on-a-list-of-a-number-meeting-it-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "number": 1
+          }
+        ]
+      },
+      "op": "lte",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "gt-on-a-list-of-a-number-meeting-it-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "number": 1
+          }
+        ]
+      },
+      "op": "gt",
+      "operand": 0,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "gte-on-a-list-of-a-number-meeting-it-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "number": 1
+          }
+        ]
+      },
+      "op": "gte",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-on-a-number-its-text-would-match-does-not-hold",
+      "note": "Only a string matches.",
+      "value": {
+        "number": 1
+      },
+      "op": "matches",
+      "operand": "1*",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "in-a-bool-operand-item-on-a-bool-does-not-hold",
+      "value": {
+        "bool": true
+      },
+      "op": "in",
+      "operand": [
+        true
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "in-a-bool-operand-item-on-one-does-not-hold",
+      "note": "A bool item is dropped, so never equals 1.",
+      "value": {
+        "number": 1
+      },
+      "op": "in",
+      "operand": [
+        true
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "in-a-list-operand-item-on-its-number-does-not-hold",
+      "value": {
+        "number": 95
+      },
+      "op": "in",
+      "operand": [
+        [
+          95
+        ]
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "existing-on-zero-holds",
+      "value": {
+        "number": 0
+      },
+      "op": "existing",
+      "expect": "holds"
+    },
+    {
+      "id": "existing-on-the-empty-string-holds",
+      "value": {
+        "string": ""
+      },
+      "op": "existing",
+      "expect": "holds"
+    },
+    {
+      "id": "not-existing-on-zero-does-not-hold",
+      "value": {
+        "number": 0
+      },
+      "op": "not_existing",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-a-number-differing-does-not-hold",
+      "value": {
+        "number": 2
+      },
+      "op": "eq",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "in-on-a-number-not-listed-does-not-hold",
+      "value": {
+        "number": 2
+      },
+      "op": "in",
+      "operand": [
+        "a",
+        1
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "contains-a-number-on-a-list-not-holding-it-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "number": 2
+          }
+        ]
+      },
+      "op": "contains",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "a-list-in-a-list-isnt-read-deeper-does-not-hold",
+      "note": "Only a list's own items are read: an item that's a list is none of them.",
+      "value": {
+        "list": [
+          {
+            "list": [
+              {
+                "string": "a"
+              },
+              "ambiguous"
+            ]
+          }
+        ]
+      },
+      "op": "eq",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "a-list-past-the-step-limit-is-refused-before-its-ambiguity",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          "ambiguous"
+        ]
+      },
+      "op": "eq",
+      "operand": "a",
+      "step_limit": 2,
+      "expect": {
+        "refused": "budget_exceeded"
+      }
+    },
+    {
+      "id": "eq-on-a-list-of-past-a-negative-double-and-the-lowest-double-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "number": "-inf"
+          }
+        ]
+      },
+      "op": "eq",
+      "operand": -1.7976931348623157e+308,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-a-list-of-past-a-double-and-a-large-double-does-not-hold",
+      "note": "Against the codec's writing a list's item past a double as a finite number.",
+      "value": {
+        "list": [
+          {
+            "number": "inf"
+          }
+        ]
+      },
+      "op": "eq",
+      "operand": 1e+308,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-a-list-of-a-string-with-a-quote-and-a-backslash-holds",
+      "note": "Against the codec's writing a list's string item unescaped.",
+      "value": {
+        "list": [
+          {
+            "string": "a\"b\\"
+          }
+        ]
+      },
+      "op": "eq",
+      "operand": "a\"b\\",
+      "expect": "holds"
+    },
+    {
+      "id": "unknown-op-past-the-step-limit-is-refused-for-its-steps",
+      "note": "The condition's step is charged before its refusal is told.",
+      "value": {
+        "string": "a"
+      },
+      "op": "nope",
+      "operand": "a",
+      "step_limit": 0,
+      "expect": {
+        "refused": "budget_exceeded"
+      }
+    },
+    {
+      "id": "unknown-op-on-what-cant-be-told-is-refused",
+      "note": "A refusal comes before what the value is.",
+      "value": "ambiguous",
+      "op": "like",
+      "operand": "a",
+      "expect": {
+        "refused": "unknown_op"
+      }
+    },
+    {
+      "id": "invalid-condition-on-a-body-unread-is-refused",
+      "note": "A refusal comes before a body unread.",
+      "value": {
+        "body_unread": {
+          "unread": "not_sent"
+        }
+      },
+      "op": "lt",
+      "operand": "x",
+      "expect": {
+        "refused": "invalid"
+      }
+    },
+    {
+      "id": "list-within-the-step-limit-holds",
+      "note": "Each item read is a step, the condition one more.",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "a"
+          },
+          {
+            "string": "a"
+          }
+        ]
+      },
+      "op": "eq",
+      "operand": "a",
+      "step_limit": 4,
+      "expect": "holds"
+    },
+    {
+      "id": "list-past-the-step-limit-is-refused",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "a"
+          },
+          {
+            "string": "a"
+          }
+        ]
+      },
+      "op": "eq",
+      "operand": "a",
+      "step_limit": 3,
+      "expect": {
+        "refused": "budget_exceeded"
+      }
+    },
+    {
+      "id": "step-limit-of-zero-is-refused",
+      "value": {
+        "string": "a"
+      },
+      "op": "existing",
+      "step_limit": 0,
+      "expect": {
+        "refused": "budget_exceeded"
+      }
+    },
+    {
+      "id": "long-string-matched-within-the-step-limit-holds",
+      "note": "A match is charged by its value's and its pattern's length together: 6399 and 1 bytes.",
+      "value": {
+        "string": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "op": "matches",
+      "operand": "*",
+      "step_limit": 102,
+      "expect": "holds"
+    },
+    {
+      "id": "long-string-matched-past-the-step-limit-is-refused",
+      "value": {
+        "string": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "op": "matches",
+      "operand": "*",
+      "step_limit": 101,
+      "expect": {
+        "refused": "budget_exceeded"
+      }
+    },
+    {
+      "id": "list-matched-is-charged-a-scan-per-item-within-the-limit-holds",
+      "note": "Each item scanned is charged by its length.",
+      "value": {
+        "list": [
+          {
+            "string": "b"
+          },
+          {
+            "string": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      },
+      "op": "matches",
+      "operand": "a*a",
+      "step_limit": 6,
+      "expect": "holds"
+    },
+    {
+      "id": "list-matched-is-charged-a-scan-per-item-past-the-limit-is-refused",
+      "value": {
+        "list": [
+          {
+            "string": "b"
+          },
+          {
+            "string": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      },
+      "op": "matches",
+      "operand": "a*a",
+      "step_limit": 5,
+      "expect": {
+        "refused": "budget_exceeded"
+      }
+    },
+    {
+      "id": "in-within-the-step-limit-holds",
+      "note": "An in is charged for each operand item it can compare.",
+      "value": {
+        "string": "c"
+      },
+      "op": "in",
+      "operand": [
+        "a",
+        "b",
+        "c"
+      ],
+      "step_limit": 4,
+      "expect": "holds"
+    },
+    {
+      "id": "in-past-the-step-limit-is-refused",
+      "value": {
+        "string": "c"
+      },
+      "op": "in",
+      "operand": [
+        "a",
+        "b",
+        "c"
+      ],
+      "step_limit": 3,
+      "expect": {
+        "refused": "budget_exceeded"
+      }
+    },
+    {
+      "id": "list-in-past-the-step-limit-is-refused",
+      "note": "Each item against each operand item.",
+      "value": {
+        "list": [
+          {
+            "string": "x"
+          },
+          {
+            "string": "c"
+          }
+        ]
+      },
+      "op": "in",
+      "operand": [
+        "a",
+        "b",
+        "c"
+      ],
+      "step_limit": 8,
+      "expect": {
+        "refused": "budget_exceeded"
+      }
+    },
+    {
+      "id": "list-in-within-the-step-limit-holds",
+      "value": {
+        "list": [
+          {
+            "string": "x"
+          },
+          {
+            "string": "c"
+          }
+        ]
+      },
+      "op": "in",
+      "operand": [
+        "a",
+        "b",
+        "c"
+      ],
+      "step_limit": 9,
+      "expect": "holds"
+    }
+  ]
+}

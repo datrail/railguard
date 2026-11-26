@@ -7,81 +7,19 @@ use rail_model::schema_version::SchemaVersion;
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::patch;
-
-const VECTORS: &str = include_str!("../../../../vectors/parse_plan_conformance_cases.json");
+const VECTORS: &str = include_str!("../../../../vectors/capture/plan.json");
 
 #[derive(Deserialize)]
 struct Vectors {
     plan: Value,
-    cases: Vec<Case>,
-}
-
-#[derive(Deserialize)]
-struct Case {
-    name: String,
-    #[serde(default)]
-    patch: Vec<Value>,
-    expect: Expect,
-}
-
-#[derive(Deserialize)]
-struct Expect {
-    valid: bool,
-    /// The first entry's, as read.
-    conditions: Option<Vec<String>>,
 }
 
 fn vectors() -> Vectors {
-    let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
-    assert!(!vectors.cases.is_empty());
-    vectors
-}
-
-fn condition_kind(condition: &Condition) -> &'static str {
-    match condition {
-        Condition::Valid(_) => "valid",
-        Condition::Unknown(_) => "unknown",
-        Condition::Invalid(_) => "invalid",
-    }
+    serde_json::from_str(VECTORS).unwrap()
 }
 
 fn read_example() -> Plan {
     parse_plan(&vectors().plan.to_string()).unwrap()
-}
-
-#[test]
-fn test_vectors() {
-    let vectors = vectors();
-    let mut failures = Vec::new();
-    for case in &vectors.cases {
-        let mut plan = vectors.plan.clone();
-        case.patch
-            .iter()
-            .for_each(|operation| patch(&mut plan, operation));
-
-        let read = parse_plan(&plan.to_string());
-
-        let name = &case.name;
-        match (read, case.expect.valid) {
-            (Ok(plan), true) => {
-                let Some(conditions) = &case.expect.conditions else {
-                    continue;
-                };
-                let read: Vec<_> = plan.entries[0]
-                    .conditions
-                    .iter()
-                    .map(condition_kind)
-                    .collect();
-                if &read != conditions {
-                    failures.push(format!("{name}: conditions {read:?}"));
-                }
-            }
-            (Err(_), false) => {}
-            (read, _) => failures.push(format!("{name}: {read:?}")),
-        }
-    }
-    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
 #[test]

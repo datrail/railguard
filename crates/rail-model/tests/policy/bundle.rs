@@ -3,11 +3,6 @@ use rail_model::policy::{
     Action, BindingMode, EndpointKey, EnforcementMode, Fallback, TicketClaim, parse_bundle,
 };
 use rail_model::schema_version::SchemaVersion;
-use serde::Deserialize;
-use serde_json::value::RawValue;
-use uuid::Uuid;
-
-const VECTORS: &str = include_str!("../../../../vectors/parse_bundle_conformance_cases.json");
 
 const EXAMPLE: &str = r##"{
   "schema_version": "2.1",
@@ -36,49 +31,6 @@ const EXAMPLE: &str = r##"{
   "ticket_issuer": "https://rail-center.example.com/tenants/00000000-0000-4000-8000-0000000000aa",
   "ticket_audience": "00000000-0000-4000-8000-0000000000aa"
 }"##;
-
-#[derive(Deserialize)]
-struct Vectors {
-    cases: Vec<Case>,
-}
-
-#[derive(Deserialize)]
-struct Case {
-    name: String,
-    // Raw, since a priority may be past what a `Value` holds.
-    bundle: Box<RawValue>,
-    usable: bool,
-    /// Usable cases only: the enabled policy ids, in evaluation order.
-    chain: Option<Vec<Uuid>>,
-    /// Usable cases only: the priorities of `chain`, in the same order.
-    chain_priorities: Option<Vec<i64>>,
-}
-
-#[test]
-fn test_vectors() {
-    let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
-    assert!(!vectors.cases.is_empty());
-
-    let mut failures = Vec::new();
-    for case in vectors.cases {
-        let name = case.name;
-        let result = parse_bundle(case.bundle.get());
-        if case.usable == result.is_err() {
-            failures.push(format!("{name}: {result:?}"));
-        } else if let Ok(bundle) = result {
-            let (chain, priorities) = bundle
-                .policies
-                .iter()
-                .filter(|p| p.enabled)
-                .map(|p| (p.id, p.priority))
-                .unzip();
-            if case.chain != Some(chain) || case.chain_priorities != Some(priorities) {
-                failures.push(format!("{name}: wrong chain"));
-            }
-        }
-    }
-    assert!(failures.is_empty(), "{}", failures.join("\n"));
-}
 
 #[test]
 fn test_reads_every_field_rail_center_publishes() {
@@ -139,24 +91,6 @@ fn test_reads_an_absent_or_null_ticket_audience_as_unset_and_a_non_string_apart(
 }
 
 #[test]
-fn test_refuses_bindings_that_differ_only_by_slug() {
-    let bundle = EXAMPLE.replace(
-        r#""bindings": ["#,
-        r#""bindings": [{"endpoint_key": "other#/mcp#tools/call#refund_order", "mode": "open", "policy_ids": []},"#,
-    );
-    assert!(parse_bundle(&bundle).is_err());
-}
-
-#[test]
-fn test_keeps_bindings_that_differ_past_the_slug() {
-    let bundle = EXAMPLE.replace(
-        r#""bindings": ["#,
-        r#""bindings": [{"endpoint_key": "finretail#/other#tools/call#refund_order", "mode": "open", "policy_ids": []},"#,
-    );
-    assert_eq!(parse_bundle(&bundle).unwrap().bindings.len(), 2);
-}
-
-#[test]
 fn test_reads_an_operand_as_the_nearest_double() {
     let bundle = EXAMPLE.replace(r#""value": 40"#, r#""value": 6.934698245112694e276"#);
     let bundle = parse_bundle(&bundle).unwrap();
@@ -180,11 +114,6 @@ fn test_reads_a_version_of_two_numbers() {
             minor: 10
         }
     );
-    for version in [
-        "2", "2.0.0", "+2.0", "2.+0", "2.", ".0", "2.0 ", "-1.0", "2,0",
-    ] {
-        assert!(read(version).is_err(), "{version:?}");
-    }
 }
 
 #[test]
@@ -192,41 +121,6 @@ fn test_keeps_disabled_policies() {
     let bundle = EXAMPLE.replace(r#""enabled": true"#, r#""enabled": false"#);
     let bundle = parse_bundle(&bundle).unwrap();
     assert!(!bundle.policies[0].enabled);
-}
-
-#[test]
-fn test_reads_an_endpoint_key_with_a_separator_in_its_call() {
-    let bundle = EXAMPLE.replace("#refund_order", "#refund#order");
-    let bundle = parse_bundle(&bundle).unwrap();
-    assert_eq!(
-        bundle.bindings[0].endpoint_key.resolved.as_str(),
-        "/mcp#tools/call#refund#order"
-    );
-}
-
-#[test]
-fn test_refuses_an_endpoint_key_with_a_part_missing_or_empty() {
-    let keys = [
-        "finretail#/mcp#tools/call",
-        "#/mcp#tools/call#refund_order",
-        "finretail##tools/call#refund_order",
-        "finretail#/mcp##refund_order",
-        "finretail#/mcp#tools/call#",
-    ];
-    for key in keys {
-        let bundle = EXAMPLE.replace("finretail#/mcp#tools/call#refund_order", key);
-        assert!(parse_bundle(&bundle).is_err(), "{key}");
-    }
-}
-
-#[test]
-fn test_keeps_a_bundle_whose_condition_is_unknown() {
-    let bundle = EXAMPLE.replace(r#""op": "lt""#, r#""op": "unknown""#);
-    let bundle = parse_bundle(&bundle).unwrap();
-    assert!(matches!(
-        bundle.policies[0].condition,
-        Condition::Unknown(_)
-    ));
 }
 
 #[test]

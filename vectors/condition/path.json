@@ -1,0 +1,2691 @@
+{
+  "cases": [
+    {
+      "id": "policy-ticket-whole",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "ticket"
+      ],
+      "expect": "object"
+    },
+    {
+      "id": "plan-ticket-whole",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "ticket"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-ticket-key",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "ticket",
+        "team"
+      ],
+      "expect": {
+        "string": "payments"
+      }
+    },
+    {
+      "id": "policy-ticket-key-costs-no-step",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "ticket",
+        "team"
+      ],
+      "step_limit": 0,
+      "expect": {
+        "string": "payments"
+      }
+    },
+    {
+      "id": "policy-header-costs-no-step",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "headers",
+        "x-trace"
+      ],
+      "step_limit": 0,
+      "expect": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "b"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-ticket-key",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "ticket",
+        "team"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-ticket-key-in-another-case",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "ticket",
+        "Team"
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "plan-ticket-key-in-another-case",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "ticket",
+        "Team"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-ticket-list",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "ticket",
+        "roles"
+      ],
+      "expect": {
+        "list": [
+          {
+            "string": "writer"
+          },
+          {
+            "string": "reviewer"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-ticket-list",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "ticket",
+        "roles"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-ticket-nested-key",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "ticket",
+        "limits",
+        "daily"
+      ],
+      "expect": {
+        "number": 100
+      }
+    },
+    {
+      "id": "plan-ticket-nested-key",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "ticket",
+        "limits",
+        "daily"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-ticket-nested-key-dotted",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": "ticket.limits.daily",
+      "expect": {
+        "number": 100
+      }
+    },
+    {
+      "id": "plan-ticket-nested-key-dotted",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": "ticket.limits.daily",
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-ticket-null",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "ticket",
+        "note"
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "plan-ticket-null",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "ticket",
+        "note"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-ticket-key-under-a-string",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "ticket",
+        "team",
+        "name"
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "plan-ticket-key-under-a-string",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "ticket",
+        "team",
+        "name"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-ticket-index",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "ticket",
+        "roles",
+        0
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-ticket-index",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "ticket",
+        "roles",
+        0
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "policy-ticket-index-dotted-a-key",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": "ticket.roles.0",
+      "expect": "absent"
+    },
+    {
+      "id": "plan-ticket-index-dotted-a-key",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": "ticket.roles.0",
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-request-whole",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request"
+      ],
+      "expect": "object"
+    },
+    {
+      "id": "plan-request-whole",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-endpoint-key",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "endpoint_key"
+      ],
+      "expect": {
+        "string": "/finretail-production-mcp/mcp#tools/call#create_or_update_file"
+      }
+    },
+    {
+      "id": "plan-endpoint-key",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "endpoint_key"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-headers-whole",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "headers"
+      ],
+      "expect": "object"
+    },
+    {
+      "id": "plan-headers-whole",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "headers"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-header-one-value",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "headers",
+        "content-type"
+      ],
+      "expect": {
+        "string": "application/json"
+      }
+    },
+    {
+      "id": "plan-header-one-value",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "headers",
+        "content-type"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-header-split-on-commas",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "headers",
+        "accept"
+      ],
+      "expect": {
+        "list": [
+          {
+            "string": "application/json"
+          },
+          {
+            "string": "text/event-stream"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-header-split-on-commas",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "headers",
+        "accept"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-header-lines-pooled",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "headers",
+        "x-trace"
+      ],
+      "expect": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "b"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-header-lines-pooled",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "headers",
+        "x-trace"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-header-name-upper-case-never-exists",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "headers",
+        "Content-Type"
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "plan-header-name-upper-case-never-exists",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "headers",
+        "Content-Type"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-host",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "host"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "plan-host",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "host"
+      ],
+      "expect": {
+        "string": "api.github.com"
+      }
+    },
+    {
+      "id": "plan-host-dotted",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": "request.host",
+      "expect": {
+        "string": "api.github.com"
+      }
+    },
+    {
+      "id": "plan-host-costs-no-step",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "host"
+      ],
+      "step_limit": 0,
+      "expect": {
+        "string": "api.github.com"
+      }
+    },
+    {
+      "id": "policy-method",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "method"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "plan-method",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "method"
+      ],
+      "expect": {
+        "string": "POST"
+      }
+    },
+    {
+      "id": "policy-path",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "path"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "plan-path",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "path"
+      ],
+      "expect": {
+        "string": "/finretail-production-mcp/mcp/"
+      }
+    },
+    {
+      "id": "policy-redacted-path",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "redacted_path"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "plan-redacted-path",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "redacted_path"
+      ],
+      "expect": {
+        "string": "/[redacted]/mcp"
+      }
+    },
+    {
+      "id": "policy-mcp-method",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "mcp",
+        "method"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "plan-mcp-method",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "mcp",
+        "method"
+      ],
+      "expect": {
+        "string": "tools/call"
+      }
+    },
+    {
+      "id": "policy-mcp-tool",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "mcp",
+        "tool"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "plan-mcp-tool",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "mcp",
+        "tool"
+      ],
+      "expect": {
+        "string": "create_or_update_file"
+      }
+    },
+    {
+      "id": "policy-body-whole",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "body"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "plan-body-whole",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body"
+      ],
+      "expect": "object"
+    },
+    {
+      "id": "policy-body-key",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "body",
+        "params",
+        "name"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "plan-body-key",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "params",
+        "name"
+      ],
+      "expect": {
+        "string": "create_or_update_file"
+      }
+    },
+    {
+      "id": "policy-body-index",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "body",
+        "params",
+        "arguments",
+        "files",
+        0,
+        "path"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "plan-body-index",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "params",
+        "arguments",
+        "files",
+        0,
+        "path"
+      ],
+      "expect": {
+        "string": "a.txt"
+      }
+    },
+    {
+      "id": "policy-body-number",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "body",
+        "params",
+        "arguments",
+        "size"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "plan-body-number",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "params",
+        "arguments",
+        "size"
+      ],
+      "expect": {
+        "number": 12
+      }
+    },
+    {
+      "id": "policy-body-index-dotted-a-key",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": "request.body.params.arguments.files.0",
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "plan-body-index-dotted-a-key",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": "request.body.params.arguments.files.0",
+      "expect": "absent"
+    },
+    {
+      "id": "policy-path-segment",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "path",
+        0
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "plan-path-segment",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "path",
+        0
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-redacted-path-segment",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "redacted_path",
+        0
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "plan-redacted-path-segment",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "redacted_path",
+        0
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-query",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "query",
+        "tag"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "plan-query",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "query",
+        "tag"
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-query-value",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "query",
+        "tag",
+        1
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "plan-query-value",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "query",
+        "tag",
+        1
+      ],
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-query-index-a-string",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "query",
+        "tag",
+        "1"
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-query-index-a-string",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "query",
+        "tag",
+        "1"
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "policy-mcp-bare",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "mcp"
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-mcp-bare",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "mcp"
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "policy-body-index-negative",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "body",
+        -1
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-body-index-negative",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        -1
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "policy-body-index-fractional",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        "body",
+        1.5
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-body-index-fractional",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        1.5
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "policy-source-missing-body",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "body",
+        "params"
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-source-missing-body",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "body",
+        "params"
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "policy-source-unknown",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "response",
+        "status"
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-source-unknown",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "response",
+        "status"
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "policy-empty",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-empty",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "policy-empty-dotted",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": "",
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-empty-dotted",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": "",
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "policy-not-a-path",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": 5,
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-not-a-path",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": 5,
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "policy-step-not-a-string",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": [
+        "request",
+        true
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-step-not-a-string",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        true
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "policy-no-ticket-whole-absent",
+      "environment": "judging-sample-without-a-ticket",
+      "use": "gateway_policy",
+      "path": [
+        "ticket"
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "policy-no-ticket-key-absent",
+      "environment": "judging-sample-without-a-ticket",
+      "use": "gateway_policy",
+      "path": [
+        "ticket",
+        "team"
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "policy-ticket-missing-key-absent",
+      "environment": "judging-ticket-leaving-out",
+      "use": "gateway_policy",
+      "path": "ticket.alignment.baseline",
+      "expect": "absent"
+    },
+    {
+      "id": "policy-ticket-under-missing-branch-absent",
+      "environment": "judging-ticket-leaving-out",
+      "use": "gateway_policy",
+      "path": "ticket.posture.categories.network.capped",
+      "expect": "absent"
+    },
+    {
+      "id": "policy-ticket-present-branch",
+      "environment": "judging-ticket-leaving-out",
+      "use": "gateway_policy",
+      "path": "ticket.posture.categories.identity",
+      "expect": "object"
+    },
+    {
+      "id": "policy-ticket-present-leaf",
+      "environment": "judging-ticket-leaving-out",
+      "use": "gateway_policy",
+      "path": "ticket.posture.categories.identity.capped",
+      "expect": {
+        "bool": true
+      }
+    },
+    {
+      "id": "policy-ticket-key-under-a-null-absent",
+      "note": "Not an object on the way, as a string isn't.",
+      "environment": "judging-ticket-leaving-out",
+      "use": "gateway_policy",
+      "path": "ticket.lapsed.since",
+      "expect": "absent"
+    },
+    {
+      "id": "policy-ticket-key-under-a-number-absent",
+      "environment": "judging-ticket-leaving-out",
+      "use": "gateway_policy",
+      "path": "ticket.count.of",
+      "expect": "absent"
+    },
+    {
+      "id": "policy-ticket-empty-list",
+      "environment": "judging-ticket-leaving-out",
+      "use": "gateway_policy",
+      "path": "ticket.alignment.drifted",
+      "expect": {
+        "list": []
+      }
+    },
+    {
+      "id": "policy-ticket-list-of-any-items",
+      "environment": "judging-ticket-leaving-out",
+      "use": "gateway_policy",
+      "path": "ticket.skills",
+      "expect": {
+        "list": [
+          {
+            "string": "acme"
+          },
+          "absent",
+          "object",
+          {
+            "bool": true
+          },
+          {
+            "number": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "policy-endpoint-key-keyless-absent",
+      "environment": "judging-keyless",
+      "use": "gateway_policy",
+      "path": "request.endpoint_key",
+      "expect": "absent"
+    },
+    {
+      "id": "policy-endpoint-key-unrecognised-absent",
+      "environment": "judging-unrecognised",
+      "use": "gateway_policy",
+      "path": "request.endpoint_key",
+      "expect": "absent"
+    },
+    {
+      "id": "policy-header-lines-and-commas-pooled-in-order",
+      "environment": "judging-headers-folded",
+      "use": "gateway_policy",
+      "path": "request.headers.x-a",
+      "expect": {
+        "list": [
+          {
+            "string": "1"
+          },
+          {
+            "string": "2"
+          },
+          {
+            "string": "3"
+          }
+        ]
+      }
+    },
+    {
+      "id": "policy-header-empty-part-kept-parts-trimmed",
+      "environment": "judging-headers-folded",
+      "use": "gateway_policy",
+      "path": "request.headers.x-b",
+      "expect": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "string": ""
+          },
+          {
+            "string": "b"
+          }
+        ]
+      }
+    },
+    {
+      "id": "policy-header-missing-absent",
+      "environment": "judging-headers-folded",
+      "use": "gateway_policy",
+      "path": "request.headers.x-z",
+      "expect": "absent"
+    },
+    {
+      "id": "policy-header-key-under-a-header-invalid",
+      "environment": "judging-headers-folded",
+      "use": "gateway_policy",
+      "path": "request.headers.x-a.b",
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "policy-in-a-capture-environment-ticket-not-filled",
+      "environment": "capture-body-empty",
+      "use": "gateway_policy",
+      "path": "ticket.a",
+      "expect": {
+        "refused": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-in-a-capture-environment-header-not-filled",
+      "environment": "capture-body-empty",
+      "use": "gateway_policy",
+      "path": "request.headers.accept",
+      "expect": {
+        "refused": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-in-a-capture-environment-endpoint-key-not-filled",
+      "environment": "capture-body-empty",
+      "use": "gateway_policy",
+      "path": "request.endpoint_key",
+      "expect": {
+        "refused": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-in-a-capture-environment-headers-not-filled",
+      "environment": "capture-body-empty",
+      "use": "gateway_policy",
+      "path": "request.headers",
+      "expect": {
+        "refused": "not_for_use"
+      }
+    },
+    {
+      "id": "policy-in-a-capture-environment-request-whole",
+      "note": "Filled by every environment.",
+      "environment": "capture-body-empty",
+      "use": "gateway_policy",
+      "path": "request",
+      "expect": "object"
+    },
+    {
+      "id": "plan-in-a-judging-environment-body-not-filled",
+      "environment": "judging-keyless",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "a"
+      ],
+      "expect": {
+        "refused": "not_for_use"
+      }
+    },
+    {
+      "id": "plan-in-a-judging-environment-host-not-filled",
+      "environment": "judging-keyless",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "host"
+      ],
+      "expect": {
+        "refused": "not_for_use"
+      }
+    },
+    {
+      "id": "plan-in-a-judging-environment-mcp-tool-not-filled",
+      "environment": "judging-keyless",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "mcp",
+        "tool"
+      ],
+      "expect": {
+        "refused": "not_for_use"
+      }
+    },
+    {
+      "id": "plan-dotted-segment-invalid",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": "request.path.0",
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-dotted-redacted-segment-invalid",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": "request.redacted_path.2",
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-query-name-not-a-string-invalid",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "query",
+        0
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-query-step-past-its-index-invalid",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "query",
+        "repo",
+        0,
+        1
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-segment-index-negative-invalid",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "path",
+        -1
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-redacted-segment-index-negative-invalid",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "redacted_path",
+        -1
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-segment-index-a-string-invalid",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "path",
+        "0"
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-redacted-segment-step-past-its-index-invalid",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "redacted_path",
+        0,
+        1
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-request-field-unknown-invalid",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "nothing"
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "plan-dotted-query-parsed-not-for-a-match",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": "request.query.repo",
+      "expect": {
+        "refused_reading": "not_for_use"
+      }
+    },
+    {
+      "id": "plan-body-empty-key-absent",
+      "note": "Only a record refuses an empty key.",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        ""
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "policy-ticket-dotted-path-never-reads-a-dotted-claim-absent",
+      "note": "The dotted spelling splits on every dot.",
+      "environment": "judging-ticket-dotted-claim",
+      "use": "gateway_policy",
+      "path": "ticket.posture.score",
+      "expect": "absent"
+    },
+    {
+      "id": "policy-ticket-listed-path-reads-a-dotted-claim",
+      "environment": "judging-ticket-dotted-claim",
+      "use": "gateway_policy",
+      "path": [
+        "ticket",
+        "posture.score"
+      ],
+      "expect": {
+        "number": 10
+      }
+    },
+    {
+      "id": "record-redacted-path-segment-past-the-end-absent",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "redacted_path",
+        2
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "policy-ticket-claim-zero-not-missing",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": "ticket.zero",
+      "expect": {
+        "number": 0
+      }
+    },
+    {
+      "id": "policy-ticket-claim-empty-string-not-missing",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": "ticket.empty",
+      "expect": {
+        "string": ""
+      }
+    },
+    {
+      "id": "policy-ticket-key-under-a-list-holding-it-absent",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": "ticket.roles.writer",
+      "expect": "absent"
+    },
+    {
+      "id": "policy-ticket-key-under-a-list-of-objects-holding-it-absent",
+      "note": "A key is never sought inside a list's items.",
+      "environment": "judging-ticket-leaving-out",
+      "use": "gateway_policy",
+      "path": "ticket.grants.scope",
+      "expect": "absent"
+    },
+    {
+      "id": "policy-ticket-key-under-a-string-holding-it-absent",
+      "environment": "judging-sample",
+      "use": "gateway_policy",
+      "path": "ticket.team.pay",
+      "expect": "absent"
+    },
+    {
+      "id": "plan-host-unparseable",
+      "environment": "capture-host-unparseable",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "host"
+      ],
+      "expect": {
+        "string": "[unparseable]"
+      }
+    },
+    {
+      "id": "plan-path-not-utf8-read-lossily",
+      "environment": "capture-path-not-utf8",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "path"
+      ],
+      "expect": {
+        "string": "/mcp/�"
+      }
+    },
+    {
+      "id": "plan-body-escape-decoded",
+      "environment": "capture-body-values",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "esc"
+      ],
+      "expect": {
+        "string": "payroll"
+      }
+    },
+    {
+      "id": "plan-body-list",
+      "environment": "capture-body-values",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "items"
+      ],
+      "expect": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "b"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-body-list-item",
+      "environment": "capture-body-values",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "items",
+        1
+      ],
+      "expect": {
+        "string": "b"
+      }
+    },
+    {
+      "id": "plan-body-list-past-its-end-absent",
+      "environment": "capture-body-values",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "items",
+        2
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "plan-body-list-key-absent",
+      "note": "A list has no keys.",
+      "environment": "capture-body-values",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "items",
+        "1"
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "plan-body-object-index-absent",
+      "note": "An object has no items.",
+      "environment": "capture-body-values",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        0
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "plan-body-missing-key-absent",
+      "environment": "capture-body-values",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "missing"
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "plan-body-under-a-missing-key-absent",
+      "environment": "capture-body-values",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "missing",
+        "a"
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "plan-body-under-a-scalar-absent",
+      "environment": "capture-body-values",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "esc",
+        "a"
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "plan-body-deep",
+      "environment": "capture-body-values",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "deep",
+        "a",
+        "b",
+        1,
+        "c"
+      ],
+      "expect": {
+        "bool": true
+      }
+    },
+    {
+      "id": "plan-body-null-item-absent",
+      "environment": "capture-body-values",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "deep",
+        "a",
+        "b",
+        0
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "plan-body-number-past-a-double",
+      "environment": "capture-body-values",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "big"
+      ],
+      "expect": {
+        "number": "inf"
+      }
+    },
+    {
+      "id": "plan-body-number-past-a-negative-double",
+      "environment": "capture-body-values",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "small"
+      ],
+      "expect": {
+        "number": "-inf"
+      }
+    },
+    {
+      "id": "plan-body-key-repeated-in-another-case-ambiguous",
+      "note": "Readers differ on which they keep.",
+      "environment": "capture-body-values",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "dup"
+      ],
+      "expect": "ambiguous"
+    },
+    {
+      "id": "plan-body-other-spelling-of-a-repeated-key-ambiguous",
+      "environment": "capture-body-values",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "Dup"
+      ],
+      "expect": "ambiguous"
+    },
+    {
+      "id": "plan-body-key-repeated-in-another-case-past-ascii-ambiguous",
+      "environment": "capture-body-keys-folded",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "é"
+      ],
+      "expect": "ambiguous"
+    },
+    {
+      "id": "plan-body-key-folding-a-dotted-capital-i-ambiguous",
+      "note": "İ folds to i, as a server folding single letters reads it.",
+      "environment": "capture-body-keys-folded",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "id"
+      ],
+      "expect": "ambiguous"
+    },
+    {
+      "id": "plan-body-key-beside-a-key-outside-json-ambiguous",
+      "environment": "capture-body-key-outside-json",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "o",
+        "a"
+      ],
+      "expect": "ambiguous"
+    },
+    {
+      "id": "plan-body-key-outside-an-object-holding-a-key-outside-json-read",
+      "note": "The ambiguity stays in the object holding that key.",
+      "environment": "capture-body-key-outside-json",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "b"
+      ],
+      "expect": {
+        "number": 3
+      }
+    },
+    {
+      "id": "plan-body-string-not-decoding-ambiguous",
+      "environment": "capture-body-values",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "bad"
+      ],
+      "expect": "ambiguous"
+    },
+    {
+      "id": "plan-body-list-holding-what-cant-be-told",
+      "environment": "capture-body-values",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "mixed"
+      ],
+      "expect": {
+        "list": [
+          {
+            "string": "a"
+          },
+          "ambiguous"
+        ]
+      }
+    },
+    {
+      "id": "plan-body-string-holding-a-nul",
+      "environment": "capture-body-values",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "nul"
+      ],
+      "expect": {
+        "string": "a\u0000b"
+      }
+    },
+    {
+      "id": "plan-body-under-an-ambiguous-key-ambiguous",
+      "environment": "capture-body-values",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "dup",
+        "a"
+      ],
+      "expect": "ambiguous"
+    },
+    {
+      "id": "plan-body-sample-false",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "params",
+        "arguments",
+        "draft"
+      ],
+      "expect": {
+        "bool": false
+      }
+    },
+    {
+      "id": "plan-body-sample-null-absent",
+      "environment": "capture-sample",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "params",
+        "arguments",
+        "note"
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "plan-body-empty-holds-nothing",
+      "note": "A body of no bytes, as an event stream's GET sends.",
+      "environment": "capture-body-empty",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "a"
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "plan-body-empty-whole-absent",
+      "environment": "capture-body-empty",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body"
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "plan-mcp-method-of-an-empty-body-absent",
+      "environment": "capture-body-empty",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "mcp",
+        "method"
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "plan-body-key-of-a-body-not-sent",
+      "environment": "capture-body-not-sent",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "method"
+      ],
+      "expect": {
+        "body_unread": {
+          "unread": "not_sent"
+        }
+      }
+    },
+    {
+      "id": "plan-mcp-tool-of-a-body-not-sent",
+      "environment": "capture-body-not-sent",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "mcp",
+        "tool"
+      ],
+      "expect": {
+        "body_unread": {
+          "unread": "not_sent"
+        }
+      }
+    },
+    {
+      "id": "plan-host-of-a-body-unread-read",
+      "note": "The request line is read whatever the body.",
+      "environment": "capture-body-not-sent",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "host"
+      ],
+      "expect": {
+        "string": "mcp.example.com"
+      }
+    },
+    {
+      "id": "plan-body-key-of-a-body-past-cap",
+      "environment": "capture-body-past-cap",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "method"
+      ],
+      "expect": {
+        "body_unread": {
+          "unread": "past_cap"
+        }
+      }
+    },
+    {
+      "id": "plan-mcp-tool-of-a-body-past-cap",
+      "environment": "capture-body-past-cap",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "mcp",
+        "tool"
+      ],
+      "expect": {
+        "body_unread": {
+          "unread": "past_cap"
+        }
+      }
+    },
+    {
+      "id": "plan-body-key-of-a-body-past-budget",
+      "environment": "capture-body-past-budget",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "method"
+      ],
+      "expect": {
+        "body_unread": {
+          "unread": "past_budget"
+        }
+      }
+    },
+    {
+      "id": "plan-mcp-tool-of-a-body-past-budget",
+      "environment": "capture-body-past-budget",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "mcp",
+        "tool"
+      ],
+      "expect": {
+        "body_unread": {
+          "unread": "past_budget"
+        }
+      }
+    },
+    {
+      "id": "plan-body-key-of-a-body-cut-short",
+      "environment": "capture-body-cut-short",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "method"
+      ],
+      "expect": {
+        "body_unread": {
+          "unread": "cut_short"
+        }
+      }
+    },
+    {
+      "id": "plan-mcp-tool-of-a-body-cut-short",
+      "environment": "capture-body-cut-short",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "mcp",
+        "tool"
+      ],
+      "expect": {
+        "body_unread": {
+          "unread": "cut_short"
+        }
+      }
+    },
+    {
+      "id": "plan-body-key-of-a-body-not-json",
+      "environment": "capture-body-not-json",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "method"
+      ],
+      "expect": {
+        "body_unread": {
+          "unparsed": "malformed"
+        }
+      }
+    },
+    {
+      "id": "plan-mcp-tool-of-a-body-not-json",
+      "environment": "capture-body-not-json",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "mcp",
+        "tool"
+      ],
+      "expect": {
+        "body_unread": {
+          "unparsed": "malformed"
+        }
+      }
+    },
+    {
+      "id": "plan-body-key-of-a-body-tree-past-budget",
+      "environment": "capture-body-tree-past-budget",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "method"
+      ],
+      "expect": {
+        "body_unread": {
+          "unparsed": "past_budget"
+        }
+      }
+    },
+    {
+      "id": "plan-mcp-tool-of-a-body-tree-past-budget",
+      "environment": "capture-body-tree-past-budget",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "mcp",
+        "tool"
+      ],
+      "expect": {
+        "body_unread": {
+          "unparsed": "past_budget"
+        }
+      }
+    },
+    {
+      "id": "plan-body-past-the-byte-budget-unread",
+      "note": "The body itself, not only its tree, past the bytes every body shares.",
+      "environment": "capture-body-past-the-byte-budget",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "a"
+      ],
+      "expect": {
+        "body_unread": {
+          "unread": "past_budget"
+        }
+      }
+    },
+    {
+      "id": "plan-body-fraction",
+      "environment": "capture-body-written-forms",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "price"
+      ],
+      "expect": {
+        "number": 12.5
+      }
+    },
+    {
+      "id": "plan-body-negative-zero",
+      "note": "Its sign kept.",
+      "environment": "capture-body-written-forms",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "negative_zero"
+      ],
+      "expect": {
+        "number": -0.0
+      }
+    },
+    {
+      "id": "plan-body-large-whole-number",
+      "note": "Past what a double tells apart in whole numbers, written as a double.",
+      "environment": "capture-body-written-forms",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "large"
+      ],
+      "expect": {
+        "number": 1e+20
+      }
+    },
+    {
+      "id": "plan-body-whole-number-below-2-53-written-as-an-integer",
+      "environment": "capture-body-written-forms",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "below_2_53"
+      ],
+      "expect": {
+        "number": 9007199254740991
+      }
+    },
+    {
+      "id": "plan-body-whole-number-at-2-53-written-as-a-double",
+      "note": "From 2^53, a double's whole numbers skip some integers.",
+      "environment": "capture-body-written-forms",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "at_2_53"
+      ],
+      "expect": {
+        "number": 9007199254740992.0
+      }
+    },
+    {
+      "id": "plan-mcp-tool-of-a-batch",
+      "environment": "capture-body-batch",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "mcp",
+        "tool"
+      ],
+      "expect": {
+        "body_unread": "batch"
+      }
+    },
+    {
+      "id": "plan-body-of-a-batch-read",
+      "note": "A batch's items are read as a body, though they name no one MCP message.",
+      "environment": "capture-body-batch",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        0,
+        "method"
+      ],
+      "expect": {
+        "string": "tools/call"
+      }
+    },
+    {
+      "id": "plan-mcp-tool-ambiguous",
+      "environment": "capture-body-mcp-ambiguous",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "mcp",
+        "tool"
+      ],
+      "expect": "ambiguous"
+    },
+    {
+      "id": "plan-body-index-within-the-step-limit",
+      "note": "An index is charged for each item it reads, the one it lands on included; a key for each member it reads.",
+      "environment": "capture-body-ten-items",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "items",
+        8
+      ],
+      "step_limit": 10,
+      "expect": {
+        "number": 8
+      }
+    },
+    {
+      "id": "plan-body-index-past-the-step-limit",
+      "environment": "capture-body-ten-items",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "items",
+        9
+      ],
+      "step_limit": 10,
+      "expect": {
+        "refused": "budget_exceeded"
+      }
+    },
+    {
+      "id": "plan-body-index-past-the-end-charged-what-it-passes",
+      "environment": "capture-body-ten-items",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "items",
+        200000
+      ],
+      "step_limit": 11,
+      "expect": "absent"
+    },
+    {
+      "id": "plan-body-index-past-the-end-past-the-step-limit",
+      "note": "One step short of what the index passes, so the index costs its steps where it's never found.",
+      "environment": "capture-body-ten-items",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "items",
+        200000
+      ],
+      "step_limit": 10,
+      "expect": {
+        "refused": "budget_exceeded"
+      }
+    },
+    {
+      "id": "plan-body-index-past-any-number-charged-what-it-passes",
+      "environment": "capture-body-ten-items",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "items",
+        18446744073709551615
+      ],
+      "step_limit": 11,
+      "expect": "absent"
+    },
+    {
+      "id": "plan-body-key-within-the-step-limit",
+      "note": "Every member read, as a key repeated past the first must be.",
+      "environment": "capture-body-ten-members",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "a"
+      ],
+      "step_limit": 10,
+      "expect": {
+        "number": 0
+      }
+    },
+    {
+      "id": "plan-body-key-past-the-step-limit",
+      "environment": "capture-body-ten-members",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "a"
+      ],
+      "step_limit": 9,
+      "expect": {
+        "refused": "budget_exceeded"
+      }
+    },
+    {
+      "id": "record-query-values",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "query",
+        "tag"
+      ],
+      "expect": {
+        "list": [
+          {
+            "string": "a"
+          },
+          {
+            "string": "b c"
+          }
+        ]
+      }
+    },
+    {
+      "id": "record-query-one-value",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "query",
+        "repo"
+      ],
+      "expect": {
+        "string": "docs"
+      }
+    },
+    {
+      "id": "record-query-value-at-index",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "query",
+        "tag",
+        1
+      ],
+      "expect": {
+        "string": "b c"
+      }
+    },
+    {
+      "id": "record-query-index-past-its-values-absent",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "query",
+        "tag",
+        2
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "record-query-empty-value",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "query",
+        "empty"
+      ],
+      "expect": {
+        "string": ""
+      }
+    },
+    {
+      "id": "record-query-missing-absent",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "query",
+        "owner"
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "record-query-fragment-not-read",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "query",
+        "top"
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "record-path-segment",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "path",
+        0
+      ],
+      "expect": {
+        "string": "finretail-production-mcp"
+      }
+    },
+    {
+      "id": "record-path-segment-past-the-end-absent",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "path",
+        2
+      ],
+      "expect": "absent"
+    },
+    {
+      "id": "record-redacted-path-segment",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "redacted_path",
+        0
+      ],
+      "expect": {
+        "string": "[redacted]"
+      }
+    },
+    {
+      "id": "record-redacted-path-segment-kept",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "redacted_path",
+        1
+      ],
+      "expect": {
+        "string": "mcp"
+      }
+    },
+    {
+      "id": "record-body-key",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "body",
+        "params",
+        "arguments",
+        "repo"
+      ],
+      "expect": {
+        "string": "payments-internal"
+      }
+    },
+    {
+      "id": "record-body-whole",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "body"
+      ],
+      "expect": "object"
+    },
+    {
+      "id": "record-body-list",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "body",
+        "params",
+        "arguments",
+        "files"
+      ],
+      "expect": {
+        "list": [
+          "object",
+          "object"
+        ]
+      }
+    },
+    {
+      "id": "record-host-not-for-a-record",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "host"
+      ],
+      "expect": {
+        "refused_reading": "not_for_record"
+      }
+    },
+    {
+      "id": "record-method-not-for-a-record",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "method"
+      ],
+      "expect": {
+        "refused_reading": "not_for_record"
+      }
+    },
+    {
+      "id": "record-path-not-for-a-record",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "path"
+      ],
+      "expect": {
+        "refused_reading": "not_for_record"
+      }
+    },
+    {
+      "id": "record-redacted-path-not-for-a-record",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "redacted_path"
+      ],
+      "expect": {
+        "refused_reading": "not_for_record"
+      }
+    },
+    {
+      "id": "record-mcp-tool-not-for-a-record",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "mcp",
+        "tool"
+      ],
+      "expect": {
+        "refused_reading": "not_for_record"
+      }
+    },
+    {
+      "id": "record-ticket-not-for-a-record",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "ticket",
+        "team"
+      ],
+      "expect": {
+        "refused_reading": "not_for_record"
+      }
+    },
+    {
+      "id": "record-headers-not-for-a-record",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "headers",
+        "accept"
+      ],
+      "expect": {
+        "refused_reading": "not_for_record"
+      }
+    },
+    {
+      "id": "record-endpoint-key-not-for-a-record",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "endpoint_key"
+      ],
+      "expect": {
+        "refused_reading": "not_for_record"
+      }
+    },
+    {
+      "id": "record-request-whole-not-for-a-record",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request"
+      ],
+      "expect": {
+        "refused_reading": "not_for_record"
+      }
+    },
+    {
+      "id": "record-dotted-spelling-not-for-a-record",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": "request.body.params",
+      "expect": {
+        "refused_reading": "not_for_record"
+      }
+    },
+    {
+      "id": "record-body-empty-key-not-for-a-record",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "body",
+        "params",
+        ""
+      ],
+      "expect": {
+        "refused_reading": "not_for_record"
+      }
+    },
+    {
+      "id": "record-query-empty-name-invalid",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": [
+        "request",
+        "query",
+        ""
+      ],
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "record-dotted-spelling-not-parsing-invalid",
+      "environment": "capture-sample",
+      "use": "record",
+      "path": "nothing",
+      "expect": {
+        "refused_reading": "invalid"
+      }
+    },
+    {
+      "id": "record-in-a-judging-environment-not-filled",
+      "environment": "judging-keyless",
+      "use": "record",
+      "path": [
+        "request",
+        "query",
+        "a"
+      ],
+      "expect": {
+        "refused": "not_for_use"
+      }
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 //! RailMon's redaction rule for a URL's path, `asp_redaction`'s, ported.
 //! Rail Center writes a capture plan's paths redacted by it, so a call's path is redacted the same
-//! way before the two are compared. Kept in step by `vectors/redaction_conformance_cases.json`.
+//! way before the two are compared. Kept in step by `vectors/redaction.json`.
 
 /// The version of the rule this port implements; a plan names the one it was written with.
 pub const REDACTION_VERSION: u64 = 1;

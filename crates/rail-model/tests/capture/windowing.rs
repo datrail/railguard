@@ -3,26 +3,15 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use rail_model::body::{BodyRead, Unread};
 use rail_model::capture::{
-    BodyUnreadReason, CallOutcome, ClosedWindow, CompiledPlan, ObservedCall, Windowing,
-    compile_plan, parse_plan,
+    CallOutcome, ClosedWindow, CompiledPlan, ObservedCall, Windowing, compile_plan, parse_plan,
 };
 use serde_json::Value;
 use uuid::Uuid;
 
-const VECTORS: &str = include_str!("../../../../vectors/capture_window_conformance_cases.json");
+const PLANS: &str = include_str!("../../../../vectors/capture/plans.json");
 
 // Each plan's `window_seconds`, by index.
 const WINDOW_SECONDS: [u64; 2] = [60, 300];
-
-// What the capture task tells the windowing, in order: the plan held (by index, `None` for none)
-// at seconds after the epoch, a call received then, or calls lost before the queue.
-enum Event {
-    Hold(Option<usize>, u64),
-    Record(Option<usize>, u64),
-    Dropped(u64),
-}
-
-use Event::{Dropped, Hold, Record};
 
 fn time(seconds: u64) -> SystemTime {
     UNIX_EPOCH + Duration::from_secs(seconds)
@@ -30,9 +19,9 @@ fn time(seconds: u64) -> SystemTime {
 
 // Plans told apart by their version, one more than their index, with 60 s and 300 s windows.
 fn plans() -> [Arc<CompiledPlan>; 2] {
-    let vectors: Value = serde_json::from_str(VECTORS).unwrap();
+    let plans: Value = serde_json::from_str(PLANS).unwrap();
     [0, 1].map(|index| {
-        let mut plan = vectors["plan"].clone();
+        let mut plan = plans["plans"]["worked-example"].clone();
         plan["window_seconds"] = WINDOW_SECONDS[index].into();
         plan["plan_version"] = (index + 1).into();
         Arc::new(compile_plan(parse_plan(&plan.to_string()).unwrap()))
@@ -72,145 +61,6 @@ fn read(closed: ClosedWindow) -> (usize, u64, u64, Vec<u64>, u64) {
         steps.map(|step| read_time(&step["at"])).collect(),
         written["truncated"]["calls_dropped"].as_u64().unwrap(),
     )
-}
-
-// `v<plan_version> <start>-<end>, <calls> calls, <dropped> dropped`.
-fn describe(closed: ClosedWindow) -> String {
-    let (plan, start, end, steps, dropped) = read(closed);
-    format!(
-        "v{} {start}-{end}, {} calls, {dropped} dropped",
-        plan + 1,
-        steps.len()
-    )
-}
-
-// Each window closed, described, and each call dropped.
-fn run(events: &[Event]) -> Vec<String> {
-    let plans = plans();
-    let held = |plan: Option<usize>| plan.map(|plan| Arc::clone(&plans[plan]));
-    let mut windowing = Windowing::default();
-    let mut said = Vec::new();
-    for event in events {
-        match *event {
-            Hold(plan, at) => said.extend(windowing.hold(held(plan), time(at)).map(describe)),
-            Record(plan, at) => {
-                let recorded = windowing.record(held(plan), &get(), time(at));
-                said.extend(recorded.closed.map(describe));
-                if matches!(recorded.outcome, CallOutcome::Dropped) {
-                    said.push("call dropped".to_owned());
-                }
-            }
-            Dropped(calls) => windowing.count_dropped(calls),
-        }
-    }
-    said
-}
-
-#[test]
-fn test_windows_end_on_a_boundary_and_start_when_opened() {
-    let cases: [(&str, &[Event], &[&str]); 6] = [
-        (
-            "the first window from the plan applied, the same plan keeping it; a plan change past the boundary opens no window for the old plan",
-            &[
-                Hold(Some(0), 20),
-                Hold(Some(0), 30),
-                Hold(Some(1), 61),
-                Hold(None, 70),
-            ],
-            &[
-                "v1 20-60, 0 calls, 0 dropped",
-                "v2 61-70, 0 calls, 0 dropped",
-            ],
-        ),
-        (
-            "a call past the end closes the window first",
-            &[Hold(Some(0), 0), Record(Some(0), 60), Hold(None, 70)],
-            &[
-                "v1 0-60, 0 calls, 0 dropped",
-                "v1 60-70, 1 calls, 0 dropped",
-            ],
-        ),
-        (
-            "a clock stepped back reads as the latest time written, across the plan gone",
-            &[
-                Hold(Some(0), 0),
-                Record(Some(0), 50),
-                Record(None, 40),
-                Record(Some(0), 45),
-                Hold(None, 55),
-            ],
-            &[
-                "v1 0-50, 1 calls, 0 dropped",
-                "call dropped",
-                "v1 50-55, 1 calls, 0 dropped",
-            ],
-        ),
-        (
-            "a minute back is absorbed, across a plan change; further back, the window closes at its latest time and the next opens then",
-            &[
-                Hold(Some(0), 100),
-                Record(Some(0), 110),
-                Hold(Some(1), 50),
-                Record(Some(1), 52),
-                Hold(Some(1), 48),
-                Hold(None, 55),
-            ],
-            &[
-                "v1 100-110, 1 calls, 0 dropped",
-                "v2 110-110, 1 calls, 0 dropped",
-                "v2 48-55, 0 calls, 0 dropped",
-            ],
-        ),
-        (
-            "further back within the window's span, too",
-            &[
-                Hold(Some(1), 0),
-                Record(Some(1), 200),
-                Record(Some(1), 100),
-                Hold(None, 110),
-            ],
-            &[
-                "v2 0-200, 1 calls, 0 dropped",
-                "v2 100-110, 1 calls, 0 dropped",
-            ],
-        ),
-        (
-            "the plan gone closes the window; drops with none open are no window's",
-            &[
-                Hold(Some(0), 0),
-                Dropped(2),
-                Record(None, 30),
-                Dropped(3),
-                Hold(Some(0), 130),
-                Hold(None, 140),
-            ],
-            &[
-                "v1 0-30, 0 calls, 2 dropped",
-                "call dropped",
-                "v1 130-140, 0 calls, 0 dropped",
-            ],
-        ),
-    ];
-    for (name, events, expected) in cases {
-        assert_eq!(run(events), expected, "{name}");
-    }
-}
-
-#[test]
-fn test_tells_when_the_open_window_ends_and_why_a_body_went_unread() {
-    let [plan, _] = plans();
-    let mut windowing = Windowing::default();
-    assert_eq!(windowing.end(), None);
-    assert!(windowing.hold(Some(Arc::clone(&plan)), time(60)).is_none());
-    assert_eq!(windowing.end(), Some(time(120)));
-    let past_cap = call("POST", "/mcp", Unread::PastCap);
-    let recorded = windowing.record(Some(plan), &past_cap, time(70));
-    assert!(matches!(
-        recorded.outcome,
-        CallOutcome::Counted {
-            body_unread: Some(BodyUnreadReason::PastCap)
-        }
-    ));
 }
 
 #[test]

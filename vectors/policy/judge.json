@@ -1,8 +1,7 @@
 {
-  "_comment": "Conformance cases for judge, the fallbacks and the walk. Taken from datrail/gateway's gateway-core/tests/vectors/v2/decide.json (its whole-bundle cases) and fallback.json, at 041c92f (master); bundles are filled in to the 2.0 shape Rail Center publishes, both fallbacks `pass` unless a case is about one, and a ticket is the gateway's claims, or the claims Rail Center mints where a case gives none. fallback.json's `<slug>.<tool>` keys are rewritten to `<slug>#/mcp#tools/call#<tool>`, and its cases with no chain are given one inert alert. An `endpoint` is `keyless`, `unrecognised` or {\"resolved\": key}, the key without its slug. `expect.fallbacks` lists the fallbacks that deny, in the order asked, and `expect.chain` the walk's verdict, null where a fallback denies at enforce; a refusal names the policy it was reached at. Removed: 5 with an action other than block or alert, which the contract denies on and this reader refuses with the bundle (Rail Center only publishes the two); 2 with an `enabled` missing or not a boolean, which the contract reads as enabled and this reader refuses with the bundle (Rail Center always sends a boolean); 2 with mode none, where the caller never calls the judge. Cases marked `added` are this reader's own: the ticket fallback, which the frozen vectors predate, and narrowing order.",
   "cases": [
     {
-      "name": "an endpoint with no binding entry is subject to every policy",
+      "id": "an-endpoint-with-no-binding-entry-is-subject-to-every-policy",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -59,7 +58,7 @@
       "note": "Read the other way round it is a total loss of enforcement, which is why the contract states it twice."
     },
     {
-      "name": "a binding narrows to the policies it names",
+      "id": "a-binding-narrows-to-the-policies-it-names",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -130,7 +129,7 @@
       "note": "The low-score rule matches and is not in this endpoint's chain."
     },
     {
-      "name": "a binding in mode open narrows to nothing and the walk allows",
+      "id": "a-binding-in-mode-open-narrows-to-nothing-and-the-walk-allows",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -185,7 +184,7 @@
       "note": "**Do not fall back to the whole chain when narrowing empties it.** Rail Center has a fallback of exactly that shape and it belongs to the publishing side alone: it drops a binding whose policies are all absent or disabled before the bundle is written. Copying it here makes the two sides disagree — deny there, allow here."
     },
     {
-      "name": "a binding naming only a disabled policy narrows to nothing too",
+      "id": "a-binding-naming-only-a-disabled-policy-narrows-to-nothing-too",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -254,7 +253,7 @@
       "note": "The same empty narrowing by the other route, and the one a publishing-side fallback would turn into a denial by the whole chain."
     },
     {
-      "name": "a bound id spelled non-canonically still narrows",
+      "id": "a-bound-id-spelled-non-canonically-still-narrows",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -325,7 +324,7 @@
       "note": "Both sides of the membership test are canonicalised, so a non-canonically spelled id matches its policy rather than nothing."
     },
     {
-      "name": "the first matching denying policy wins and stops the walk",
+      "id": "the-first-matching-denying-policy-wins-and-stops-the-walk",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -388,7 +387,7 @@
       "note": "A lower priority number is genuinely higher precedence rather than merely earlier in a list that keeps being read."
     },
     {
-      "name": "priority 9 precedes priority 10",
+      "id": "priority-9-precedes-priority-10",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -451,7 +450,7 @@
       "note": "Numerically, not as text: a default string comparator gets this backwards."
     },
     {
-      "name": "equal priorities are separated by the canonical id",
+      "id": "equal-priorities-are-separated-by-the-canonical-id",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -511,10 +510,10 @@
           "alerts": []
         }
       },
-      "note": "An implementation reading two equal priorities must not be free to choose, or the two sides disagree exactly where the policies conflict."
+      "note": "An implementation reading two equal priorities must not be free to choose, or two readers would answer differently exactly where the policies conflict."
     },
     {
-      "name": "a non-canonically spelled id is reported canonically",
+      "id": "a-non-canonically-spelled-id-is-reported-canonically",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -565,7 +564,7 @@
       "note": "A decision reporting the bundle's own spelling names the same policy two ways across a decision and its denial report."
     },
     {
-      "name": "the denial names the policy that actually matched",
+      "id": "the-denial-names-the-policy-that-actually-matched",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -630,7 +629,7 @@
       "note": "An implementation reporting the first rule in its chain produces a record that is wrong and that nothing downstream will contradict."
     },
     {
-      "name": "alerts that accumulated before a denial travel with it",
+      "id": "alerts-that-accumulated-before-a-denial-travel-with-it",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -708,7 +707,7 @@
       "note": "An alert that matched on a request a later denial stopped is still something an operator asked to be told about."
     },
     {
-      "name": "alerts accumulate in evaluation order, not in the order the bundle listed them",
+      "id": "alerts-accumulate-in-evaluation-order-not-in-the-order-the-bundle-listed-them",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -780,7 +779,7 @@
       "note": "Listed at priorities [2, 3, 1] precisely so a reader that accumulates in bundle order fails it."
     },
     {
-      "name": "an alert never denies",
+      "id": "an-alert-never-denies",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -830,7 +829,7 @@
       }
     },
     {
-      "name": "a policy that matches nothing denies nothing",
+      "id": "a-policy-that-matches-nothing-denies-nothing",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -878,7 +877,7 @@
       }
     },
     {
-      "name": "an empty chain allows",
+      "id": "an-empty-chain-allows",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -913,7 +912,7 @@
       }
     },
     {
-      "name": "a chain of only disabled policies allows",
+      "id": "a-chain-of-only-disabled-policies-allows",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -962,7 +961,7 @@
       "note": "A disabled policy is skipped, not evaluated and discarded."
     },
     {
-      "name": "a disabled policy's condition is never read",
+      "id": "a-disabled-policys-condition-is-never-read",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -1025,7 +1024,7 @@
       "note": "The remedy for a rule nobody can read is to switch it off, and that only works if disabling is decided before interpreting."
     },
     {
-      "name": "a rule the walk never reaches changes nothing",
+      "id": "a-rule-the-walk-never-reaches-changes-nothing",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -1088,7 +1087,7 @@
       "note": "**The refusal is lazy.** The walk stops at the first match, so a rule at priority 9 is never reached once priority 1 has denied, and that request has a clean answer. Refusing the whole bundle up front turns one bad condition into a total outage and answers differently here."
     },
     {
-      "name": "a rule the walk does reach refuses the request, alerts and all",
+      "id": "a-rule-the-walk-does-reach-refuses-the-request-alerts-and-all",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -1151,7 +1150,7 @@
       "note": "What separates 'refuse the request' from 'refuse but keep the alerts' and from 'skip the rule and keep walking'. Alerts already accumulated are discarded with the decision: they were the first half of a verdict that was never reached."
     },
     {
-      "name": "a rule behind an unreadable one is never consulted",
+      "id": "a-rule-behind-an-unreadable-one-is-never-consulted",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -1214,7 +1213,7 @@
       "note": "The refusal comes first in the chain, so the walk ends there whatever the later rule would have answered."
     },
     {
-      "name": "the seeded chain denies a request carrying no ticket",
+      "id": "the-seeded-chain-denies-a-request-carrying-no-ticket",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -1267,7 +1266,7 @@
       }
     },
     {
-      "name": "the seeded chain denies a low-scoring agent by the rule for it",
+      "id": "the-seeded-chain-denies-a-low-scoring-agent-by-the-rule-for-it",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -1328,7 +1327,7 @@
       }
     },
     {
-      "name": "a chain on the nested claims denies by level and alerts on drift, in evaluation order",
+      "id": "a-chain-on-the-nested-claims-denies-by-level-and-alerts-on-drift-in-evaluation-order",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -1416,7 +1415,7 @@
       }
     },
     {
-      "name": "the seeded chain allows a scored agent presenting a valid ticket",
+      "id": "the-seeded-chain-allows-a-scored-agent-presenting-a-valid-ticket",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -1475,7 +1474,7 @@
       }
     },
     {
-      "name": "an unscored agent is denied by a rule about an absent score",
+      "id": "an-unscored-agent-is-denied-by-a-rule-about-an-absent-score",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -1525,7 +1524,7 @@
       "note": "A null score is an absent one. A reader that lets a null read as present stops this rule firing on exactly the agents it exists for — and `lt 40` would not catch them either, since an ordered operator does not hold against an absence."
     },
     {
-      "name": "an unscored agent is not caught by the low-score rule",
+      "id": "an-unscored-agent-is-not-caught-by-the-low-score-rule",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -1585,7 +1584,7 @@
       "note": "The other half of the pair above, and why the seeded chain needs both rules rather than one."
     },
     {
-      "name": "enforce and block refuse an endpoint with no binding entry",
+      "id": "enforce-and-block-refuse-an-endpoint-with-no-binding-entry",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -1640,7 +1639,7 @@
       "note": "The rule the whole file is about. No entry, so the fallback answers and the chain is never reached."
     },
     {
-      "name": "enforce and block refuse it however many other endpoints are bound",
+      "id": "enforce-and-block-refuse-it-however-many-other-endpoints-are-bound",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -1703,7 +1702,7 @@
       "note": "A bundle with bindings is not a bundle where every endpoint is bound. Reading a non-empty `bindings` as 'this bundle narrows, so walk it' refuses nothing here."
     },
     {
-      "name": "enforce and block do not refuse a gated endpoint",
+      "id": "enforce-and-block-do-not-refuse-a-gated-endpoint",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -1767,7 +1766,7 @@
       "note": "An entry exists, so the fallback has nothing to say and the binding narrows as it always does."
     },
     {
-      "name": "enforce and block do not refuse an open endpoint",
+      "id": "enforce-and-block-do-not-refuse-an-open-endpoint",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -1829,7 +1828,7 @@
       "note": "`open` is an entry. An endpoint an operator deliberately exempted is not one nobody has reviewed, and the most restrictive posture must not convert the one into the other."
     },
     {
-      "name": "enforce and pass hand an unbound endpoint to the chain",
+      "id": "enforce-and-pass-hand-an-unbound-endpoint-to-the-chain",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -1885,7 +1884,7 @@
       "note": "Not refused for being unbound — which is not the same as unjudged. The whole chain still judges it, and may still deny."
     },
     {
-      "name": "enforce and pass change nothing for a bound endpoint",
+      "id": "enforce-and-pass-change-nothing-for-a-bound-endpoint",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -1948,7 +1947,7 @@
       }
     },
     {
-      "name": "observe never consults a block fallback",
+      "id": "observe-never-consults-a-block-fallback",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -2006,7 +2005,7 @@
       "note": "The half an implementation gets wrong. `observe` is what an operator uses to be sure nothing is blocked; a fallback consulted here blocks."
     },
     {
-      "name": "observe never consults a pass fallback either",
+      "id": "observe-never-consults-a-pass-fallback-either",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -2061,7 +2060,7 @@
       }
     },
     {
-      "name": "a message naming no tool by design is not an unbound endpoint",
+      "id": "a-message-naming-no-tool-by-design-is-not-an-unbound-endpoint",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -2115,7 +2114,7 @@
       "note": "There is no endpoint, so a fallback about endpoints has nothing to refuse. Refusing here would let the strictest posture close the messages a session opens with."
     },
     {
-      "name": "a call whose tool name resolved to no key is refused under block",
+      "id": "a-call-whose-tool-name-resolved-to-no-key-is-refused-under-block",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -2168,7 +2167,7 @@
       "note": "It named an endpoint; the reader declined to compose a key for it. No binding can match a key that was never composed, and the input a reader understands least is not the one to give the benefit of the doubt."
     },
     {
-      "name": "a call whose tool name resolved to no key is judged under pass",
+      "id": "a-call-whose-tool-name-resolved-to-no-key-is-judged-under-pass",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -2222,7 +2221,7 @@
       "note": "The other half: `pass` hands it to the whole chain, which is where the endpoint-derived rules catch it."
     },
     {
-      "name": "a message naming no tool by design is judged under pass too",
+      "id": "a-message-naming-no-tool-by-design-is-judged-under-pass-too",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -2275,7 +2274,7 @@
       }
     },
     {
-      "name": "enforce and pass: an unbound endpoint the chain denies is denied by the chain",
+      "id": "enforce-and-pass-an-unbound-endpoint-the-chain-denies-is-denied-by-the-chain",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -2326,7 +2325,7 @@
       "note": "The half that stops `pass` being read as `unjudged`. The fallback does not refuse the call and the chain then does, so a reader that forwarded an unbound endpoint without walking it would answer `refused: false` correctly here and still admit the request the chain denies."
     },
     {
-      "name": "enforce and pass: an unbound endpoint no policy matches is allowed",
+      "id": "enforce-and-pass-an-unbound-endpoint-no-policy-matches-is-allowed",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -2375,7 +2374,7 @@
       "note": "The other half, and why the one above is not simply `block` by another name. Same bundle, same endpoint, same absence of a binding — only the ticket differs, so the verdict is the chain's and not the fallback's."
     },
     {
-      "name": "enforce and block refuse before a chain that would have allowed",
+      "id": "enforce-and-block-refuse-before-a-chain-that-would-have-allowed",
       "bundle": {
         "schema_version": "2.0",
         "content_hash": "walk",
@@ -2423,7 +2422,7 @@
       "note": "The same request the case above allows. `block` refuses it without consulting the chain, which is what makes 'the chain is not consulted' observable: consult it and this call is allowed."
     },
     {
-      "name": "narrowing keeps the chain order, not the order the binding lists ids in",
+      "id": "narrowing-keeps-the-chain-order-not-the-order-the-binding-lists-ids-in",
       "added": true,
       "bundle": {
         "schema_version": "2.0",
@@ -2503,7 +2502,7 @@
       }
     },
     {
-      "name": "enforce and a block ticket fallback deny a call with no usable ticket, without the chain",
+      "id": "enforce-and-a-block-ticket-fallback-deny-a-call-with-no-usable-ticket-without-the-chain",
       "added": true,
       "bundle": {
         "schema_version": "2.0",
@@ -2542,7 +2541,7 @@
       }
     },
     {
-      "name": "observe and a block ticket fallback still walk the chain, with every ticket path absent",
+      "id": "observe-and-a-block-ticket-fallback-still-walk-the-chain-with-every-ticket-path-absent",
       "added": true,
       "bundle": {
         "schema_version": "2.0",
@@ -2586,7 +2585,7 @@
       }
     },
     {
-      "name": "a pass ticket fallback walks the chain with every ticket path absent",
+      "id": "a-pass-ticket-fallback-walks-the-chain-with-every-ticket-path-absent",
       "added": true,
       "bundle": {
         "schema_version": "2.0",
@@ -2628,7 +2627,7 @@
       }
     },
     {
-      "name": "at observe, both fallbacks that would deny are reported, the ticket fallback first",
+      "id": "at-observe-both-fallbacks-that-would-deny-are-reported-the-ticket-fallback-first",
       "added": true,
       "bundle": {
         "schema_version": "2.0",
@@ -2673,7 +2672,7 @@
       }
     },
     {
-      "name": "at enforce, the ticket fallback answers before the binding fallback",
+      "id": "at-enforce-the-ticket-fallback-answers-before-the-binding-fallback",
       "added": true,
       "bundle": {
         "schema_version": "2.0",
@@ -2712,7 +2711,7 @@
       }
     },
     {
-      "name": "a usable ticket never meets the ticket fallback",
+      "id": "a-usable-ticket-never-meets-the-ticket-fallback",
       "added": true,
       "bundle": {
         "schema_version": "2.0",
@@ -2766,6 +2765,139 @@
           "decision": {
             "denied": "5c8f1e42-0000-4000-8000-0000000000b3"
           },
+          "alerts": []
+        }
+      }
+    },
+    {
+      "id": "a-binding-whose-call-holds-a-separator-binds-that-call",
+      "added": true,
+      "bundle": {
+        "schema_version": "2.0",
+        "content_hash": "walk",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "policies": [
+          {
+            "id": "5c8f1e42-0000-4000-8000-0000000000c1",
+            "name": "any scored agent",
+            "priority": 1,
+            "condition": {
+              "path": "ticket.posture.overall.score",
+              "op": "gt",
+              "value": 0
+            },
+            "action": "block",
+            "enabled": true
+          }
+        ],
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#refund#order",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "binding_fallback": "pass",
+        "ticket_fallback": "pass"
+      },
+      "mode": "enforce",
+      "endpoint": {
+        "resolved": "/mcp#tools/call#refund#order"
+      },
+      "ticket": {
+        "id": "10000000-0000-4000-8000-000000000001",
+        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
+        "sandbox_id": "sandbox-1",
+        "environment_fingerprint": "fingerprint-1",
+        "skills": [],
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "low"
+          },
+          "categories": {}
+        },
+        "alignment": {
+          "drifted": []
+        }
+      },
+      "headers": [],
+      "expect": {
+        "fallbacks": [],
+        "chain": {
+          "decision": "allowed",
+          "alerts": []
+        }
+      }
+    },
+    {
+      "id": "bindings-differing-past-the-slug-bind-two-endpoints",
+      "added": true,
+      "bundle": {
+        "schema_version": "2.0",
+        "content_hash": "walk",
+        "enforcement": {
+          "mode": "enforce"
+        },
+        "policies": [
+          {
+            "id": "5c8f1e42-0000-4000-8000-0000000000c1",
+            "name": "any scored agent",
+            "priority": 1,
+            "condition": {
+              "path": "ticket.posture.overall.score",
+              "op": "gt",
+              "value": 0
+            },
+            "action": "block",
+            "enabled": true
+          }
+        ],
+        "bindings": [
+          {
+            "endpoint_key": "finretail#/mcp#tools/call#refund_order",
+            "mode": "gated",
+            "policy_ids": [
+              "5c8f1e42-0000-4000-8000-0000000000c1"
+            ]
+          },
+          {
+            "endpoint_key": "finretail#/other#tools/call#refund_order",
+            "mode": "open",
+            "policy_ids": []
+          }
+        ],
+        "binding_fallback": "pass",
+        "ticket_fallback": "pass"
+      },
+      "mode": "enforce",
+      "endpoint": {
+        "resolved": "/other#tools/call#refund_order"
+      },
+      "ticket": {
+        "id": "10000000-0000-4000-8000-000000000001",
+        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
+        "sandbox_id": "sandbox-1",
+        "environment_fingerprint": "fingerprint-1",
+        "skills": [],
+        "posture": {
+          "overall": {
+            "score": 92.0,
+            "level": "low"
+          },
+          "categories": {}
+        },
+        "alignment": {
+          "drifted": []
+        }
+      },
+      "headers": [],
+      "expect": {
+        "fallbacks": [],
+        "chain": {
+          "decision": "allowed",
           "alerts": []
         }
       }

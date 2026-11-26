@@ -5,7 +5,7 @@ import pytest
 
 from datrail_model import BundleCheck, validate_bundle
 
-_VECTORS = Path(__file__).parents[3] / "vectors" / "parse_bundle_conformance_cases.json"
+_VECTORS = Path(__file__).parents[3] / "vectors" / "policy" / "bundle.json"
 _CASES = json.loads(_VECTORS.read_text())["cases"]
 
 
@@ -13,7 +13,7 @@ def test_has_cases():
     assert _CASES
 
 
-@pytest.mark.parametrize("case", _CASES, ids=lambda case: case["name"])
+@pytest.mark.parametrize("case", _CASES, ids=lambda case: case["id"])
 def test_vectors(case):
     check = validate_bundle(json.dumps(case["bundle"]))
 

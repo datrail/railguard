@@ -8,8 +8,8 @@ import pytest
 from datrail_model import TicketReading, read_ticket
 
 _VECTORS = Path(__file__).parents[3] / "vectors"
-_BASE64 = json.loads((_VECTORS / "parse_base64_ticket_conformance_cases.json").read_text())
-_JWT = json.loads((_VECTORS / "parse_jwt_ticket_conformance_cases.json").read_text())
+_BASE64 = json.loads((_VECTORS / "policy" / "base64_ticket.json").read_text())
+_JWT = json.loads((_VECTORS / "policy" / "jwt_ticket.json").read_text())
 _JWT_KEY = base64.urlsafe_b64decode(_JWT["public_key"] + "=")
 
 
@@ -32,14 +32,14 @@ def test_has_cases():
     assert _JWT["cases"]
 
 
-@pytest.mark.parametrize("case", _BASE64["cases"], ids=lambda case: case["name"])
+@pytest.mark.parametrize("case", _BASE64["cases"], ids=lambda case: case["id"])
 def test_base64_vectors(case):
     reading = read_ticket(case["header"], now=_get_time(case["now_in_seconds"]))
 
     _check_case(case, reading)
 
 
-@pytest.mark.parametrize("case", _JWT["cases"], ids=lambda case: case["name"])
+@pytest.mark.parametrize("case", _JWT["cases"], ids=lambda case: case["id"])
 def test_jwt_vectors(case):
     reader = case.get("reader") or {
         "holds_keys": True,
