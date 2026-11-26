@@ -11,8 +11,6 @@ use crate::condition::{Condition, TicketClaimsSchema, check_condition, compile_c
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Cases {
-    #[serde(rename = "_source")]
-    _source: Option<Value>,
     ticket_claims_schema: Value,
     cases: Vec<Case>,
 }

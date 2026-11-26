@@ -1,11 +1,4 @@
 {
-  "_source": {
-    "repository": "datrail/gateway",
-    "files": [
-      "gateway-core/tests/vectors/ticket.json"
-    ],
-    "commit": "041c92f"
-  },
   "cases": [
     {
       "id": "base64-an-empty-header",

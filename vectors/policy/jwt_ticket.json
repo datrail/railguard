@@ -1,11 +1,4 @@
 {
-  "_source": {
-    "repository": "rail-center",
-    "files": [
-      "api/tests/vectors/signed_tickets.json"
-    ],
-    "commit": "0485959"
-  },
   "kid": "vector-key-1",
   "public_key": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg",
   "issuer": "https://rail-center.example/tenants/00000000-0000-4000-8000-0000000000aa",

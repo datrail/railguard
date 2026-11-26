@@ -1,11 +1,4 @@
 {
-  "_source": {
-    "repository": "datrail/gateway",
-    "files": [
-      "gateway-core/tests/vectors/bundle.json"
-    ],
-    "commit": "041c92f"
-  },
   "cases": [
     {
       "id": "the-contracts-worked-example",

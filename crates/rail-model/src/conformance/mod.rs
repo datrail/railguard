@@ -78,12 +78,10 @@ pub fn run_vectors(file: &str, texts: &BTreeMap<String, String>) -> Result<Vec<O
     outcomes.map_err(|e| format!("{file}: {e}"))
 }
 
-// A file's cases, the fields every vector file may have beside them.
+// A file's cases.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Cases<C> {
-    #[serde(rename = "_source")]
-    _source: Option<Value>,
     cases: Vec<C>,
 }
 

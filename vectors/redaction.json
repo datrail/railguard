@@ -1,11 +1,4 @@
 {
-  "_source": {
-    "repository": "RailMon",
-    "files": [
-      "python/asp_spelling/tests/test_asp_redaction.py"
-    ],
-    "commit": "3a4e390"
-  },
   "cases": [
     {
       "id": "a-key-shaped-segment",

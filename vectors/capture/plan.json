@@ -1,5 +1,4 @@
 {
-  "_source": {"repository": "railxia/docs", "files": ["design/2026-11-10-rc-dg-capture-plan/design.md"], "commit": "95b5c7b"},
   "plan": {
     "schema_version": "1.0",
     "content_hash": "sha256:fb3733bbe47258024770ac2cc2521f60c5709ddc2a31b87744ed1c213229d77c",

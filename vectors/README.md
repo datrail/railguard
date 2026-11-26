@@ -25,8 +25,7 @@ Every file holds `cases`, each:
   where another answers otherwise is the contract's to say. The ported files below keep their sources' fields: their
   answers in named fields, as the layers table says, not under `expect`.
 
-A file may also hold `_source`, where its cases were taken from (a repository, its files, a commit), and the inputs its
-cases share. In a ported file, `added` marks a case that is this reader's own.
+A file may also hold the inputs its cases share. In a ported file, `added` marks a case that is this reader's own.
 
 **Whose a behaviour is** follows from where it lives: `bundle`, the policy bundle's language, shared by the gateway's
 policies and the capture plan's matches (a change reaches the gateway's enforcement); or `capture`, capture's own (a
@@ -138,7 +137,7 @@ Layer 9's `sent` is what the sender gives the document: `document_id`, `generate
 
 ## Where the ported files come from
 
-Each names its source in `_source`; what changed on the way:
+What changed on the way:
 
 - **`redaction.json`:** RailMon's rule (`asp_redaction`, `REDACTION_VERSION` 1), its tests written as paths; a change to
   the rule updates both. Shapes whose shortest key is 20 characters or more are redacted by length here, whatever their
@@ -174,8 +173,8 @@ Each names its source in `_source`; what changed on the way:
   the `schema_version`'s major, the agent, the `redaction_version`.
 
 Layers 3 to 5 hold, among their own, the condition cases of datrail/gateway's
-`gateway-core/tests/vectors/v2/decide.json` at `041c92f`, each split into its path, its reading and its op; being no one
-source's file, they name no `_source`. Three of them, an operand past a double, are refused here as read.
+`gateway-core/tests/vectors/v2/decide.json` at `041c92f`, each split into its path, its reading and its op. Three of
+them, an operand past a double, are refused here as read.
 
 ## Queries
 

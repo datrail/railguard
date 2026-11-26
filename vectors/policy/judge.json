@@ -1,12 +1,4 @@
 {
-  "_source": {
-    "repository": "datrail/gateway",
-    "files": [
-      "gateway-core/tests/vectors/v2/decide.json",
-      "gateway-core/tests/vectors/fallback.json"
-    ],
-    "commit": "041c92f"
-  },
   "cases": [
     {
       "id": "an-endpoint-with-no-binding-entry-is-subject-to-every-policy",
