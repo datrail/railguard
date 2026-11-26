@@ -21,9 +21,10 @@ By module:
 
 - **`policy`:** **`parse_bundle`** reads a policy bundle, refusing one it can't use with why; **`compile_bundle`** makes
   it a `CompiledBundle`, ready to judge with. **`judge`** judges one call against a `CompiledBundle`, its `Outcome`
-  telling a call whose body's tree or headers passed the byte budget, after any ticket fallback; **`judge_traced`** also
-  hands a `Tracer` each policy evaluated. **`parse_ticket`** reads an `x-rail` value: base64, or a signed JWT checked
-  against a `SignedTicketConfig`'s keys, issuer and audience. **`parse_key_set`** reads Rail Center's signing keys.
+  telling a call whose body's tree (after any ticket fallback) or headers passed the byte budget; **`judge_traced`**
+  also hands a `Tracer` each policy evaluated. **`parse_ticket`** reads an `x-rail` value: base64, or a signed JWT
+  checked against a `SignedTicketConfig`'s keys, issuer and audience. **`parse_key_set`** reads Rail Center's signing
+  keys.
 - **`condition`:** **`check_condition`** reports every problem with one condition, read for its use, and whether every
   reader refuses it or only Rail Center; **`compile_condition`** and **`evaluate_condition`** evaluate one, as the judge
   does. A **`Path`** is spelled as a dotted string or as a list, in a bundle or a plan; it's read for a

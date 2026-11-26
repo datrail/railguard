@@ -284,72 +284,59 @@ fn test_reads_an_endpoint_not_read_as_unbound() {
     }
 }
 
-// A request whose body or headers pass a budget of 64 bytes: its body kept outside it, past it.
-fn past_budget(body: &[u8], header: &str) -> ObservedRequest {
-    let mut buffer = BodyBuffer::new(usize::MAX, &ByteBudget::new(64));
+// A request on a budget of `budget_bytes`, its body kept outside it if past it.
+fn request_within(budget_bytes: usize, body: &[u8], header: &str) -> ObservedRequest {
+    let mut buffer = BodyBuffer::new(usize::MAX, &ByteBudget::new(budget_bytes));
     buffer.keep_past_budget();
     buffer.adopt(body.to_vec());
     let body = BodyRead::Whole(Arc::new(buffer.finish().unwrap()));
     let lines = vec![(b"x-a".to_vec(), header.as_bytes().to_vec())];
-    ObservedRequest::new(
-        Vec::new(),
-        b"POST".to_vec(),
-        b"/mcp".to_vec(),
-        lines,
-        body,
-        0,
-    )
+    let (method, path) = (b"POST".to_vec(), b"/mcp".to_vec());
+    ObservedRequest::new(Vec::new(), method, path, lines, body, 0)
 }
 
-// After the ticket fallback, which denies at enforce first; never read as naming no tool.
+// A tree past the budget after the ticket fallback, before the binding one; headers past it in
+// the walk.
 #[test]
 fn test_reads_a_request_past_the_budget_after_the_ticket_fallback() {
-    let tree = br#"{"method": "tools/call", "params": {"name": "a-tool-named-at-length"}}"#;
-    let long = "a".repeat(1 << 10);
+    use FallbackDenial::Ticket;
+    use JudgingMode::{Enforce, Observe};
+    let call = br#"{"method": "tools/call", "params": {"name": "t"}}"#;
+    let long = "a".repeat(32 << 10);
+    // A tree's least reservation passes 64 bytes; 16 KiB holds it, not the long header.
     let cases = [
-        (
-            &tree[..],
-            "1",
-            JudgingMode::Enforce,
-            "block",
-            &[FallbackDenial::Ticket][..],
-            false,
-        ),
-        (
-            tree,
-            "1",
-            JudgingMode::Observe,
-            "block",
-            &[FallbackDenial::Ticket],
-            true,
-        ),
-        (tree, "1", JudgingMode::Enforce, "pass", &[], true),
-        (b"{}", &long, JudgingMode::Enforce, "pass", &[], true),
+        (64, "1", Enforce, "block", "block", &[Ticket][..], false),
+        (64, "1", Observe, "block", "block", &[Ticket], true),
+        (64, "1", Enforce, "pass", "block", &[], true),
+        (16 << 10, &long[..], Enforce, "pass", "pass", &[], true),
     ];
-    for (body, header, mode, ticket_fallback, denials, past) in cases {
+    for (budget_bytes, header, mode, ticket_fallback, binding_fallback, denials, past) in cases {
         let bundle = json!({
             "schema_version": "2.0",
             "content_hash": "past-budget",
             "enforcement": {"mode": "enforce"},
             "policies": [traced_policy(1, json!({"path": "request.headers.x-a", "op": "existing"}), "block")],
             "bindings": [],
-            "binding_fallback": "block",
+            "binding_fallback": binding_fallback,
             "ticket_fallback": ticket_fallback,
         });
         let bundle = compile_bundle(&parse_bundle(&bundle.to_string()).unwrap());
-        let request = past_budget(body, header);
+        let request = request_within(budget_bytes, call, header);
         let outcome = judge(
             &bundle,
             &Environment::of(&request, None),
             mode,
             &mut Budget::default(),
         );
-        let expected = (denials, past, None);
         let got = (
             &outcome.fallback_denials[..],
             outcome.past_budget,
             outcome.chain,
         );
-        assert_eq!(got, expected, "{mode:?} {ticket_fallback} {}", body.len());
+        assert_eq!(
+            got,
+            (denials, past, None),
+            "{mode:?} {ticket_fallback} {budget_bytes}"
+        );
     }
 }

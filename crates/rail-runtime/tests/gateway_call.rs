@@ -154,13 +154,18 @@ async fn a_body_past_the_cap_or_cut_short_is_refused_unjudged_whatever_the_metho
 }
 
 // Past the memory budget, not the cap: kept, it's answered as any call that can't be judged and
-// sent on (forwarded, at observe); its bytes dropped, as a chunk past it is, nothing is left to
-// send on.
+// sent on (503 at enforce, forwarded at observe); its bytes dropped, as a chunk past it is,
+// nothing is left to send on.
 #[tokio::test(start_paused = true)]
 async fn a_body_past_the_budget_is_unjudged_and_refused_only_if_dropped() {
-    for (chunk_after, answered) in [(false, Answer::Forward), (true, Answer::CannotApply)] {
+    let cases = [
+        ("enforce", false, Answer::CannotApply),
+        ("observe", false, Answer::Forward),
+        ("observe", true, Answer::CannotApply),
+    ];
+    for (mode, chunk_after, answered) in cases {
         let clock = TestClock::new();
-        let bundle = bundles::denying_unticketed(json!({"enforcement": {"mode": "observe"}}));
+        let bundle = bundles::denying_unticketed(json!({"enforcement": {"mode": mode}}));
         let settings = GatewaySettings {
             max_body_bytes: 512 << 20,
             ..GatewaySettings::default()
@@ -180,7 +185,7 @@ async fn a_body_past_the_budget_is_unjudged_and_refused_only_if_dropped() {
             assert!(!gatherer.adopt(b"0".to_vec()));
         }
         let (answer, back) = started.gateway.handle(gatherer, BodyEnding::Whole).await;
-        assert_eq!(answer, answered, "{chunk_after}");
+        assert_eq!(answer, answered, "{mode} {chunk_after}");
         assert_eq!(back.len(), if chunk_after { 0 } else { 257 << 20 });
     }
 }

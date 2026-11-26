@@ -56,11 +56,11 @@ pub struct Outcome {
     /// The fallbacks that deny the call, ticket first. At `enforce` the first one ends the
     /// judgement, so there's at most one.
     pub fallback_denials: Vec<FallbackDenial>,
-    /// What the policies concluded, or `None` if they weren't consulted: at `enforce`, after a
-    /// fallback denied, or past the budget.
+    /// What the policies concluded, or `None`: at `enforce` after a fallback denied, or in either
+    /// mode past the budget.
     pub chain: Option<ChainOutcome>,
-    /// What it read passed the byte budget, its body's tree or its headers, after any ticket
-    /// fallback: the call can't be judged.
+    /// What it read passed the byte budget, its body's tree (after any ticket fallback) or its
+    /// headers (in the walk): the call can't be judged.
     pub past_budget: bool,
 }
 
@@ -151,8 +151,9 @@ impl Tracer for NoTracer {
     fn record(&mut self, _: Uuid, _: &Evaluation) {}
 }
 
-/// The ticket fallback, then the binding fallback, then the chain. At `enforce` a fallback's
-/// denial ends the judgement; at `observe` the chain is walked anyway, to preview it.
+/// The ticket fallback, then the binding fallback, then the chain; a body's tree past the byte
+/// budget ends it before the binding fallback. At `enforce` a fallback's denial ends the
+/// judgement; at `observe` the chain is walked anyway, to preview it.
 pub fn judge(
     bundle: &CompiledBundle,
     environment: &Environment,
@@ -176,18 +177,14 @@ pub fn judge_traced(
     if !usable && bundle.ticket_fallback == Fallback::Block {
         fallback_denials.push(FallbackDenial::Ticket);
         if enforcing {
-            return Outcome {
-                fallback_denials,
-                chain: None,
-                past_budget: false,
-            };
+            return without_chain(fallback_denials, false);
         }
     }
-    // Before its endpoint, which would read a tree past the budget as naming no tool.
+    // Before its endpoint, which would read a tree past the budget as an unrecognised one.
     if let BodyRead::Whole(body) = environment.body()
         && *body.mcp() == McpReading::Unparsed(Unparsed::PastBudget)
     {
-        return past_budget(fallback_denials);
+        return without_chain(fallback_denials, true);
     }
     // A message naming no tool by design isn't an unbound endpoint: it faces the whole chain.
     // None, for a session message or an unread body, neither ever judged: unbound.
@@ -202,11 +199,7 @@ pub fn judge_traced(
     if unbound && bundle.binding_fallback == Fallback::Block {
         fallback_denials.push(FallbackDenial::Binding);
         if enforcing {
-            return Outcome {
-                fallback_denials,
-                chain: None,
-                past_budget: false,
-            };
+            return without_chain(fallback_denials, false);
         }
     }
     let chain = match narrowed {
@@ -223,7 +216,7 @@ pub fn judge_traced(
         ..
     } = chain.decision
     {
-        return past_budget(fallback_denials);
+        return without_chain(fallback_denials, true);
     }
     Outcome {
         fallback_denials,
@@ -232,11 +225,11 @@ pub fn judge_traced(
     }
 }
 
-fn past_budget(fallback_denials: Vec<FallbackDenial>) -> Outcome {
+fn without_chain(fallback_denials: Vec<FallbackDenial>, past_budget: bool) -> Outcome {
     Outcome {
         fallback_denials,
         chain: None,
-        past_budget: true,
+        past_budget,
     }
 }
 
