@@ -18,7 +18,7 @@ use crate::callout::{GATEWAY_MAX_BODY_MB, MB};
 use crate::clock::WallClock;
 use crate::denial::DenialReporter;
 use crate::gateway::{
-    Answer, Unit, UnitSettings, answer_by, answer_unjudged, decode_x_rail, judge_call,
+    Answer, Unit, UnitSettings, answer_unjudged, decode_x_rail, judge_call, unjudged_fallback,
 };
 use crate::gather::{BODY_BUDGET_BYTES, BodyEnding, RequestGatherer};
 use crate::key_set::KeySetHolder;
@@ -153,8 +153,7 @@ impl Gateway {
                 return Answer::TooLarge;
             }
             _ if call.method() != "POST" => return Answer::Forward,
-            // A host's own not sent is logged by it, which knows what it wasn't configured to send;
-            // a declared length with nothing sent isn't.
+            // Logged by its host where it wasn't configured to send it, not where it declared a length.
             BodyRead::Unread(Unread::NotSent) => return Answer::CannotApply,
             BodyRead::Whole(_) => {}
         }
@@ -165,9 +164,7 @@ impl Gateway {
         let within =
             |limit: Duration| limit.min(deadline.saturating_duration_since(Instant::now()));
         let Some(bundle) = self.bundles.wait_for_bundle(within(MAX_WAIT)).await else {
-            let answer = answer_by(self.settings.no_bundle_fallback);
-            tracing::error!(?answer, "no policy bundle held; the call went unjudged");
-            return answer;
+            return answer_unjudged(self.settings.no_bundle_fallback, "no policy bundle held");
         };
         let ticket = decode_x_rail(call);
         // Only where a signed ticket can be read and accepted: any caller can name a key.
@@ -178,7 +175,7 @@ impl Gateway {
             }
             _ => self.key_sets.keys(),
         };
-        let unjudged = |why: &str| answer_unjudged(&bundle, why);
+        let unjudged = |why: &str| answer_unjudged(unjudged_fallback(&bundle), why);
         let Ok(Ok(slot)) = timeout_at(deadline, Arc::clone(&self.judgements).acquire_owned()).await
         else {
             return unjudged("its deadline passed waiting for a free slot");

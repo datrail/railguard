@@ -176,7 +176,8 @@ flowchart LR
 waits, deadline, posture, fallbacks, denial reports and answers. A call allowed goes on without the agent's `x-rail`,
 `x-rail-*` and `_` headers; one refused gets 403 `{"error": "denied by policy"}`, or 503
 `{"error": "policy ruleset cannot be applied"}`, or, past `RAIL_MAX_BODY_MB` or shorter than its `Content-Length` but
-not empty, 413 `{"error": "request body too large"}`.
+not empty, 413 `{"error": "request body too large"}`. A `POST` sending no body though its `Content-Length` isn't 0
+gets 503.
 
 - **ext_proc** must send the request's headers, and its body `FULL_DUPLEX_STREAMED` or `BUFFERED`:
   - **full duplex** (GCP's load balancer): every answer is held until the body ends, by its last chunk or the trailers

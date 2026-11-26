@@ -1,5 +1,6 @@
-//! A request body: kept as it arrives, within a cap and a budget it shares with every other, then
-//! read once, by whichever caller asks first, as a tree of values and as an MCP message.
+//! A request body: kept as it arrives, within a cap and a budget it shares with every other (or
+//! outside it, adopted past it), then read once, by whichever caller asks first, as a tree of
+//! values and as an MCP message.
 
 mod json;
 pub mod mcp;
@@ -160,20 +161,14 @@ impl BodyBuffer {
         if length_bytes > self.cap_bytes {
             return self.drop_bytes(Unkept::PastCap);
         }
-        if self.charge.is_none() {
-            let mut charge = Charge::new(&self.budget);
-            if !charge.grow(self.bytes.capacity()) {
-                return self.drop_bytes(Unkept::PastBudget);
-            }
-            self.charge = Some(charge);
-        }
-        let capacity_bytes = self.bytes.capacity();
+        let (capacity_bytes, cap_bytes) = (self.bytes.capacity(), self.cap_bytes);
+        let Some(charge) = self.charge_whole() else {
+            return self.drop_bytes(Unkept::PastBudget);
+        };
         if length_bytes > capacity_bytes {
             // Doubling, as a `Vec` does, but within the cap, and charged before it's taken.
-            let wanted_bytes = length_bytes.max(capacity_bytes * 2).min(self.cap_bytes);
-            let grown = (self.charge.as_mut())
-                .is_some_and(|charge| charge.grow(wanted_bytes - capacity_bytes));
-            if !grown {
+            let wanted_bytes = length_bytes.max(capacity_bytes * 2).min(cap_bytes);
+            if !charge.grow(wanted_bytes - capacity_bytes) {
                 return self.drop_bytes(Unkept::PastBudget);
             }
             self.bytes.reserve_exact(wanted_bytes - self.bytes.len());
@@ -218,6 +213,18 @@ impl BodyBuffer {
             tree: OnceLock::new(),
             mcp: OnceLock::new(),
         })
+    }
+
+    // Its charge, a body kept outside the budget charged whole first: `None` if that passes it.
+    fn charge_whole(&mut self) -> Option<&mut Charge> {
+        if self.charge.is_none() {
+            let mut charge = Charge::new(&self.budget);
+            if !charge.grow(self.bytes.capacity()) {
+                return None;
+            }
+            self.charge = Some(charge);
+        }
+        self.charge.as_mut()
     }
 
     fn drop_bytes(&mut self, why: Unkept) {

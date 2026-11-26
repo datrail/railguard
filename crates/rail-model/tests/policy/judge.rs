@@ -1,13 +1,11 @@
-use std::sync::Arc;
-
-use rail_model::body::{BodyBuffer, BodyRead, ByteBudget, Unread};
+use rail_model::body::{BodyRead, ByteBudget, Unread};
 use rail_model::condition::{Budget, Environment, Evaluation, Refusal, Verdict};
 use rail_model::endpoint::Endpoint;
 use rail_model::policy::{
     Decision, EnforcementMode, FallbackDenial, JudgingMode, Outcome, Tracer, compile_bundle, judge,
     judge_traced, parse_bundle,
 };
-use rail_model::request::{Headers, ObservedRequest};
+use rail_model::request::Headers;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
@@ -284,17 +282,6 @@ fn test_reads_an_endpoint_not_read_as_unbound() {
     }
 }
 
-// A request on a budget of `budget_bytes`, its body kept outside it if past it.
-fn request_within(budget_bytes: usize, body: &[u8], header: &str) -> ObservedRequest {
-    let mut buffer = BodyBuffer::new(usize::MAX, &ByteBudget::new(budget_bytes));
-    buffer.keep_past_budget();
-    buffer.adopt(body.to_vec());
-    let body = BodyRead::Whole(Arc::new(buffer.finish().unwrap()));
-    let lines = vec![(b"x-a".to_vec(), header.as_bytes().to_vec())];
-    let (method, path) = (b"POST".to_vec(), b"/mcp".to_vec());
-    ObservedRequest::new(Vec::new(), method, path, lines, body, 0)
-}
-
 // A tree past the budget after the ticket fallback, before the binding one; headers past it in
 // the walk.
 #[test]
@@ -307,7 +294,6 @@ fn test_reads_a_request_past_the_budget_after_the_ticket_fallback() {
     let cases = [
         (64, "1", Enforce, "block", "block", &[Ticket][..], false),
         (64, "1", Observe, "block", "block", &[Ticket], true),
-        (64, "1", Enforce, "pass", "block", &[], true),
         (16 << 10, &long[..], Enforce, "pass", "pass", &[], true),
     ];
     for (budget_bytes, header, mode, ticket_fallback, binding_fallback, denials, past) in cases {
@@ -321,7 +307,7 @@ fn test_reads_a_request_past_the_budget_after_the_ticket_fallback() {
             "ticket_fallback": ticket_fallback,
         });
         let bundle = compile_bundle(&parse_bundle(&bundle.to_string()).unwrap());
-        let request = request_within(budget_bytes, call, header);
+        let request = crate::request_on(&ByteBudget::new(budget_bytes), call, &[("x-a", header)]);
         let outcome = judge(
             &bundle,
             &Environment::of(&request, None),

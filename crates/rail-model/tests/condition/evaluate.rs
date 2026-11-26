@@ -248,7 +248,7 @@ fn test_refuses_headers_past_the_budget() {
     ];
     for (lines, verdict) in cases {
         let budget = ByteBudget::new(1 << 20);
-        let request = request_with(&budget, lines);
+        let request = crate::request_on(&budget, b"{}", lines);
         assert_eq!(read_x_a(&request), verdict, "{}", lines.len());
     }
 }
@@ -257,7 +257,7 @@ fn test_refuses_headers_past_the_budget() {
 #[test]
 fn test_holds_the_headers_charge_until_the_request_is_dropped() {
     let budget = ByteBudget::new(1 << 10);
-    let request = request_with(&budget, &[("x-a", "1")]);
+    let request = crate::request_on(&budget, b"{}", &[("x-a", "1")]);
     let fits = || {
         let mut other = BodyBuffer::new(usize::MAX, &budget);
         other.append(&vec![0; (1 << 10) - 2]);
@@ -268,19 +268,6 @@ fn test_holds_the_headers_charge_until_the_request_is_dropped() {
     assert!(!fits());
     drop(request);
     assert!(fits());
-}
-
-// A POST whose header lines are `lines`, its body `{}` kept within `budget`.
-fn request_with(budget: &Arc<ByteBudget>, lines: &[(&str, &str)]) -> ObservedRequest {
-    let mut buffer = BodyBuffer::new(usize::MAX, budget);
-    buffer.adopt(b"{}".to_vec());
-    let body = BodyRead::Whole(Arc::new(buffer.finish().unwrap()));
-    let lines = lines
-        .iter()
-        .map(|(name, value)| (name.as_bytes().to_vec(), value.as_bytes().to_vec()))
-        .collect();
-    let (method, path) = (b"POST".to_vec(), b"/mcp".to_vec());
-    ObservedRequest::new(Vec::new(), method, path, lines, body, 2)
 }
 
 // Whether `request` has an `x-a` header, as a policy reads it.

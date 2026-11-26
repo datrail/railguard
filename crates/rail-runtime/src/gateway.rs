@@ -74,23 +74,23 @@ pub(crate) struct Unit {
     pub(crate) stop: Arc<AtomicBool>,
 }
 
-/// What `bundle`'s fallback answers a call it can't judge, for `why`, logged as an error: its
-/// `judge_fallback` at enforce, else forwarded.
-pub(crate) fn answer_unjudged(bundle: &HeldBundle, why: &str) -> Answer {
-    let answer = answer_by(match bundle.posture.mode {
+/// What `bundle` falls back to for a call it can't judge: its `judge_fallback` at enforce, else
+/// forwarding.
+pub(crate) fn unjudged_fallback(bundle: &HeldBundle) -> Fallback {
+    match bundle.posture.mode {
         EnforcementMode::Enforce => bundle.posture.judge_fallback,
         _ => Fallback::Pass,
-    });
-    tracing::error!(?answer, "{why}; the call went unjudged");
-    answer
+    }
 }
 
-/// What `fallback` answers.
-pub(crate) fn answer_by(fallback: Fallback) -> Answer {
-    match fallback {
+/// What `fallback` answers a call left unjudged for `why`, logged as an error.
+pub(crate) fn answer_unjudged(fallback: Fallback, why: &str) -> Answer {
+    let answer = match fallback {
         Fallback::Pass => Answer::Forward,
         Fallback::Block => Answer::CannotApply,
-    }
+    };
+    tracing::error!(?answer, "{why}; the call went unjudged");
+    answer
 }
 
 /// Judges `unit`'s call against its bundle. A denial acted on goes to `report`, which mustn't
@@ -141,7 +141,10 @@ pub(crate) fn judge_call(unit: Unit, report: &dyn Fn(&Denial)) -> Answer {
     }
     log_outcome(&outcome, mode, named, ticket_state(&ticket));
     if outcome.past_budget {
-        return answer_unjudged(&bundle, "what it reads is past the memory budget");
+        return answer_unjudged(
+            unjudged_fallback(&bundle),
+            "what it reads is past the memory budget",
+        );
     }
     if mode == JudgingMode::Observe {
         return Answer::Forward;

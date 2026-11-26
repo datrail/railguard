@@ -4,8 +4,6 @@ use serde::Serialize;
 use uuid::Uuid;
 
 use super::bundle::{Action, BindingMode, Bundle, EnforcementMode, Fallback};
-use crate::body::mcp::McpReading;
-use crate::body::{BodyRead, Unparsed};
 use crate::condition::{
     Budget, CompiledCondition, ConditionUse, Environment, Evaluation, Refusal, Verdict,
     compile_condition, evaluate_condition,
@@ -152,7 +150,7 @@ impl Tracer for NoTracer {
 }
 
 /// The ticket fallback, then the binding fallback, then the chain; a body's tree past the byte
-/// budget ends it before the binding fallback. At `enforce` a fallback's denial ends the
+/// budget ends it before the binding fallback, headers past it end the walk. At `enforce` a fallback's denial ends the
 /// judgement; at `observe` the chain is walked anyway, to preview it.
 pub fn judge(
     bundle: &CompiledBundle,
@@ -181,9 +179,7 @@ pub fn judge_traced(
         }
     }
     // Before its endpoint, which would read a tree past the budget as an unrecognised one.
-    if let BodyRead::Whole(body) = environment.body()
-        && *body.mcp() == McpReading::Unparsed(Unparsed::PastBudget)
-    {
+    if environment.is_tree_past_budget() {
         return without_chain(fallback_denials, true);
     }
     // A message naming no tool by design isn't an unbound endpoint: it faces the whole chain.

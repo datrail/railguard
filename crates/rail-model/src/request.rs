@@ -91,7 +91,7 @@ impl ObservedRequest {
 
     /// Its header lines as conditions read them, its authority as `host` where no `host` line was
     /// sent: rules read `host` whether the request came as HTTP/1 or HTTP/2. Charged to its body's
-    /// budget, if its body is kept within one; `None` past it.
+    /// budget if its body is whole; `None` past it, or for a body kept outside it.
     pub(crate) fn headers(&self) -> Option<&Headers> {
         let held = self.headers.get_or_init(|| {
             let sent = self

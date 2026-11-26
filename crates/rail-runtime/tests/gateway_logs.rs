@@ -50,7 +50,7 @@ async fn a_body_past_the_cap_is_warned_of_with_its_size_and_the_cap() {
     }
 }
 
-// Its bytes gone, nothing is left to send on: an error, as every call left unjudged.
+// Its bytes gone, nothing is left to send on: an error, not a warning.
 #[tokio::test(start_paused = true)]
 async fn a_body_dropped_past_the_memory_budget_is_an_error() {
     let logs = Logs::default();

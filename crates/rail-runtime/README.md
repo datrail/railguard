@@ -33,12 +33,11 @@ behave the same. See the [main README](../../README.md) for the system around it
   budget (or adopted past the budget by the gateway's), else unread, as not sent, cut short (of its declared length, or
   where its host may have cut it), or past either. Capture's keeps no header line and keeps its body within the 256 MiB
   every body kept shares; the gateway's, from `Gateway::gather` and judged by `Gateway::handle`, keeps them, reads the
-  declared length but on Apigee (which decodes a gzipped body before its callout, so its `Content-Length` may be the
-  wire's), and shares a 256 MiB budget of its own: a body adopted past it is kept, to send on, and only its tree and the
-  headers conditions read are refused. Stopping `Capture` counts the calls already handed over (at most 4096 waiting,
-  untimed), closes the open window and sends the windows waiting, waiting up to 2 s for them. Dropping it does the same,
-  unawaited. `start_proxy` starts them all, with the ticket, as `start_gateway` starts the gateway's: `ProxyStop` stops
-  capture, then its threads.
+  declared length unless its host turns off `checks_declared_length`, and shares a 256 MiB budget of its own: a body
+  adopted past it is kept, to send on, and only its tree and the headers conditions read are refused. Stopping `Capture`
+  counts the calls already handed over (at most 4096 waiting, untimed), closes the open window and sends the windows
+  waiting, waiting up to 2 s for them. Dropping it does the same, unawaited. `start_proxy` starts them all, with the
+  ticket, as `start_gateway` starts the gateway's: `ProxyStop` stops capture, then its threads.
 - **The log:** `logging` writes both hosts' log to stderr as JSON lines, Cloud Logging's on Cloud Run, or as text under
   `RAIL_LOG_FORMAT=text`, each field quoted or a JSON string, with what hides escaped, so a call's text can't forge a
   line.

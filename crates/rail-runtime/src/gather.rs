@@ -2,10 +2,10 @@
 
 use std::sync::Arc;
 
-use rail_model::body::{BodyBuffer, BodyRead, ByteBudget, Unread};
+use rail_model::body::{BodyBuffer, BodyRead, ByteBudget, Unkept, Unread};
 use rail_model::request::ObservedRequest;
 
-// What every body a role keeps, and what's read from them, may take together.
+// What every body a role keeps, and what's read from their requests, may take together.
 pub(crate) const BODY_BUDGET_BYTES: usize = 256 * 1024 * 1024;
 
 /// A request as its host is sent it: its request line, declared length and the header lines it
@@ -134,10 +134,14 @@ impl RequestGatherer {
         // A `Content-Length` tells a body that may be cut itself; without one, the host's ending does.
         let cut = ending == BodyEnding::CutShort
             || (ending == BodyEnding::MayBeCut && self.declared.is_none());
+        // Past the budget before cut short: a host may stop sending a body dropped past it.
+        let kept = self.body.finish();
         let body = if unsent {
             BodyRead::Unread(Unread::NotSent)
         } else if body_bytes > self.cap_bytes as u64 {
             BodyRead::Unread(Unread::PastCap)
+        } else if let Err(Unkept::PastBudget) = kept {
+            BodyRead::Unread(Unread::PastBudget)
         } else if cut {
             BodyRead::Unread(Unread::CutShort)
         } else if received_bytes < body_bytes {
@@ -148,7 +152,7 @@ impl RequestGatherer {
             };
             BodyRead::Unread(unread)
         } else {
-            match self.body.finish() {
+            match kept {
                 Ok(body) => BodyRead::Whole(Arc::new(body)),
                 Err(unkept) => BodyRead::Unread(unkept.into()),
             }
