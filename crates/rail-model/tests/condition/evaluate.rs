@@ -1,14 +1,14 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use rail_model::body::BodyRead;
+use rail_model::body::{BodyRead, Unread};
 use rail_model::condition::{
-    Budget, Condition, ConditionUse, Environment, Headers, Predicate, Refusal, Verdict,
-    compile_condition, evaluate_condition,
+    BodyUnread, Budget, Condition, ConditionUse, Environment, Headers, Predicate, Refusal, Sources,
+    Verdict, compile_condition, evaluate_condition,
 };
 use rail_model::endpoint::Endpoint;
-use rail_model::request_line::RequestLine;
-use serde_json::{Value, json};
+use rail_model::request::ObservedRequest;
+use serde_json::{Map, Value, json};
 
 use crate::keep_body;
 
@@ -115,11 +115,17 @@ fn test_charges_a_long_value_by_its_length() {
     );
 }
 
+fn observe(path: &[u8], headers: Vec<(Vec<u8>, Vec<u8>)>, body: BodyRead) -> ObservedRequest {
+    let (method, authority) = (b"POST".to_vec(), b"mcp.example".to_vec());
+    ObservedRequest::new(authority, method, path.to_vec(), headers, body, 0)
+}
+
 // As a plan writes a condition, its path a list.
 fn evaluate_on_call(condition: Value, body: &BodyRead, budget: &mut Budget) -> Verdict {
-    let request_line = RequestLine::read(b"mcp.example", b"POST", b"/finretail-production-mcp/mcp");
+    let request = observe(b"/finretail-production-mcp/mcp", Vec::new(), body.clone());
+    let sources = Sources::new(&request);
     let predicate: Predicate = serde_json::from_value(condition).unwrap();
-    let environment = Environment::for_capture(&request_line, body);
+    let environment = Environment::of(&sources, None);
     evaluate_condition(
         &compile_condition(&Condition::Valid(predicate), ConditionUse::CapturePlan),
         &environment,
@@ -175,5 +181,39 @@ fn test_charges_a_key_by_the_members_it_reads() {
     assert_eq!(
         evaluate_on_call(first(), &body, &mut Budget::new(10)),
         Verdict::Refused(Refusal::BudgetExceeded)
+    );
+}
+
+// A policy's paths read from the request: its header lines, and its endpoint from its decoded path
+// and its body, which names none unread.
+#[test]
+fn test_reads_a_policys_paths_from_an_observed_request() {
+    let body = keep_body(br#"{"method": "tools/call", "params": {"name": "a"}}"#);
+    let header = vec![(b"X-A".to_vec(), b"1, 2".to_vec())];
+    let observed = observe(b"/m%63p?x=1", header, body);
+    let unread = observe(b"/mcp", Vec::new(), BodyRead::Unread(Unread::CutShort));
+    let claims = Map::from_iter([("a".to_owned(), json!("b"))]);
+    let evaluate = |request: &ObservedRequest, condition: Value| {
+        let condition: Condition = serde_json::from_value(condition).unwrap();
+        let sources = Sources::new(request);
+        let compiled = compile_condition(&condition, ConditionUse::GatewayPolicy);
+        let environment = Environment::of(&sources, Some(&claims));
+        evaluate_condition(&compiled, &environment, &mut Budget::default()).verdict
+    };
+    for condition in [
+        json!({"path": "ticket.a", "op": "eq", "value": "b"}),
+        json!({"path": "request.headers.x-a", "op": "contains", "value": "2"}),
+        json!({"path": "request.endpoint_key", "op": "eq", "value": "/mcp#tools/call#a"}),
+    ] {
+        assert_eq!(
+            evaluate(&observed, condition.clone()),
+            Verdict::Holds,
+            "{condition}"
+        );
+    }
+    let endpoint = json!({"path": "request.endpoint_key", "op": "existing"});
+    assert_eq!(
+        evaluate(&unread, endpoint),
+        Verdict::BodyUnread(BodyUnread::Unread(Unread::CutShort))
     );
 }

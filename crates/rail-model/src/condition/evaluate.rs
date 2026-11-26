@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use serde::Serialize;
 use serde_json::Value;
 
-use super::environment::{Environment, TicketClaims};
+use super::environment::Environment;
 use super::grammar::{
     BodyPath, BodyStep, Condition, ConditionUse, Path, Predicate, RequestPath, Scalar, TicketPath,
 };
@@ -13,6 +13,7 @@ use crate::body::mcp::McpReading;
 use crate::body::tree::{self, Kind, Member, Step};
 use crate::body::{BodyRead, RequestBody, Unparsed, Unread};
 use crate::endpoint::Endpoint;
+use crate::request_line::RequestLine;
 
 /// The steps one judgement may take, unless the caller sets its own.
 pub const DEFAULT_STEP_LIMIT: u64 = 100_000;
@@ -71,7 +72,7 @@ pub enum Refusal {
     UnknownOp,
     /// Not a condition in this reader's grammar.
     Invalid,
-    /// A path its use doesn't read, or that an environment for another use doesn't fill.
+    /// A path its use doesn't read.
     NotForUse,
     /// The step budget spent, or the evaluation stopped by its caller.
     BudgetExceeded,
@@ -325,11 +326,8 @@ fn resolve_ticket<'a>(
     path: &TicketPath,
     environment: &Environment<'a>,
 ) -> Result<Lookup<'a>, Refusal> {
-    let claims = match environment.ticket {
-        // An environment for another use fills only its own sources.
-        TicketClaims::NotFilled => return Err(Refusal::NotForUse),
-        TicketClaims::Unusable => return Ok(Lookup::Absent),
-        TicketClaims::Usable(claims) => claims,
+    let Some(claims) = environment.ticket else {
+        return Ok(Lookup::Absent);
     };
     let Some((first, rest)) = path.0.split_first() else {
         return Ok(Lookup::Object);
@@ -360,35 +358,37 @@ fn resolve_request<'a>(
     environment: &Environment<'a>,
     budget: &mut Budget,
 ) -> Result<(Lookup<'a>, Option<tree::Node<'a>>), Refusal> {
-    let request_line = || environment.request_line.ok_or(Refusal::NotForUse);
+    let request_line = environment.request_line();
     let text = |text: Option<&'a str>| {
         text.map_or(Lookup::Absent, |text| Lookup::String(Cow::Borrowed(text)))
     };
     let lookup = match path {
         RequestPath::Whole => Lookup::Object,
-        RequestPath::Headers => {
-            environment.headers.ok_or(Refusal::NotForUse)?;
-            Lookup::Object
-        }
-        RequestPath::EndpointKey => match environment.endpoint.ok_or(Refusal::NotForUse)? {
-            Endpoint::Resolved(key) => Lookup::String(Cow::Borrowed(key.as_str())),
-            Endpoint::Keyless | Endpoint::Unrecognised => Lookup::Absent,
+        RequestPath::Headers => Lookup::Object,
+        RequestPath::EndpointKey => match environment.endpoint() {
+            Ok(Some(Endpoint::Resolved(key))) => Lookup::String(Cow::Borrowed(key.as_str())),
+            Ok(_) => Lookup::Absent,
+            Err(why) => Lookup::BodyUnread(BodyUnread::Unread(why)),
         },
-        RequestPath::Header(name) => match environment.headers.ok_or(Refusal::NotForUse)?.get(name)
-        {
+        RequestPath::Header(name) => match environment.headers().get(name) {
             None => Lookup::Absent,
             Some([value]) => read_value(value),
             Some(values) => Lookup::List(Items::Values(values)),
         },
-        RequestPath::Host => text(Some(request_line()?.host())),
-        RequestPath::Method => text(Some(request_line()?.method())),
-        RequestPath::Path(None) => text(Some(request_line()?.path())),
-        RequestPath::RedactedPath(None) => text(Some(request_line()?.redacted_path())),
-        RequestPath::Path(Some(index)) => text(request_line()?.path_segment(*index)),
-        RequestPath::RedactedPath(Some(index)) => {
-            text(request_line()?.redacted_path_segment(*index))
+        RequestPath::Host => text(request_line.map(RequestLine::host)),
+        RequestPath::Method => text(request_line.map(RequestLine::method)),
+        RequestPath::Path(None) => text(request_line.map(RequestLine::path)),
+        RequestPath::RedactedPath(None) => text(request_line.map(RequestLine::redacted_path)),
+        RequestPath::Path(Some(index)) => {
+            text(request_line.and_then(|line| line.path_segment(*index)))
         }
-        RequestPath::Query { name, index } => match (request_line()?.query_values(name), index) {
+        RequestPath::RedactedPath(Some(index)) => {
+            text(request_line.and_then(|line| line.redacted_path_segment(*index)))
+        }
+        RequestPath::Query { name, index } => match (
+            request_line.map_or(&[][..], |line| line.query_values(name)),
+            index,
+        ) {
             (values, Some(index)) => values.get(*index).map_or(Lookup::Absent, read_value),
             ([], None) => Lookup::Absent,
             ([value], None) => read_value(value),
@@ -405,10 +405,9 @@ fn resolve_request<'a>(
 fn read_body<'a>(
     environment: &Environment<'a>,
 ) -> Result<&'a RequestBody, Result<Lookup<'a>, Refusal>> {
-    match environment.body {
-        None => Err(Err(Refusal::NotForUse)),
-        Some(BodyRead::Unread(why)) => Err(Ok(Lookup::BodyUnread(BodyUnread::Unread(*why)))),
-        Some(BodyRead::Whole(body)) => Ok(body),
+    match environment.body() {
+        BodyRead::Unread(why) => Err(Ok(Lookup::BodyUnread(BodyUnread::Unread(*why)))),
+        BodyRead::Whole(body) => Ok(body),
     }
 }
 

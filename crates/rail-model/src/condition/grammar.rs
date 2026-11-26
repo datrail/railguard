@@ -182,13 +182,12 @@ impl Path {
     }
 }
 
-/// What a condition is read for, which decides the paths it may read, each one its use's
-/// environment fills.
+/// What a condition is read for, which decides the paths it may read.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ConditionUse {
-    /// A bundle's policy, judged in [`Environment::for_judging`](super::Environment::for_judging).
+    /// A bundle's policy.
     GatewayPolicy,
-    /// A capture plan entry's match, in [`Environment::for_capture`](super::Environment::for_capture).
+    /// A capture plan entry's match.
     CapturePlan,
 }
 

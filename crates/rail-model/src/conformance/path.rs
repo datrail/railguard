@@ -39,7 +39,7 @@ fn run_case(case: &Case, environments: &Named) -> Result<Value, String> {
     };
     let mut budget = build_budget(case.step_limit);
     Ok(
-        match resolve_path(&path, &sources.environment(), &mut budget) {
+        match resolve_path(&path, &sources.open().environment(), &mut budget) {
             Ok((lookup, _)) => encode_lookup(&lookup),
             Err(refusal) => encode_refusal(refusal),
         },

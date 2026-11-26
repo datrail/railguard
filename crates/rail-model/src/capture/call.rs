@@ -6,8 +6,8 @@ use sha2::{Digest, Sha256};
 use super::compile::{CompiledEntry, CompiledPlan, EntryRefusal};
 use super::plan::{CatchAll, ContextKey, Entry, KeyFunction, Measure, MeasureFunction, Record};
 use crate::condition::{
-    BodyPath, BodyUnread, Budget, Environment, Items, Lookup, Path, Refusal, RequestPath, Verdict,
-    evaluate_condition, resolve_path,
+    BodyPath, BodyUnread, Budget, Environment, Items, Lookup, Path, Refusal, RequestPath, Sources,
+    Verdict, evaluate_condition, resolve_path,
 };
 use crate::redaction::{REDACTED, is_secret_token};
 use crate::request::ObservedRequest;
@@ -19,7 +19,6 @@ const MAX_KEPT_CHARS: usize = 256;
 /// A call matched against a plan, and what the record counting it reads of it.
 #[derive(Debug)]
 pub struct CapturedCall<'p> {
-    pub request_line: RequestLine,
     pub taken: Taken<'p>,
     /// What the record counting it reads: the taking entry's, or the catch-all's.
     pub record: RecordReading,
@@ -128,19 +127,11 @@ pub enum Replacement {
 impl CompiledPlan {
     /// Matches `call`, then reads what the record counting it holds.
     pub fn capture(&self, call: &ObservedRequest) -> CapturedCall<'_> {
-        let request_line = RequestLine::read(
-            call.authority.as_bytes(),
-            call.method.as_bytes(),
-            call.path.as_bytes(),
-        );
-        let mut reader = CallReader::new(&request_line, call);
+        let sources = Sources::new(call);
+        let mut reader = CallReader::new(&sources);
         let taken = reader.take(self);
         let record = reader.read(taken.record().1);
-        CapturedCall {
-            request_line,
-            taken,
-            record,
-        }
+        CapturedCall { taken, record }
     }
 
     // The first entry taking the call, unless the walk stops first.
@@ -179,12 +170,13 @@ pub(crate) struct CallReader<'c> {
 }
 
 impl<'c> CallReader<'c> {
-    pub(crate) fn new(request_line: &'c RequestLine, call: &'c ObservedRequest) -> Self {
+    pub(crate) fn new(sources: &'c Sources<'c>) -> Self {
         Self {
-            request_line,
-            environment: Environment::for_capture(request_line, &call.body),
+            request_line: sources.request_line(),
+            // The proxy reads no ticket: it strips the agent's.
+            environment: Environment::of(sources, None),
             budget: Budget::default(),
-            body_bytes: call.body_bytes,
+            body_bytes: sources.request().body_bytes,
         }
     }
 

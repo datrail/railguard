@@ -47,7 +47,8 @@ pub(super) fn run_cases(
 
 fn run_case(case: &Case, environments: &Named, plans: &NamedPlans) -> Result<Value, String> {
     let sources = environments.build(&case.environment)?;
-    let (call, request_line) = sources.call()?;
+    let opened = sources.open();
+    let call = opened.call()?;
     let (pointer, written): (&str, fn(&Plan) -> &Record) = match case.record_of {
         RecordOf::Entry => ("/entries/0/record", |plan| &plan.entries[0].record),
         RecordOf::CatchAll => ("/catch_all/record", |plan| &plan.catch_all.record),
@@ -63,9 +64,9 @@ fn run_case(case: &Case, environments: &Named, plans: &NamedPlans) -> Result<Val
     let mut budget = build_budget(case.step_limit);
     let reading = read_record(
         record,
-        request_line,
-        &sources.environment(),
-        call.body_bytes,
+        call.request_line(),
+        &opened.environment(),
+        call.request().body_bytes,
         &mut budget,
     );
     Ok(encode_record_reading(record, &reading))

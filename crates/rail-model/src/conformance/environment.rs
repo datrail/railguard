@@ -9,10 +9,9 @@ use serde_json::{Map, Value};
 use super::value::{Bytes, decode_unread, keep};
 use super::{DEFAULT_BYTE_BUDGET, read_written};
 use crate::body::BodyRead;
-use crate::condition::{Environment, Headers};
+use crate::condition::{self, Environment, Headers};
 use crate::endpoint::Endpoint;
 use crate::request::ObservedRequest;
-use crate::request_line::RequestLine;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -127,7 +126,7 @@ fn expand(text: &str, bytes: Option<usize>) -> Result<Vec<u8>, String> {
     Ok((expanded + &" ".repeat(padding)).into_bytes())
 }
 
-/// An environment's sources, owned, for an `Environment` to borrow.
+/// An environment's sources, owned.
 pub(super) enum Sources {
     Judging {
         ticket: Option<Map<String, Value>>,
@@ -136,29 +135,43 @@ pub(super) enum Sources {
     },
     Capture {
         call: ObservedRequest,
-        request_line: RequestLine,
     },
 }
 
 impl Sources {
-    pub(super) fn environment(&self) -> Environment<'_> {
+    /// As an `Environment` borrows them, nothing read yet.
+    pub(super) fn open(&self) -> Opened<'_> {
         match self {
             Self::Judging {
                 ticket,
                 endpoint,
                 headers,
-            } => Environment::for_judging(ticket.as_ref(), endpoint, headers),
-            Self::Capture { call, request_line } => {
-                Environment::for_capture(request_line, &call.body)
-            }
+            } => Opened::Judging(Environment::for_judging(ticket.as_ref(), endpoint, headers)),
+            Self::Capture { call } => Opened::Capture(condition::Sources::new(call)),
+        }
+    }
+}
+
+/// An environment's sources, opened for an `Environment` to borrow.
+pub(super) enum Opened<'s> {
+    Judging(Environment<'s>),
+    Capture(condition::Sources<'s>),
+}
+
+impl Opened<'_> {
+    pub(super) fn environment(&self) -> Environment<'_> {
+        match self {
+            Self::Judging(environment) => *environment,
+            // Capture reads no ticket: the proxy strips the agent's.
+            Self::Capture(sources) => Environment::of(sources, None),
         }
     }
 
-    /// The call, for an environment built for capture.
-    pub(super) fn call(&self) -> Result<(&ObservedRequest, &RequestLine), String> {
+    /// The call's sources, for an environment built for capture.
+    pub(super) fn call(&self) -> Result<&condition::Sources<'_>, String> {
         match self {
-            Self::Capture { call, request_line } => Ok((call, request_line)),
-            Self::Judging { .. } => Err("an environment for judging, which holds no call".into()),
+            Self::Capture(sources) => Ok(sources),
+            Self::Judging(_) => Err("an environment for judging, which holds no call".into()),
         }
     }
 }
@@ -192,15 +205,9 @@ impl Named {
                 },
                 headers: Headers::from_lines(headers.iter().map(|(name, value)| (name, value))),
             },
-            Spec::Capture { call } => {
-                let call = call.to_call()?;
-                let request_line = RequestLine::read(
-                    call.authority.as_bytes(),
-                    call.method.as_bytes(),
-                    call.path.as_bytes(),
-                );
-                Sources::Capture { call, request_line }
-            }
+            Spec::Capture { call } => Sources::Capture {
+                call: call.to_call()?,
+            },
         })
     }
 }

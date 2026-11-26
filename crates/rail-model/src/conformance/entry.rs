@@ -49,7 +49,7 @@ fn run_case(case: &Case, environments: &Named, plans: &NamedPlans) -> Result<Val
     }
     let verdict = answer(
         entry,
-        &sources.environment(),
+        &sources.open().environment(),
         &mut build_budget(case.step_limit),
     );
     Ok(encode_verdict(verdict))

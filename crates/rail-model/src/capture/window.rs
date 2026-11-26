@@ -16,7 +16,7 @@ use super::document::{
 };
 use super::plan::{CatchAll, ContextKey, Record};
 use crate::body::{Unparsed, Unread};
-use crate::condition::BodyUnread;
+use crate::condition::{BodyUnread, Sources};
 use crate::redaction::REDACTED;
 use crate::request::ObservedRequest;
 use crate::request_line::{HostReading, ReportedMethod, RequestLine};
@@ -117,12 +117,9 @@ impl Window {
     /// taken it.
     pub fn record(&mut self, call: &ObservedRequest, at: SystemTime) -> Option<BodyUnreadReason> {
         let plan = Arc::clone(&self.plan);
-        let request_line = RequestLine::read(
-            call.authority.as_bytes(),
-            call.method.as_bytes(),
-            call.path.as_bytes(),
-        );
-        let mut reader = CallReader::new(&request_line, call);
+        let sources = Sources::new(call);
+        let mut reader = CallReader::new(&sources);
+        let request_line = sources.request_line();
         let taken = reader.take(&plan);
         let reason = body_unread_reason(&taken);
         if let Some(reason) = reason {
@@ -130,7 +127,7 @@ impl Window {
         }
         let catch_all = &plan.plan().catch_all;
         let (record_id, mut spec) = taken.record();
-        let (values, mut written) = write(spec, &reader.read(spec), &request_line);
+        let (values, mut written) = write(spec, &reader.read(spec), request_line);
         let mut key = GroupKey {
             record_id: record_id.to_owned(),
             values,
@@ -142,7 +139,7 @@ impl Window {
         if coarsened && matches!(taken, Taken::Entry(_)) {
             spec = &catch_all.record;
             let values;
-            (values, written) = write(spec, &reader.read(spec), &request_line);
+            (values, written) = write(spec, &reader.read(spec), request_line);
             key = GroupKey {
                 record_id: catch_all.id.clone(),
                 values,

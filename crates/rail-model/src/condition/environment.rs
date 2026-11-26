@@ -1,60 +1,125 @@
+use std::cell::OnceCell;
 use std::collections::BTreeMap;
 
 use serde_json::{Map, Value};
 
-use crate::body::BodyRead;
-use crate::endpoint::Endpoint;
+use crate::body::{BodyRead, Unread};
+use crate::endpoint::{Endpoint, Resolution};
+use crate::request::ObservedRequest;
 use crate::request_line::RequestLine;
 
-/// What a condition reads about one call. Each use fills its own sources; a condition compiled
-/// for that use reads no other.
+/// What a condition reads about one call: its ticket's claims (`None` without a usable ticket),
+/// and its request.
 #[derive(Clone, Copy, Debug)]
 pub struct Environment<'a> {
-    pub(crate) ticket: TicketClaims<'a>,
-    pub(crate) endpoint: Option<&'a Endpoint>,
-    pub(crate) headers: Option<&'a Headers>,
-    pub(crate) request_line: Option<&'a RequestLine>,
-    pub(crate) body: Option<&'a BodyRead>,
+    pub(crate) ticket: Option<&'a Map<String, Value>>,
+    request: Request<'a>,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum Request<'a> {
+    Observed(&'a Sources<'a>),
+    /// A sample judged against a bundle: it has no request line and no body.
+    Sample {
+        endpoint: &'a Endpoint,
+        headers: &'a Headers,
+    },
 }
 
 impl<'a> Environment<'a> {
-    /// For judging a call against the policy bundle: its ticket claims (`None` without a usable
-    /// ticket), its endpoint and its headers.
+    /// For a call `sources` reads, every source read as a path first reads it.
+    pub fn of(sources: &'a Sources<'a>, ticket: Option<&'a Map<String, Value>>) -> Self {
+        Self {
+            ticket,
+            request: Request::Observed(sources),
+        }
+    }
+
+    /// For judging a sample call against the policy bundle, given what a policy reads: its ticket
+    /// claims, its endpoint and its headers. A path into its request line or body reads absent.
     pub fn for_judging(
         ticket: Option<&'a Map<String, Value>>,
         endpoint: &'a Endpoint,
         headers: &'a Headers,
     ) -> Self {
         Self {
-            ticket: ticket.map_or(TicketClaims::Unusable, TicketClaims::Usable),
-            endpoint: Some(endpoint),
-            headers: Some(headers),
-            request_line: None,
-            body: None,
+            ticket,
+            request: Request::Sample { endpoint, headers },
         }
     }
 
-    /// For capture to match a call against a plan and read its record: its request line and its
-    /// body.
-    pub fn for_capture(request_line: &'a RequestLine, body: &'a BodyRead) -> Self {
-        Self {
-            ticket: TicketClaims::NotFilled,
-            endpoint: None,
-            headers: None,
-            request_line: Some(request_line),
-            body: Some(body),
+    pub(crate) fn request_line(&self) -> Option<&'a RequestLine> {
+        match self.request {
+            Request::Observed(sources) => Some(sources.request_line()),
+            Request::Sample { .. } => None,
+        }
+    }
+
+    pub(crate) fn headers(&self) -> &'a Headers {
+        match self.request {
+            Request::Observed(sources) => sources.headers(),
+            Request::Sample { headers, .. } => headers,
+        }
+    }
+
+    /// `None` for a session message, which names none.
+    pub(crate) fn endpoint(&self) -> Result<Option<&'a Endpoint>, Unread> {
+        match self.request {
+            Request::Observed(sources) => match sources.request.endpoint()? {
+                Resolution::Judged(endpoint) => Ok(Some(endpoint)),
+                Resolution::Discovery => Ok(None),
+            },
+            Request::Sample { endpoint, .. } => Ok(Some(endpoint)),
+        }
+    }
+
+    pub(crate) fn body(&self) -> &'a BodyRead {
+        match self.request {
+            Request::Observed(sources) => &sources.request.body,
+            Request::Sample { .. } => &NOT_SENT,
         }
     }
 }
 
-/// A call's ticket as an environment holds it.
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum TicketClaims<'a> {
-    /// An environment for a use that reads no ticket.
-    NotFilled,
-    /// The call has no ticket, or none that verifies.
-    Unusable,
-    Usable(&'a Map<String, Value>),
+static NOT_SENT: BodyRead = BodyRead::Unread(Unread::NotSent);
+
+/// What a call's conditions and records read of its request, each built the first time a path
+/// reads it. One per call.
+#[derive(Debug)]
+pub struct Sources<'r> {
+    request: &'r ObservedRequest,
+    request_line: OnceCell<RequestLine>,
+    headers: OnceCell<Headers>,
+}
+
+impl<'r> Sources<'r> {
+    pub fn new(request: &'r ObservedRequest) -> Self {
+        Self {
+            request,
+            request_line: OnceCell::new(),
+            headers: OnceCell::new(),
+        }
+    }
+
+    pub(crate) fn request(&self) -> &'r ObservedRequest {
+        self.request
+    }
+
+    pub(crate) fn request_line(&self) -> &RequestLine {
+        self.request_line.get_or_init(|| {
+            let request = self.request;
+            RequestLine::read(
+                request.authority.as_bytes(),
+                request.method.as_bytes(),
+                request.path.as_bytes(),
+            )
+        })
+    }
+
+    fn headers(&self) -> &Headers {
+        self.headers
+            .get_or_init(|| Headers::from_lines(self.request.header_lines()))
+    }
 }
 
 /// A call's headers as conditions read them: names lowercased, every value split on commas.

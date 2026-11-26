@@ -5,8 +5,8 @@ use uuid::Uuid;
 
 use super::bundle::{Action, BindingMode, Bundle, EnforcementMode, Fallback};
 use crate::condition::{
-    Budget, CompiledCondition, ConditionUse, Environment, Evaluation, Refusal, TicketClaims,
-    Verdict, compile_condition, evaluate_condition,
+    Budget, CompiledCondition, ConditionUse, Environment, Evaluation, Refusal, Verdict,
+    compile_condition, evaluate_condition,
 };
 use crate::endpoint::{Endpoint, ResolvedKey};
 
@@ -167,8 +167,7 @@ pub fn judge_traced(
 ) -> Outcome {
     let enforcing = mode == JudgingMode::Enforce;
     let mut fallback_denials = Vec::new();
-    // A ticket not filled only in an environment for another use: as no usable one.
-    let usable = matches!(environment.ticket, TicketClaims::Usable(_));
+    let usable = environment.ticket.is_some();
     if !usable && bundle.ticket_fallback == Fallback::Block {
         fallback_denials.push(FallbackDenial::Ticket);
         if enforcing {
@@ -179,11 +178,11 @@ pub fn judge_traced(
         }
     }
     // A message naming no tool by design isn't an unbound endpoint: it faces the whole chain.
-    // No endpoint only in an environment for another use: unbound, so the fallback decides.
-    let (narrowed, unbound) = match environment.endpoint {
-        Some(Endpoint::Keyless) => (None, false),
-        Some(Endpoint::Unrecognised) | None => (None, true),
-        Some(Endpoint::Resolved(key)) => {
+    // None read, for a session message or a body unread, which a host doesn't judge: unbound.
+    let (narrowed, unbound) = match environment.endpoint() {
+        Ok(Some(Endpoint::Keyless)) => (None, false),
+        Ok(Some(Endpoint::Unrecognised) | None) | Err(_) => (None, true),
+        Ok(Some(Endpoint::Resolved(key))) => {
             let narrowed = bundle.bindings.get(key);
             (narrowed, narrowed.is_none())
         }
