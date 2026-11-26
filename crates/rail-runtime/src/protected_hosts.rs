@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use rail_model::authority::split_authority;
+use rail_model::authority::parse_authority;
 use rail_model::sanitize::sanitize;
 
 use crate::config::{Refused, Settings};
@@ -143,6 +143,6 @@ fn parse_entry(entry: &str) -> Result<ProtectedHost, &'static str> {
     if authority.contains(['/', '?', '#']) {
         return Err("names more than a host: no path, query or fragment");
     }
-    let (host, port) = split_authority(authority)?;
+    let (host, port) = parse_authority(authority)?;
     Ok(ProtectedHost { host, tls, port })
 }

@@ -8,7 +8,7 @@ use std::fmt;
 
 use serde_json::Value;
 
-use crate::authority::split_authority;
+use crate::authority::parse_authority;
 use crate::redaction::{redact_path, segments};
 
 // What a host that can't be read reads as, compared and reported.
@@ -38,9 +38,9 @@ pub struct RequestLine {
 /// How a call's host was read.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum HostReading {
-    /// Spelled as `split_authority` spells it.
+    /// Spelled as `parse_authority` spells it.
     Read(String),
-    /// An authority `split_authority` refuses, or one that isn't UTF-8: `[unparseable]`.
+    /// An authority `parse_authority` refuses, or one that isn't UTF-8: `[unparseable]`.
     Refused,
     /// Past DNS's longest name: `[unparseable]`, so its length can't carry data.
     PastLongest,
@@ -111,7 +111,7 @@ impl RequestLine {
         }
     }
 
-    /// As `split_authority` spells it, or `[unparseable]`.
+    /// As `parse_authority` spells it, or `[unparseable]`.
     pub fn host(&self) -> &str {
         match &self.host {
             HostReading::Read(host) => host,
@@ -239,7 +239,7 @@ fn read_query(query: &[u8]) -> BTreeMap<String, Vec<Value>> {
 fn read_host(authority: &[u8]) -> HostReading {
     let read = std::str::from_utf8(authority)
         .ok()
-        .and_then(|authority| split_authority(authority).ok());
+        .and_then(|authority| parse_authority(authority).ok());
     match read {
         None => HostReading::Refused,
         // ASCII, so its length in bytes is in characters.

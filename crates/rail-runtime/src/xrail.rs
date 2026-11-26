@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use rail_model::authority::split_authority;
+use rail_model::authority::parse_authority;
 use rail_model::request::{XRAIL, is_withheld_header};
 
 use crate::config::Secret;
@@ -102,7 +102,7 @@ impl XRailHeaders {
         sent: impl IntoIterator<Item = &'a str>,
     ) -> Self {
         // An authority that can't be read names no protected host, so it gets no ticket.
-        let route = split_authority(authority)
+        let route = parse_authority(authority)
             .ok()
             .and_then(|(host, port)| Some(route_to(protected.get(&host)?, port)));
         let set = ticket

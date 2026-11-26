@@ -6,6 +6,7 @@ use std::fs;
 use rail_model::conformance::{FILES, SHARED, run_vectors};
 use serde::Deserialize;
 
+mod authority;
 mod bundle;
 mod judge;
 mod plan;
@@ -15,7 +16,8 @@ mod ticket;
 const VECTORS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../vectors");
 
 // The files whose cases their own tests read, in the same format.
-const OWN_TESTS: [&str; 6] = [
+const OWN_TESTS: [&str; 7] = [
+    "authority.json",
     "redaction.json",
     "policy/bundle.json",
     "policy/judge.json",
