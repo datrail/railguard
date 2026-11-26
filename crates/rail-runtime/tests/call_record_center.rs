@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 
 use rail_model::body::{BodyRead, Unread};
 use rail_model::capture::{ClosedWindow, Window, compile_plan, parse_plan};
-use rail_model::request::ObservedCall;
+use rail_model::request::ObservedRequest;
 use rail_runtime::{CallRecordReporter, CallRecordSink, FetchError, Jitter};
 use reqwest::StatusCode;
 use serde_json::{Value, json};
@@ -98,7 +98,7 @@ pub fn window(max_unsent_windows: u32, paths: &[&str]) -> ClosedWindow {
     let clock = TestClock::new();
     let mut window = Window::open(plan, clock.at(0));
     for path in paths {
-        let call = ObservedCall {
+        let call = ObservedRequest {
             authority: b"api.github.com".to_vec(),
             method: b"GET".to_vec(),
             path: path.as_bytes().to_vec(),
@@ -119,7 +119,7 @@ pub fn window_of(calls: u32) -> ClosedWindow {
     let plan = Arc::new(compile_plan(parse_plan(&plan.to_string()).unwrap()));
     let clock = TestClock::new();
     let mut window = Window::open(plan, clock.at(0));
-    let call = ObservedCall {
+    let call = ObservedRequest {
         authority: b"api.github.com".to_vec(),
         method: b"GET".to_vec(),
         path: b"/a".to_vec(),

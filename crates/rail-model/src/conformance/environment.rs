@@ -11,7 +11,7 @@ use super::{DEFAULT_BYTE_BUDGET, read_written};
 use crate::body::BodyRead;
 use crate::condition::{Environment, Headers};
 use crate::endpoint::Endpoint;
-use crate::request::ObservedCall;
+use crate::request::ObservedRequest;
 use crate::request_line::RequestLine;
 
 #[derive(Deserialize)]
@@ -74,7 +74,7 @@ enum BodySpec {
 }
 
 impl CallSpec {
-    pub(super) fn to_call(&self) -> Result<ObservedCall, String> {
+    pub(super) fn to_call(&self) -> Result<ObservedRequest, String> {
         let sent = |bytes: &[u8]| match keep(bytes, self.byte_budget.unwrap_or(DEFAULT_BYTE_BUDGET))
         {
             Ok(body) => BodyRead::Whole(Arc::new(body)),
@@ -91,7 +91,7 @@ impl CallSpec {
             BodySpec::Shorthand { text, bytes } => sent(&expand(text, *bytes)?),
             BodySpec::Sent(bytes) => sent(&bytes.to_bytes()?),
         };
-        Ok(ObservedCall {
+        Ok(ObservedRequest {
             authority: self.authority.to_bytes()?,
             method: self.method.to_bytes()?,
             path: self.path.to_bytes()?,
@@ -134,7 +134,7 @@ pub(super) enum Sources {
         headers: Headers,
     },
     Capture {
-        call: ObservedCall,
+        call: ObservedRequest,
         request_line: RequestLine,
     },
 }
@@ -154,7 +154,7 @@ impl Sources {
     }
 
     /// The call, for an environment built for capture.
-    pub(super) fn call(&self) -> Result<(&ObservedCall, &RequestLine), String> {
+    pub(super) fn call(&self) -> Result<(&ObservedRequest, &RequestLine), String> {
         match self {
             Self::Capture { call, request_line } => Ok((call, request_line)),
             Self::Judging { .. } => Err("an environment for judging, which holds no call".into()),

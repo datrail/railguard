@@ -9,7 +9,7 @@ pub const XRAIL: &str = "x-rail";
 
 /// A call as the callout hands it to the capture thread, its request whole.
 #[derive(Debug)]
-pub struct ObservedCall {
+pub struct ObservedRequest {
     /// `:authority` as the agent sent it, before the proxy rewrites it.
     pub authority: Vec<u8>,
     pub method: Vec<u8>,

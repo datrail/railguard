@@ -8,7 +8,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use super::compile::CompiledPlan;
 use super::window::{BodyUnreadReason, ClosedWindow, Window};
-use crate::request::ObservedCall;
+use crate::request::ObservedRequest;
 
 // A clock stepped back by up to this behind the latest time written is read as that time, so
 // windows never overlap; further back, it's read as it is, else the open window would stay open
@@ -77,7 +77,7 @@ impl Windowing {
     pub fn record(
         &mut self,
         plan: Option<Arc<CompiledPlan>>,
-        call: &ObservedCall,
+        call: &ObservedRequest,
         at: SystemTime,
     ) -> Recorded {
         let at = self.read(at);

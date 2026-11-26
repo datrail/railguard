@@ -2,7 +2,7 @@ use rail_model::capture::{
     ContextKey, KeyReading, PathReading, Taken, Untaken, compile_plan, parse_plan,
 };
 use rail_model::condition::{DEFAULT_STEP_LIMIT, Refusal};
-use rail_model::request::ObservedCall;
+use rail_model::request::ObservedRequest;
 use serde_json::{Map, Value, json};
 
 use super::patch;
@@ -10,11 +10,11 @@ use crate::keep_body;
 
 const PLANS: &str = include_str!("../../../../vectors/capture/plans.json");
 
-fn search_code(arguments: &Value) -> ObservedCall {
+fn search_code(arguments: &Value) -> ObservedRequest {
     let body = json!({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
         "params": {"name": "search_code", "arguments": arguments}});
     let body = body.to_string();
-    ObservedCall {
+    ObservedRequest {
         authority: b"api.github.com".to_vec(),
         method: b"POST".to_vec(),
         path: b"/mcp".to_vec(),
@@ -90,7 +90,7 @@ fn test_a_record_reads_within_the_budget_its_matching_left() {
         tags.push(json!("x"));
         body.insert("tags".into(), Value::Array(tags));
         let body = Value::Object(body).to_string();
-        ObservedCall {
+        ObservedRequest {
             authority: b"hooks.slack.com".to_vec(),
             method: b"POST".to_vec(),
             path: b"/services/T0ABC".to_vec(),
@@ -98,7 +98,7 @@ fn test_a_record_reads_within_the_budget_its_matching_left() {
             body: keep_body(body.as_bytes()),
         }
     };
-    let user = |call: &ObservedCall| {
+    let user = |call: &ObservedRequest| {
         let captured = compiled.capture(call);
         let (Taken::Entry(entry), record) = (captured.taken, captured.record) else {
             panic!("not taken");

@@ -50,7 +50,7 @@ By module:
   with a condition it can't evaluate for a plan is refused with why (**`EntryRefusal`**), and a call reaching it goes to
   the catch-all; nothing else is checked, Rail Center's own rules for a plan being its own. An entry is tried only for
   the host an `eq` on `request.host` among its conditions names, as written, or for every host if none does.
-  **`CompiledPlan::capture`** matches an **`ObservedCall`**, what the callout hands over, as a **`CapturedCall`**:
+  **`CompiledPlan::capture`** matches an **`ObservedRequest`**, what the callout hands over, as a **`CapturedCall`**:
   **`Taken`** by the first entry whose conditions all hold, or by the catch-all and why (**`Untaken`**: no entry took
   it, its path can't match one, or its walk stopped at an entry refused, one whose conditions read a body value that
   can't be told or a body unread, or one that spent the step budget); and what that record, the entry's or the

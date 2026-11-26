@@ -10,7 +10,7 @@ use crate::condition::{
     evaluate_condition, resolve_path,
 };
 use crate::redaction::{REDACTED, is_secret_token};
-use crate::request::ObservedCall;
+use crate::request::ObservedRequest;
 use crate::request_line::{HostReading, ReportedMethod, RequestLine, Unmatchable};
 
 // Past this, a kept value could carry data of any length.
@@ -127,7 +127,7 @@ pub enum Replacement {
 
 impl CompiledPlan {
     /// Matches `call`, then reads what the record counting it holds.
-    pub fn capture(&self, call: &ObservedCall) -> CapturedCall<'_> {
+    pub fn capture(&self, call: &ObservedRequest) -> CapturedCall<'_> {
         let request_line = RequestLine::read(&call.authority, &call.method, &call.path);
         let mut reader = CallReader::new(&request_line, call);
         let taken = reader.take(self);
@@ -175,7 +175,7 @@ pub(crate) struct CallReader<'c> {
 }
 
 impl<'c> CallReader<'c> {
-    pub(crate) fn new(request_line: &'c RequestLine, call: &'c ObservedCall) -> Self {
+    pub(crate) fn new(request_line: &'c RequestLine, call: &'c ObservedRequest) -> Self {
         Self {
             request_line,
             environment: Environment::for_capture(request_line, &call.body),

@@ -18,7 +18,7 @@ use super::plan::{CatchAll, ContextKey, Record};
 use crate::body::{Unparsed, Unread};
 use crate::condition::BodyUnread;
 use crate::redaction::REDACTED;
-use crate::request::ObservedCall;
+use crate::request::ObservedRequest;
 use crate::request_line::{HostReading, ReportedMethod, RequestLine};
 use crate::timestamp::Timestamp;
 
@@ -115,7 +115,7 @@ impl Window {
 
     /// Counts `call`, received at `at`; why its body's values weren't told, if an entry could have
     /// taken it.
-    pub fn record(&mut self, call: &ObservedCall, at: SystemTime) -> Option<BodyUnreadReason> {
+    pub fn record(&mut self, call: &ObservedRequest, at: SystemTime) -> Option<BodyUnreadReason> {
         let plan = Arc::clone(&self.plan);
         let request_line = RequestLine::read(&call.authority, &call.method, &call.path);
         let mut reader = CallReader::new(&request_line, call);

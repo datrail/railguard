@@ -5,7 +5,7 @@
 use std::time::Duration;
 
 use rail_model::body::{BodyRead, Unread};
-use rail_model::request::ObservedCall;
+use rail_model::request::ObservedRequest;
 use rail_runtime::{Capture, CaptureSender};
 use serde_json::json;
 use tokio::runtime::Handle;
@@ -15,8 +15,8 @@ use crate::capture_plans::{MINUTE, hash, ok, plan, start};
 use crate::holder::TestClock;
 use crate::scripted::{Answer, Script};
 
-pub fn post(path: &str, body: BodyRead) -> ObservedCall {
-    ObservedCall {
+pub fn post(path: &str, body: BodyRead) -> ObservedRequest {
+    ObservedRequest {
         authority: b"api.github.com".to_vec(),
         method: b"POST".to_vec(),
         path: path.as_bytes().to_vec(),
@@ -26,7 +26,7 @@ pub fn post(path: &str, body: BodyRead) -> ObservedCall {
 }
 
 // A call no entry of the vectors' plan takes: the catch-all's.
-pub fn to_catch_all() -> ObservedCall {
+pub fn to_catch_all() -> ObservedRequest {
     post("/a", BodyRead::Unread(Unread::NotSent))
 }
 
