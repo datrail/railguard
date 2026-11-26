@@ -67,7 +67,7 @@ pub struct Entry {
 }
 
 /// What a call's record holds: an entry's, or the catch-all's, whose keys are only the built-in
-/// ones and whose measures only the two every record holds.
+/// ones.
 #[derive(Debug, Deserialize)]
 pub struct Record {
     pub context_keys: Vec<ContextKey>,
@@ -267,14 +267,7 @@ fn check_catch_all(catch_all: &CatchAll) -> Result<(), String> {
     if !keys.contains(&ContextKey::Host) {
         return Err("no host context key".to_owned());
     }
-    let measures = &catch_all.record.measures;
-    if let Some(named) = measures
-        .iter()
-        .find(|measure| matches!(measure, Measure::Named { .. }))
-    {
-        return Err(format!("measure {}: only the built-in ones", named.name()));
-    }
-    check_measures(measures)
+    check_measures(&catch_all.record.measures)
 }
 
 // A set by name, holding the two every record does.

@@ -700,9 +700,9 @@
       "expect": {"valid": false}
     },
     {
-      "id": "a-catch-alls-measure-beside-the-two",
+      "id": "a-catch-alls-measure-as-an-entrys",
       "patch": [{"op": "add", "path": "/catch_all/record/measures/-", "value": {"name": "argument_bytes", "type": "sum", "function": "size", "paths": [["request", "body", "params", "arguments", "content"]]}}],
-      "expect": {"valid": false}
+      "expect": {"valid": true}
     }
   ]
 }
