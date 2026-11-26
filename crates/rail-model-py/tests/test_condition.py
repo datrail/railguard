@@ -1,4 +1,6 @@
+import json
 import math
+from pathlib import Path
 from types import MappingProxyType
 
 import pytest
@@ -6,9 +8,42 @@ import pytest
 import datrail_model
 from datrail_model import ConditionCheck, ConditionProblem, check_condition
 
+_LAYER_4 = json.loads((Path(__file__).parents[3] / "vectors/condition/condition.json").read_text())
+
 
 def _get_codes(check):
     return [(problem.location, problem.code, problem.scope) for problem in check.problems]
+
+
+def _write_problem(problem):
+    written = {"location": list(problem.location), "code": problem.code, "scope": problem.scope}
+    if problem.expected_shape:
+        written["expected_shape"] = problem.expected_shape
+    return written
+
+
+def _holds_a_non_finite_number(value):
+    if isinstance(value, float):
+        return not math.isfinite(value)
+    if isinstance(value, dict):
+        return any(_holds_a_non_finite_number(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_holds_a_non_finite_number(item) for item in value)
+    return False
+
+
+# The wrapper finds what the native check finds, but where Python reads a number as non-finite.
+@pytest.mark.parametrize("case", _LAYER_4["cases"], ids=lambda case: case["id"])
+def test_finds_the_problems_layer_4_finds(case):
+    if _holds_a_non_finite_number(case["condition"]):
+        pytest.skip("read by Python as a non-finite number")
+    check = check_condition(
+        case["condition"],
+        use_case=case["use"],
+        ticket_claims_schema=_LAYER_4["ticket_claims_schema"],
+    )
+
+    assert [_write_problem(problem) for problem in check.problems] == case["expect"]["problems"]
 
 
 def test_accepts_a_condition_rail_center_publishes():

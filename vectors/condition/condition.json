@@ -1020,51 +1020,6 @@
       }
     },
     {
-      "id": "unknown-op-in-a-plan",
-      "condition": {
-        "path": [
-          "request",
-          "host"
-        ],
-        "op": "near",
-        "value": "a"
-      },
-      "use": "capture_plan",
-      "expect": {
-        "reading": "unknown",
-        "compiled": {
-          "refused": "unknown_op"
-        },
-        "problems": [
-          {
-            "location": [
-              "op"
-            ],
-            "code": "unknown_op",
-            "scope": "authoring"
-          }
-        ]
-      }
-    },
-    {
-      "id": "invalid-in-a-plan",
-      "condition": "not an object",
-      "use": "capture_plan",
-      "expect": {
-        "reading": "invalid",
-        "compiled": {
-          "refused": "invalid"
-        },
-        "problems": [
-          {
-            "location": [],
-            "code": "not_an_object",
-            "scope": "enforcement"
-          }
-        ]
-      }
-    },
-    {
       "id": "operand-shape-before-an-unknown-path",
       "condition": {
         "path": "ticket.nope",

@@ -140,10 +140,14 @@ fn test_a_conditions_refusal_agrees_with_its_reading_and_problems() {
             enforced || unknown_op,
             "{id}"
         );
+        let refusal = &got["compiled"]["refused"];
         match got["reading"].as_str().unwrap() {
-            "invalid" => assert!(enforced, "{id}"),
-            "unknown" => assert!(unknown_op && !enforced, "{id}"),
-            _ => {}
+            "invalid" => assert!(enforced && refusal == "invalid", "{id}"),
+            "unknown" => assert!(unknown_op && !enforced && refusal == "unknown_op", "{id}"),
+            _ => assert!(
+                !unknown_op && (got["compiled"] == "evaluable" || refusal == "not_for_use"),
+                "{id}"
+            ),
         }
     }
 }
