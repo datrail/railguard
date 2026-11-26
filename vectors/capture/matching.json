@@ -62,29 +62,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -127,29 +105,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -232,29 +188,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -297,29 +231,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -382,29 +294,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -459,29 +349,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -524,29 +392,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -609,29 +455,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -666,29 +490,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -751,29 +553,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -808,29 +588,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -873,29 +631,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -951,29 +687,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -1006,29 +720,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -1082,29 +774,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -1168,29 +838,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -1215,29 +863,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -1270,29 +896,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -1372,29 +976,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -1437,29 +1019,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -1492,29 +1052,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -1577,29 +1115,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -1642,29 +1158,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -1697,29 +1191,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -1799,29 +1271,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -1864,29 +1314,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -1911,29 +1339,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -2005,29 +1411,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -2070,29 +1454,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -2135,29 +1497,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -2190,29 +1530,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -2290,29 +1608,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -2347,29 +1643,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -2441,29 +1715,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -2506,29 +1758,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -2608,29 +1838,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -2682,29 +1890,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -2784,29 +1970,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -2850,29 +2014,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -2952,29 +2094,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -3025,29 +2145,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -3128,29 +2226,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -3193,29 +2269,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -3248,29 +2302,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -3351,29 +2383,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -3416,29 +2426,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -3471,29 +2459,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -3551,29 +2517,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -3678,29 +2622,7 @@
             ],
             "record": {
               "context_keys": [],
-              "measures": [
-                {
-                  "name": "call_count",
-                  "type": "sum",
-                  "function": "is_set",
-                  "paths": [
-                    [
-                      "request"
-                    ]
-                  ]
-                },
-                {
-                  "name": "request_bytes",
-                  "type": "sum",
-                  "function": "size",
-                  "paths": [
-                    [
-                      "request",
-                      "body"
-                    ]
-                  ]
-                }
-              ]
+              "measures": []
             }
           }
         ],
@@ -3712,29 +2634,7 @@
                 "name": "host"
               }
             ],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       },
@@ -3798,29 +2698,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -3845,29 +2723,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -3940,29 +2796,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -4005,29 +2839,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -4105,29 +2917,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -4170,29 +2960,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -4265,29 +3033,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -4330,29 +3076,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],
@@ -4434,29 +3158,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         },
         {
@@ -4481,29 +3183,7 @@
           ],
           "record": {
             "context_keys": [],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       ],

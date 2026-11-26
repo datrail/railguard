@@ -82,10 +82,10 @@ a Rust test's.
   given, a finite one past any case's body).
 - **`capture/plans.json`:** named plans. A case's `plan` is a name, its `entries`, where given, in place of the plan's;
   or a plan written whole. `one-entry` is the plan layers 6 and 7 write their `match` or `record` into; `matching`,
-  layer 8's, two MCP tools on one host and an HTTP operation on another, their records counting calls and their bodies'
-  bytes alone; `worked-example` is the capture design's (railxia/docs' `design/2026-11-10-rc-dg-capture-plan/design.md`
-  at `95b5c7b`, its section 2), `two-groups` it with a smaller budget, and `sixty-seconds` and `five-minutes` it with
-  another window and their own `plan_version`s, 1 and 2, by which layer 10 tells their windows apart.
+  layer 8's, two MCP tools on one host and an HTTP operation on another, their records without measures;
+  `worked-example` is the capture design's (railxia/docs' `design/2026-11-10-rc-dg-capture-plan/design.md` at `95b5c7b`,
+  its section 2), `two-groups` it with a smaller budget, and `sixty-seconds` and `five-minutes` it with another window
+  and their own `plan_version`s, 1 and 2, by which layer 10 tells their windows apart.
 
 ### Values
 

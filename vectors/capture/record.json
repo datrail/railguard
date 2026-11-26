@@ -18,29 +18,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -52,26 +30,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -94,51 +53,12 @@
                 "repo"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -169,29 +89,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -203,26 +101,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -246,51 +125,12 @@
                 "message"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -323,29 +163,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -357,26 +175,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -401,51 +200,12 @@
                 "path"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -476,29 +236,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -508,26 +246,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -550,51 +269,12 @@
                 "files"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -625,51 +305,12 @@
                 "blocks"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 27
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -699,29 +340,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -731,26 +350,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -772,51 +372,12 @@
                 "arguments"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -847,29 +408,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -879,26 +418,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -921,51 +441,12 @@
                 "draft"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -996,29 +477,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -1028,26 +487,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -1070,51 +510,12 @@
                 "size"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -1145,29 +546,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -1175,26 +554,7 @@
             "path": "absent"
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -1217,51 +577,12 @@
                 "note"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               "absent"
@@ -1290,51 +611,12 @@
                 "note"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          },
           "m": {
             "is_set": [
               {
@@ -1365,29 +647,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -1395,26 +655,7 @@
             "path": "absent"
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -1437,51 +678,12 @@
                 "owner"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               "absent"
@@ -1509,29 +711,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -1539,26 +719,7 @@
             "path": "ambiguous"
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -1581,51 +742,12 @@
                 "labels"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               "ambiguous"
@@ -1654,51 +776,12 @@
                 "labels"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          },
           "m": {
             "is_set": [
               "ambiguous"
@@ -1722,29 +805,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -1754,26 +815,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -1793,51 +835,12 @@
                 "body"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -1866,29 +869,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -1900,26 +881,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -1940,51 +902,12 @@
                 "repo"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -2014,29 +937,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -2044,26 +945,7 @@
             "path": "ambiguous"
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -2084,51 +966,12 @@
                 "tag"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -2159,25 +1002,38 @@
                 "tag"
               ]
             ]
-          },
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "m": {
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "is-set-over-the-request-always-set",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
           {
-            "name": "call_count",
+            "name": "m",
             "type": "sum",
             "function": "is_set",
             "paths": [
               [
                 "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
               ]
             ]
           }
@@ -2186,24 +1042,6 @@
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          },
           "m": {
             "is_set": [
               {
@@ -2233,29 +1071,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -2267,26 +1083,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -2308,51 +1105,12 @@
                 1
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -2381,29 +1139,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -2415,26 +1151,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -2455,51 +1172,12 @@
                 "empty"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -2528,29 +1206,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -2562,26 +1218,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -2602,51 +1239,12 @@
                 0
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -2675,29 +1273,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -2709,26 +1285,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -2749,51 +1306,12 @@
                 0
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -2822,29 +1340,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -2856,26 +1352,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -2896,51 +1373,12 @@
                 1
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -2986,51 +1424,12 @@
                 "repo"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -3076,29 +1475,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3117,26 +1494,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3156,29 +1514,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3190,26 +1526,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 3211
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3228,29 +1545,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3262,26 +1557,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 3211
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3300,29 +1576,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3334,26 +1588,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 3211
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3374,29 +1609,7 @@
             "function": "sha256"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3408,26 +1621,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 3211
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3447,29 +1641,7 @@
             "function": "sha256"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3481,26 +1653,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 3211
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3521,29 +1674,7 @@
             "function": "sha256"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3555,26 +1686,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 3211
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3595,29 +1707,7 @@
             "function": "sha256"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3629,26 +1719,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 3211
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3669,29 +1740,7 @@
             "function": "sha256"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3703,26 +1752,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 3211
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3742,29 +1772,7 @@
             "function": "sha256"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3776,26 +1784,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 3211
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3815,29 +1804,7 @@
             "function": "sha256"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3849,26 +1816,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 3211
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3887,29 +1835,7 @@
             "function": "sha256"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3919,26 +1845,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 3211
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -3958,29 +1865,7 @@
             "function": "sha256"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -3988,26 +1873,7 @@
             "path": "absent"
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 3211
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4027,29 +1893,7 @@
             "function": "none"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4061,26 +1905,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 3211
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4100,29 +1925,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4134,26 +1937,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 972
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4172,29 +1956,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4206,26 +1968,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 972
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4244,29 +1987,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4278,26 +1999,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 972
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4316,29 +2018,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4350,26 +2030,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 972
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4388,29 +2049,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4422,26 +2061,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 972
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4460,29 +2080,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4494,26 +2092,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 972
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4532,29 +2111,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4566,26 +2123,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 972
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4604,29 +2142,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4638,26 +2154,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 972
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4676,29 +2173,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4710,26 +2185,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 972
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4748,29 +2204,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4782,26 +2216,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 972
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4820,29 +2235,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4854,26 +2247,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 972
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4892,29 +2266,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4926,26 +2278,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 972
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -4964,29 +2297,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -4998,26 +2309,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 972
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -5036,29 +2328,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -5070,26 +2340,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 972
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -5108,29 +2359,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -5142,26 +2371,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 972
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -5180,29 +2390,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -5214,26 +2402,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 972
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -5252,29 +2421,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -5286,26 +2433,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 972
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -5324,29 +2452,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -5358,26 +2464,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 972
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -5396,29 +2483,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -5430,26 +2495,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 972
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -5468,29 +2514,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -5502,26 +2526,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 972
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -5540,29 +2545,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -5574,26 +2557,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 972
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -5612,29 +2576,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -5646,26 +2588,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 972
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -5684,29 +2607,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -5718,26 +2619,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 972
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -5760,29 +2642,7 @@
             "name": "operation"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -5805,26 +2665,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -5842,29 +2683,7 @@
             "segments": 3
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -5877,26 +2696,7 @@
             "path_prefix": "/[redacted]/mcp"
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 289
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -5909,29 +2709,7 @@
             "name": "host"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -5939,26 +2717,7 @@
             "host": "refused"
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 2
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -5974,29 +2733,7 @@
             "name": "operation"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -6011,26 +2748,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 51
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -6046,29 +2764,7 @@
             "name": "operation"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -6081,26 +2777,7 @@
             "operation": "absent"
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 0
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -6116,29 +2793,7 @@
             "name": "operation"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -6151,26 +2806,7 @@
             "operation": "ambiguous"
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 62
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -6191,29 +2827,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -6225,26 +2839,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 120
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -6267,51 +2862,12 @@
                 "repo"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 120
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -6344,51 +2900,12 @@
                 "repo"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 120
-                }
-              }
-            ]
-          },
           "m": {
             "is_set": [
               {
@@ -6419,51 +2936,12 @@
                 "body"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 120
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -6494,51 +2972,12 @@
                 "body"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 70000
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -6567,29 +3006,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -6601,26 +3018,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 8
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -6641,51 +3039,12 @@
                 "body"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 8
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -6714,29 +3073,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -6744,26 +3081,7 @@
             "path": "absent"
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 0
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -6782,29 +3100,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -6816,26 +3112,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 120
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -6851,29 +3128,7 @@
             "name": "operation"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -6890,26 +3145,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 120
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -6928,29 +3164,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "step_limit": 10,
       "expect": {
@@ -6961,26 +3175,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 80
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -6999,29 +3194,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "step_limit": 9,
       "expect": {
@@ -7032,26 +3205,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 80
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -7072,27 +3226,6 @@
                 "a"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
@@ -7100,24 +3233,6 @@
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 80
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -7146,27 +3261,6 @@
                 "a"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
@@ -7174,24 +3268,6 @@
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 80
-                }
-              }
-            ]
-          },
           "m": {
             "is_set": [
               {
@@ -7220,27 +3296,6 @@
                 "body"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
@@ -7248,24 +3303,6 @@
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 80
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -7304,29 +3341,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "step_limit": 15,
       "expect": {
@@ -7342,26 +3357,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 80
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -7388,51 +3384,12 @@
                 "sci"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 142
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -7466,29 +3423,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -7496,26 +3431,7 @@
             "path": "ambiguous"
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 142
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -7537,51 +3453,12 @@
                 "bad"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 142
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {
@@ -7612,51 +3489,12 @@
                 "bad"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 142
-                }
-              }
-            ]
-          },
           "m": {
             "is_set": [
               {
@@ -7704,29 +3542,7 @@
             "field_type": "unknown"
           }
         ],
-        "measures": [
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
+        "measures": []
       },
       "expect": {
         "context_keys": {
@@ -7752,26 +3568,7 @@
             }
           }
         },
-        "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 2
-                }
-              }
-            ]
-          }
-        }
+        "measures": {}
       }
     },
     {
@@ -7803,51 +3600,12 @@
                 "s"
               ]
             ]
-          },
-          {
-            "name": "call_count",
-            "type": "sum",
-            "function": "is_set",
-            "paths": [
-              [
-                "request"
-              ]
-            ]
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
           }
         ]
       },
       "expect": {
         "context_keys": {},
         "measures": {
-          "call_count": {
-            "is_set": [
-              {
-                "found": {
-                  "set": true
-                }
-              }
-            ]
-          },
-          "request_bytes": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 2
-                }
-              }
-            ]
-          },
           "m": {
             "size_in_bytes": [
               {

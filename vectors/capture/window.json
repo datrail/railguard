@@ -322,31 +322,6 @@
                     "request"
                   ]
                 ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              },
-              {
-                "name": "argument_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body",
-                    "params",
-                    "arguments",
-                    "content"
-                  ]
-                ]
               }
             ]
           }
@@ -507,9 +482,7 @@
               "destination": "repository"
             },
             "measures": {
-              "call_count": 2,
-              "request_bytes": 41384,
-              "argument_bytes": 40964
+              "call_count": 2
             }
           },
           {
@@ -522,9 +495,7 @@
               "destination": "repository"
             },
             "measures": {
-              "call_count": 1,
-              "request_bytes": 512214,
-              "argument_bytes": 512002
+              "call_count": 1
             }
           },
           {
@@ -537,9 +508,7 @@
               "destination": "repository"
             },
             "measures": {
-              "call_count": 1,
-              "request_bytes": 5318,
-              "argument_bytes": 5122
+              "call_count": 1
             }
           },
           {
@@ -685,31 +654,6 @@
                       "request"
                     ]
                   ]
-                },
-                {
-                  "name": "request_bytes",
-                  "type": "sum",
-                  "function": "size",
-                  "paths": [
-                    [
-                      "request",
-                      "body"
-                    ]
-                  ]
-                },
-                {
-                  "name": "argument_bytes",
-                  "type": "sum",
-                  "function": "size",
-                  "paths": [
-                    [
-                      "request",
-                      "body",
-                      "params",
-                      "arguments",
-                      "content"
-                    ]
-                  ]
                 }
               ]
             }
@@ -741,17 +685,6 @@
                 "paths": [
                   [
                     "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
                   ]
                 ]
               }
@@ -833,9 +766,7 @@
               "destination": "repository"
             },
             "measures": {
-              "call_count": 1,
-              "request_bytes": 140,
-              "argument_bytes": 3
+              "call_count": 1
             }
           }
         ],
@@ -878,16 +809,6 @@
               "context_keys": [],
               "measures": [
                 {
-                  "name": "call_count",
-                  "type": "sum",
-                  "function": "is_set",
-                  "paths": [
-                    [
-                      "request"
-                    ]
-                  ]
-                },
-                {
                   "name": "with_content",
                   "type": "sum",
                   "function": "is_set",
@@ -923,29 +844,7 @@
                 "name": "operation"
               }
             ],
-            "measures": [
-              {
-                "name": "call_count",
-                "type": "sum",
-                "function": "is_set",
-                "paths": [
-                  [
-                    "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              }
-            ]
+            "measures": []
           }
         }
       },
@@ -1054,7 +953,6 @@
             "entry_id": "e1",
             "context_keys": {},
             "measures": {
-              "call_count": 4,
               "with_content": 1
             }
           }
@@ -1161,31 +1059,6 @@
                       "request"
                     ]
                   ]
-                },
-                {
-                  "name": "request_bytes",
-                  "type": "sum",
-                  "function": "size",
-                  "paths": [
-                    [
-                      "request",
-                      "body"
-                    ]
-                  ]
-                },
-                {
-                  "name": "argument_bytes",
-                  "type": "sum",
-                  "function": "size",
-                  "paths": [
-                    [
-                      "request",
-                      "body",
-                      "params",
-                      "arguments",
-                      "content"
-                    ]
-                  ]
                 }
               ]
             }
@@ -1217,17 +1090,6 @@
                 "paths": [
                   [
                     "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
                   ]
                 ]
               }
@@ -1333,9 +1195,7 @@
               "destination": "repository"
             },
             "measures": {
-              "call_count": 3,
-              "request_bytes": 420,
-              "argument_bytes": 9
+              "call_count": 3
             }
           }
         ],
@@ -1426,31 +1286,6 @@
                 "paths": [
                   [
                     "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              },
-              {
-                "name": "argument_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body",
-                    "params",
-                    "arguments",
-                    "content"
                   ]
                 ]
               }
@@ -1570,9 +1405,7 @@
               "destination": "repository"
             },
             "measures": {
-              "call_count": 1,
-              "request_bytes": 157,
-              "argument_bytes": 3
+              "call_count": 1
             }
           }
         ],
@@ -1849,31 +1682,6 @@
                       "request"
                     ]
                   ]
-                },
-                {
-                  "name": "request_bytes",
-                  "type": "sum",
-                  "function": "size",
-                  "paths": [
-                    [
-                      "request",
-                      "body"
-                    ]
-                  ]
-                },
-                {
-                  "name": "argument_bytes",
-                  "type": "sum",
-                  "function": "size",
-                  "paths": [
-                    [
-                      "request",
-                      "body",
-                      "params",
-                      "arguments",
-                      "content"
-                    ]
-                  ]
                 }
               ]
             }
@@ -1905,17 +1713,6 @@
                 "paths": [
                   [
                     "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
                   ]
                 ]
               }
@@ -2085,9 +1882,7 @@
               "destination": "repository"
             },
             "measures": {
-              "call_count": 2,
-              "request_bytes": 280,
-              "argument_bytes": 6
+              "call_count": 2
             }
           },
           {
@@ -2100,8 +1895,7 @@
               "operation": "search_code"
             },
             "measures": {
-              "call_count": 2,
-              "request_bytes": 230
+              "call_count": 2
             }
           },
           {
@@ -2111,8 +1905,7 @@
               "host": "[overflow]"
             },
             "measures": {
-              "call_count": 4,
-              "request_bytes": 282
+              "call_count": 4
             }
           }
         ],
@@ -2208,31 +2001,6 @@
                 "paths": [
                   [
                     "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              },
-              {
-                "name": "argument_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body",
-                    "params",
-                    "arguments",
-                    "content"
                   ]
                 ]
               }
@@ -2346,9 +2114,7 @@
               "destination": "repository"
             },
             "measures": {
-              "call_count": 2,
-              "request_bytes": 280,
-              "argument_bytes": 6
+              "call_count": 2
             }
           },
           {
@@ -2438,31 +2204,6 @@
                 "paths": [
                   [
                     "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              },
-              {
-                "name": "argument_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body",
-                    "params",
-                    "arguments",
-                    "content"
                   ]
                 ]
               }
@@ -2588,9 +2329,7 @@
               "destination": "repository"
             },
             "measures": {
-              "call_count": 4,
-              "request_bytes": 560,
-              "argument_bytes": 12
+              "call_count": 4
             }
           }
         ],
@@ -3094,31 +2833,6 @@
                     "request"
                   ]
                 ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              },
-              {
-                "name": "argument_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body",
-                    "params",
-                    "arguments",
-                    "content"
-                  ]
-                ]
               }
             ]
           }
@@ -3166,31 +2880,6 @@
                 "paths": [
                   [
                     "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              },
-              {
-                "name": "argument_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body",
-                    "params",
-                    "arguments",
-                    "content"
                   ]
                 ]
               }
@@ -3284,9 +2973,7 @@
               "destination": "repository"
             },
             "measures": {
-              "call_count": 1,
-              "request_bytes": 140,
-              "argument_bytes": 3
+              "call_count": 1
             }
           },
           {
@@ -3299,9 +2986,7 @@
               "destination": "repository"
             },
             "measures": {
-              "call_count": 1,
-              "request_bytes": 130,
-              "argument_bytes": 3
+              "call_count": 1
             }
           }
         ],
@@ -3381,31 +3066,6 @@
                 "paths": [
                   [
                     "request"
-                  ]
-                ]
-              },
-              {
-                "name": "request_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body"
-                  ]
-                ]
-              },
-              {
-                "name": "argument_bytes",
-                "type": "sum",
-                "function": "size",
-                "paths": [
-                  [
-                    "request",
-                    "body",
-                    "params",
-                    "arguments",
-                    "content"
                   ]
                 ]
               }
