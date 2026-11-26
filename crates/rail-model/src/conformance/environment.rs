@@ -9,9 +9,9 @@ use serde_json::{Map, Value};
 use super::value::{Bytes, decode_unread, keep};
 use super::{DEFAULT_BYTE_BUDGET, read_written};
 use crate::body::BodyRead;
-use crate::capture::ObservedCall;
 use crate::condition::{Environment, Headers};
 use crate::endpoint::Endpoint;
+use crate::request::ObservedCall;
 use crate::request_line::RequestLine;
 
 #[derive(Deserialize)]

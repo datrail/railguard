@@ -7,9 +7,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime};
 
 use rail_model::body::{BodyBuffer, BodyRead, ByteBudget, Unread};
-use rail_model::capture::{
-    BodyUnreadReason, CallOutcome, ClosedWindow, CompiledPlan, ObservedCall, Windowing,
-};
+use rail_model::capture::{BodyUnreadReason, CallOutcome, ClosedWindow, CompiledPlan, Windowing};
+use rail_model::request::ObservedCall;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::{mpsc, oneshot};

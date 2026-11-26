@@ -5,7 +5,8 @@
 use std::sync::{Arc, Mutex};
 
 use rail_model::body::{BodyRead, Unread};
-use rail_model::capture::{ClosedWindow, ObservedCall, Window, compile_plan, parse_plan};
+use rail_model::capture::{ClosedWindow, Window, compile_plan, parse_plan};
+use rail_model::request::ObservedCall;
 use rail_runtime::{CallRecordReporter, CallRecordSink, FetchError, Jitter};
 use reqwest::StatusCode;
 use serde_json::{Value, json};

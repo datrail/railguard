@@ -8,8 +8,7 @@ use indexmap::IndexMap;
 use uuid::Uuid;
 
 use super::call::{
-    CallReader, KeptValue, KeyReading, MeasureReading, ObservedCall, PathReading, RecordReading,
-    Taken, Untaken,
+    CallReader, KeptValue, KeyReading, MeasureReading, PathReading, RecordReading, Taken, Untaken,
 };
 use super::compile::CompiledPlan;
 use super::document::{
@@ -19,6 +18,7 @@ use super::plan::{CatchAll, ContextKey, Record};
 use crate::body::{Unparsed, Unread};
 use crate::condition::BodyUnread;
 use crate::redaction::REDACTED;
+use crate::request::ObservedCall;
 use crate::request_line::{HostReading, ReportedMethod, RequestLine};
 use crate::timestamp::Timestamp;
 

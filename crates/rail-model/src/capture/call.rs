@@ -5,29 +5,16 @@ use sha2::{Digest, Sha256};
 
 use super::compile::{CompiledEntry, CompiledPlan, EntryRefusal};
 use super::plan::{CatchAll, ContextKey, Entry, KeyFunction, Measure, MeasureFunction, Record};
-use crate::body::BodyRead;
 use crate::condition::{
     BodyPath, BodyUnread, Budget, Environment, Items, Lookup, Path, Refusal, RequestPath, Verdict,
     evaluate_condition, resolve_path,
 };
 use crate::redaction::{REDACTED, is_secret_token};
+use crate::request::ObservedCall;
 use crate::request_line::{HostReading, ReportedMethod, RequestLine, Unmatchable};
 
 // Past this, a kept value could carry data of any length.
 const MAX_KEPT_CHARS: usize = 256;
-
-/// A call as the callout hands it to the capture thread, its request whole.
-#[derive(Debug)]
-pub struct ObservedCall {
-    /// `:authority` as the agent sent it, before the proxy rewrites it.
-    pub authority: Vec<u8>,
-    pub method: Vec<u8>,
-    /// `:path` as received: the path and its query, never decoded.
-    pub path: Vec<u8>,
-    pub body: BodyRead,
-    /// Every byte of the body the callout was sent, kept or not.
-    pub body_bytes: u64,
-}
 
 /// A call matched against a plan, and what the record counting it reads of it.
 #[derive(Debug)]

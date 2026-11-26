@@ -5,7 +5,7 @@
 use std::time::Duration;
 
 use rail_model::body::{BodyRead, Unread};
-use rail_model::capture::ObservedCall;
+use rail_model::request::ObservedCall;
 use rail_runtime::{Capture, CaptureSender};
 use serde_json::json;
 use tokio::runtime::Handle;

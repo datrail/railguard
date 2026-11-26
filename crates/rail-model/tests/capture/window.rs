@@ -2,7 +2,8 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use rail_model::body::{BodyRead, Unread};
-use rail_model::capture::{ObservedCall, Window, compile_plan, parse_plan};
+use rail_model::capture::{Window, compile_plan, parse_plan};
+use rail_model::request::ObservedCall;
 use serde_json::Value;
 
 const PLANS: &str = include_str!("../../../../vectors/capture/plans.json");

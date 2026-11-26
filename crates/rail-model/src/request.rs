@@ -2,8 +2,23 @@
 
 use percent_encoding::percent_decode_str;
 
+use crate::body::BodyRead;
+
 /// The ticket, for the gateway to check.
 pub const XRAIL: &str = "x-rail";
+
+/// A call as the callout hands it to the capture thread, its request whole.
+#[derive(Debug)]
+pub struct ObservedCall {
+    /// `:authority` as the agent sent it, before the proxy rewrites it.
+    pub authority: Vec<u8>,
+    pub method: Vec<u8>,
+    /// `:path` as received: the path and its query, never decoded.
+    pub path: Vec<u8>,
+    pub body: BodyRead,
+    /// Every byte of the body the callout was sent, kept or not.
+    pub body_bytes: u64,
+}
 
 /// Whether an agent's header is kept from the upstream: an x-rail header, or any name with `_`.
 /// Takes a lowercased name.

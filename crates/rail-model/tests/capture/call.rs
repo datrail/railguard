@@ -1,7 +1,8 @@
 use rail_model::capture::{
-    ContextKey, KeyReading, ObservedCall, PathReading, Taken, Untaken, compile_plan, parse_plan,
+    ContextKey, KeyReading, PathReading, Taken, Untaken, compile_plan, parse_plan,
 };
 use rail_model::condition::{DEFAULT_STEP_LIMIT, Refusal};
+use rail_model::request::ObservedCall;
 use serde_json::{Map, Value, json};
 
 use super::patch;

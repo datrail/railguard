@@ -3,8 +3,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use rail_model::body::{BodyRead, Unread};
 use rail_model::capture::{
-    CallOutcome, ClosedWindow, CompiledPlan, ObservedCall, Windowing, compile_plan, parse_plan,
+    CallOutcome, ClosedWindow, CompiledPlan, Windowing, compile_plan, parse_plan,
 };
+use rail_model::request::ObservedCall;
 use serde_json::Value;
 use uuid::Uuid;
 
