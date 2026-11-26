@@ -1613,6 +1613,7 @@
     },
     {
       "id": "refusals-on-two-hosts-hide-nothing-on-a-third",
+      "note": "Each host's refusal hides its own later entries, e4 among them.",
       "plan": "matching",
       "entries": [
         {
@@ -1738,6 +1739,67 @@
           }
         },
         {
+          "id": "e4",
+          "match": [
+            {
+              "path": [
+                "request",
+                "host"
+              ],
+              "op": "eq",
+              "value": "example.com"
+            },
+            {
+              "path": [
+                "request",
+                "redacted_path"
+              ],
+              "op": "eq",
+              "value": "/mcp"
+            },
+            {
+              "path": [
+                "request",
+                "mcp",
+                "method"
+              ],
+              "op": "eq",
+              "value": "tools/call"
+            },
+            {
+              "path": [
+                "request",
+                "mcp",
+                "tool"
+              ],
+              "op": "eq",
+              "value": "create_or_update_file"
+            }
+          ],
+          "record": {
+            "context_keys": [],
+            "measures": [
+              {
+                "name": "call_count"
+              },
+              {
+                "name": "error_count"
+              },
+              {
+                "name": "request_bytes",
+                "type": "sum",
+                "function": "size",
+                "paths": [
+                  [
+                    "request",
+                    "body"
+                  ]
+                ]
+              }
+            ]
+          }
+        },
+        {
           "id": "e3",
           "match": [
             {
@@ -1813,7 +1875,7 @@
             "refusal": "unknown_op"
           }
         ],
-        "entries_skipped": 2,
+        "entries_skipped": 3,
         "taken": {
           "entry": "e3"
         }
@@ -3311,24 +3373,6 @@
               ],
               "op": "eq",
               "value": "/mcp"
-            },
-            {
-              "path": [
-                "request",
-                "mcp",
-                "method"
-              ],
-              "op": "eq",
-              "value": "tools/call"
-            },
-            {
-              "path": [
-                "request",
-                "mcp",
-                "tool"
-              ],
-              "op": "eq",
-              "value": "search_code"
             }
           ],
           "record": {
@@ -3681,7 +3725,7 @@
     },
     {
       "id": "an-entry-that-cant-be-told-stops-the-walk",
-      "note": "Its repo can't be told, written in two letter cases.",
+      "note": "Its repo can't be told, written in two letter cases; e2, which would take the call, isn't tried.",
       "plan": "matching",
       "entries": [
         {
@@ -3774,24 +3818,6 @@
               ],
               "op": "eq",
               "value": "/mcp"
-            },
-            {
-              "path": [
-                "request",
-                "mcp",
-                "method"
-              ],
-              "op": "eq",
-              "value": "tools/call"
-            },
-            {
-              "path": [
-                "request",
-                "mcp",
-                "tool"
-              ],
-              "op": "eq",
-              "value": "search_code"
             }
           ],
           "record": {

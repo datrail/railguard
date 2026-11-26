@@ -933,6 +933,7 @@
     },
     {
       "id": "contains-on-string-does-not-hold",
+      "note": "Not a substring test: only a list contains.",
       "value": {
         "string": "a"
       },
@@ -1813,16 +1814,6 @@
       "expect": "does_not_hold"
     },
     {
-      "id": "contains-on-a-string-holding-it-does-not-hold",
-      "note": "Not a substring test: only a list contains.",
-      "value": {
-        "string": "abc"
-      },
-      "op": "contains",
-      "operand": "b",
-      "expect": "does_not_hold"
-    },
-    {
       "id": "contains-on-a-list-of-a-longer-string-does-not-hold",
       "note": "An item equals, or doesn't: no substring.",
       "value": {
@@ -2013,15 +2004,6 @@
       "op": "matches",
       "operand": "ab*ab",
       "expect": "holds"
-    },
-    {
-      "id": "matches-a-value-too-short-for-both-ends-does-not-hold",
-      "value": {
-        "string": "aba"
-      },
-      "op": "matches",
-      "operand": "ab*ab",
-      "expect": "does_not_hold"
     },
     {
       "id": "matches-interior-literals-in-order-hold",
@@ -2215,17 +2197,18 @@
       "expect": "holds"
     },
     {
-      "id": "matches-a-hostile-pattern-does-not-hold",
-      "note": "One scan, never backtracking.",
+      "id": "matches-a-hostile-pattern-holds-in-one-scan",
+      "note": "Never backtracking.",
       "value": {
-        "string": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        "string": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab"
       },
       "op": "matches",
       "operand": "*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*b",
-      "expect": "does_not_hold"
+      "expect": "holds"
     },
     {
       "id": "matches-a-value-shorter-than-both-ends-does-not-hold",
+      "note": "Its two ends' lengths added, not multiplied: 2 against 1.",
       "value": {
         "string": "a"
       },
@@ -2295,6 +2278,187 @@
       "op": "matches",
       "operand": "*",
       "expect": "does_not_hold"
+    },
+    {
+      "id": "lt-on-a-list-of-a-number-meeting-it-does-not-hold",
+      "note": "An ordered op reads no list.",
+      "value": {
+        "list": [
+          {
+            "number": 1
+          }
+        ]
+      },
+      "op": "lt",
+      "operand": 2,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "lte-on-a-list-of-a-number-meeting-it-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "number": 1
+          }
+        ]
+      },
+      "op": "lte",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "gt-on-a-list-of-a-number-meeting-it-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "number": 1
+          }
+        ]
+      },
+      "op": "gt",
+      "operand": 0,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "gte-on-a-list-of-a-number-meeting-it-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "number": 1
+          }
+        ]
+      },
+      "op": "gte",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "matches-on-a-number-its-text-would-match-does-not-hold",
+      "note": "Only a string matches.",
+      "value": {
+        "number": 1
+      },
+      "op": "matches",
+      "operand": "1*",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "in-a-bool-operand-item-on-a-bool-does-not-hold",
+      "value": {
+        "bool": true
+      },
+      "op": "in",
+      "operand": [
+        true
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "in-a-list-operand-item-on-its-number-does-not-hold",
+      "value": {
+        "number": 95
+      },
+      "op": "in",
+      "operand": [
+        [
+          95
+        ]
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "existing-on-zero-holds",
+      "value": {
+        "number": 0
+      },
+      "op": "existing",
+      "expect": "holds"
+    },
+    {
+      "id": "existing-on-the-empty-string-holds",
+      "value": {
+        "string": ""
+      },
+      "op": "existing",
+      "expect": "holds"
+    },
+    {
+      "id": "not-existing-on-zero-does-not-hold",
+      "value": {
+        "number": 0
+      },
+      "op": "not_existing",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "eq-on-a-number-differing-does-not-hold",
+      "value": {
+        "number": 2
+      },
+      "op": "eq",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "in-on-a-number-not-listed-does-not-hold",
+      "value": {
+        "number": 2
+      },
+      "op": "in",
+      "operand": [
+        "a",
+        1
+      ],
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "contains-a-number-on-a-list-not-holding-it-does-not-hold",
+      "value": {
+        "list": [
+          {
+            "number": 2
+          }
+        ]
+      },
+      "op": "contains",
+      "operand": 1,
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "a-list-in-a-list-isnt-read-deeper-does-not-hold",
+      "note": "Only a list's own items are read: an item that's a list is none of them.",
+      "value": {
+        "list": [
+          {
+            "list": [
+              {
+                "string": "a"
+              },
+              "ambiguous"
+            ]
+          }
+        ]
+      },
+      "op": "eq",
+      "operand": "a",
+      "expect": "does_not_hold"
+    },
+    {
+      "id": "a-list-past-the-step-limit-is-refused-before-its-ambiguity",
+      "value": {
+        "list": [
+          {
+            "string": "a"
+          },
+          "ambiguous"
+        ]
+      },
+      "op": "eq",
+      "operand": "a",
+      "step_limit": 2,
+      "expect": {
+        "refused": "budget_exceeded"
+      }
     },
     {
       "id": "unknown-op-on-what-cant-be-told-is-refused",

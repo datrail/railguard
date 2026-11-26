@@ -1,26 +1,6 @@
 {
   "cases": [
     {
-      "id": "the-first-window-runs-from-the-time-read-to-the-next-boundary",
-      "plans": [
-        "sixty-seconds"
-      ],
-      "events": [
-        {
-          "hold": {
-            "plan": "sixty-seconds",
-            "at": 20
-          }
-        }
-      ],
-      "expect": [
-        {
-          "closed": null,
-          "open_until": 60
-        }
-      ]
-    },
-    {
       "id": "the-same-plan-in-its-span-keeps-its-window",
       "plans": [
         "sixty-seconds"

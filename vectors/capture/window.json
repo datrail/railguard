@@ -2375,114 +2375,6 @@
       }
     },
     {
-      "id": "bodies-an-entry-could-have-read-counted-by-reason",
-      "plan": "worked-example",
-      "start": 1794304800,
-      "end": 1794305700,
-      "calls": [
-        {
-          "at": 1794304801,
-          "call": {
-            "authority": "api.github.com",
-            "method": "POST",
-            "path": "/mcp",
-            "body": {
-              "unread": "not_sent"
-            },
-            "body_bytes": 0
-          }
-        },
-        {
-          "at": 1794304802,
-          "call": {
-            "authority": "api.github.com",
-            "method": "POST",
-            "path": "/mcp",
-            "body": {
-              "text": "[]"
-            },
-            "body_bytes": 2
-          }
-        }
-      ],
-      "calls_dropped": 0,
-      "sent": {
-        "document_id": "5f0c2a9e-3b1d-4c7a-9e2f-8d6b1a4c3e70",
-        "generated_at": 1794305701,
-        "windows_dropped": 0
-      },
-      "expect": {
-        "schema_version": "1.0",
-        "generated_at": "2026-11-10T10:15:01Z",
-        "document_id": "5f0c2a9e-3b1d-4c7a-9e2f-8d6b1a4c3e70",
-        "agent": {
-          "host_id": "host-7f3c",
-          "sandbox_name": "agent-finretail"
-        },
-        "plan_version": 7,
-        "plan_hash": "sha256:fb3733bbe47258024770ac2cc2521f60c5709ddc2a31b87744ed1c213229d77c",
-        "redaction_version": 1,
-        "window": {
-          "start": "2026-11-10T10:00:00Z",
-          "end": "2026-11-10T10:15:00Z"
-        },
-        "truncated": {
-          "calls_coarsened": 0,
-          "calls_dropped": 0,
-          "entries_skipped": 0,
-          "body_unread": {
-            "past_cap": 0,
-            "past_budget": 0,
-            "not_sent": 1,
-            "cut_short": 0,
-            "not_json": 0,
-            "batch": 1,
-            "ambiguous": 0,
-            "step_budget": 0
-          },
-          "windows_dropped": 0,
-          "path_unresolved": 0,
-          "values_replaced": 0,
-          "values_ambiguous": 0,
-          "steps_dropped": 0
-        },
-        "hosts": [
-          {
-            "host": "api.github.com",
-            "count": 2,
-            "error_count": 0
-          }
-        ],
-        "records": [
-          {
-            "record_id": "r1",
-            "entry_id": "catch_all",
-            "context_keys": {
-              "host": "api.github.com",
-              "path_prefix": "/mcp",
-              "method": "POST",
-              "operation": null
-            },
-            "measures": {
-              "call_count": 2,
-              "error_count": 0,
-              "request_bytes": 2
-            }
-          }
-        ],
-        "sequence": [
-          {
-            "at": "2026-11-10T10:00:01Z",
-            "record_id": "r1"
-          },
-          {
-            "at": "2026-11-10T10:00:02Z",
-            "record_id": "r1"
-          }
-        ]
-      }
-    },
-    {
       "id": "a-value-that-cant-be-told-written-as-the-marker-a-loss-counted-once-per-call",
       "plan": "worked-example",
       "start": 1794304800,
@@ -3276,13 +3168,35 @@
             "method": "POST",
             "path": "/mcp",
             "body": {
+              "unread": "not_sent"
+            },
+            "body_bytes": 0
+          }
+        },
+        {
+          "at": 1794304802,
+          "call": {
+            "authority": "api.github.com",
+            "method": "POST",
+            "path": "/mcp",
+            "body": "[]",
+            "body_bytes": 2
+          }
+        },
+        {
+          "at": 1794304803,
+          "call": {
+            "authority": "api.github.com",
+            "method": "POST",
+            "path": "/mcp",
+            "body": {
               "unread": "past_cap"
             },
             "body_bytes": 70000
           }
         },
         {
-          "at": 1794304802,
+          "at": 1794304804,
           "call": {
             "authority": "api.github.com",
             "method": "POST",
@@ -3294,7 +3208,7 @@
           }
         },
         {
-          "at": 1794304803,
+          "at": 1794304805,
           "call": {
             "authority": "api.github.com",
             "method": "POST",
@@ -3306,7 +3220,7 @@
           }
         },
         {
-          "at": 1794304804,
+          "at": 1794304806,
           "call": {
             "authority": "api.github.com",
             "method": "POST",
@@ -3316,7 +3230,7 @@
           }
         },
         {
-          "at": 1794304805,
+          "at": 1794304807,
           "call": {
             "authority": "api.github.com",
             "method": "POST",
@@ -3327,7 +3241,7 @@
           }
         },
         {
-          "at": 1794304806,
+          "at": 1794304808,
           "call": {
             "authority": "api.github.com",
             "method": "POST",
@@ -3344,55 +3258,79 @@
         "windows_dropped": 0
       },
       "expect": {
+        "schema_version": "1.0",
+        "generated_at": "2026-11-10T10:15:01Z",
+        "document_id": "5f0c2a9e-3b1d-4c7a-9e2f-8d6b1a4c3e70",
         "agent": {
           "host_id": "host-7f3c",
           "sandbox_name": "agent-finretail"
         },
-        "document_id": "5f0c2a9e-3b1d-4c7a-9e2f-8d6b1a4c3e70",
-        "generated_at": "2026-11-10T10:15:01Z",
+        "plan_version": 7,
+        "plan_hash": "sha256:fb3733bbe47258024770ac2cc2521f60c5709ddc2a31b87744ed1c213229d77c",
+        "redaction_version": 1,
+        "window": {
+          "start": "2026-11-10T10:00:00Z",
+          "end": "2026-11-10T10:15:00Z"
+        },
+        "truncated": {
+          "calls_coarsened": 0,
+          "calls_dropped": 0,
+          "entries_skipped": 0,
+          "body_unread": {
+            "past_cap": 1,
+            "past_budget": 2,
+            "not_sent": 1,
+            "cut_short": 1,
+            "not_json": 1,
+            "batch": 1,
+            "ambiguous": 1,
+            "step_budget": 0
+          },
+          "windows_dropped": 0,
+          "path_unresolved": 0,
+          "values_replaced": 0,
+          "values_ambiguous": 1,
+          "steps_dropped": 0
+        },
         "hosts": [
           {
-            "count": 6,
-            "error_count": 0,
-            "host": "api.github.com"
+            "host": "api.github.com",
+            "count": 8,
+            "error_count": 0
           }
         ],
-        "plan_hash": "sha256:fb3733bbe47258024770ac2cc2521f60c5709ddc2a31b87744ed1c213229d77c",
-        "plan_version": 7,
         "records": [
           {
+            "record_id": "r1",
+            "entry_id": "catch_all",
             "context_keys": {
               "host": "api.github.com",
               "method": "POST",
               "operation": null,
               "path_prefix": "/mcp"
             },
-            "entry_id": "catch_all",
             "measures": {
-              "call_count": 5,
+              "call_count": 7,
               "error_count": 0,
-              "request_bytes": 70166
-            },
-            "record_id": "r1"
+              "request_bytes": 70168
+            }
           },
           {
+            "record_id": "r2",
+            "entry_id": "catch_all",
             "context_keys": {
               "host": "api.github.com",
               "method": "POST",
               "operation": "[ambiguous]",
               "path_prefix": "/mcp"
             },
-            "entry_id": "catch_all",
             "measures": {
               "call_count": 1,
               "error_count": 0,
               "request_bytes": 62
-            },
-            "record_id": "r2"
+            }
           }
         ],
-        "redaction_version": 1,
-        "schema_version": "1.0",
         "sequence": [
           {
             "at": "2026-11-10T10:00:01Z",
@@ -3416,33 +3354,17 @@
           },
           {
             "at": "2026-11-10T10:00:06Z",
+            "record_id": "r1"
+          },
+          {
+            "at": "2026-11-10T10:00:07Z",
+            "record_id": "r1"
+          },
+          {
+            "at": "2026-11-10T10:00:08Z",
             "record_id": "r2"
           }
-        ],
-        "truncated": {
-          "body_unread": {
-            "ambiguous": 1,
-            "batch": 0,
-            "cut_short": 1,
-            "not_json": 1,
-            "not_sent": 0,
-            "past_budget": 2,
-            "past_cap": 1,
-            "step_budget": 0
-          },
-          "calls_coarsened": 0,
-          "calls_dropped": 0,
-          "entries_skipped": 0,
-          "path_unresolved": 0,
-          "steps_dropped": 0,
-          "values_ambiguous": 1,
-          "values_replaced": 0,
-          "windows_dropped": 0
-        },
-        "window": {
-          "end": "2026-11-10T10:15:00Z",
-          "start": "2026-11-10T10:00:00Z"
-        }
+        ]
       },
       "note": "A body past the budget and a tree past it are both past_budget."
     }

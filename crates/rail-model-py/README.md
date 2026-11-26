@@ -19,8 +19,8 @@ for CPython 3.12 or later.
 - **`datrail_model.conformance.run_vectors`** runs a file of the [conformance vectors](../../vectors/README.md), given
   its text and the texts of the files it names inputs from, as the Rust tests do.
 
-Each result but the compiled bundle is a frozen dataclass with a tag field (`kind`, `decision`, `verdict`), and fields
-that don't apply are `None`.
+Each result but the compiled bundle and a vector's outcome is a frozen dataclass with a tag field (`kind`, `decision`,
+`verdict`), and fields that don't apply are `None`.
 
 ## Install
 

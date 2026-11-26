@@ -357,117 +357,6 @@
       }
     },
     {
-      "id": "key-body-index-past-the-end",
-      "environment": "capture-sample",
-      "record_of": "entry",
-      "record": {
-        "context_keys": [
-          {
-            "name": "k",
-            "path": [
-              "request",
-              "body",
-              "params",
-              "arguments",
-              "files",
-              9
-            ],
-            "field_type": "unknown"
-          }
-        ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
-      },
-      "expect": {
-        "context_keys": {
-          "k": {
-            "path": "absent"
-          }
-        },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
-      }
-    },
-    {
-      "id": "size-body-index-past-the-end",
-      "environment": "capture-sample",
-      "record_of": "entry",
-      "record": {
-        "context_keys": [],
-        "measures": [
-          {
-            "name": "m",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body",
-                "params",
-                "arguments",
-                "files",
-                9
-              ]
-            ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
-      },
-      "expect": {
-        "context_keys": {},
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          },
-          "m": {
-            "size_in_bytes": [
-              "absent"
-            ]
-          }
-        }
-      }
-    },
-    {
       "id": "key-body-list",
       "environment": "capture-sample",
       "record_of": "entry",
@@ -575,6 +464,119 @@
               {
                 "found": {
                   "bytes": 38
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "key-body-object",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [
+          {
+            "name": "k",
+            "path": [
+              "request",
+              "body",
+              "params",
+              "arguments"
+            ],
+            "field_type": "unknown"
+          }
+        ],
+        "measures": [
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {
+          "k": {
+            "path": {
+              "found": "not_a_string"
+            }
+          }
+        },
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          }
+        }
+      }
+    },
+    {
+      "id": "size-body-object",
+      "environment": "capture-sample",
+      "record_of": "entry",
+      "record": {
+        "context_keys": [],
+        "measures": [
+          {
+            "name": "m",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body",
+                "params",
+                "arguments"
+              ]
+            ]
+          },
+          {
+            "name": "call_count"
+          },
+          {
+            "name": "error_count"
+          },
+          {
+            "name": "request_bytes",
+            "type": "sum",
+            "function": "size",
+            "paths": [
+              [
+                "request",
+                "body"
+              ]
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "context_keys": {},
+        "measures": {
+          "call_count": "call_count",
+          "error_count": "error_count",
+          "request_bytes": {
+            "request_bytes": 289
+          },
+          "m": {
+            "size_in_bytes": [
+              {
+                "found": {
+                  "bytes": 178
                 }
               }
             ]
@@ -1701,111 +1703,6 @@
       }
     },
     {
-      "id": "key-query-missing",
-      "environment": "capture-sample",
-      "record_of": "entry",
-      "record": {
-        "context_keys": [
-          {
-            "name": "k",
-            "path": [
-              "request",
-              "query",
-              "owner"
-            ],
-            "field_type": "unknown"
-          }
-        ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
-      },
-      "expect": {
-        "context_keys": {
-          "k": {
-            "path": "absent"
-          }
-        },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
-      }
-    },
-    {
-      "id": "size-query-missing",
-      "environment": "capture-sample",
-      "record_of": "entry",
-      "record": {
-        "context_keys": [],
-        "measures": [
-          {
-            "name": "m",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "query",
-                "owner"
-              ]
-            ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
-      },
-      "expect": {
-        "context_keys": {},
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          },
-          "m": {
-            "size_in_bytes": [
-              "absent"
-            ]
-          }
-        }
-      }
-    },
-    {
       "id": "key-path-segment",
       "environment": "capture-sample",
       "record_of": "entry",
@@ -1913,224 +1810,6 @@
                   "bytes": 24
                 }
               }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "key-path-segment-last",
-      "environment": "capture-sample",
-      "record_of": "entry",
-      "record": {
-        "context_keys": [
-          {
-            "name": "k",
-            "path": [
-              "request",
-              "path",
-              1
-            ],
-            "field_type": "unknown"
-          }
-        ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
-      },
-      "expect": {
-        "context_keys": {
-          "k": {
-            "path": {
-              "found": {
-                "string": "mcp"
-              }
-            }
-          }
-        },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
-      }
-    },
-    {
-      "id": "size-path-segment-last",
-      "environment": "capture-sample",
-      "record_of": "entry",
-      "record": {
-        "context_keys": [],
-        "measures": [
-          {
-            "name": "m",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "path",
-                1
-              ]
-            ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
-      },
-      "expect": {
-        "context_keys": {},
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          },
-          "m": {
-            "size_in_bytes": [
-              {
-                "found": {
-                  "bytes": 3
-                }
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "key-path-segment-past-the-end",
-      "environment": "capture-sample",
-      "record_of": "entry",
-      "record": {
-        "context_keys": [
-          {
-            "name": "k",
-            "path": [
-              "request",
-              "path",
-              2
-            ],
-            "field_type": "unknown"
-          }
-        ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
-      },
-      "expect": {
-        "context_keys": {
-          "k": {
-            "path": "absent"
-          }
-        },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          }
-        }
-      }
-    },
-    {
-      "id": "size-path-segment-past-the-end",
-      "environment": "capture-sample",
-      "record_of": "entry",
-      "record": {
-        "context_keys": [],
-        "measures": [
-          {
-            "name": "m",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "path",
-                2
-              ]
-            ]
-          },
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
-      },
-      "expect": {
-        "context_keys": {},
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 289
-          },
-          "m": {
-            "size_in_bytes": [
-              "absent"
             ]
           }
         }
@@ -2510,62 +2189,6 @@
           "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
-          }
-        }
-      }
-    },
-    {
-      "id": "key-key-shape-replaced",
-      "note": "The whole of it in a shape some vendor issues credentials in.",
-      "environment": "capture-body-strings",
-      "record_of": "entry",
-      "record": {
-        "context_keys": [
-          {
-            "name": "k",
-            "path": [
-              "request",
-              "body",
-              "key"
-            ],
-            "field_type": "unknown"
-          }
-        ],
-        "measures": [
-          {
-            "name": "call_count"
-          },
-          {
-            "name": "error_count"
-          },
-          {
-            "name": "request_bytes",
-            "type": "sum",
-            "function": "size",
-            "paths": [
-              [
-                "request",
-                "body"
-              ]
-            ]
-          }
-        ]
-      },
-      "expect": {
-        "context_keys": {
-          "k": {
-            "path": {
-              "found": {
-                "replaced": "key_shape"
-              }
-            }
-          }
-        },
-        "measures": {
-          "call_count": "call_count",
-          "error_count": "error_count",
-          "request_bytes": {
-            "request_bytes": 3211
           }
         }
       }
@@ -3295,6 +2918,7 @@
     },
     {
       "id": "key-shape-sk-dash-replaced",
+      "note": "The whole of it in a shape some vendor issues credentials in.",
       "environment": "capture-body-key-shapes",
       "record_of": "entry",
       "record": {
@@ -5342,7 +4966,7 @@
       }
     },
     {
-      "id": "whole-body-size-past-the-step-limit-read",
+      "id": "whole-body-size-read-with-no-steps",
       "note": "It reads nothing of the body.",
       "environment": "capture-body-ten-members",
       "record_of": "entry",
@@ -5519,7 +5143,7 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 45
+            "request_bytes": 60
           },
           "m": {
             "size_in_bytes": [
@@ -5584,7 +5208,7 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 45
+            "request_bytes": 60
           }
         }
       }
@@ -5634,7 +5258,7 @@
           "call_count": "call_count",
           "error_count": "error_count",
           "request_bytes": {
-            "request_bytes": 45
+            "request_bytes": 60
           },
           "m": {
             "size_in_bytes": [

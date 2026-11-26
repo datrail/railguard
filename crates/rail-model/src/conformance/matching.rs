@@ -40,8 +40,7 @@ fn run_case(case: &Case, plans: &NamedPlans) -> Result<Value, String> {
 
 fn encode_refused(plan: &CompiledPlan) -> Vec<Value> {
     plan.refused()
-        .filter_map(|entry| Some((entry.id(), entry.refusal()?)))
-        .map(|(id, refusal)| encode_entry_refusal(id, refusal))
+        .filter_map(|entry| Some(encode_entry_refusal(entry.id(), entry.refusal()?)))
         .collect()
 }
 

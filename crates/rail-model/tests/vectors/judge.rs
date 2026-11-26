@@ -7,6 +7,7 @@ use serde::Deserialize;
 use serde_json::{Map, Value, json};
 
 const VECTORS: &str = include_str!("../../../../vectors/policy/judge.json");
+
 #[derive(Deserialize)]
 struct Vectors {
     cases: Vec<Case>,

@@ -72,7 +72,7 @@
       "state": "malformed"
     },
     {
-      "id": "base64-exp-true-which-is-an-int-in-python-and-must-not-read-as-1970",
+      "id": "base64-exp-true-is-no-time-and-not-1970",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOnRydWV9",
       "now_in_seconds": 1700000000,
       "state": "malformed"
@@ -204,7 +204,7 @@
       "state": "undecodable"
     },
     {
-      "id": "base64-a-infinity-literal-is-not-json",
+      "id": "base64-a-minus-infinity-literal-is-not-json",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDAwNjAsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6LUluZmluaXR5fX19",
       "now_in_seconds": 1700000000,
       "state": "undecodable"
@@ -214,7 +214,7 @@
       "header": "eyJhZ2VudF9pZCI6ImH_IiwiZXhwIjoxNzAwMDAwMDYwfQ",
       "now_in_seconds": 1700000000,
       "state": "undecodable",
-      "note": "the TypeScript reference substitutes U+FFFD and reaches valid; this refuses bytes it could not read"
+      "note": "Bytes not UTF-8 are refused, never read as U+FFFD."
     },
     {
       "id": "base64-an-exp-that-overflows-a-double-to-infinity",
@@ -224,7 +224,7 @@
       "note": "serde_json holds no number past a double, so the payload is undecodable."
     },
     {
-      "id": "base64-a-score-that-overflows-still-decodes-because-only-exp-is-checked",
+      "id": "base64-a-score-past-a-double-is-undecodable",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDAwNjAsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6MWU0MDB9fX0",
       "now_in_seconds": 1700000000,
       "state": "undecodable",
@@ -273,7 +273,7 @@
       "state": "malformed"
     },
     {
-      "id": "base64-padding-stays-optional-the-same-payload-stripped-of-decodes-too",
+      "id": "base64-padding-stays-optional-the-same-payload-stripped-of-its-padding-decodes-too",
       "header": "eyJhZ2VudF9pZCI6ImFiIiwiZXhwIjoxNzAwMDAwMDYwfQ",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -435,7 +435,7 @@
       "header": "eyJhZ2VudF9pZP8iOiJhIiwiZXhwIjoxNzAwMDAwMDYwfQ",
       "now_in_seconds": 1700000000,
       "state": "undecodable",
-      "note": "the reference substitutes U+FFFD, so the key is no longer agent_id and it reports malformed; both refuse, on different states"
+      "note": "Bytes not UTF-8 are refused, never read as U+FFFD, so the key is never read as another."
     },
     {
       "id": "base64-a-mime-wrapped-header-is-refused-rather-than-quietly-unwrapped",
@@ -456,7 +456,7 @@
       "header": "77u_eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDM2MDB9",
       "now_in_seconds": 1700000000,
       "state": "valid",
-      "note": "Decoders split roughly evenly on this and the contract standardises on stripping, so Python reads with utf-8-sig. The TypeScript reference uses Buffer.toString('utf8'), keeps the mark and then fails on the JSON — the reference trailing the contract rather than a disagreement about what is right.",
+      "note": "One leading byte order mark is dropped, as the contract standardises.",
       "token": {
         "agent_id": "a",
         "exp": 1700003600
@@ -477,7 +477,7 @@
       "state": "undecodable"
     },
     {
-      "id": "base64-an-integer-past-what-a-double-separates-narrows-as-it-does-in-the-reference",
+      "id": "base64-an-integer-past-what-a-double-separates-narrows-to-a-double",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDM2MDAsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTAwNzE5OTI1NDc0MDk5M319fQ",
       "now_in_seconds": 1700000000,
       "state": "valid",
@@ -494,7 +494,7 @@
       "exp_in_seconds": 1700003600
     },
     {
-      "id": "base64-a-4400-digit-integer-saturates-to-infinity-rather-than-raising",
+      "id": "base64-a-4400-digit-integer-is-undecodable",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDM2MDAsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTl9fX0",
       "now_in_seconds": 1700000000,
       "state": "undecodable",
@@ -636,7 +636,7 @@
       "exp_in_seconds": 1700003600
     },
     {
-      "id": "base64-a-leading-is-a-corrupted-body-not-a-differently-padded-one",
+      "id": "base64-a-leading-equals-sign-is-a-corrupted-body-not-a-differently-padded-one",
       "header": "=eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDM2MDB9",
       "now_in_seconds": 1700000000,
       "state": "undecodable",
@@ -788,10 +788,10 @@
       "header": "eyJhZ2VudF9pZCI6ImEBYiIsImV4cCI6MTcwMDAwMzYwMH0",
       "now_in_seconds": 1700000000,
       "state": "undecodable",
-      "note": "RFC 8259 requires escaping below U+0020 and JSON.parse refuses it. Python's json refuses it too unless asked not to."
+      "note": "RFC 8259 requires escaping below U+0020."
     },
     {
-      "id": "base64-a-duplicate-key-takes-the-last-value-as-json-parse-does",
+      "id": "base64-a-duplicate-key-takes-the-last-value",
       "header": "eyJhZ2VudF9pZCI6ImEiLCJleHAiOjE3MDAwMDM2MDAsImV4cCI6MX0",
       "now_in_seconds": 1700000000,
       "state": "expired",
@@ -814,7 +814,7 @@
       "header": "eyJhZ2VudF9pZCI6ImHtoIAiLCJleHAiOjE3MDAwMDM2MDB9",
       "now_in_seconds": 1700000000,
       "state": "undecodable",
-      "note": "The contract names this one: a decoder configured to let surrogates through reads the ticket and a strict one refuses it, with every claim in it chosen by whoever sent it. Divergent for the first documented reason: Buffer.toString substitutes U+FFFD and never throws, so the reference admits an agent_id with a replacement character in it."
+      "note": "The contract names it: a strict decoder refuses it, every claim in it being the sender's to choose."
     },
     {
       "id": "base64-a-non-ascii-letter-is-outside-the-alphabet",

@@ -58,12 +58,12 @@ fn run_case(case: &Case, schema: &TicketClaimsSchema) -> Result<Value, String> {
     let problems: Vec<Value> = check_condition(text, use_case, schema)
         .into_iter()
         .map(|problem| {
+            // Its message left out: its wording is this reader's own, so not a vector's.
             let mut written = json!({
                 "location": problem.location,
                 "code": problem.code,
                 "scope": problem.scope,
             });
-            // Its wording is this reader's own, so not a vector's.
             if let Some(shape) = problem.expected_shape {
                 written["expected_shape"] = json!(shape);
             }

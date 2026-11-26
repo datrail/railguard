@@ -31,7 +31,7 @@ impl NamedPlans {
         Ok(Self(file.plans))
     }
 
-    pub(super) fn get(&self, name: &str) -> Result<Value, String> {
+    fn get(&self, name: &str) -> Result<Value, String> {
         self.0
             .get(name)
             .cloned()
@@ -56,9 +56,20 @@ impl NamedPlans {
         }
         compile_written(&plan)
     }
+
+    /// The plan `name`, `edit` applied to it, compiled.
+    pub(super) fn compile_edited(
+        &self,
+        name: &str,
+        edit: impl FnOnce(&mut Value),
+    ) -> Result<CompiledPlan, String> {
+        let mut plan = self.get(name)?;
+        edit(&mut plan);
+        compile_written(&plan)
+    }
 }
 
-pub(super) fn compile_written(plan: &Value) -> Result<CompiledPlan, String> {
+fn compile_written(plan: &Value) -> Result<CompiledPlan, String> {
     let plan = parse_plan(&plan.to_string()).map_err(|e| format!("the plan: {e}"))?;
     Ok(compile_plan(plan))
 }

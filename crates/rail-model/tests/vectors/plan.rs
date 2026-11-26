@@ -33,6 +33,7 @@ struct Expect {
     /// The first entry's, as read.
     conditions: Option<Vec<String>>,
 }
+
 fn condition_kind(condition: &Condition) -> &'static str {
     match condition {
         Condition::Valid(_) => "valid",
@@ -40,6 +41,7 @@ fn condition_kind(condition: &Condition) -> &'static str {
         Condition::Invalid(_) => "invalid",
     }
 }
+
 #[test]
 fn test_vectors() {
     let vectors = vectors();

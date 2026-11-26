@@ -4,6 +4,7 @@ use serde_json::value::RawValue;
 use uuid::Uuid;
 
 const VECTORS: &str = include_str!("../../../../vectors/policy/bundle.json");
+
 #[derive(Deserialize)]
 struct Vectors {
     cases: Vec<Case>,

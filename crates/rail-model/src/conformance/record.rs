@@ -4,16 +4,15 @@ use serde::Deserialize;
 use serde_json::{Map, Value, json};
 
 use super::environment::Named;
-use super::plans::{NamedPlans, compile_written};
+use super::plans::NamedPlans;
 use super::value::{
     encode_body_unread, encode_host_reading, encode_refusal, encode_reported_method,
 };
-use super::{Outcome, read_cases, run_each};
+use super::{Outcome, build_budget, read_cases, run_each};
 use crate::capture::{
-    KeptValue, KeyReading, MeasureReading, PathReading, Record, RecordReading, Replacement,
+    KeptValue, KeyReading, MeasureReading, PathReading, Plan, Record, RecordReading, Replacement,
     read_record,
 };
-use crate::condition::{Budget, DEFAULT_STEP_LIMIT};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -49,17 +48,17 @@ pub(super) fn run_cases(
 fn run_case(case: &Case, environments: &Named, plans: &NamedPlans) -> Result<Value, String> {
     let sources = environments.build(&case.environment)?;
     let (call, request_line) = sources.call()?;
-    let mut plan = plans.get("one-entry")?;
-    match case.record_of {
-        RecordOf::Entry => plan["entries"][0]["record"] = case.record.clone(),
-        RecordOf::CatchAll => plan["catch_all"]["record"] = case.record.clone(),
-    }
-    let plan = compile_written(&plan)?;
-    let record = match case.record_of {
-        RecordOf::Entry => &plan.plan().entries[0].record,
-        RecordOf::CatchAll => &plan.plan().catch_all.record,
+    let (pointer, written): (&str, fn(&Plan) -> &Record) = match case.record_of {
+        RecordOf::Entry => ("/entries/0/record", |plan| &plan.entries[0].record),
+        RecordOf::CatchAll => ("/catch_all/record", |plan| &plan.catch_all.record),
     };
-    let mut budget = Budget::new(case.step_limit.unwrap_or(DEFAULT_STEP_LIMIT));
+    let plan = plans.compile_edited("one-entry", |plan| {
+        if let Some(record) = plan.pointer_mut(pointer) {
+            *record = case.record.clone();
+        }
+    })?;
+    let record = written(plan.plan());
+    let mut budget = build_budget(case.step_limit);
     let reading = read_record(
         record,
         request_line,

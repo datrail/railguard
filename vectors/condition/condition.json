@@ -137,24 +137,6 @@
       }
     },
     {
-      "id": "unreadable-a-negative-integer-past-a-double",
-      "condition": {"path": "ticket.posture.overall.score", "op": "lt", "value": -10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},
-      "use": "gateway_policy",
-      "expect": {
-        "reading": "invalid",
-        "compiled": {
-          "refused": "invalid"
-        },
-        "problems": [
-          {
-            "location": [],
-            "code": "unreadable",
-            "scope": "enforcement"
-          }
-        ]
-      }
-    },
-    {
       "id": "unreadable-an-exponent-past-a-double",
       "condition": {"path": "ticket.posture.overall.score", "op": "lt", "value": 1e400},
       "use": "gateway_policy",
@@ -312,67 +294,6 @@
       }
     },
     {
-      "id": "unknown-op-on-a-path-not-a-string",
-      "condition": {
-        "path": 1,
-        "op": "near"
-      },
-      "use": "gateway_policy",
-      "expect": {
-        "reading": "unknown",
-        "compiled": {
-          "refused": "unknown_op"
-        },
-        "problems": [
-          {
-            "location": [
-              "op"
-            ],
-            "code": "unknown_op",
-            "scope": "authoring"
-          },
-          {
-            "location": [
-              "path"
-            ],
-            "code": "unknown_source",
-            "scope": "authoring"
-          }
-        ]
-      }
-    },
-    {
-      "id": "unknown-op-on-a-source-missing",
-      "condition": {
-        "path": "body.x",
-        "op": "near",
-        "value": 1
-      },
-      "use": "gateway_policy",
-      "expect": {
-        "reading": "unknown",
-        "compiled": {
-          "refused": "unknown_op"
-        },
-        "problems": [
-          {
-            "location": [
-              "op"
-            ],
-            "code": "unknown_op",
-            "scope": "authoring"
-          },
-          {
-            "location": [
-              "path"
-            ],
-            "code": "unknown_source",
-            "scope": "authoring"
-          }
-        ]
-      }
-    },
-    {
       "id": "invalid-a-string",
       "condition": "not an object",
       "use": "gateway_policy",
@@ -415,7 +336,10 @@
     {
       "id": "invalid-a-list-of-one",
       "condition": [
-        1
+        {
+          "path": "ticket.sandbox_type",
+          "op": "existing"
+        }
       ],
       "use": "gateway_policy",
       "expect": {
@@ -568,52 +492,6 @@
       }
     },
     {
-      "id": "invalid-op-a-bool",
-      "condition": {
-        "path": "ticket.sandbox_type",
-        "op": true
-      },
-      "use": "gateway_policy",
-      "expect": {
-        "reading": "invalid",
-        "compiled": {
-          "refused": "invalid"
-        },
-        "problems": [
-          {
-            "location": [
-              "op"
-            ],
-            "code": "unknown_op",
-            "scope": "enforcement"
-          }
-        ]
-      }
-    },
-    {
-      "id": "invalid-op-null",
-      "condition": {
-        "path": "ticket.sandbox_type",
-        "op": null
-      },
-      "use": "gateway_policy",
-      "expect": {
-        "reading": "invalid",
-        "compiled": {
-          "refused": "invalid"
-        },
-        "problems": [
-          {
-            "location": [
-              "op"
-            ],
-            "code": "unknown_op",
-            "scope": "enforcement"
-          }
-        ]
-      }
-    },
-    {
       "id": "invalid-source-unknown",
       "condition": {
         "path": "session.a",
@@ -734,7 +612,7 @@
     {
       "id": "invalid-lt-missing-its-operand",
       "condition": {
-        "path": "ticket.sandbox_type",
+        "path": "ticket.posture.overall.score",
         "op": "lt"
       },
       "use": "gateway_policy",
@@ -751,13 +629,6 @@
             "code": "operand_shape",
             "scope": "enforcement",
             "expected_shape": "number"
-          },
-          {
-            "location": [
-              "op"
-            ],
-            "code": "op_not_for_path",
-            "scope": "authoring"
           }
         ]
       }
@@ -900,29 +771,6 @@
           "request",
           "method"
         ],
-        "op": "existing"
-      },
-      "use": "gateway_policy",
-      "expect": {
-        "reading": "valid",
-        "compiled": {
-          "refused": "not_for_use"
-        },
-        "problems": [
-          {
-            "location": [
-              "path"
-            ],
-            "code": "unknown_path",
-            "scope": "enforcement"
-          }
-        ]
-      }
-    },
-    {
-      "id": "not-for-use-request-field-dotted",
-      "condition": {
-        "path": "request.method",
         "op": "existing"
       },
       "use": "gateway_policy",
@@ -2370,7 +2218,7 @@
       "condition": {
         "path": "ticket.posture.overall.score",
         "op": "eq",
-        "value": "a"
+        "value": 1
       },
       "use": "gateway_policy",
       "expect": {
@@ -2384,7 +2232,7 @@
       "condition": {
         "path": "ticket.posture.overall.score",
         "op": "ne",
-        "value": "a"
+        "value": 1
       },
       "use": "gateway_policy",
       "expect": {
@@ -2455,7 +2303,7 @@
         "path": "ticket.posture.overall.score",
         "op": "in",
         "value": [
-          "a"
+          1
         ]
       },
       "use": "gateway_policy",
@@ -3396,6 +3244,2007 @@
       }
     },
     {
+      "id": "existing-on-the-request-path-accepted",
+      "condition": {
+        "path": "request",
+        "op": "existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "not-existing-on-the-request-path-accepted",
+      "condition": {
+        "path": "request",
+        "op": "not_existing"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "eq-on-the-request-path-refused-by-the-writer",
+      "condition": {
+        "path": "request",
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ne-on-the-request-path-refused-by-the-writer",
+      "condition": {
+        "path": "request",
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lt-on-the-request-path-refused-by-the-writer",
+      "condition": {
+        "path": "request",
+        "op": "lt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lte-on-the-request-path-refused-by-the-writer",
+      "condition": {
+        "path": "request",
+        "op": "lte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gt-on-the-request-path-refused-by-the-writer",
+      "condition": {
+        "path": "request",
+        "op": "gt",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gte-on-the-request-path-refused-by-the-writer",
+      "condition": {
+        "path": "request",
+        "op": "gte",
+        "value": 1
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "in-on-the-request-path-refused-by-the-writer",
+      "condition": {
+        "path": "request",
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "contains-on-the-request-path-refused-by-the-writer",
+      "condition": {
+        "path": "request",
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-contains-on-the-request-path-refused-by-the-writer",
+      "condition": {
+        "path": "request",
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "matches-on-the-request-path-refused-by-the-writer",
+      "condition": {
+        "path": "request",
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-existing-on-the-host-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-not-existing-on-the-host-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "not_existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-eq-on-the-host-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-ne-on-the-host-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-lt-on-the-host-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "lt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-lte-on-the-host-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "lte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gt-on-the-host-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "gt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gte-on-the-host-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "gte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-in-on-the-host-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-contains-on-the-host-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-not-contains-on-the-host-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-matches-on-the-host-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "host"
+        ],
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-existing-on-the-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-not-existing-on-the-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "not_existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-eq-on-the-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-ne-on-the-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-lt-on-the-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "lt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-lte-on-the-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "lte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gt-on-the-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "gt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gte-on-the-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "gte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-in-on-the-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-contains-on-the-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-not-contains-on-the-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-matches-on-the-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "method"
+        ],
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-existing-on-the-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-not-existing-on-the-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "not_existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-eq-on-the-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-ne-on-the-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-lt-on-the-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "lt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-lte-on-the-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "lte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gt-on-the-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "gt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gte-on-the-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "gte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-in-on-the-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-contains-on-the-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-not-contains-on-the-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-matches-on-the-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "path"
+        ],
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-existing-on-the-redacted-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-not-existing-on-the-redacted-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "not_existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-eq-on-the-redacted-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-ne-on-the-redacted-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-lt-on-the-redacted-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "lt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-lte-on-the-redacted-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "lte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gt-on-the-redacted-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "gt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gte-on-the-redacted-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "gte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-in-on-the-redacted-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-contains-on-the-redacted-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-not-contains-on-the-redacted-path-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-matches-on-the-redacted-path-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "redacted_path"
+        ],
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-existing-on-the-mcp-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-not-existing-on-the-mcp-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "not_existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-eq-on-the-mcp-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-ne-on-the-mcp-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-lt-on-the-mcp-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "lt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-lte-on-the-mcp-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "lte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gt-on-the-mcp-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "gt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gte-on-the-mcp-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "gte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-in-on-the-mcp-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-contains-on-the-mcp-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-not-contains-on-the-mcp-method-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-matches-on-the-mcp-method-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "method"
+        ],
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-existing-on-the-mcp-tool-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-not-existing-on-the-mcp-tool-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "not_existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-eq-on-the-mcp-tool-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-ne-on-the-mcp-tool-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-lt-on-the-mcp-tool-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "lt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-lte-on-the-mcp-tool-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "lte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gt-on-the-mcp-tool-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "gt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-gte-on-the-mcp-tool-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "gte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-in-on-the-mcp-tool-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-contains-on-the-mcp-tool-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-not-contains-on-the-mcp-tool-refused-by-the-writer",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": [
+          {
+            "location": [
+              "op"
+            ],
+            "code": "op_not_for_path",
+            "scope": "authoring"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-match-matches-on-the-mcp-tool-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "mcp",
+          "tool"
+        ],
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-existing-on-a-body-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-not-existing-on-a-body-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "not_existing"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-eq-on-a-body-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "eq",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-ne-on-a-body-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "ne",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-lt-on-a-body-accepted",
+      "note": "A body's value may be any kind, so any op can hold.",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "lt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-lte-on-a-body-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "lte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-gt-on-a-body-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "gt",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-gte-on-a-body-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "gte",
+        "value": 1
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-in-on-a-body-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "in",
+        "value": [
+          "a"
+        ]
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-contains-on-a-body-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-not-contains-on-a-body-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "not_contains",
+        "value": "a"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
+      "id": "plan-match-matches-on-a-body-accepted",
+      "condition": {
+        "path": [
+          "request",
+          "body",
+          "a"
+        ],
+        "op": "matches",
+        "value": "a*"
+      },
+      "use": "capture_plan",
+      "expect": {
+        "reading": "valid",
+        "compiled": "evaluable",
+        "problems": []
+      }
+    },
+    {
       "id": "plan-match-host",
       "condition": {
         "path": [
@@ -3587,64 +5436,12 @@
       }
     },
     {
-      "id": "invalid-ne-a-bool-operand",
-      "condition": {
-        "path": "ticket.posture.overall.level",
-        "op": "ne",
-        "value": true
-      },
-      "use": "gateway_policy",
-      "expect": {
-        "reading": "invalid",
-        "compiled": {
-          "refused": "invalid"
-        },
-        "problems": [
-          {
-            "location": [
-              "value"
-            ],
-            "code": "operand_shape",
-            "scope": "enforcement",
-            "expected_shape": "scalar"
-          }
-        ]
-      }
-    },
-    {
       "id": "invalid-contains-a-list-operand",
       "condition": {
         "path": "ticket.skills",
         "op": "contains",
         "value": [
           "x"
-        ]
-      },
-      "use": "gateway_policy",
-      "expect": {
-        "reading": "invalid",
-        "compiled": {
-          "refused": "invalid"
-        },
-        "problems": [
-          {
-            "location": [
-              "value"
-            ],
-            "code": "operand_shape",
-            "scope": "enforcement",
-            "expected_shape": "scalar"
-          }
-        ]
-      }
-    },
-    {
-      "id": "invalid-not-contains-a-list-operand",
-      "condition": {
-        "path": "ticket.alignment.drifted",
-        "op": "not_contains",
-        "value": [
-          "llm_model"
         ]
       },
       "use": "gateway_policy",

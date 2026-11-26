@@ -30,6 +30,8 @@ lint:
 	cargo fmt --check
 	cargo clippy --locked --all-targets -- -D warnings
 	cargo clippy --locked -p rail-model-py -- -D warnings
+	# rail-model alone, so a seam outside the conformance feature shows as dead code.
+	cargo clippy --locked -p rail-model --lib -- -D warnings
 
 lint-py:
 	$(MAKE) -C crates/rail-model-py lint

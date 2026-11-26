@@ -5,10 +5,8 @@ use serde_json::Value;
 use serde_json::value::RawValue;
 
 use super::value::{HeldValue, encode_verdict};
-use super::{Outcome, read_cases, run_each};
-use crate::condition::{
-    Budget, Condition, ConditionUse, DEFAULT_STEP_LIMIT, apply_condition, compile_condition,
-};
+use super::{Outcome, build_budget, read_cases, run_each};
+use crate::condition::{Condition, ConditionUse, apply_condition, compile_condition};
 
 // A path every op reads and a gateway policy compiles; never resolved, the value being the case's.
 const PATH: &str = "ticket.value";
@@ -50,7 +48,7 @@ fn run_case(case: &Case) -> Result<Value, String> {
     let condition: Condition = serde_json::from_str(&condition).map_err(|e| e.to_string())?;
     let compiled = compile_condition(&condition, ConditionUse::GatewayPolicy);
     let value = HeldValue::decode(&case.value)?;
-    let mut budget = Budget::new(case.step_limit.unwrap_or(DEFAULT_STEP_LIMIT));
+    let mut budget = build_budget(case.step_limit);
     Ok(encode_verdict(apply_condition(
         &compiled,
         &value.lookup(),

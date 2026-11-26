@@ -47,6 +47,7 @@ fn get_vector_conditions() -> Vec<String> {
     }
     conditions
 }
+
 #[test]
 fn test_scopes_match_how_the_parser_reads_each_vector_condition() {
     let conditions = get_vector_conditions();

@@ -4,7 +4,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use super::environment::Named;
-use super::plans::{NamedPlans, compile_written};
+use super::plans::NamedPlans;
 use super::value::encode_verdict;
 use super::{Outcome, read_cases, run_each};
 use crate::capture::answer;
@@ -35,9 +35,9 @@ pub(super) fn run_cases(
 
 fn run_case(case: &Case, environments: &Named, plans: &NamedPlans) -> Result<Value, String> {
     let sources = environments.build(&case.environment)?;
-    let mut plan = plans.get("one-entry")?;
-    plan["entries"][0]["match"] = case.entry_match.clone();
-    let plan = compile_written(&plan)?;
+    let plan = plans.compile_edited("one-entry", |plan| {
+        plan["entries"][0]["match"] = case.entry_match.clone();
+    })?;
     let entry = plan.entry(0).ok_or("the plan has no entry")?;
     // A walk never answers it: the entry's refusal is matching's layer.
     if entry.refusal().is_some() {

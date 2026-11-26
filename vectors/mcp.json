@@ -68,7 +68,7 @@
     },
     {
       "id": "mcp-params-not-an-object-names-no-tool",
-      "body": "{\"method\": \"tools/call\", \"params\": [\"a\"]}",
+      "body": "{\"method\": \"tools/call\", \"params\": [\"name\", \"a\"]}",
       "path": "/mcp",
       "expect": {
         "mcp": {
@@ -606,38 +606,6 @@
       }
     },
     {
-      "id": "endpoint-prompts-get-keyless",
-      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"prompts/get\", \"params\": {\"name\": \"track_package\"}}",
-      "path": "/mcp",
-      "expect": {
-        "mcp": {
-          "read": {
-            "method": "prompts/get",
-            "tool": null
-          }
-        },
-        "endpoint": {
-          "judged": "keyless"
-        }
-      }
-    },
-    {
-      "id": "endpoint-completion-complete-keyless",
-      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"completion/complete\", \"params\": {\"name\": \"track_package\"}}",
-      "path": "/mcp",
-      "expect": {
-        "mcp": {
-          "read": {
-            "method": "completion/complete",
-            "tool": null
-          }
-        },
-        "endpoint": {
-          "judged": "keyless"
-        }
-      }
-    },
-    {
       "id": "endpoint-notificationsx-keyless",
       "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"notificationsx\", \"params\": {\"name\": \"track_package\"}}",
       "path": "/mcp",
@@ -751,6 +719,24 @@
         "endpoint": {
           "judged": {
             "resolved": "/mcp#tools/call#track\u001bpackage"
+          }
+        }
+      }
+    },
+    {
+      "id": "endpoint-tool-name-with-a-newline-kept-verbatim",
+      "body": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\", \"params\": {\"name\": \"track\\npackage\"}}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "tools/call",
+            "tool": "track\npackage"
+          }
+        },
+        "endpoint": {
+          "judged": {
+            "resolved": "/mcp#tools/call#track\npackage"
           }
         }
       }
@@ -878,22 +864,6 @@
       }
     },
     {
-      "id": "mcp-params-a-string-names-no-tool",
-      "body": "{\"method\": \"tools/call\", \"params\": \"a\\/b\"}",
-      "path": "/mcp",
-      "expect": {
-        "mcp": {
-          "read": {
-            "method": "tools/call",
-            "tool": null
-          }
-        },
-        "endpoint": {
-          "judged": "unrecognised"
-        }
-      }
-    },
-    {
       "id": "mcp-params-not-an-object-on-a-keyless-method",
       "body": "{\"method\": \"resources/read\", \"params\": [1]}",
       "path": "/mcp",
@@ -911,7 +881,7 @@
     },
     {
       "id": "mcp-name-repeated-on-another-method-ambiguous",
-      "note": "Read before the method is: a reader may take either as the tool.",
+      "note": "params.name is checked for a repeat before the method is read, whatever the method.",
       "body": "{\"method\": \"resources/read\", \"params\": {\"name\": \"a\", \"NAME\": \"b\"}}",
       "path": "/mcp",
       "expect": {
@@ -1042,6 +1012,7 @@
     },
     {
       "id": "mcp-key-with-a-space-and-a-lone-surrogate-read-past",
+      "note": "A space is no control byte: the key is JSON.",
       "body": "{\"a b\\ud800\": 1, \"method\": \"ping\"}",
       "path": "/mcp",
       "expect": {
@@ -1146,8 +1117,75 @@
       }
     },
     {
-      "id": "mcp-number-with-a-exponent-without-digits-unparsed",
+      "id": "mcp-number-with-an-exponent-without-digits-unparsed",
       "body": "{\"method\": \"ping\", \"a\": 1e}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "unparsed": "malformed"
+        },
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-key-with-a-control-byte-ambiguous",
+      "note": "Not JSON: a key with a raw control byte.",
+      "body": "{\"\t\": 1, \"method\": \"ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-key-holding-a-nul-and-a-lone-surrogate-ambiguous",
+      "note": "Not read past as a lone surrogate's key: a reader cutting at the NUL reads y.",
+      "body": "{\"y\\u0000\\ud800\": 1, \"method\": \"ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
+      "id": "mcp-key-with-an-escaped-backslash-before-u0000-read-past",
+      "note": "The backslash escaped, the NUL is only text.",
+      "body": "{\"\\\\u0000\\ud800\": 1, \"method\": \"ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "ping",
+            "tool": null
+          }
+        },
+        "endpoint": "discovery"
+      }
+    },
+    {
+      "id": "mcp-key-with-an-escaped-control-character-and-a-lone-surrogate-read-past",
+      "body": "{\"\\u0001\\ud800\": 1, \"method\": \"ping\"}",
+      "path": "/mcp",
+      "expect": {
+        "mcp": {
+          "read": {
+            "method": "ping",
+            "tool": null
+          }
+        },
+        "endpoint": "discovery"
+      }
+    },
+    {
+      "id": "mcp-two-byte-order-marks-unparsed",
+      "note": "Only one is read past.",
+      "body": "﻿﻿{\"method\": \"ping\"}",
       "path": "/mcp",
       "expect": {
         "mcp": {

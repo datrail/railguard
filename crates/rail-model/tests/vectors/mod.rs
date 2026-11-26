@@ -89,7 +89,7 @@ fn test_a_wrong_expect_is_told() {
         "query": {}, "unmatchable": "bracket"}}]}"#;
     texts.insert("request_line.json".to_owned(), case.to_owned());
     let outcomes = run_vectors("request_line.json", &texts).unwrap();
-    assert_eq!(outcomes[0].expect["unmatchable"], "bracket");
+    assert_ne!(outcomes[0].got, outcomes[0].expect);
     assert_eq!(outcomes[0].got["unmatchable"], serde_json::Value::Null);
     assert_eq!(outcomes[0].got["segments"], outcomes[0].expect["segments"]);
 }

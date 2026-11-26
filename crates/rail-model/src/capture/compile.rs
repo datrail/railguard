@@ -75,7 +75,7 @@ impl CompiledPlan {
         self.entries_skipped
     }
 
-    /// The entry at `index`, compiled.
+    /// The entry at `index`, in plan order, compiled.
     #[cfg(feature = "conformance")]
     pub(crate) fn entry(&self, index: usize) -> Option<&CompiledEntry> {
         self.entries.get(index)

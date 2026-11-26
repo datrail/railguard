@@ -5,9 +5,9 @@ use serde_json::{Value, json};
 
 use super::environment::Named;
 use super::value::{encode_lookup, encode_refusal};
-use super::{Outcome, Use, read_cases, run_each};
+use super::{Outcome, Use, build_budget, read_cases, run_each};
 use crate::capture::read_record_path;
-use crate::condition::{Budget, DEFAULT_STEP_LIMIT, Path, resolve_path};
+use crate::condition::{Path, resolve_path};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -37,7 +37,7 @@ fn run_case(case: &Case, environments: &Named) -> Result<Value, String> {
         Err(refused) => return Ok(json!({"refused_reading": refused})),
         Ok(path) => path,
     };
-    let mut budget = Budget::new(case.step_limit.unwrap_or(DEFAULT_STEP_LIMIT));
+    let mut budget = build_budget(case.step_limit);
     Ok(
         match resolve_path(&path, &sources.environment(), &mut budget) {
             Ok((lookup, _)) => encode_lookup(&lookup),

@@ -3,7 +3,7 @@
 The behaviours of `rail-model`, the reader of the policy bundle and the capture plan, written as data: each case an
 input and what this reader answers. They're for two things:
 
-- **Other implementations,** checked by the same cases: Rail Center's Python, through the `datrail_model` wheel, and any
+- **Other implementations,** checked by the same cases: Rail Center's Python, through the `datrail-model` wheel, and any
   later reader.
 - **Reviewing a behaviour as data:** a case is named by its `id`, so a doc or a proposal can point at it, and a change
   to a behaviour shows as the `expect`s it changes.
@@ -18,9 +18,11 @@ Every file holds `cases`, each:
 
 - **`id`:** a kebab-case slug saying what the case checks, unique across the files; never renamed, so a case whose
   meaning changes gets a new one.
-- **`note`,** where the `id` can't say all: why the answer is what it is.
+- **`note`,** where the `id` can't say all: why the answer is what it is, or an input spelled out that the file can't
+  show (bytes that aren't UTF-8).
 - **its inputs, then `expect`,** the whole of what this reader answers: a case states this implementation's answer only;
-  where another answers otherwise is the contract's to say.
+  where another answers otherwise is the contract's to say. The ported files below keep their sources' fields: their
+  answers in named fields, as the layers table says, not under `expect`.
 
 A file may also hold `_source`, where its cases were taken from (a repository, its files, a commit), and the inputs its
 cases share. In a ported file, `added` marks a case that is this reader's own.
@@ -29,12 +31,13 @@ cases share. In a ported file, `added` marks a case that is this reader's own.
 policies and the capture plan's matches (a change reaches the gateway's enforcement); or `capture`, capture's own (a
 change reaches only the call records).
 
-| Where                                                                                       | Whose     |
-| ------------------------------------------------------------------------------------------- | --------- |
-| `request_line`, `mcp`, `redaction`, `capture/*`                                             | `capture` |
-| `condition/condition`, `condition/op`, `policy/*`                                           | `bundle`  |
-| `condition/path`: paths under `ticket`, `request.headers`, `request.endpoint_key`           | `bundle`  |
-| `condition/path`: `request.host`, `method`, `path`, `redacted_path`, `query`, `mcp`, `body` | `capture` |
+| Where                                                                                            | Whose     |
+| ------------------------------------------------------------------------------------------------ | --------- |
+| `request_line`, `redaction`, `capture/*`                                                         | `capture` |
+| `mcp`, which the gateway resolves a call's endpoint by too                                       | `bundle`  |
+| `condition/condition`, `condition/op`, `policy/*`                                                | `bundle`  |
+| `condition/path`: `request`, and paths under `ticket`, `request.headers`, `request.endpoint_key` | `bundle`  |
+| `condition/path`: `request.host`, `method`, `path`, `redacted_path`, `query`, `mcp`, `body`      | `capture` |
 
 ## The layers
 
@@ -59,9 +62,10 @@ the call, and a window writes them.
 | `policy/judge.json`         | A call judged against a bundle: the fallbacks, then the walk | `bundle`, `mode`, `endpoint`, `ticket`, `headers`                                                         | `expect.fallbacks`, those that deny, in the order asked; `expect.chain`, the walk's verdict                                                        |
 | `policy/base64_ticket.json` | An unsigned ticket read                                      | `header`, `now_in_seconds`                                                                                | `state`; a valid one's `token` and `exp_in_seconds`                                                                                                |
 | `policy/jwt_ticket.json`    | A signed ticket read                                         | `header`, `now_in_seconds`; `reader`, in place of the file's                                              | `state`; a valid one's `token` and `exp_in_seconds`                                                                                                |
-| `capture/plan.json`         | A capture plan read                                          | `patch` on the file's `plan`                                                                              | `valid`; `conditions`, the first entry's as read                                                                                                   |
+| `capture/plan.json`         | A capture plan read                                          | `patch` on the file's `plan`, none for the plan as written                                                | `valid`; `conditions`, the first entry's as read: `valid`, `unknown` or `invalid`, each checked when compiled                                      |
 
-Times are Unix seconds. Every number is compared as written but for a value's, where `1` and `1.0` are one.
+Times are Unix seconds. A value's whole number is written as an integer (`1`, never `1.0`); every number is compared as
+written.
 
 ### Shared inputs
 
@@ -74,33 +78,46 @@ Times are Unix seconds. Every number is compared as written but for a value's, w
   where `<N bytes>` stands for N bytes of `x` and the text is padded with spaces to `bytes`; `body_bytes`, its length as
   the call declares it; `byte_budget`, where a case is about passing the bytes every body and its tree share.
 - **`capture/plans.json`:** named plans. A case's `plan` is a name, its `entries`, where given, in place of the plan's;
-  or a plan written whole. `one-entry` is the plan layers 6 and 7 write their `match` or `record` into; `worked-example`
-  is the capture design's (railxia/docs' `design/2026-11-10-rc-dg-capture-plan/design.md` at `95b5c7b`, its section 2),
-  and `sixty-seconds`, `five-minutes` and `two-groups` it with another window or budget.
+  or a plan written whole. `one-entry` is the plan layers 6 and 7 write their `match` or `record` into; `matching`,
+  layer 8's, two MCP tools on one host and an HTTP operation on another, their records the built-in measures alone;
+  `worked-example` is the capture design's (railxia/docs' `design/2026-11-10-rc-dg-capture-plan/design.md` at `95b5c7b`,
+  its section 2), `two-groups` it with a smaller budget, and `sixty-seconds` and `five-minutes` it with another window
+  and their own `plan_version`s, 1 and 2, by which layer 10 tells their windows apart.
 
 ### Values
 
 Every value is tagged, never bare. A variant holding nothing is its snake-case name, one holding something a one-key
 object of it:
 
-| Type                  | Encoded                                                                                                                                                                                                                      |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A path's value        | `"absent"`, `{"string": "…"}`, `{"number": 1.5}` (`"inf"`, `"-inf"` past a double), `{"bool": true}`, `{"list": [<value>, …]}`, `"object"`, `"ambiguous"`, `{"body_unread": why}`                                            |
-| Why a body isn't read | `{"unread": "past_cap" \| "past_budget" \| "not_sent" \| "cut_short"}`, `{"unparsed": "malformed" \| "past_budget"}`, `"batch"`                                                                                              |
-| A verdict             | `"holds"`, `"does_not_hold"`, `"ambiguous"`, `{"body_unread": why}`, `{"refused": why}`                                                                                                                                      |
-| A refusal             | `{"refused": "unknown_op" \| "invalid" \| "not_for_use" \| "budget_exceeded"}` as resolved or evaluated; layer 3's `{"refused_reading": "invalid" \| "not_for_use" \| "not_for_record"}` as read for its use, never resolved |
-| A record's path       | `{"found": <kept>}`, `"absent"`, `"ambiguous"`, `{"body_unread": why}`, `{"refused": why}`                                                                                                                                   |
-| What a key keeps      | `{"string": "…"}`, `{"hashed": "<64 hex digits>"}`, `{"replaced": "key_shape" \| "past_longest"}`, `"not_a_string"`; a measure's `{"bytes": n}`                                                                              |
-| A host                | `{"read": host}`, `"refused"`, `"past_longest"` (each written `[unparseable]`)                                                                                                                                               |
-| Taken, and why not    | `{"entry": id}`, `{"catch_all": id, "why": …}`: `"no_entry"`, `{"unmatchable": why}`, `{"refused": {entry, location, refusal}}`, `{"stopped": …}`, `{"ambiguous": {entry}}`, `{"body_unread": {entry, why}}`                 |
+| Type                     | Encoded                                                                                                                                                                                                                      |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A path's value           | `"absent"`, `{"string": "…"}`, `{"number": 1.5}` (`"inf"`, `"-inf"` past a double), `{"bool": true}`, `{"list": [<value>, …]}`, `"object"`, `"ambiguous"`, `{"body_unread": why}`                                            |
+| Why a body isn't read    | `{"unread": "past_cap" \| "past_budget" \| "not_sent" \| "cut_short"}`, `{"unparsed": "malformed" \| "past_budget"}`, `"batch"`                                                                                              |
+| A verdict                | `"holds"`, `"does_not_hold"`, `"ambiguous"`, `{"body_unread": why}`, `{"refused": why}`                                                                                                                                      |
+| A refusal                | `{"refused": "unknown_op" \| "invalid" \| "not_for_use" \| "budget_exceeded"}` as resolved or evaluated; layer 3's `{"refused_reading": "invalid" \| "not_for_use" \| "not_for_record"}` as read for its use, never resolved |
+| A record's path          | `{"found": <kept>}`, `"absent"`, `"ambiguous"`, `{"body_unread": why}`, `{"refused": why}`                                                                                                                                   |
+| What a key keeps         | `{"string": "…"}`, `{"hashed": "<64 hex digits>"}`, `{"replaced": "key_shape" \| "past_longest"}`, `"not_a_string"`; a measure's `{"bytes": n}`                                                                              |
+| A host                   | `{"read": host}`; `"refused"`, `"past_longest"`, each read and reported as `[unparseable]`                                                                                                                                   |
+| A method reported        | the method, one of the standard nine, or `"other"`, reported as `[other]`                                                                                                                                                    |
+| Why a path never matches | `null`, or `"not_utf8"`, `"bracket"`, `"encoded_slash"`, `"dot_segment"`, `"empty_segment"`, the first that applies in that order                                                                                            |
+| An MCP reading           | `{"read": {"method": …, "tool": …}}`, each `null` where it names none; `{"unparsed": why}`, `"batch"`, `"ambiguous"`                                                                                                         |
+| An endpoint              | `"discovery"`, or `{"judged": "keyless" \| "unrecognised" \| {"resolved": key}}`                                                                                                                                             |
+| A condition read         | `reading`: `"valid"`, `"unknown"`, `"invalid"`; each problem's `location`, `code`, `scope`, and `expected_shape` where it has one                                                                                            |
+| A record's key           | `{"method": …}`, `{"host": …}`, `{"path_prefix": "…"}`, `{"operation": <a record's path>}`, `{"path": <a record's path>}`                                                                                                    |
+| A record's measure       | `"call_count"`, `"error_count"`, `{"request_bytes": n}`, `{"size_in_bytes": [<a record's path>, …]}`, one per path                                                                                                           |
+| Taken, and why not       | `{"entry": id}`, `{"catch_all": id, "why": …}`: `"no_entry"`, `{"unmatchable": why}`, `{"refused": {entry, location, refusal}}`, `{"stopped": …}`, `{"ambiguous": {entry}}`, `{"body_unread": {entry, why}}`                 |
 
 A list's items are written as a body and read as one, so an item that can't be told is a string that doesn't decode, and
 one past a double is written past it.
 
 Layer 10's events: `{"hold": {plan, at}}` and `{"record": {plan, at, call}}`, `plan` `null` for none; and
-`{"count_dropped": n}`. Each one's output: the window it closed (`closed`: its plan, `start`, `end`, `calls_at`,
-`calls_dropped`; `null` for none), a call's `outcome` (`"dropped"`, or `{"counted": {"body_unread": reason}}`, the
-reason as a document's `truncated.body_unread` names it), and `open_until`, when the open window ends.
+`{"count_dropped": n}`. Each one's output: a `hold`'s or a `record`'s the window it closed (`closed`: its plan, `start`,
+`end`, `calls_at`, `calls_dropped`; `null` for none); a `record`'s the call's `outcome` (`"dropped"`, or
+`{"counted": {"body_unread": reason}}`, the reason as a document's `truncated.body_unread` names it, `null` for a body
+read or no entry's); and every event's `open_until`, when the open window ends.
+
+Layer 9's `sent` is what the sender gives the document: `document_id`, `generated_at`, `windows_dropped`; each of its
+`calls` is `{"at": …, "call": …}`.
 
 ### Order, and what a layer leaves to another
 
@@ -125,7 +142,8 @@ Each names its source in `_source`; what changed on the way:
 - **`policy/bundle.json`:** bundles filled in to the shape Rail Center publishes; the gateway's other expectations
   (names, conditions, actions, bindings, `ticket_fallback`) aren't asserted. Removed: 24 cases this reader answers
   otherwise, all input Rail Center doesn't publish or a check made elsewhere (an `enabled` missing or not a boolean; a
-  priority written as a float; a name missing or not a string; an id the `uuid` crate refuses; a duplicate id beside a
+  priority written as a float; a name missing or not a string; an id of a shape this reader refuses and another reads:
+  odd hyphens, a leading minus, a braced URN, an upper-case URN prefix on an undashed id; a duplicate id beside a
   disabled twin, or a bad id or priority on a disabled policy; a binding naming an unknown policy; an endpoint key not
   of the form `<slug>#<path>#<method>#<call>`; a `content_hash` this reader reads opaque; a major version other than 2,
   which the caller checks).
@@ -140,13 +158,16 @@ Each names its source in `_source`; what changed on the way:
   header arrives, which the runtime handles, and 4 about a nesting cap of 64, where this reader's is 128; the contract
   leaves the cap to each reader.
 - **`policy/jwt_ticket.json`:** the file's headers verbatim, only the state asserted; an `added` case is signed with the
-  same key, whose seed the source publishes. A case's `reader` replaces the file's: `holds_keys` false is an empty key
-  set, a `null` issuer or audience one not configured. Removed: 2 about requiring signatures, which the runtime decides.
-  The keys sign nothing but these cases.
+  same key, whose seed the source publishes. The file's reader is its `kid` and `public_key`, the key it holds, and its
+  `issuer` and `audience`; a case's `reader` replaces it: `holds_keys` false is an empty key set, a `null` issuer or
+  audience one not configured. Removed: 2 about requiring signatures, which the runtime decides. The keys sign nothing
+  but these cases.
 - **`capture/plan.json`:** the worked example, a record's `measure` named `measures`, its paths under `request`; each
   case that plan with its RFC 6902 `patch` applied (add, remove, replace). A field the reader doesn't know is passed
-  over. Not here, since they're the caller's to check: the `content_hash`'s form, the `schema_version`'s major, the
-  agent, the `redaction_version`.
+  over. A named context key's `function` is `none` (also absent or `null`) or `sha256`; a built-in key takes none. The
+  proxy's ceilings: `window_seconds` 60 to 86400, `max_groups_per_window` up to 100000, `max_steps_per_window` up to
+  1000000, `max_unsent_windows` up to 1000. Not here, since they're the caller's to check: the `content_hash`'s form,
+  the `schema_version`'s major, the agent, the `redaction_version`.
 
 ## Queries
 

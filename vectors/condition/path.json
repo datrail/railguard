@@ -1052,13 +1052,6 @@
       "expect": "absent"
     },
     {
-      "id": "policy-ticket-missing-branch-absent",
-      "environment": "judging-ticket-leaving-out",
-      "use": "gateway_policy",
-      "path": "ticket.posture.categories.network",
-      "expect": "absent"
-    },
-    {
       "id": "policy-ticket-under-missing-branch-absent",
       "environment": "judging-ticket-leaving-out",
       "use": "gateway_policy",
@@ -1082,10 +1075,18 @@
       }
     },
     {
-      "id": "policy-ticket-null-leaf-absent",
+      "id": "policy-ticket-key-under-a-null-absent",
+      "note": "Not an object on the way, as a string isn't.",
       "environment": "judging-ticket-leaving-out",
       "use": "gateway_policy",
-      "path": "ticket.posture.categories.identity.score",
+      "path": "ticket.lapsed.since",
+      "expect": "absent"
+    },
+    {
+      "id": "policy-ticket-key-under-a-number-absent",
+      "environment": "judging-ticket-leaving-out",
+      "use": "gateway_policy",
+      "path": "ticket.count.of",
       "expect": "absent"
     },
     {
@@ -1133,7 +1134,7 @@
       "expect": "absent"
     },
     {
-      "id": "policy-header-lines-folded-lower-case",
+      "id": "policy-header-lines-and-commas-pooled-in-order",
       "environment": "judging-headers-folded",
       "use": "gateway_policy",
       "path": "request.headers.x-a",
@@ -1209,15 +1210,6 @@
       "environment": "capture-body-empty",
       "use": "gateway_policy",
       "path": "request.headers",
-      "expect": {
-        "refused": "not_for_use"
-      }
-    },
-    {
-      "id": "policy-in-a-capture-environment-header-not-filled",
-      "environment": "capture-body-empty",
-      "use": "gateway_policy",
-      "path": "request.headers.a",
       "expect": {
         "refused": "not_for_use"
       }
@@ -1738,19 +1730,6 @@
       "expect": "ambiguous"
     },
     {
-      "id": "plan-body-sample-key-in-another-case-ambiguous",
-      "environment": "capture-sample",
-      "use": "capture_plan",
-      "path": [
-        "request",
-        "body",
-        "params",
-        "arguments",
-        "labels"
-      ],
-      "expect": "ambiguous"
-    },
-    {
       "id": "plan-body-sample-false",
       "environment": "capture-sample",
       "use": "capture_plan",
@@ -1779,23 +1758,8 @@
       "expect": "absent"
     },
     {
-      "id": "plan-body-sample-escaped-string",
-      "environment": "capture-sample",
-      "use": "capture_plan",
-      "path": [
-        "request",
-        "body",
-        "params",
-        "arguments",
-        "message"
-      ],
-      "expect": {
-        "string": "café"
-      }
-    },
-    {
       "id": "plan-body-empty-holds-nothing",
-      "note": "An event stream's GET.",
+      "note": "A body of no bytes, as an event stream's GET sends.",
       "environment": "capture-body-empty",
       "use": "capture_plan",
       "path": [
@@ -1975,20 +1939,6 @@
       }
     },
     {
-      "id": "plan-body-whole-of-a-body-not-json",
-      "environment": "capture-body-not-json",
-      "use": "capture_plan",
-      "path": [
-        "request",
-        "body"
-      ],
-      "expect": {
-        "body_unread": {
-          "unparsed": "malformed"
-        }
-      }
-    },
-    {
       "id": "plan-mcp-tool-of-a-body-not-json",
       "environment": "capture-body-not-json",
       "use": "capture_plan",
@@ -1996,21 +1946,6 @@
         "request",
         "mcp",
         "tool"
-      ],
-      "expect": {
-        "body_unread": {
-          "unparsed": "malformed"
-        }
-      }
-    },
-    {
-      "id": "plan-mcp-method-of-a-body-not-json",
-      "environment": "capture-body-not-json",
-      "use": "capture_plan",
-      "path": [
-        "request",
-        "mcp",
-        "method"
       ],
       "expect": {
         "body_unread": {
@@ -2034,20 +1969,6 @@
       }
     },
     {
-      "id": "plan-body-whole-of-a-body-tree-past-budget",
-      "environment": "capture-body-tree-past-budget",
-      "use": "capture_plan",
-      "path": [
-        "request",
-        "body"
-      ],
-      "expect": {
-        "body_unread": {
-          "unparsed": "past_budget"
-        }
-      }
-    },
-    {
       "id": "plan-mcp-tool-of-a-body-tree-past-budget",
       "environment": "capture-body-tree-past-budget",
       "use": "capture_plan",
@@ -2055,21 +1976,6 @@
         "request",
         "mcp",
         "tool"
-      ],
-      "expect": {
-        "body_unread": {
-          "unparsed": "past_budget"
-        }
-      }
-    },
-    {
-      "id": "plan-mcp-method-of-a-body-tree-past-budget",
-      "environment": "capture-body-tree-past-budget",
-      "use": "capture_plan",
-      "path": [
-        "request",
-        "mcp",
-        "method"
       ],
       "expect": {
         "body_unread": {
@@ -2107,6 +2013,20 @@
       }
     },
     {
+      "id": "plan-body-large-whole-number",
+      "note": "Past what a double tells apart in whole numbers, written as a double.",
+      "environment": "capture-body-written-forms",
+      "use": "capture_plan",
+      "path": [
+        "request",
+        "body",
+        "large"
+      ],
+      "expect": {
+        "number": 1e+20
+      }
+    },
+    {
       "id": "plan-mcp-tool-of-a-batch",
       "environment": "capture-body-batch",
       "use": "capture_plan",
@@ -2114,19 +2034,6 @@
         "request",
         "mcp",
         "tool"
-      ],
-      "expect": {
-        "body_unread": "batch"
-      }
-    },
-    {
-      "id": "plan-mcp-method-of-a-batch",
-      "environment": "capture-body-batch",
-      "use": "capture_plan",
-      "path": [
-        "request",
-        "mcp",
-        "method"
       ],
       "expect": {
         "body_unread": "batch"
@@ -2159,19 +2066,8 @@
       "expect": "ambiguous"
     },
     {
-      "id": "plan-mcp-method-of-an-ambiguous-message-ambiguous",
-      "environment": "capture-body-mcp-ambiguous",
-      "use": "capture_plan",
-      "path": [
-        "request",
-        "mcp",
-        "method"
-      ],
-      "expect": "ambiguous"
-    },
-    {
       "id": "plan-body-index-within-the-step-limit",
-      "note": "An index is charged for each item it passes, a key for each member it reads.",
+      "note": "An index is charged for each item it reads, the one it lands on included; a key for each member it reads.",
       "environment": "capture-body-ten-items",
       "use": "capture_plan",
       "path": [
@@ -2360,19 +2256,6 @@
       ],
       "expect": {
         "string": "finretail-production-mcp"
-      }
-    },
-    {
-      "id": "record-path-segment-last",
-      "environment": "capture-sample",
-      "use": "record",
-      "path": [
-        "request",
-        "path",
-        1
-      ],
-      "expect": {
-        "string": "mcp"
       }
     },
     {

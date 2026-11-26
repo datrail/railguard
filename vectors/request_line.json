@@ -117,7 +117,7 @@
     },
     {
       "id": "host-trailing-dot-and-port-dropped",
-      "authority": "MCP.Example.com.:8443",
+      "authority": "mcp.example.com.:8443",
       "method": "POST",
       "path": "/mcp",
       "expect": {

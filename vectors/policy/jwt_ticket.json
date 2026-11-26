@@ -87,7 +87,7 @@
       "state": "bad_signature"
     },
     {
-      "id": "jwt-alg-is-compared-exactly-eddsa-is-not-eddsa",
+      "id": "jwt-alg-is-compared-exactly-lower-case-eddsa-is-not-eddsa",
       "header": "eyJhbGciOiJlZGRzYSIsInR5cCI6IkpXVCIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhZ2VudF9pZCI6ImFhYWFhYWFhLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDBmMCIsInBvc3R1cmUiOnsib3ZlcmFsbCI6eyJzY29yZSI6OTIuMCwibGV2ZWwiOiJsb3cifX0sInNraWxscyI6WyJmaW5yZXRhaWwub3JkZXJzIl0sImV4cCI6MTc4NTMyNjQwMCwibmJmIjoxNzg1MjQwMDAwLCJqdGkiOiJmMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpc3MiOiJodHRwczovL3JhaWwtY2VudGVyLmV4YW1wbGUvdGVuYW50cy8wMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEiLCJhdWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwYWEifQ.zKVEV6wRpfne0T0FkfCYDdGjUGPSLEsoIbJUPtWeNmgCnT7jfOcV8IINPXxzhGcnOHBL_yOwVLVadzzo-uNbDQ",
       "now_in_seconds": 1785240000,
       "state": "bad_signature"

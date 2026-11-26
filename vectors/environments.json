@@ -121,7 +121,9 @@
           {},
           true,
           1
-        ]
+        ],
+        "lapsed": null,
+        "count": 5
       },
       "endpoint": "keyless",
       "headers": []
@@ -229,8 +231,8 @@
       "authority": "mcp.example.com",
       "method": "POST",
       "path": "/finretail-production-mcp/mcp",
-      "body": "{\"price\": 12.50, \"sci\": 1e2, \"bad\": \"\\uZZZZ\"}",
-      "body_bytes": 45
+      "body": "{\"price\": 12.50, \"sci\": 1e2, \"large\": 1e20, \"bad\": \"\\uZZZZ\"}",
+      "body_bytes": 60
     },
     "capture-query-escaped": {
       "for": "capture",

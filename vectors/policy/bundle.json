@@ -668,7 +668,7 @@
     },
     {
       "id": "the-urn-prefix-is-matched-whatever-its-case",
-      "note": "Rail Center refuses this one: uuid.UUID strips its `urn:` prefix case-sensitively. The contract says all five spellings parse in any mixture of case, so this file follows the contract.",
+      "note": "The contract says all five spellings parse in any mixture of case.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -1750,7 +1750,7 @@
     },
     {
       "id": "a-refusal-naming-a-priority-four-thousand-digits-long",
-      "note": "Python's integers are unbounded, so without a cap the refusal carries all four thousand digits into the log on every failed refresh. The reference got this for nothing: every JSON number there is a double.",
+      "note": "A refusal's quote is capped, so a number of any length can't flood the log on every failed refresh.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -1927,7 +1927,7 @@
     },
     {
       "id": "a-policy-id-one-hex-digit-long",
-      "note": "Thirty-three. Refused for the same reason, and by Rail Center too.",
+      "note": "Thirty-three. Refused for the same reason.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -1953,7 +1953,7 @@
     },
     {
       "id": "a-policy-id-padded-with-spaces",
-      "note": "Whitespace is not stripped before the count and alphabet are checked, so the spaces are two characters that are not hex. Rail Center's uuid.UUID raises on it too; the TypeScript gateway being replaced trimmed first and read it, which is the divergence.",
+      "note": "Whitespace isn't stripped before the count and the alphabet are checked, so the spaces are two characters that aren't hex.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -1979,7 +1979,7 @@
     },
     {
       "id": "a-policy-id-padded-with-a-tab-and-a-newline",
-      "note": "Whitespace is not trimmed here. The TypeScript gateway trims and would read this; Rail Center does not and refuses it.",
+      "note": "Whitespace isn't trimmed.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2142,7 +2142,7 @@
     },
     {
       "id": "an-id-closed-with-a-brace-and-not-opened",
-      "note": "The same from the other side. Rail Center reads both, its strip taking any number from either end.",
+      "note": "The same from the other side: one brace alone is no pair.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2168,7 +2168,7 @@
     },
     {
       "id": "doubled-braces-around-an-id",
-      "note": "Exactly one pair is stripped here, so the inner pair is still there and the count is 34 rather than 32 — it is the length check that answers, before the alphabet is looked at. uuid.UUID strips braces from both ends however many there are, so Rail Center reads this.",
+      "note": "Exactly one pair is stripped, so the inner pair is still there and the count is 34 rather than 32: the length check answers, before the alphabet is looked at.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2220,7 +2220,7 @@
     },
     {
       "id": "an-id-carrying-an-interior-uuid-prefix",
-      "note": "uuid.UUID replaces `uuid:` anywhere in the string, not only at the front, so Rail Center reads a policy id out of this.",
+      "note": "Only a leading prefix is stripped.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2246,7 +2246,7 @@
     },
     {
       "id": "an-id-of-thirty-three-characters-carrying-an-underscore",
-      "note": "Only hyphens are stripped. Stripping underscores too would leave thirty-two hex digits here and read a policy id out of it — and Rail Center refuses this one for its length, so the two would then disagree in the other direction as well.",
+      "note": "Only hyphens are stripped: stripping underscores too would leave thirty-two hex digits.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2272,7 +2272,7 @@
     },
     {
       "id": "an-id-carrying-an-underscore-in-place-of-a-digit",
-      "note": "Thirty-two characters, so uuid.UUID's length check passes and int(x, 16) then reads the underscore as a digit separator. A thirty-three-character form with an underscore added rather than substituted is refused there for its length and would demonstrate nothing.",
+      "note": "An underscore is no hex digit, though some integer parsers read it as a digit separator.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2324,7 +2324,7 @@
     },
     {
       "id": "an-id-written-in-arabic-indic-digits",
-      "note": "int(x, 16) accepts any Unicode decimal digit, so Rail Center reads an id here. The contract says hex, and hex is ASCII.",
+      "note": "The contract says hex, and hex is ASCII.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2376,7 +2376,7 @@
     },
     {
       "id": "a-leading-minus-in-place-of-a-digit",
-      "note": "Refused in Rail Center too — uuid.UUID strips hyphens, leaving 31 digits — which is what separates it from the leading plus above, where int(x, 16) reads the sign.",
+      "note": "Its hyphen stripped, it is 31 digits; unlike the leading plus above, which a lenient integer parser reads as a sign.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2650,7 +2650,7 @@
     },
     {
       "id": "a-boolean-priority",
-      "note": "isinstance(True, int) is true in Python and typeof true is 'boolean' in TypeScript. Unsaid, the two sides disagree.",
+      "note": "A bool is no integer, though some languages read true as 1.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2701,7 +2701,7 @@
     },
     {
       "id": "a-priority-past-the-negative-end-of-what-a-double-separates",
-      "note": "Bounded on both sides. Comparing without an absolute value leaves the negative end unbounded, and Rail Center pins this case too.",
+      "note": "Bounded on both sides.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -2904,7 +2904,7 @@
     },
     {
       "id": "a-mode-in-the-wrong-case",
-      "note": "Exact, not folded. Folding turns an unreadable mode into a live narrowing; Rail Center refuses this too.",
+      "note": "Exact, not folded: folding turns an unreadable mode into a live narrowing.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [
@@ -3577,7 +3577,7 @@
     },
     {
       "id": "non-ascii-digits-are-refused",
-      "note": "Arabic-Indic `١٠`. The grammar is ASCII digits, and this case exists because the obvious implementation does not enforce that: Python's `str.isdigit` is true here and `int` parses it, so a reader written that way accepts a version a Go or TypeScript reimplementation refuses. The two must agree.",
+      "note": "Arabic-Indic `١٠`. The grammar is ASCII digits, which some digit tests and integer parsers don't keep to.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [],
@@ -3658,7 +3658,7 @@
     },
     {
       "id": "a-bound-id-naming-no-policy-is-refused",
-      "note": "Stricter than the contract, which says it binds nothing. Rail Center only binds policies it publishes.",
+      "note": "Stricter than the contract, which says it binds nothing: a bundle binds only the policies it publishes.",
       "bundle": {
         "binding_fallback": "block",
         "bindings": [

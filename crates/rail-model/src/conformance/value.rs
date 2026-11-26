@@ -63,10 +63,13 @@ fn encode_number(number: f64) -> Value {
     match number {
         f64::INFINITY => json!("inf"),
         f64::NEG_INFINITY => json!("-inf"),
-        whole if whole.fract() == 0.0 && whole.abs() < 2f64.powi(53) && whole != 0.0 => {
+        whole
+            if whole.fract() == 0.0
+                && whole.abs() < 2f64.powi(53)
+                && !(whole == 0.0 && whole.is_sign_negative()) =>
+        {
             json!(whole as i64)
         }
-        zero if zero == 0.0 && zero.is_sign_positive() => json!(0),
         number => json!(number),
     }
 }
@@ -131,6 +134,14 @@ pub(super) fn encode_unmatchable(why: Unmatchable) -> &'static str {
         Unmatchable::EncodedSlash => "encoded_slash",
         Unmatchable::DotSegment => "dot_segment",
         Unmatchable::EmptySegment => "empty_segment",
+    }
+}
+
+fn decode_unparsed(name: &str) -> Option<Unparsed> {
+    match name {
+        "malformed" => Some(Unparsed::Malformed),
+        "past_budget" => Some(Unparsed::PastBudget),
+        _ => None,
     }
 }
 
@@ -218,11 +229,6 @@ fn decode_number(number: &Value) -> Result<f64, String> {
 }
 
 fn decode_body_unread(why: &Value) -> Result<BodyUnread, String> {
-    let unparsed = |name: &str| match name {
-        "malformed" => Some(Unparsed::Malformed),
-        "past_budget" => Some(Unparsed::PastBudget),
-        _ => None,
-    };
     let decoded = match why {
         Value::String(name) if name == "batch" => Some(BodyUnread::Batch),
         Value::Object(fields) if fields.len() == 1 => match fields.iter().next() {
@@ -230,7 +236,7 @@ fn decode_body_unread(why: &Value) -> Result<BodyUnread, String> {
                 decode_unread(name).map(BodyUnread::Unread)
             }
             Some((kind, Value::String(name))) if kind == "unparsed" => {
-                unparsed(name).map(BodyUnread::Unparsed)
+                decode_unparsed(name).map(BodyUnread::Unparsed)
             }
             _ => None,
         },

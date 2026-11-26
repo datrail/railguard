@@ -9,6 +9,8 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 
+use crate::condition::{Budget, DEFAULT_STEP_LIMIT};
+
 mod condition;
 mod entry;
 mod environment;
@@ -108,8 +110,19 @@ fn run_each<C>(
 }
 
 // Unix seconds, as every time in the vectors.
-fn time(seconds: u64) -> SystemTime {
+fn to_time(seconds: u64) -> SystemTime {
     UNIX_EPOCH + Duration::from_secs(seconds)
+}
+
+fn to_seconds(time: SystemTime) -> Result<u64, String> {
+    time.duration_since(UNIX_EPOCH)
+        .map(|since| since.as_secs())
+        .map_err(|e| e.to_string())
+}
+
+// A case's step limit, the default where it gives none.
+fn build_budget(step_limit: Option<u64>) -> Budget {
+    Budget::new(step_limit.unwrap_or(DEFAULT_STEP_LIMIT))
 }
 
 // An `Option` the case must write, `null` being one of its values.
