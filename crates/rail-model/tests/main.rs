@@ -7,6 +7,7 @@ mod body;
 mod capture;
 mod condition;
 mod policy;
+mod request;
 mod request_line;
 mod sanitize;
 mod vectors;

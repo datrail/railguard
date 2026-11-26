@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use percent_encoding::percent_decode_str;
 use rail_model::body::mcp::{McpReading, read_endpoint};
 use rail_model::condition::{Budget, DEFAULT_STEP_LIMIT, Environment, Headers};
 use rail_model::endpoint::{Endpoint, Resolution};
@@ -12,11 +11,12 @@ use rail_model::policy::{
     Decision, DecodedTicket, JudgingMode, Outcome, SignedTicketConfig, TicketState, decode_ticket,
     judge,
 };
+use rail_model::request::XRAIL;
 
 use crate::bundle_holder::HeldBundle;
 use crate::denial::{Denial, DeniedBy, ticket_state};
 use crate::key_set::KeySet;
-use crate::xrail::{XRAIL, XRAIL_STATUS};
+use crate::xrail::XRAIL_STATUS;
 
 /// One call, as the host received it, its body in whatever the host holds bytes in. No `Debug`,
 /// which would print its ticket and credentials.
@@ -70,18 +70,6 @@ impl Answer {
             Self::CannotApply => Some((503, r#"{"error": "policy ruleset cannot be applied"}"#)),
             Self::TooLarge => Some((413, r#"{"error": "request body too large"}"#)),
         }
-    }
-}
-
-/// The path of `uri`, without the query, percent-decoded: an invalid escape is kept, and invalid
-/// UTF-8 replaced.
-pub fn read_path(uri: &str) -> String {
-    let path = uri.split_once('?').map_or(uri, |(path, _)| path);
-    let path = percent_decode_str(path).decode_utf8_lossy();
-    if path.is_empty() {
-        "/".to_owned()
-    } else {
-        path.into_owned()
     }
 }
 
