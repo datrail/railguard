@@ -48,6 +48,6 @@ fn run_case(case: &Case, environments: &Named, plans: &NamedPlans) -> Result<Val
         return Err("an entry its plan's compiling refuses".into());
     }
     let mut budget = build_budget(case.step_limit);
-    let verdict = built.read(|environment| answer(entry, environment, &mut budget));
+    let verdict = answer(entry, &built.environment(), &mut budget);
     Ok(encode_verdict(verdict))
 }

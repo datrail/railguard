@@ -26,7 +26,7 @@ enum Request<'a> {
 }
 
 impl<'a> Environment<'a> {
-    /// For `request`, every source read as a path first reads it.
+    /// For `request` and its ticket's claims (`None` without a usable ticket).
     pub fn of(request: &'a ObservedRequest, ticket: Option<&'a Map<String, Value>>) -> Self {
         Self {
             ticket,

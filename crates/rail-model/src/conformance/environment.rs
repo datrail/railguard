@@ -140,19 +140,15 @@ pub(super) enum Built {
 }
 
 impl Built {
-    /// What `read` reads of the environment, built as its use builds it, nothing read yet.
-    pub(super) fn read<T>(&self, read: impl FnOnce(&Environment) -> T) -> T {
+    /// The environment, built as its use builds it.
+    pub(super) fn environment(&self) -> Environment<'_> {
         match self {
             Self::Judging {
                 ticket,
                 endpoint,
                 headers,
-            } => read(&Environment::for_judging(
-                ticket.as_ref(),
-                endpoint,
-                headers,
-            )),
-            Self::Capture { call } => read(&capture_environment(call)),
+            } => Environment::for_judging(ticket.as_ref(), endpoint, headers),
+            Self::Capture { call } => capture_environment(call),
         }
     }
 

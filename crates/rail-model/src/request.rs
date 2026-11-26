@@ -22,13 +22,13 @@ pub struct ObservedRequest {
     /// `:path` as received: the path and its query, never decoded.
     pub(crate) path: WireText,
     /// The header lines the host passes, in order.
-    pub(crate) headers: Vec<(WireText, WireText)>,
+    pub(crate) header_lines: Vec<(WireText, WireText)>,
     pub(crate) body: BodyRead,
     /// Every byte of the body the host was sent, kept or not.
     pub(crate) body_bytes: u64,
     // Each read once, by whichever use asks first, on whichever thread.
     request_line: OnceLock<RequestLine>,
-    headers_read: OnceLock<Headers>,
+    headers: OnceLock<Headers>,
     endpoint: OnceLock<Resolution>,
 }
 
@@ -46,18 +46,19 @@ impl ObservedRequest {
             authority: authority.into(),
             method: method.into(),
             path: path.into(),
-            headers: headers
+            header_lines: headers
                 .into_iter()
                 .map(|(name, value)| (name.into(), value.into()))
                 .collect(),
             body,
             body_bytes,
             request_line: OnceLock::new(),
-            headers_read: OnceLock::new(),
+            headers: OnceLock::new(),
             endpoint: OnceLock::new(),
         }
     }
 
+    /// Its authority, method and path as matching reads them.
     pub(crate) fn request_line(&self) -> &RequestLine {
         self.request_line.get_or_init(|| {
             RequestLine::read(
@@ -70,9 +71,9 @@ impl ObservedRequest {
 
     /// Its header lines as conditions read them.
     pub(crate) fn headers(&self) -> &Headers {
-        self.headers_read.get_or_init(|| {
+        self.headers.get_or_init(|| {
             Headers::from_lines(
-                self.headers
+                self.header_lines
                     .iter()
                     .map(|(name, value)| (name.as_str(), value.as_str())),
             )
