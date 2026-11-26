@@ -1244,40 +1244,32 @@
       }
     },
     {
-      "id": "policy-in-a-capture-environment-ticket-not-filled",
+      "id": "policy-in-a-capture-environment-ticket-absent",
       "environment": "capture-body-empty",
       "use": "gateway_policy",
       "path": "ticket.a",
-      "expect": {
-        "refused": "not_for_use"
-      }
+      "expect": "absent"
     },
     {
-      "id": "policy-in-a-capture-environment-header-not-filled",
+      "id": "policy-in-a-capture-environment-header-absent",
       "environment": "capture-body-empty",
       "use": "gateway_policy",
       "path": "request.headers.accept",
-      "expect": {
-        "refused": "not_for_use"
-      }
+      "expect": "absent"
     },
     {
-      "id": "policy-in-a-capture-environment-endpoint-key-not-filled",
+      "id": "policy-in-a-capture-environment-endpoint-key-absent",
       "environment": "capture-body-empty",
       "use": "gateway_policy",
       "path": "request.endpoint_key",
-      "expect": {
-        "refused": "not_for_use"
-      }
+      "expect": "absent"
     },
     {
-      "id": "policy-in-a-capture-environment-headers-not-filled",
+      "id": "policy-in-a-capture-environment-headers-object",
       "environment": "capture-body-empty",
       "use": "gateway_policy",
       "path": "request.headers",
-      "expect": {
-        "refused": "not_for_use"
-      }
+      "expect": "object"
     },
     {
       "id": "policy-in-a-capture-environment-request-whole",
@@ -1288,7 +1280,7 @@
       "expect": "object"
     },
     {
-      "id": "plan-in-a-judging-environment-body-not-filled",
+      "id": "plan-in-a-judging-environment-body-not-sent",
       "environment": "judging-keyless",
       "use": "capture_plan",
       "path": [
@@ -1297,23 +1289,23 @@
         "a"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "body_unread": {
+          "unread": "not_sent"
+        }
       }
     },
     {
-      "id": "plan-in-a-judging-environment-host-not-filled",
+      "id": "plan-in-a-judging-environment-host-absent",
       "environment": "judging-keyless",
       "use": "capture_plan",
       "path": [
         "request",
         "host"
       ],
-      "expect": {
-        "refused": "not_for_use"
-      }
+      "expect": "absent"
     },
     {
-      "id": "plan-in-a-judging-environment-mcp-tool-not-filled",
+      "id": "plan-in-a-judging-environment-mcp-tool-not-sent",
       "environment": "judging-keyless",
       "use": "capture_plan",
       "path": [
@@ -1322,7 +1314,9 @@
         "tool"
       ],
       "expect": {
-        "refused": "not_for_use"
+        "body_unread": {
+          "unread": "not_sent"
+        }
       }
     },
     {
@@ -2675,7 +2669,7 @@
       }
     },
     {
-      "id": "record-in-a-judging-environment-not-filled",
+      "id": "record-in-a-judging-environment-query-absent",
       "environment": "judging-keyless",
       "use": "record",
       "path": [
@@ -2683,9 +2677,7 @@
         "query",
         "a"
       ],
-      "expect": {
-        "refused": "not_for_use"
-      }
+      "expect": "absent"
     }
   ]
 }
