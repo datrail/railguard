@@ -109,6 +109,24 @@
       }
     },
     {
+      "id": "unreadable-a-negative-integer-past-a-double",
+      "condition": {"path": "ticket.posture.overall.score", "op": "lt", "value": -10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000},
+      "use": "gateway_policy",
+      "expect": {
+        "reading": "invalid",
+        "compiled": {
+          "refused": "invalid"
+        },
+        "problems": [
+          {
+            "location": [],
+            "code": "unreadable",
+            "scope": "enforcement"
+          }
+        ]
+      }
+    },
+    {
       "id": "unreadable-an-exponent-past-a-double",
       "condition": {"path": "ticket.posture.overall.score", "op": "lt", "value": 1e400},
       "use": "gateway_policy",

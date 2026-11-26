@@ -184,7 +184,7 @@ What changed on the way:
   the `schema_version`'s major, the agent, the `redaction_version`.
 
 Layers 3 to 5 hold, among their own, the condition cases of datrail/gateway's
-`gateway-core/tests/vectors/v2/decide.json` at `041c92f`, each split into its path, its reading and its op. Three of
+`gateway-core/tests/vectors/v2/decide.json` at `041c92f`, each split into its path, its reading and its op. Four of
 them, an operand past a double, are refused here as read.
 
 ## Queries
