@@ -5,6 +5,9 @@ use std::sync::Arc;
 use rail_model::body::{BodyBuffer, BodyRead, ByteBudget, Unread};
 use rail_model::request::ObservedRequest;
 
+// What every body a role keeps, and what's read from them, may take together.
+pub(crate) const BODY_BUDGET_BYTES: usize = 256 * 1024 * 1024;
+
 /// A request as its host is sent it: its request line, declared length and the header lines it
 /// keeps from its headers, then its body, kept up to a cap within a budget.
 pub struct RequestGatherer {
@@ -15,6 +18,8 @@ pub struct RequestGatherer {
     declared: Option<u64>,
     body: BodyBuffer,
     cap_bytes: usize,
+    // A body adopted past the budget kept outside it, for a host that sends it back.
+    keep_past_budget: bool,
 }
 
 /// How a host saw a body end, in its mode's terms.
@@ -101,6 +106,7 @@ impl RequestGatherer {
             declared,
             body: BodyBuffer::new(cap_bytes, budget),
             cap_bytes,
+            keep_past_budget: false,
         }
     }
 
@@ -110,10 +116,18 @@ impl RequestGatherer {
         self.declared = None;
     }
 
+    pub(crate) fn keep_past_budget(&mut self) {
+        self.keep_past_budget = true;
+    }
+
     /// Keeps `body`, without a copy if it's the first; whether it's still kept, else past the cap
     /// or the budget, so a host refusing it can stop.
     pub fn adopt(&mut self, body: Vec<u8>) -> bool {
-        self.body.adopt(body);
+        if self.keep_past_budget {
+            self.body.adopt_keeping(body);
+        } else {
+            self.body.adopt(body);
+        }
         self.body.is_kept()
     }
 

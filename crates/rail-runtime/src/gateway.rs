@@ -4,7 +4,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use rail_model::condition::{Budget, DEFAULT_STEP_LIMIT, Environment};
+use rail_model::body::mcp::McpReading;
+use rail_model::body::{BodyRead, Unparsed};
+use rail_model::condition::{Budget, DEFAULT_STEP_LIMIT, Environment, Refusal};
 use rail_model::endpoint::{Endpoint, Resolution};
 use rail_model::policy::{
     Decision, DecodedTicket, JudgingMode, Outcome, SignedTicketConfig, TicketState, decode_ticket,
@@ -14,6 +16,7 @@ use rail_model::request::ObservedRequest;
 
 use crate::bundle_holder::HeldBundle;
 use crate::denial::{Denial, DeniedBy, ticket_state};
+use crate::gateway_call::answer_unjudged_by;
 use crate::key_set::KeySet;
 use crate::xrail::{XRAIL, XRAIL_STATUS};
 
@@ -86,6 +89,17 @@ pub(crate) fn judge_call(unit: Unit, report: &dyn Fn(&Denial)) -> Answer {
         settings,
         stop,
     } = unit;
+    let unjudged = |why: &str| {
+        let answer = answer_unjudged_by(&bundle);
+        tracing::error!(?answer, "{why}; the call went unjudged");
+        answer
+    };
+    // Checked first: its endpoint would read the call as naming no tool.
+    if let BodyRead::Whole(body) = call.body()
+        && *body.mcp() == McpReading::Unparsed(Unparsed::PastBudget)
+    {
+        return unjudged("its body's tree is past the memory budget");
+    }
     let endpoint = match call.endpoint() {
         Ok(Resolution::Discovery) => {
             tracing::debug!("forwarded a session message, unjudged");
@@ -119,6 +133,13 @@ pub(crate) fn judge_call(unit: Unit, report: &dyn Fn(&Denial)) -> Answer {
     // Claims the answer, unless it was given without this judgement: then nothing is acted on.
     if stop.swap(true, Ordering::AcqRel) {
         return Answer::Forward;
+    }
+    if let Some(Decision::Refused {
+        refusal: Refusal::PastBudget,
+        ..
+    }) = outcome.chain.as_ref().map(|chain| &chain.decision)
+    {
+        return unjudged("its headers are past the memory budget");
     }
     log_outcome(&outcome, mode, named, ticket_state(&ticket));
     if mode == JudgingMode::Observe {

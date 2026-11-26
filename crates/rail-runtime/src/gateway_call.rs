@@ -18,7 +18,7 @@ use crate::callout::{GATEWAY_MAX_BODY_MB, MB};
 use crate::clock::WallClock;
 use crate::denial::DenialReporter;
 use crate::gateway::{Answer, Unit, UnitSettings, decode_x_rail, judge_call};
-use crate::gather::{BodyEnding, RequestGatherer};
+use crate::gather::{BODY_BUDGET_BYTES, BodyEnding, RequestGatherer};
 use crate::key_set::KeySetHolder;
 
 // The longest a call waits for a bundle, and for a key it names: each within the deadline too.
@@ -63,7 +63,6 @@ pub struct Gateway {
     reporter: Arc<DenialReporter>,
     now: WallClock,
     judgements: Arc<Semaphore>,
-    // Unbounded: a body is bounded by the cap alone.
     budget: Arc<ByteBudget>,
     settings: GatewaySettings,
 }
@@ -84,18 +83,22 @@ impl Gateway {
             reporter,
             now,
             judgements: Arc::new(Semaphore::new(settings.max_concurrent_judgements.get())),
-            budget: ByteBudget::new(usize::MAX),
+            budget: ByteBudget::new(BODY_BUDGET_BYTES),
             settings,
         }
     }
 
-    /// The call whose header lines are `lines`, its body to gather within the cap.
+    /// The call whose header lines are `lines`, its body to gather within the cap; a body adopted
+    /// past the budget is kept, to send on.
     pub fn gather<N, V>(&self, lines: impl IntoIterator<Item = (N, V)>) -> RequestGatherer
     where
         N: AsRef<[u8]>,
         V: AsRef<[u8]> + Into<Vec<u8>>,
     {
-        RequestGatherer::keeping_lines(lines, self.settings.max_body_bytes, &self.budget)
+        let mut gatherer =
+            RequestGatherer::keeping_lines(lines, self.settings.max_body_bytes, &self.budget);
+        gatherer.keep_past_budget();
+        gatherer
     }
 
     /// Whether it's ready, and its state in readiness's words: `held` once a bundle is, else
@@ -109,7 +112,7 @@ impl Gateway {
 
     /// What to do with the call `gatherer` gathered, its body ended as `ending`, by its deadline,
     /// and its body back for the host to send on. Only a `POST` is judged, and no call whose body
-    /// is past `max_body_bytes` or cut short is forwarded.
+    /// is past `max_body_bytes`, cut short, or dropped past the memory budget is forwarded.
     pub async fn handle(&self, gatherer: RequestGatherer, ending: BodyEnding) -> (Answer, Vec<u8>) {
         let call = Arc::new(gatherer.finish(ending));
         let answer = self.answer(&call).await;
@@ -119,13 +122,21 @@ impl Gateway {
     async fn answer(&self, call: &Arc<ObservedRequest>) -> Answer {
         let bytes = call.body_bytes();
         match call.body() {
-            BodyRead::Unread(Unread::PastCap | Unread::PastBudget) => {
+            BodyRead::Unread(Unread::PastCap) => {
                 tracing::warn!(
                     bytes,
                     limit = self.settings.max_body_bytes,
                     "refused unjudged: the body is past RAIL_MAX_BODY_MB"
                 );
                 return Answer::TooLarge;
+            }
+            // Only chunks gathered past it: its bytes are gone, so it can't be sent on.
+            BodyRead::Unread(Unread::PastBudget) => {
+                tracing::error!(
+                    bytes,
+                    "refused unjudged: the body is past the memory budget"
+                );
+                return Answer::CannotApply;
             }
             // A body cut short could read as another call, so it's never judged as whole.
             BodyRead::Unread(Unread::CutShort) => {
@@ -223,13 +234,21 @@ fn names_tenant(bundle: &HeldBundle) -> bool {
 
 // With a bundle, its `judge_fallback`, acted on at `enforce` only; without, the setting's.
 fn answer_unjudged(bundle: Option<&HeldBundle>, no_bundle_fallback: Fallback) -> Answer {
-    let fallback = match bundle {
-        Some(bundle) if bundle.posture.mode == EnforcementMode::Enforce => {
-            bundle.posture.judge_fallback
-        }
-        Some(_) => Fallback::Pass,
-        None => no_bundle_fallback,
-    };
+    match bundle {
+        Some(bundle) => answer_unjudged_by(bundle),
+        None => answer_by(no_bundle_fallback),
+    }
+}
+
+/// What `bundle`'s fallback answers a call it can't judge.
+pub(crate) fn answer_unjudged_by(bundle: &HeldBundle) -> Answer {
+    answer_by(match bundle.posture.mode {
+        EnforcementMode::Enforce => bundle.posture.judge_fallback,
+        _ => Fallback::Pass,
+    })
+}
+
+fn answer_by(fallback: Fallback) -> Answer {
     match fallback {
         Fallback::Pass => Answer::Forward,
         Fallback::Block => Answer::CannotApply,
