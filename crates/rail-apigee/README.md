@@ -115,8 +115,9 @@ Center on, its thread then has at most 1 s more to stop.
 - **A compressed body:** Apigee decompresses it before the callout, so it's judged as sent (seen live).
 - **A header with commas:** Apigee splits it on its commas, so a ticket holding one reads as undecodable (seen live).
 - **The gateway's memory:** reading a call's endpoint parses its body into a tree of up to 16 times the body, for a body
-  of small array items. The bodies, their trees and the headers rules read share 256 MiB: past it, a call is unjudged,
-  by the bundle's `judge_fallback` at enforce. Size its memory for the calls it serves at once.
+  of small array items. The bodies within it, their trees and the headers conditions read share 256 MiB; past it, a call
+  is unjudged, 503 at enforce, forwarded at observe and none, a body adopted past it still held, to send on. Size its
+  memory for the calls it serves at once.
 
 ## The image
 

@@ -17,7 +17,9 @@ use crate::bundle_holder::{BundleHolder, HeldBundle};
 use crate::callout::{GATEWAY_MAX_BODY_MB, MB};
 use crate::clock::WallClock;
 use crate::denial::DenialReporter;
-use crate::gateway::{Answer, Unit, UnitSettings, decode_x_rail, judge_call};
+use crate::gateway::{
+    Answer, Unit, UnitSettings, answer_by, answer_unjudged, decode_x_rail, judge_call,
+};
 use crate::gather::{BODY_BUDGET_BYTES, BodyEnding, RequestGatherer};
 use crate::key_set::KeySetHolder;
 
@@ -39,6 +41,9 @@ pub struct GatewaySettings {
     pub no_bundle_fallback: Fallback,
     /// The largest body judged; a call past it is refused unjudged, 413.
     pub max_body_bytes: usize,
+    /// Whether a body shorter than its `Content-Length` is cut short: not where a host may hand
+    /// over a body decoded with its length as sent.
+    pub checks_declared_length: bool,
     /// How each call is judged.
     pub unit: UnitSettings,
 }
@@ -50,6 +55,7 @@ impl Default for GatewaySettings {
             max_concurrent_judgements: available_parallelism().unwrap_or(NonZeroUsize::MIN),
             no_bundle_fallback: Fallback::Pass,
             max_body_bytes: GATEWAY_MAX_BODY_MB * MB,
+            checks_declared_length: true,
             unit: UnitSettings::default(),
         }
     }
@@ -98,6 +104,9 @@ impl Gateway {
         let mut gatherer =
             RequestGatherer::keeping_lines(lines, self.settings.max_body_bytes, &self.budget);
         gatherer.keep_past_budget();
+        if !self.settings.checks_declared_length {
+            gatherer.ignore_declared_length();
+        }
         gatherer
     }
 
@@ -144,7 +153,8 @@ impl Gateway {
                 return Answer::TooLarge;
             }
             _ if call.method() != "POST" => return Answer::Forward,
-            // Logged by its host, which knows what it wasn't configured to send.
+            // A host's own not sent is logged by it, which knows what it wasn't configured to send;
+            // a declared length with nothing sent isn't.
             BodyRead::Unread(Unread::NotSent) => return Answer::CannotApply,
             BodyRead::Whole(_) => {}
         }
@@ -155,7 +165,7 @@ impl Gateway {
         let within =
             |limit: Duration| limit.min(deadline.saturating_duration_since(Instant::now()));
         let Some(bundle) = self.bundles.wait_for_bundle(within(MAX_WAIT)).await else {
-            let answer = answer_unjudged(None, self.settings.no_bundle_fallback);
+            let answer = answer_by(self.settings.no_bundle_fallback);
             tracing::error!(?answer, "no policy bundle held; the call went unjudged");
             return answer;
         };
@@ -168,11 +178,7 @@ impl Gateway {
             }
             _ => self.key_sets.keys(),
         };
-        let unjudged = |why: &str| {
-            let answer = answer_unjudged(Some(&bundle), self.settings.no_bundle_fallback);
-            tracing::error!(?answer, "{why}; the call went unjudged");
-            answer
-        };
+        let unjudged = |why: &str| answer_unjudged(&bundle, why);
         let Ok(Ok(slot)) = timeout_at(deadline, Arc::clone(&self.judgements).acquire_owned()).await
         else {
             return unjudged("its deadline passed waiting for a free slot");
@@ -230,29 +236,6 @@ impl Drop for StopOnDrop {
 fn names_tenant(bundle: &HeldBundle) -> bool {
     let named = |claim: &Option<String>| claim.as_deref().is_some_and(|claim| !claim.is_empty());
     named(&bundle.ticket_issuer) && named(&bundle.ticket_audience)
-}
-
-// With a bundle, its `judge_fallback`, acted on at `enforce` only; without, the setting's.
-fn answer_unjudged(bundle: Option<&HeldBundle>, no_bundle_fallback: Fallback) -> Answer {
-    match bundle {
-        Some(bundle) => answer_unjudged_by(bundle),
-        None => answer_by(no_bundle_fallback),
-    }
-}
-
-/// What `bundle`'s fallback answers a call it can't judge.
-pub(crate) fn answer_unjudged_by(bundle: &HeldBundle) -> Answer {
-    answer_by(match bundle.posture.mode {
-        EnforcementMode::Enforce => bundle.posture.judge_fallback,
-        _ => Fallback::Pass,
-    })
-}
-
-fn answer_by(fallback: Fallback) -> Answer {
-    match fallback {
-        Fallback::Pass => Answer::Forward,
-        Fallback::Block => Answer::CannotApply,
-    }
 }
 
 fn epoch_seconds(now: SystemTime) -> i64 {

@@ -29,8 +29,8 @@ flowchart TD
   grpc -->|no| disabled
   disabled -->|true| f1
   disabled -->|false| whole
-  whole -->|"no: ext_proc's body mode isn't full duplex or buffered,<br>ext_proc sent the body before its headers,<br>ext_authz sent a POST without its body,<br>or a full-duplex body gathered past the 256 MiB memory budget"| r1
-  whole -->|"no: ext_authz sent part of the body,<br>the body is shorter than its Content-Length,<br>or ext_proc's body gathered past RAIL_MAX_BODY_MB"| r2
+  whole -->|"no: ext_proc's body mode isn't full duplex or buffered,<br>ext_proc sent the body before its headers,<br>ext_authz sent a POST without its body,<br>or a full-duplex body whose later chunk passes the 256 MiB memory budget"| r1
+  whole -->|"no: ext_authz sent part of the body,<br>the body is shorter than its Content-Length but not empty,<br>or ext_proc's body gathered past RAIL_MAX_BODY_MB"| r2
   whole -->|"no: buffered, with trailers and no body,<br>and request_trailer_mode isn't SEND"| f2
   whole -->|yes| both
 

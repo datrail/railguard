@@ -26,7 +26,7 @@ pub struct ObservedRequest {
     pub(crate) body_bytes: u64,
     // Each read once, by whichever use asks first, on whichever thread.
     request_line: OnceLock<RequestLine>,
-    // `None` past the budget, with the charge it holds.
+    // `None` past the budget; else the headers and the charge they hold.
     headers: OnceLock<Option<(Headers, Option<Charge>)>>,
     endpoint: OnceLock<Resolution>,
 }
@@ -101,13 +101,7 @@ impl ObservedRequest {
                 .then(|| ("host", self.authority.as_str()));
             let lines = || self.header_lines().chain(authority);
             let charge = match &self.body {
-                BodyRead::Whole(body) => {
-                    let mut charge = body.new_charge()?;
-                    if !charge.grow(Headers::bytes_for(lines())) {
-                        return None;
-                    }
-                    Some(charge)
-                }
+                BodyRead::Whole(body) => Some(body.charge_for(Headers::bytes_for(lines()))?),
                 BodyRead::Unread(_) => None,
             };
             Some((Headers::from_lines(lines()), charge))

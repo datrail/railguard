@@ -628,10 +628,7 @@ async fn ext_authz_judges_the_body_sent_and_never_a_body_cut_short() {
     assert_eq!(check(&socket.path, &partial, &allowed, -1).await, too_large);
     let declared = (allowed.len() + 1).to_string();
     let longer = [("content-length", declared.as_str())];
-    assert_eq!(
-        check(&socket.path, &longer, &allowed, length(&allowed) + 1).await,
-        too_large
-    );
+    assert_eq!(check(&socket.path, &longer, &allowed, -1).await, too_large);
     // No body sent at all, its size known: the filter has no `with_request_body`.
     let cannot_apply = Err((
         503,

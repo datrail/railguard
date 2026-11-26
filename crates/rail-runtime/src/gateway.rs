@@ -9,14 +9,13 @@ use rail_model::body::{BodyRead, Unparsed};
 use rail_model::condition::{Budget, DEFAULT_STEP_LIMIT, Environment, Refusal};
 use rail_model::endpoint::{Endpoint, Resolution};
 use rail_model::policy::{
-    Decision, DecodedTicket, JudgingMode, Outcome, SignedTicketConfig, TicketState, decode_ticket,
-    judge,
+    Decision, DecodedTicket, EnforcementMode, Fallback, JudgingMode, Outcome, SignedTicketConfig,
+    TicketState, decode_ticket, judge,
 };
 use rail_model::request::ObservedRequest;
 
 use crate::bundle_holder::HeldBundle;
 use crate::denial::{Denial, DeniedBy, ticket_state};
-use crate::gateway_call::answer_unjudged_by;
 use crate::key_set::KeySet;
 use crate::xrail::{XRAIL, XRAIL_STATUS};
 
@@ -77,6 +76,25 @@ pub(crate) struct Unit {
     pub(crate) stop: Arc<AtomicBool>,
 }
 
+/// What `bundle`'s fallback answers a call it can't judge, for `why`, logged as an error: its
+/// `judge_fallback` at enforce, else forwarded.
+pub(crate) fn answer_unjudged(bundle: &HeldBundle, why: &str) -> Answer {
+    let answer = answer_by(match bundle.posture.mode {
+        EnforcementMode::Enforce => bundle.posture.judge_fallback,
+        _ => Fallback::Pass,
+    });
+    tracing::error!(?answer, "{why}; the call went unjudged");
+    answer
+}
+
+/// What `fallback` answers.
+pub(crate) fn answer_by(fallback: Fallback) -> Answer {
+    match fallback {
+        Fallback::Pass => Answer::Forward,
+        Fallback::Block => Answer::CannotApply,
+    }
+}
+
 /// Judges `unit`'s call against its bundle. A denial acted on goes to `report`, which mustn't
 /// wait.
 pub(crate) fn judge_call(unit: Unit, report: &dyn Fn(&Denial)) -> Answer {
@@ -89,16 +107,11 @@ pub(crate) fn judge_call(unit: Unit, report: &dyn Fn(&Denial)) -> Answer {
         settings,
         stop,
     } = unit;
-    let unjudged = |why: &str| {
-        let answer = answer_unjudged_by(&bundle);
-        tracing::error!(?answer, "{why}; the call went unjudged");
-        answer
-    };
     // Checked first: its endpoint would read the call as naming no tool.
     if let BodyRead::Whole(body) = call.body()
         && *body.mcp() == McpReading::Unparsed(Unparsed::PastBudget)
     {
-        return unjudged("its body's tree is past the memory budget");
+        return answer_unjudged(&bundle, "its body's tree is past the memory budget");
     }
     let endpoint = match call.endpoint() {
         Ok(Resolution::Discovery) => {
@@ -139,7 +152,7 @@ pub(crate) fn judge_call(unit: Unit, report: &dyn Fn(&Denial)) -> Answer {
         ..
     }) = outcome.chain.as_ref().map(|chain| &chain.decision)
     {
-        return unjudged("its headers are past the memory budget");
+        return answer_unjudged(&bundle, "its headers are past the memory budget");
     }
     log_outcome(&outcome, mode, named, ticket_state(&ticket));
     if mode == JudgingMode::Observe {

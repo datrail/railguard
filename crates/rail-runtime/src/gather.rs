@@ -18,8 +18,6 @@ pub struct RequestGatherer {
     declared: Option<u64>,
     body: BodyBuffer,
     cap_bytes: usize,
-    // A body adopted past the budget kept outside it, for a host that sends it back.
-    keep_past_budget: bool,
 }
 
 /// How a host saw a body end, in its mode's terms.
@@ -106,34 +104,27 @@ impl RequestGatherer {
             declared,
             body: BodyBuffer::new(cap_bytes, budget),
             cap_bytes,
-            keep_past_budget: false,
         }
     }
 
-    /// For a host whose `Content-Length` may not be its body's: the body then has no declared
-    /// length.
-    pub fn ignore_declared_length(&mut self) {
+    pub(crate) fn ignore_declared_length(&mut self) {
         self.declared = None;
     }
 
     pub(crate) fn keep_past_budget(&mut self) {
-        self.keep_past_budget = true;
+        self.body.keep_past_budget();
     }
 
     /// Keeps `body`, without a copy if it's the first; whether it's still kept, else past the cap
     /// or the budget, so a host refusing it can stop.
     pub fn adopt(&mut self, body: Vec<u8>) -> bool {
-        if self.keep_past_budget {
-            self.body.adopt_keeping(body);
-        } else {
-            self.body.adopt(body);
-        }
+        self.body.adopt(body);
         self.body.is_kept()
     }
 
-    /// The request, its body read whole if it came whole within the cap and the budget, else
-    /// unread: not sent, cut short (of its declared length, or where the host may have cut it), or
-    /// past either.
+    /// The request, its body read whole if it came whole within the cap and the budget (or was
+    /// adopted keeping past it), else unread: not sent, cut short (of its declared length, or
+    /// where the host may have cut it), or past either.
     pub fn finish(self, ending: BodyEnding) -> ObservedRequest {
         let received_bytes = self.body.received_bytes();
         // A declared length below what was sent isn't the body's.

@@ -232,39 +232,68 @@ fn test_reads_a_policys_headers_from_an_observed_request() {
     }
 }
 
-// Charged to its body's budget: past it, or with a body kept outside it, its headers can't be read.
+// Charged to its body's budget, by their size and their comma parts: past it, they can't be read.
 #[test]
-fn test_refuses_a_header_past_the_budget() {
-    let body = |budget_bytes: usize, keeping: bool| {
-        let mut buffer = BodyBuffer::new(usize::MAX, &ByteBudget::new(budget_bytes));
-        if keeping {
-            buffer.adopt_keeping(b"{}".to_vec());
-        } else {
-            buffer.adopt(b"{}".to_vec());
-        }
-        BodyRead::Whole(Arc::new(buffer.finish().unwrap()))
-    };
-    for (budget_bytes, keeping, verdict) in [
-        (1 << 10, false, Verdict::Holds),
-        (16, false, Verdict::Refused(Refusal::PastBudget)),
-        (1, true, Verdict::Refused(Refusal::PastBudget)),
-    ] {
-        let (method, path) = (b"POST".to_vec(), b"/mcp".to_vec());
-        let lines = vec![(b"x-a".to_vec(), b"1".to_vec())];
-        let body = body(budget_bytes, keeping);
-        let request = ObservedRequest::new(Vec::new(), method, path, lines, body, 2);
-        let compiled = compile_condition(
-            &serde_json::from_value(
-                json!({"path": "request.headers.x-a", "op": "eq", "value": "1"}),
-            )
-            .unwrap(),
-            ConditionUse::GatewayPolicy,
-        );
-        let evaluated = evaluate_condition(
-            &compiled,
-            &Environment::of(&request, None),
-            &mut Budget::default(),
-        );
-        assert_eq!(evaluated.verdict, verdict, "{budget_bytes} {keeping}");
+fn test_refuses_headers_past_the_budget() {
+    let long = "a".repeat(256 << 10);
+    let commas = |count: usize| ",".repeat(count);
+    let cases: [(&[(&str, &str)], _); 4] = [
+        (
+            &[("x-a", &commas(64 << 10))],
+            Verdict::Refused(Refusal::PastBudget),
+        ),
+        (&[("x-a", &commas(4 << 10))], Verdict::Holds),
+        (&[("x-a", &long)], Verdict::Holds),
+        (&[("x-a", "1"), (&long, "1")], Verdict::Holds),
+    ];
+    for (lines, verdict) in cases {
+        let budget = ByteBudget::new(1 << 20);
+        let request = request_with(&budget, lines);
+        assert_eq!(read_x_a(&request), verdict, "{}", lines.len());
     }
+}
+
+// Their charge held while the request is, and given back with it.
+#[test]
+fn test_holds_the_headers_charge_until_the_request_is_dropped() {
+    let budget = ByteBudget::new(1 << 10);
+    let request = request_with(&budget, &[("x-a", "1")]);
+    let fits = || {
+        let mut other = BodyBuffer::new(usize::MAX, &budget);
+        other.append(&vec![0; (1 << 10) - 2]);
+        other.is_kept()
+    };
+    assert!(fits());
+    assert_eq!(read_x_a(&request), Verdict::Holds);
+    assert!(!fits());
+    drop(request);
+    assert!(fits());
+}
+
+// A POST whose header lines are `lines`, its body `{}` kept within `budget`.
+fn request_with(budget: &Arc<ByteBudget>, lines: &[(&str, &str)]) -> ObservedRequest {
+    let mut buffer = BodyBuffer::new(usize::MAX, budget);
+    buffer.adopt(b"{}".to_vec());
+    let body = BodyRead::Whole(Arc::new(buffer.finish().unwrap()));
+    let lines = lines
+        .iter()
+        .map(|(name, value)| (name.as_bytes().to_vec(), value.as_bytes().to_vec()))
+        .collect();
+    let (method, path) = (b"POST".to_vec(), b"/mcp".to_vec());
+    ObservedRequest::new(Vec::new(), method, path, lines, body, 2)
+}
+
+// Whether `request` has an `x-a` header, as a policy reads it.
+fn read_x_a(request: &ObservedRequest) -> Verdict {
+    let condition = json!({"path": "request.headers.x-a", "op": "existing"});
+    let compiled = compile_condition(
+        &serde_json::from_value(condition).unwrap(),
+        ConditionUse::GatewayPolicy,
+    );
+    evaluate_condition(
+        &compiled,
+        &Environment::of(request, None),
+        &mut Budget::default(),
+    )
+    .verdict
 }
