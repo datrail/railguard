@@ -1127,6 +1127,20 @@
       }
     },
     {
+      "id": "mcp-key-overlong-utf8-ambiguous",
+      "note": "0xC1 0xAD, an overlong '-' a lenient reader decodes: not UTF-8.",
+      "body": {
+        "hex": "7b22c1ad223a20312c20226d6574686f64223a202270696e67227d"
+      },
+      "path": "/mcp",
+      "expect": {
+        "mcp": "ambiguous",
+        "endpoint": {
+          "judged": "unrecognised"
+        }
+      }
+    },
+    {
       "id": "mcp-close-past-the-top-value-unparsed",
       "body": "{\"method\": \"ping\"}]",
       "path": "/mcp",

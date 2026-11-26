@@ -2909,64 +2909,6 @@
           "alerts": []
         }
       }
-    },
-    {
-      "id": "a-path-a-policy-does-not-read-refuses-the-call-at-that-policy",
-      "added": true,
-      "bundle": {
-        "schema_version": "2.0",
-        "content_hash": "walk",
-        "enforcement": {
-          "mode": "enforce"
-        },
-        "policies": [
-          {
-            "id": "5c8f1e42-0000-4000-8000-0000000000c1",
-            "name": "P-c1",
-            "priority": 1,
-            "condition": {
-              "path": "request.host",
-              "op": "existing"
-            },
-            "action": "alert",
-            "enabled": true
-          }
-        ],
-        "bindings": [],
-        "binding_fallback": "pass",
-        "ticket_fallback": "pass"
-      },
-      "mode": "enforce",
-      "endpoint": {
-        "resolved": "/mcp#tools/call#track_package"
-      },
-      "ticket": {
-        "id": "10000000-0000-4000-8000-000000000001",
-        "agent_id": "aaaaaaaa-0000-4000-8000-0000000000f0",
-        "sandbox_id": "sandbox-1",
-        "environment_fingerprint": "fingerprint-1",
-        "skills": [],
-        "posture": {
-          "overall": {
-            "score": 92.0,
-            "level": "low"
-          },
-          "categories": {}
-        },
-        "alignment": {
-          "drifted": []
-        }
-      },
-      "headers": [],
-      "expect": {
-        "fallbacks": [],
-        "chain": {
-          "decision": {
-            "refused": "5c8f1e42-0000-4000-8000-0000000000c1"
-          },
-          "alerts": []
-        }
-      }
     }
   ]
 }

@@ -3,8 +3,9 @@
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use super::value::{Bytes, encode_unparsed};
-use super::{Outcome, read_cases, run_each};
+use super::value::{Bytes, encode_unparsed, keep};
+use super::{DEFAULT_BYTE_BUDGET, Outcome, read_cases, run_each};
+use crate::body::Unparsed;
 use crate::body::mcp::{McpReading, read_endpoint};
 use crate::endpoint::{Endpoint, Resolution};
 
@@ -21,12 +22,18 @@ struct Case {
 
 pub(super) fn run_cases(text: &str) -> Result<Vec<Outcome>, String> {
     run_each(read_cases::<Case>(text)?, |case| {
-        let got = case.body.to_bytes().map(|body| {
+        let got = case.body.to_bytes().and_then(|body| {
+            // Within a budget first, since `McpReading::read` takes none: a parser that never
+            // stops ends there, not in memory.
+            let bounded = keep(&body, DEFAULT_BYTE_BUDGET).map_err(|why| format!("{why:?}"))?;
+            if matches!(bounded.json(), Err(Unparsed::PastBudget)) {
+                return Err("past the runner's byte budget".into());
+            }
             let mcp = McpReading::read(&body);
-            json!({
+            Ok(json!({
                 "mcp": encode_mcp_reading(&mcp),
                 "endpoint": encode_resolution(&read_endpoint(&case.path, &mcp)),
-            })
+            }))
         });
         (case.id, case.expect, got)
     })

@@ -53,7 +53,7 @@ pub(super) struct CallSpec {
     path: Bytes,
     body: BodySpec,
     body_bytes: u64,
-    /// The bytes every body and its tree share, where a case is about passing them.
+    /// The bytes a body and its tree share, where a case is about passing them.
     byte_budget: Option<usize>,
 }
 
