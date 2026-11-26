@@ -163,19 +163,16 @@ impl RailCenterClient {
         self.fetch(self.http.get(url), limits).await
     }
 
-    /// `POST` `body`, JSON, to `route`, in one attempt: retrying is the caller's.
+    /// `POST` `body`, JSON, to `route`, gzipped past 10 KiB, in one attempt: retrying is the
+    /// caller's.
     pub async fn post(
         &self,
         route: &str,
         body: Vec<u8>,
         limits: Limits,
     ) -> Result<Response, FetchError> {
-        // A denial report is a few hundred bytes: always sent as it is.
-        let body = PostBody {
-            bytes: body,
-            gzipped: false,
-        };
-        self.fetch(self.post_request(route, body), limits).await
+        self.fetch(self.post_request(route, PostBody::new(body)), limits)
+            .await
     }
 
     /// `POST` `body` to `route`, in one attempt, its answer read for its status alone: the

@@ -1,3 +1,6 @@
+use std::io::Read;
+
+use flate2::read::GzDecoder;
 use rail_model::condition::Refusal;
 use rail_model::endpoint::Endpoint;
 use rail_model::policy::{ChainOutcome, Decision, FallbackDenial, Outcome, TicketState};
@@ -254,4 +257,22 @@ async fn a_report_is_posted_once_to_rail_center_with_the_credential() {
 
     assert_posted(&server, "/v1/denials", r#"{"denied_at": "x"}"#);
     assert_eq!(answer.unwrap().status, StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+// As a call record document is: one Rail Center payload, one rule.
+#[tokio::test]
+async fn a_large_report_is_posted_gzipped() {
+    let server = serve(|_| Reply::Raw(response("202 Accepted", &[], b""))).await;
+    let sink = RailCenterDenials {
+        client: client(&server.url),
+    };
+    let json = serde_json::to_vec(&json!({"claimed_status": "x".repeat(64 * 1024)})).unwrap();
+    sink.send(json.clone()).await.unwrap();
+
+    let request = server.requests.lock().unwrap()[0].to_ascii_lowercase();
+    assert!(request.contains("content-encoding: gzip\r\n"), "{request}");
+    let body = server.bodies.lock().unwrap()[0].clone();
+    let mut sent = Vec::new();
+    GzDecoder::new(&body[..]).read_to_end(&mut sent).unwrap();
+    assert_eq!(sent, json);
 }

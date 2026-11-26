@@ -102,11 +102,10 @@ alone. Elsewhere, keep it reachable from Apigee only.
 
 ## Both hosts
 
-- **The Rail Center fetch.** It carries the service token, the denial reports and the proxy's call records out (a
-  document past 10 KiB gzipped), and a ticket, a capture plan, a bundle or the signing keys back. Its client refuses an
-  `http://` Rail Center unless `RAIL_CENTER_ALLOW_HTTP=true`, reads no proxy setting from the environment, follows no
-  redirect, caps what it reads, before and after decoding, and bounds the whole fetch. A way past one of these is a
-  report.
+- **The Rail Center fetch.** It carries the service token, the denial reports and the proxy's call records out (one past
+  10 KiB gzipped), and a ticket, a capture plan, a bundle or the signing keys back. Its client refuses an `http://` Rail
+  Center unless `RAIL_CENTER_ALLOW_HTTP=true`, reads no proxy setting from the environment, follows no redirect, caps
+  what it reads, before and after decoding, and bounds the whole fetch. A way past one of these is a report.
 - **The log.** Each field is quoted, or a JSON string, with what hides escaped, so a call's text can't forge a line or
   pass for an escape, and a secret is logged only as `set` or `unset`. The ticket is logged only as a fingerprint. A
   ticket, a token, or a header value other than the host reaching the log is a report.

@@ -37,8 +37,8 @@ Where Rail Center is: the base URL each route, such as `/v1/policy-bundle`, is a
   in the clear.
 - A host other URL parsers would read differently (`0x7f.1`, which is `127.0.0.1`) is refused, so the host reached is
   the one read in the value. A refusal never quotes the value, which may hold a credential.
-- A call record document past 10 KiB is posted gzipped, with `Content-Encoding: gzip`; a smaller one, and every denial
-  report, as it is.
+- A call record document or a denial report past 10 KiB is posted gzipped, with `Content-Encoding: gzip`; a smaller one
+  as it is.
 
 ### `RAIL_CENTER_ALLOW_HTTP`
 

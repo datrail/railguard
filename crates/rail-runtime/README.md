@@ -25,7 +25,7 @@ behave the same. See the [main README](../../README.md) for the system around it
     - forward it;
     - deny it (403);
     - refuse it as one the rules can't apply to (503), or one past the cap or cut short (413).
-  - `DenialReporter` reports each denial without the call waiting.
+  - `DenialReporter` reports each denial without the call waiting, gzipped past 10 KiB.
 - **The request:** a **`RequestGatherer`** reads a request once from its header lines and its body: whole within its cap
   and its budget (or adopted past the budget by the gateway's), else unread, as not sent, cut short (of its declared
   length, or where its host may have cut it), or past either.
