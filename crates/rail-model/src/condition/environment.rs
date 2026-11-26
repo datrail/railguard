@@ -87,7 +87,7 @@ static NOT_SENT: BodyRead = BodyRead::Unread(Unread::NotSent);
 /// reads it. One per call.
 #[derive(Debug)]
 pub struct Sources<'r> {
-    request: &'r ObservedRequest,
+    pub(crate) request: &'r ObservedRequest,
     request_line: OnceCell<RequestLine>,
     headers: OnceCell<Headers>,
 }
@@ -99,10 +99,6 @@ impl<'r> Sources<'r> {
             request_line: OnceCell::new(),
             headers: OnceCell::new(),
         }
-    }
-
-    pub(crate) fn request(&self) -> &'r ObservedRequest {
-        self.request
     }
 
     pub(crate) fn request_line(&self) -> &RequestLine {
@@ -117,8 +113,14 @@ impl<'r> Sources<'r> {
     }
 
     fn headers(&self) -> &Headers {
-        self.headers
-            .get_or_init(|| Headers::from_lines(self.request.header_lines()))
+        self.headers.get_or_init(|| {
+            Headers::from_lines(
+                self.request
+                    .headers
+                    .iter()
+                    .map(|(name, value)| (name.as_str(), value.as_str())),
+            )
+        })
     }
 }
 

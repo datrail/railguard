@@ -176,7 +176,7 @@ impl<'c> CallReader<'c> {
             // The proxy reads no ticket: it strips the agent's.
             environment: Environment::of(sources, None),
             budget: Budget::default(),
-            body_bytes: sources.request().body_bytes,
+            body_bytes: sources.request.body_bytes,
         }
     }
 

@@ -66,7 +66,7 @@ fn run_case(case: &Case, environments: &Named, plans: &NamedPlans) -> Result<Val
         record,
         call.request_line(),
         &opened.environment(),
-        call.request().body_bytes,
+        call.request.body_bytes,
         &mut budget,
     );
     Ok(encode_record_reading(record, &reading))

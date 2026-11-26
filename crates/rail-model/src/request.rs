@@ -19,7 +19,7 @@ pub struct ObservedRequest {
     pub(crate) method: WireText,
     /// `:path` as received: the path and its query, never decoded.
     pub(crate) path: WireText,
-    headers: Vec<(WireText, WireText)>,
+    pub(crate) headers: Vec<(WireText, WireText)>,
     pub(crate) body: BodyRead,
     /// Every byte of the body the host was sent, kept or not.
     pub(crate) body_bytes: u64,
@@ -49,13 +49,6 @@ impl ObservedRequest {
             body_bytes,
             endpoint: OnceLock::new(),
         }
-    }
-
-    /// Each header line as text.
-    pub(crate) fn header_lines(&self) -> impl Iterator<Item = (&str, &str)> {
-        self.headers
-            .iter()
-            .map(|(name, value)| (name.as_str(), value.as_str()))
     }
 
     /// What its decoded path and MCP message name, unless its body is unread.
