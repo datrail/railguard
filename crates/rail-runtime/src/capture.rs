@@ -18,7 +18,7 @@ use tokio::time::sleep;
 use crate::call_record::CallRecordReporter;
 use crate::capture_plan_holder::CapturePlanHolder;
 use crate::clock::WallClock;
-use crate::gather::{BodyEnding, Lines, RequestGatherer};
+use crate::gather::{BodyEnding, HeaderLines, RequestGatherer};
 use crate::runtime_thread::RuntimeThread;
 
 // Calls waiting for the capture task: past it, a call is dropped and counted.
@@ -146,7 +146,7 @@ impl CaptureSender {
         self.is_capturing().then(|| HeldRequest {
             gatherer: Some(RequestGatherer::start(
                 lines,
-                Lines::None,
+                HeaderLines::Dropped,
                 self.max_body_bytes,
                 &self.budget,
             )),

@@ -3,13 +3,13 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use rail_model::policy::Fallback;
-use rail_runtime::{Answer, Gateway, GatewaySettings};
+use rail_runtime::{Answer, BodyEnding, Gateway, GatewaySettings};
 use serde_json::json;
 use tokio::time::Instant;
 use tokio::time::timeout;
 
 use crate::bundles::{self, Script};
-use crate::calls::{Call, handle};
+use crate::calls::{Call, handle, handle_ended};
 use crate::holder::{TestClock, until};
 use crate::keys;
 use crate::scanning::{SCANNED, scanning, scanning_settings};
@@ -98,7 +98,7 @@ async fn with_no_bundle_a_post_takes_the_setting_and_any_other_call_is_forwarded
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_body_past_the_cap_is_refused_unjudged_whatever_the_method_and_one_at_it_judged() {
+async fn a_body_past_the_cap_or_cut_short_is_refused_unjudged_whatever_the_method() {
     let clock = TestClock::new();
     let bundle = bundles::denying_unticketed(json!({}));
     let at_cap = call("POST", None);
@@ -121,6 +121,18 @@ async fn a_body_past_the_cap_is_refused_unjudged_whatever_the_method_and_one_at_
         let sent = past(method);
         let (answer, _) = handle(&started.gateway, sent.clone()).await;
         assert_eq!(answer, Answer::TooLarge, "{method}");
+    }
+    // Cut short, refused whatever the method; not sent, a GET is still forwarded.
+    for (ending, answer) in [
+        (BodyEnding::CutShort, Answer::TooLarge),
+        (BodyEnding::NotSent, Answer::Forward),
+    ] {
+        let get = call("GET", None);
+        assert_eq!(
+            handle_ended(&started.gateway, get, ending).await.0,
+            answer,
+            "{ending:?}"
+        );
     }
     assert_eq!(handle(&started.gateway, at_cap).await.0, Answer::Deny);
     // Reports are sent on a task of their own: only the judged call's arrives.

@@ -201,3 +201,44 @@ fn test_reads_a_policys_headers_from_an_observed_request() {
         Verdict::Holds
     );
 }
+
+// Its authority reads as `host` only where no `host` line was sent, and an empty one as none.
+#[test]
+fn test_reads_a_requests_authority_as_host_where_no_host_line_was_sent() {
+    let cases = [
+        (
+            "a.test",
+            None,
+            json!({"path": "request.headers.host", "op": "eq", "value": "a.test"}),
+        ),
+        (
+            "a.test",
+            Some("b.test"),
+            json!({"path": "request.headers.host", "op": "eq", "value": "b.test"}),
+        ),
+        (
+            "",
+            None,
+            json!({"path": "request.headers.host", "op": "not_existing"}),
+        ),
+    ];
+    for (authority, host, condition) in cases {
+        let lines = host
+            .map(|host| (b"Host".to_vec(), host.as_bytes().to_vec()))
+            .into_iter()
+            .collect();
+        let (method, path) = (b"POST".to_vec(), b"/mcp".to_vec());
+        let request =
+            ObservedRequest::new(authority.into(), method, path, lines, keep_body(b"{}"), 2);
+        let compiled = compile_condition(
+            &serde_json::from_value(condition).unwrap(),
+            ConditionUse::GatewayPolicy,
+        );
+        let environment = Environment::of(&request, None);
+        assert_eq!(
+            evaluate_condition(&compiled, &environment, &mut Budget::default()).verdict,
+            Verdict::Holds,
+            "{authority:?} {host:?}"
+        );
+    }
+}

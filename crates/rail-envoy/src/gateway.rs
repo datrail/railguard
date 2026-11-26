@@ -57,14 +57,12 @@ impl Authorization for GatewayCallouts {
             Some(gateway) => {
                 let mut gatherer = gateway.gather(check_lines(&http));
                 let (body, ending) = take_body(&mut http);
-                // Shorter than its size, it was cut short too.
-                let short = usize::try_from(http.size).is_ok_and(|size| body.len() < size);
+                if ending == BodyEnding::NotSent {
+                    tracing::error!(
+                        "refused unjudged: Envoy sent no body; its ext_authz filter needs with_request_body"
+                    );
+                }
                 gatherer.adopt(body);
-                let ending = if short && ending != BodyEnding::NotSent {
-                    BodyEnding::CutShort
-                } else {
-                    ending
-                };
                 gateway.handle(gatherer.finish(ending)).await.0
             }
         };

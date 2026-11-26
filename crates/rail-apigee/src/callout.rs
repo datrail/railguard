@@ -58,20 +58,19 @@ impl ExternalCalloutService for Callout {
         let answer = match &self.gateway {
             Some(gateway) => {
                 let request = context.request.get_or_insert_default();
-                let line = [(":method", &request.verb), (":path", &request.uri)];
+                let line = [
+                    (":method", request.verb.as_str()),
+                    (":path", request.uri.as_str()),
+                ];
                 // Every item as a header line: Apigee splits a value on commas and sends each part
                 // as an item.
                 let items = request.headers.iter().flat_map(|(name, values)| {
                     values
                         .strings
                         .iter()
-                        .map(move |value| (name.as_str(), value))
+                        .map(move |value| (name.as_str(), value.as_str()))
                 });
-                let mut gatherer = gateway.gather(
-                    line.into_iter()
-                        .chain(items)
-                        .map(|(name, value)| (name.as_bytes(), value.as_bytes())),
-                );
+                let mut gatherer = gateway.gather(line.into_iter().chain(items));
                 // Moved in and back out: it can be up to 4 MiB.
                 gatherer.adopt(std::mem::take(&mut request.content).into_bytes());
                 let (answer, content) = gateway.handle(gatherer.finish(BodyEnding::Whole)).await;
@@ -86,7 +85,7 @@ impl ExternalCalloutService for Callout {
 }
 
 /// The received context, with only our changes in its maps: Apigee's own fields are returned as
-/// received, so none of them changes.
+/// received, so none of them changes, but a body refused past the cap, returned empty.
 pub fn build_answer(mut context: MessageContext, answer: Answer) -> MessageContext {
     let request = context.request.get_or_insert_default();
     // An empty list removes the header. `x-rail` is always named: a header that isn't there is

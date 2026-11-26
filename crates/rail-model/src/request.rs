@@ -59,6 +59,7 @@ impl ObservedRequest {
         }
     }
 
+    /// Its method as text, bytes that aren't UTF-8 replaced.
     pub fn method(&self) -> &str {
         self.method.as_str()
     }
@@ -72,10 +73,6 @@ impl ObservedRequest {
 
     pub fn body(&self) -> &BodyRead {
         &self.body
-    }
-
-    pub fn into_body(self) -> BodyRead {
-        self.body
     }
 
     /// The body's length: as declared, or the bytes received if more.

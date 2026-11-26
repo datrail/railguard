@@ -1,7 +1,7 @@
 //! What an MCP request body names: its method and tool.
 
+use super::Unparsed;
 use super::tree::{Kind, Member, Node};
-use super::{Unparsed, json};
 use crate::endpoint::{Resolution, resolve_endpoint};
 
 /// What a body names as an MCP message. Each case but `Read` names nothing, for its own reason.
@@ -24,9 +24,10 @@ pub enum McpReading {
 }
 
 impl McpReading {
-    /// Reads `body` as `RequestBody::mcp` does, with no budget, for a host that holds the bytes itself.
-    pub fn read(body: &[u8]) -> Self {
-        let tree = json::parse(body, &mut |_| true);
+    /// Reads `body` as `RequestBody::mcp` does, with no budget.
+    #[cfg(feature = "conformance")]
+    pub(crate) fn read(body: &[u8]) -> Self {
+        let tree = super::json::parse(body, &mut |_| true);
         let root = tree
             .as_ref()
             .map(|tree| tree.root(body))
@@ -110,6 +111,6 @@ fn read_text(member: Member<'_>) -> Result<Option<String>, McpReading> {
 
 /// What a message reading as `mcp`, sent to `path`, asks for. One without a method names no
 /// endpoint this reader can key.
-pub fn read_endpoint(path: &str, mcp: &McpReading) -> Resolution {
+pub(crate) fn read_endpoint(path: &str, mcp: &McpReading) -> Resolution {
     resolve_endpoint(path, mcp.method().unwrap_or(""), mcp.tool())
 }

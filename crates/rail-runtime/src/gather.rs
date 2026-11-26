@@ -31,9 +31,9 @@ pub enum BodyEnding {
 
 /// Which header lines a request keeps: capture's none, since plans read none.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Lines {
-    All,
-    None,
+pub enum HeaderLines {
+    Kept,
+    Dropped,
 }
 
 impl RequestGatherer {
@@ -41,7 +41,7 @@ impl RequestGatherer {
     /// and `:path` are its request line, the first `content-length` its declared length.
     pub fn start<N, V>(
         lines: impl IntoIterator<Item = (N, V)>,
-        keep: Lines,
+        keep: HeaderLines,
         cap_bytes: usize,
         budget: &Arc<ByteBudget>,
     ) -> Self
@@ -64,7 +64,7 @@ impl RequestGatherer {
                         length_seen = true;
                         declared = read_length(value.as_ref());
                     }
-                    if keep == Lines::All {
+                    if keep == HeaderLines::Kept {
                         header_lines.push((name.to_vec(), value.into()));
                     }
                     continue;
@@ -85,8 +85,7 @@ impl RequestGatherer {
         }
     }
 
-    /// For a host whose declared length isn't checked against its body.
-    pub fn ignore_declared_length(&mut self) {
+    pub(crate) fn ignore_declared_length(&mut self) {
         self.declared = None;
     }
 

@@ -41,7 +41,7 @@ pub enum Answer {
     Deny,
     /// The rules couldn't be applied to the call: 503.
     CannotApply,
-    /// The body is past what's judged: 413.
+    /// The body is past what's judged, or cut short: 413.
     TooLarge,
 }
 

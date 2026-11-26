@@ -47,7 +47,7 @@ pub use denial::{Denial, DenialReporter, DenialSink, DeniedBy, RailCenterDenials
 pub use gateway::{Answer, UnitSettings};
 pub use gateway_call::{Gateway, GatewaySettings};
 pub use gateway_start::start_gateway;
-pub use gather::{BodyEnding, Lines, RequestGatherer};
+pub use gather::{BodyEnding, HeaderLines, RequestGatherer};
 pub use key_set::{KeySet, KeySetHolder, KeySource, RailCenterKeys};
 pub use logging::{read_log_format, read_log_level};
 pub use protected_hosts::{ProtectedHost, ProtectedHosts, read_protected_hosts};

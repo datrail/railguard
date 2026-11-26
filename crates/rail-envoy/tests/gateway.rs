@@ -274,19 +274,6 @@ async fn full_duplex_holds_every_answer_until_judged_then_sends_the_body_back_wh
     assert_eq!(removed(&bodiless[0]), WITHHELD);
     assert!(matches!(bodiless[1], Response::RequestTrailers(_)));
 
-    // `:authority` reads as `host`, as an HTTP/1 request's would.
-    let by_host = process(
-        &socket.path,
-        duplex,
-        vec![
-            post_to("denied.example", false),
-            chunk(&tool_call("allowed", 0), true),
-        ],
-    )
-    .await
-    .unwrap();
-    assert_eq!(refused(&by_host[0]).0, 403);
-
     let denied = process(
         &socket.path,
         duplex,
@@ -651,7 +638,7 @@ async fn ext_authz_judges_the_body_sent_and_never_a_body_cut_short() {
         check(&socket.path, &[], &allowed, length(&allowed) + 1).await,
         too_large
     );
-    // No body sent at all, its size known or not: the filter has no `with_request_body`.
+    // No body sent at all, its size known: the filter has no `with_request_body`.
     let cannot_apply = Err((
         503,
         r#"{"error": "policy ruleset cannot be applied"}"#.to_owned(),
@@ -660,7 +647,6 @@ async fn ext_authz_judges_the_body_sent_and_never_a_body_cut_short() {
         check(&socket.path, &[], &[], length(&allowed)).await,
         cannot_apply
     );
-    assert_eq!(check(&socket.path, &[], &[], -1).await, cannot_apply);
     // Past gRPC's own 4 MiB default, whole in one message.
     let large = tool_call("allowed", 5 * 1024 * 1024);
     assert!(
@@ -677,15 +663,20 @@ async fn ext_authz_judges_the_body_sent_and_never_a_body_cut_short() {
             "{flag:?}"
         );
     }
-    // `:authority` reads as `host`.
-    let host = [(":authority", "denied.example")];
-    assert_eq!(
-        check(&socket.path, &host, &allowed, length(&allowed))
-            .await
-            .unwrap_err()
-            .0,
-        403
-    );
+    // `:authority` reads as `host`, and a `host` line sent stands alone.
+    for host in [(":authority", "denied.example"), ("host", "denied.example")] {
+        assert_eq!(
+            check(&socket.path, &[host], &allowed, length(&allowed))
+                .await
+                .unwrap_err()
+                .0,
+            403,
+            "{host:?}"
+        );
+    }
+    // A declared length isn't checked against the body yet.
+    let declared = [("content-length", "99")];
+    assert!(check(&socket.path, &declared, &allowed, -1).await.is_ok());
 }
 
 #[tokio::test(flavor = "multi_thread")]

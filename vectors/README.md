@@ -71,11 +71,12 @@ a Rust test's.
 
 ### Shared inputs
 
-- **`environments.json`:** named environments, each built as its use builds it. One `for` judging: the ticket's claims
-  (`null` for no usable ticket, so every ticket path is absent), the `endpoint` (`keyless`, `unrecognised` or
-  `{"resolved": key}`) and the `headers` as sent; its request line reads absent, its body as not sent. One `for`
-  capture: a call, with no ticket and no header lines, its endpoint the one its path and body name; a body unread reads
-  its endpoint key as unread.
+- **`environments.json`:** named environments. One `for` judging, a policy's sample as `for_judging` builds it (the
+  gateway builds its own from the request, a policy reading it alike but for `host`, taken from `:authority`): the
+  ticket's claims (`null` for no usable ticket, so every ticket path is absent), the `endpoint` (`keyless`,
+  `unrecognised` or `{"resolved": key}`) and the `headers` as sent; its request line reads absent, its body as not sent.
+  One `for` capture: a call, with no ticket and no header lines, its endpoint the one its path and body name; a body
+  unread reads its endpoint key as unread.
 - **A call:** its `authority`, `method` and `path` as sent; its `body` as text, as `{"hex": …}` for bytes that aren't
   UTF-8, as `{"unread": why}` (`past_cap`, `past_budget`, `not_sent`, `cut_short`), or as `{"text": …, "bytes": n}`,
   where `<N bytes>` stands for N bytes of `x` and the text is padded with spaces to `bytes`; `body_bytes`, its length as

@@ -18,7 +18,7 @@ use crate::callout::{GATEWAY_MAX_BODY_MB, MB};
 use crate::clock::WallClock;
 use crate::denial::DenialReporter;
 use crate::gateway::{Answer, Unit, UnitSettings, decode_x_rail, judge_call};
-use crate::gather::{Lines, RequestGatherer};
+use crate::gather::{HeaderLines, RequestGatherer};
 use crate::key_set::KeySetHolder;
 
 // The longest a call waits for a bundle, and for a key it names: each within the deadline too.
@@ -98,7 +98,7 @@ impl Gateway {
     {
         let mut gatherer = RequestGatherer::start(
             lines,
-            Lines::All,
+            HeaderLines::Kept,
             self.settings.max_body_bytes,
             &self.budget,
         );
@@ -142,12 +142,8 @@ impl Gateway {
                 return Answer::TooLarge;
             }
             _ if call.method() != "POST" => return Answer::Forward,
-            BodyRead::Unread(Unread::NotSent) => {
-                tracing::error!(
-                    "refused unjudged: the host sent no body; Envoy's ext_authz filter needs with_request_body"
-                );
-                return Answer::CannotApply;
-            }
+            // Logged by its host, which knows what it wasn't configured to send.
+            BodyRead::Unread(Unread::NotSent) => return Answer::CannotApply,
             BodyRead::Whole(_) => {}
         }
         let now = Instant::now();
@@ -212,13 +208,11 @@ impl Gateway {
 
 // Its body's bytes, moved out unless a judgement past its deadline still reads them: then copied.
 fn into_bytes(call: Arc<ObservedRequest>) -> Vec<u8> {
-    let body = Arc::try_unwrap(call)
-        .map_or_else(|shared| shared.body().clone(), ObservedRequest::into_body);
-    match body {
-        BodyRead::Whole(body) => Arc::try_unwrap(body)
-            .map_or_else(|shared| shared.as_bytes().to_vec(), RequestBody::into_bytes),
-        BodyRead::Unread(_) => Vec::new(),
-    }
+    let BodyRead::Whole(body) = call.body().clone() else {
+        return Vec::new();
+    };
+    drop(call);
+    Arc::try_unwrap(body).map_or_else(|shared| shared.as_bytes().to_vec(), RequestBody::into_bytes)
 }
 
 // Stops the judgement once the call is answered or dropped: nobody waits for it then.
