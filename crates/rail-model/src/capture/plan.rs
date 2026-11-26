@@ -67,7 +67,7 @@ pub struct Entry {
 }
 
 /// What a call's record holds: an entry's, or the catch-all's, whose keys are only the built-in
-/// ones and whose measures only the three every record holds.
+/// ones and whose measures only the two every record holds.
 #[derive(Debug, Deserialize)]
 pub struct Record {
     pub context_keys: Vec<ContextKey>,
@@ -106,7 +106,6 @@ pub enum ContextKey {
 #[serde(try_from = "Fields")]
 pub enum Measure {
     CallCount,
-    ErrorCount,
     /// The whole body's size, as sent.
     RequestBytes,
     Named {
@@ -159,7 +158,6 @@ impl Measure {
     pub(crate) fn name(&self) -> &str {
         match self {
             Self::CallCount => "call_count",
-            Self::ErrorCount => "error_count",
             Self::RequestBytes => "request_bytes",
             Self::Named { name, .. } => name,
         }
@@ -279,14 +277,10 @@ fn check_catch_all(catch_all: &CatchAll) -> Result<(), String> {
     check_measures(measures)
 }
 
-// A set by name, holding the three every record does.
+// A set by name, holding the two every record does.
 fn check_measures(measures: &[Measure]) -> Result<(), String> {
     unique("measure", measures.iter().map(Measure::name))?;
-    for built_in in [
-        Measure::CallCount,
-        Measure::ErrorCount,
-        Measure::RequestBytes,
-    ] {
+    for built_in in [Measure::CallCount, Measure::RequestBytes] {
         if !measures.contains(&built_in) {
             return Err(format!("no {} measure", built_in.name()));
         }
@@ -372,10 +366,8 @@ impl TryFrom<Fields> for Measure {
     fn try_from(fields: Fields) -> Result<Self, String> {
         let name = read_name(fields.name, "measure")?;
         let at = format!("measure {name}");
-        match name.as_str() {
-            "call_count" => return Ok(Self::CallCount),
-            "error_count" => return Ok(Self::ErrorCount),
-            _ => {}
+        if name == "call_count" {
+            return Ok(Self::CallCount);
         }
         let combine = present(fields.combine, "type", &at)?;
         let function = present(fields.function, "function", &at)?;

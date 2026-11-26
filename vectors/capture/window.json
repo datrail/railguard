@@ -140,13 +140,11 @@
         "hosts": [
           {
             "host": "api.github.com",
-            "count": 5,
-            "error_count": 0
+            "count": 5
           },
           {
             "host": "hooks.slack.com",
-            "count": 2,
-            "error_count": 0
+            "count": 2
           }
         ],
         "records": [
@@ -161,7 +159,6 @@
             },
             "measures": {
               "call_count": 2,
-              "error_count": 0,
               "request_bytes": 41384,
               "argument_bytes": 40964
             }
@@ -177,7 +174,6 @@
             },
             "measures": {
               "call_count": 1,
-              "error_count": 0,
               "request_bytes": 512214,
               "argument_bytes": 512002
             }
@@ -193,7 +189,6 @@
             },
             "measures": {
               "call_count": 1,
-              "error_count": 0,
               "request_bytes": 5318,
               "argument_bytes": 5122
             }
@@ -209,7 +204,6 @@
             },
             "measures": {
               "call_count": 1,
-              "error_count": 0,
               "request_bytes": 300
             }
           },
@@ -224,7 +218,6 @@
             },
             "measures": {
               "call_count": 2,
-              "error_count": 0,
               "request_bytes": 3072
             }
           }
@@ -260,7 +253,7 @@
           }
         ]
       },
-      "note": "The capture design's worked example (section 3), but where the proxy departs from it: error_count is 0, a string's size counts its quotes, and truncated adds values_replaced and values_ambiguous."
+      "note": "The capture design's worked example (section 3), but where the proxy departs from it: no error_count, a string's size counts its quotes, and truncated adds values_replaced and values_ambiguous."
     },
     {
       "id": "a-hashed-key-written-as-its-hash",
@@ -322,9 +315,6 @@
             "measures": [
               {
                 "name": "call_count"
-              },
-              {
-                "name": "error_count"
               },
               {
                 "name": "request_bytes",
@@ -492,13 +482,11 @@
         "hosts": [
           {
             "host": "api.github.com",
-            "count": 5,
-            "error_count": 0
+            "count": 5
           },
           {
             "host": "hooks.slack.com",
-            "count": 2,
-            "error_count": 0
+            "count": 2
           }
         ],
         "records": [
@@ -513,7 +501,6 @@
             },
             "measures": {
               "call_count": 2,
-              "error_count": 0,
               "request_bytes": 41384,
               "argument_bytes": 40964
             }
@@ -529,7 +516,6 @@
             },
             "measures": {
               "call_count": 1,
-              "error_count": 0,
               "request_bytes": 512214,
               "argument_bytes": 512002
             }
@@ -545,7 +531,6 @@
             },
             "measures": {
               "call_count": 1,
-              "error_count": 0,
               "request_bytes": 5318,
               "argument_bytes": 5122
             }
@@ -561,7 +546,6 @@
             },
             "measures": {
               "call_count": 1,
-              "error_count": 0,
               "request_bytes": 300
             }
           },
@@ -576,7 +560,6 @@
             },
             "measures": {
               "call_count": 2,
-              "error_count": 0,
               "request_bytes": 3072
             }
           }
@@ -690,9 +673,6 @@
                   "name": "call_count"
                 },
                 {
-                  "name": "error_count"
-                },
-                {
                   "name": "request_bytes",
                   "type": "sum",
                   "function": "size",
@@ -742,9 +722,6 @@
             "measures": [
               {
                 "name": "call_count"
-              },
-              {
-                "name": "error_count"
               },
               {
                 "name": "request_bytes",
@@ -821,8 +798,7 @@
         "hosts": [
           {
             "host": "api.github.com",
-            "count": 1,
-            "error_count": 0
+            "count": 1
           }
         ],
         "records": [
@@ -837,7 +813,6 @@
             },
             "measures": {
               "call_count": 1,
-              "error_count": 0,
               "request_bytes": 140,
               "argument_bytes": 3
             }
@@ -923,9 +898,6 @@
                   "name": "call_count"
                 },
                 {
-                  "name": "error_count"
-                },
-                {
                   "name": "request_bytes",
                   "type": "sum",
                   "function": "size",
@@ -975,9 +947,6 @@
             "measures": [
               {
                 "name": "call_count"
-              },
-              {
-                "name": "error_count"
               },
               {
                 "name": "request_bytes",
@@ -1078,8 +1047,7 @@
         "hosts": [
           {
             "host": "api.github.com",
-            "count": 3,
-            "error_count": 0
+            "count": 3
           }
         ],
         "records": [
@@ -1094,7 +1062,6 @@
             },
             "measures": {
               "call_count": 3,
-              "error_count": 0,
               "request_bytes": 420,
               "argument_bytes": 9
             }
@@ -1182,9 +1149,6 @@
             "measures": [
               {
                 "name": "call_count"
-              },
-              {
-                "name": "error_count"
               },
               {
                 "name": "request_bytes",
@@ -1299,8 +1263,7 @@
         "hosts": [
           {
             "host": "api.github.com",
-            "count": 3,
-            "error_count": 0
+            "count": 3
           }
         ],
         "records": [
@@ -1315,7 +1278,6 @@
             },
             "measures": {
               "call_count": 2,
-              "error_count": 0,
               "request_bytes": 289
             }
           },
@@ -1330,7 +1292,6 @@
             },
             "measures": {
               "call_count": 1,
-              "error_count": 0,
               "request_bytes": 157,
               "argument_bytes": 3
             }
@@ -1491,8 +1452,7 @@
         "hosts": [
           {
             "host": "api.github.com",
-            "count": 3,
-            "error_count": 0
+            "count": 3
           }
         ],
         "records": [
@@ -1507,7 +1467,6 @@
             },
             "measures": {
               "call_count": 3,
-              "error_count": 0,
               "request_bytes": 420,
               "argument_bytes": 9
             }
@@ -1606,9 +1565,6 @@
                   "name": "call_count"
                 },
                 {
-                  "name": "error_count"
-                },
-                {
                   "name": "request_bytes",
                   "type": "sum",
                   "function": "size",
@@ -1658,9 +1614,6 @@
             "measures": [
               {
                 "name": "call_count"
-              },
-              {
-                "name": "error_count"
               },
               {
                 "name": "request_bytes",
@@ -1821,13 +1774,11 @@
         "hosts": [
           {
             "host": "api.github.com",
-            "count": 7,
-            "error_count": 0
+            "count": 7
           },
           {
             "host": "[overflow]",
-            "count": 1,
-            "error_count": 0
+            "count": 1
           }
         ],
         "records": [
@@ -1842,7 +1793,6 @@
             },
             "measures": {
               "call_count": 2,
-              "error_count": 0,
               "request_bytes": 280,
               "argument_bytes": 6
             }
@@ -1858,7 +1808,6 @@
             },
             "measures": {
               "call_count": 2,
-              "error_count": 0,
               "request_bytes": 230
             }
           },
@@ -1870,7 +1819,6 @@
             },
             "measures": {
               "call_count": 4,
-              "error_count": 0,
               "request_bytes": 282
             }
           }
@@ -1962,9 +1910,6 @@
             "measures": [
               {
                 "name": "call_count"
-              },
-              {
-                "name": "error_count"
               },
               {
                 "name": "request_bytes",
@@ -2079,18 +2024,15 @@
         "hosts": [
           {
             "host": "api.github.com",
-            "count": 1,
-            "error_count": 0
+            "count": 1
           },
           {
             "host": "hooks.slack.com",
-            "count": 1,
-            "error_count": 0
+            "count": 1
           },
           {
             "host": "[overflow]",
-            "count": 1,
-            "error_count": 0
+            "count": 1
           }
         ],
         "records": [
@@ -2105,7 +2047,6 @@
             },
             "measures": {
               "call_count": 2,
-              "error_count": 0,
               "request_bytes": 280,
               "argument_bytes": 6
             }
@@ -2121,7 +2062,6 @@
             },
             "measures": {
               "call_count": 1,
-              "error_count": 0,
               "request_bytes": 115
             }
           }
@@ -2193,9 +2133,6 @@
             "measures": [
               {
                 "name": "call_count"
-              },
-              {
-                "name": "error_count"
               },
               {
                 "name": "request_bytes",
@@ -2322,18 +2259,15 @@
         "hosts": [
           {
             "host": "a.example",
-            "count": 1,
-            "error_count": 0
+            "count": 1
           },
           {
             "host": "b.example",
-            "count": 1,
-            "error_count": 0
+            "count": 1
           },
           {
             "host": "[overflow]",
-            "count": 2,
-            "error_count": 0
+            "count": 2
           }
         ],
         "records": [
@@ -2348,7 +2282,6 @@
             },
             "measures": {
               "call_count": 4,
-              "error_count": 0,
               "request_bytes": 560,
               "argument_bytes": 12
             }
@@ -2461,8 +2394,7 @@
         "hosts": [
           {
             "host": "api.github.com",
-            "count": 3,
-            "error_count": 0
+            "count": 3
           }
         ],
         "records": [
@@ -2477,7 +2409,6 @@
             },
             "measures": {
               "call_count": 1,
-              "error_count": 0,
               "request_bytes": 137,
               "argument_bytes": 0
             }
@@ -2493,7 +2424,6 @@
             },
             "measures": {
               "call_count": 1,
-              "error_count": 0,
               "request_bytes": 156,
               "argument_bytes": 0
             }
@@ -2509,7 +2439,6 @@
             },
             "measures": {
               "call_count": 1,
-              "error_count": 0,
               "request_bytes": 128,
               "argument_bytes": 0
             }
@@ -2618,13 +2547,11 @@
         "hosts": [
           {
             "host": "api.github.com",
-            "count": 2,
-            "error_count": 0
+            "count": 2
           },
           {
             "host": "[unparseable]",
-            "count": 1,
-            "error_count": 0
+            "count": 1
           }
         ],
         "records": [
@@ -2639,7 +2566,6 @@
             },
             "measures": {
               "call_count": 1,
-              "error_count": 0,
               "request_bytes": 132
             }
           },
@@ -2654,7 +2580,6 @@
             },
             "measures": {
               "call_count": 1,
-              "error_count": 0,
               "request_bytes": 0
             }
           },
@@ -2669,7 +2594,6 @@
             },
             "measures": {
               "call_count": 1,
-              "error_count": 0,
               "request_bytes": 0
             }
           }
@@ -2766,8 +2690,7 @@
         "hosts": [
           {
             "host": "hooks.slack.com",
-            "count": 2,
-            "error_count": 0
+            "count": 2
           }
         ],
         "records": [
@@ -2782,7 +2705,6 @@
             },
             "measures": {
               "call_count": 2,
-              "error_count": 0,
               "request_bytes": 18446744073709551615
             }
           }
@@ -2860,9 +2782,6 @@
                 "name": "call_count"
               },
               {
-                "name": "error_count"
-              },
-              {
                 "name": "request_bytes",
                 "type": "sum",
                 "function": "size",
@@ -2928,9 +2847,6 @@
             "measures": [
               {
                 "name": "call_count"
-              },
-              {
-                "name": "error_count"
               },
               {
                 "name": "request_bytes",
@@ -3033,8 +2949,7 @@
         "hosts": [
           {
             "host": "api.github.com",
-            "count": 2,
-            "error_count": 0
+            "count": 2
           }
         ],
         "records": [
@@ -3049,7 +2964,6 @@
             },
             "measures": {
               "call_count": 1,
-              "error_count": 0,
               "request_bytes": 140,
               "argument_bytes": 3
             }
@@ -3065,7 +2979,6 @@
             },
             "measures": {
               "call_count": 1,
-              "error_count": 0,
               "request_bytes": 130,
               "argument_bytes": 3
             }
@@ -3142,9 +3055,6 @@
             "measures": [
               {
                 "name": "call_count"
-              },
-              {
-                "name": "error_count"
               },
               {
                 "name": "request_bytes",
@@ -3235,8 +3145,7 @@
         "hosts": [
           {
             "host": "api.github.com",
-            "count": 1,
-            "error_count": 0
+            "count": 1
           }
         ],
         "records": [
@@ -3251,7 +3160,6 @@
             },
             "measures": {
               "call_count": 1,
-              "error_count": 0,
               "request_bytes": 140
             }
           }
@@ -3404,8 +3312,7 @@
         "hosts": [
           {
             "host": "api.github.com",
-            "count": 8,
-            "error_count": 0
+            "count": 8
           }
         ],
         "records": [
@@ -3420,7 +3327,6 @@
             },
             "measures": {
               "call_count": 7,
-              "error_count": 0,
               "request_bytes": 70168
             }
           },
@@ -3435,7 +3341,6 @@
             },
             "measures": {
               "call_count": 1,
-              "error_count": 0,
               "request_bytes": 62
             }
           }

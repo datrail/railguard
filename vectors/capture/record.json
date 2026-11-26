@@ -23,9 +23,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -50,7 +47,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           }
@@ -82,9 +78,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -101,7 +94,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           },
@@ -140,9 +132,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -167,7 +156,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           }
@@ -200,9 +188,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -219,7 +204,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           },
@@ -260,9 +244,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -287,7 +268,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           }
@@ -321,9 +301,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -340,7 +317,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           },
@@ -379,9 +355,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -404,7 +377,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           }
@@ -436,9 +408,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -455,7 +424,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           },
@@ -494,9 +462,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -513,7 +478,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 27
           },
@@ -551,9 +515,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -576,7 +537,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           }
@@ -607,9 +567,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -626,7 +583,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           },
@@ -665,9 +621,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -690,7 +643,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           }
@@ -722,9 +674,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -741,7 +690,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           },
@@ -780,9 +728,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -805,7 +750,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           }
@@ -837,9 +781,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -856,7 +797,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           },
@@ -895,9 +835,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -918,7 +855,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           }
@@ -950,9 +886,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -969,7 +902,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           },
@@ -1004,9 +936,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -1027,7 +956,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           }
@@ -1059,9 +987,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -1078,7 +1003,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           },
@@ -1114,9 +1038,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -1137,7 +1058,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           }
@@ -1169,9 +1089,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -1188,7 +1105,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           },
@@ -1220,9 +1136,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -1245,7 +1158,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           }
@@ -1274,9 +1186,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -1293,7 +1202,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           },
@@ -1330,9 +1238,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -1357,7 +1262,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           }
@@ -1387,9 +1291,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -1406,7 +1307,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           },
@@ -1444,9 +1344,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -1467,7 +1364,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           }
@@ -1497,9 +1393,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -1516,7 +1409,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           },
@@ -1554,9 +1446,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -1581,7 +1470,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           }
@@ -1612,9 +1500,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -1631,7 +1516,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           },
@@ -1668,9 +1552,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -1695,7 +1576,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           }
@@ -1725,9 +1605,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -1744,7 +1621,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           },
@@ -1781,9 +1657,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -1808,7 +1681,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           }
@@ -1838,9 +1710,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -1857,7 +1726,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           },
@@ -1894,9 +1762,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -1921,7 +1786,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           }
@@ -1951,9 +1815,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -1970,7 +1831,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           },
@@ -2007,9 +1867,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -2034,7 +1891,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           }
@@ -2064,9 +1920,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -2083,7 +1936,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           },
@@ -2137,9 +1989,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -2156,7 +2005,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           },
@@ -2210,9 +2058,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -2244,7 +2089,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           }
@@ -2273,9 +2117,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -2300,7 +2141,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 3211
           }
@@ -2328,9 +2168,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -2355,7 +2192,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 3211
           }
@@ -2383,9 +2219,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -2410,7 +2243,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 3211
           }
@@ -2440,9 +2272,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -2467,7 +2296,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 3211
           }
@@ -2496,9 +2324,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -2523,7 +2348,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 3211
           }
@@ -2553,9 +2377,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -2580,7 +2401,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 3211
           }
@@ -2610,9 +2430,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -2637,7 +2454,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 3211
           }
@@ -2667,9 +2483,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -2694,7 +2507,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 3211
           }
@@ -2723,9 +2535,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -2750,7 +2559,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 3211
           }
@@ -2779,9 +2587,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -2806,7 +2611,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 3211
           }
@@ -2834,9 +2638,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -2859,7 +2660,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 3211
           }
@@ -2888,9 +2688,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -2911,7 +2708,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 3211
           }
@@ -2940,9 +2736,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -2967,7 +2760,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 3211
           }
@@ -2996,9 +2788,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -3023,7 +2812,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 972
           }
@@ -3051,9 +2839,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -3078,7 +2863,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 972
           }
@@ -3106,9 +2890,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -3133,7 +2914,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 972
           }
@@ -3161,9 +2941,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -3188,7 +2965,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 972
           }
@@ -3216,9 +2992,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -3243,7 +3016,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 972
           }
@@ -3271,9 +3043,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -3298,7 +3067,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 972
           }
@@ -3326,9 +3094,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -3353,7 +3118,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 972
           }
@@ -3381,9 +3145,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -3408,7 +3169,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 972
           }
@@ -3436,9 +3196,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -3463,7 +3220,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 972
           }
@@ -3491,9 +3247,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -3518,7 +3271,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 972
           }
@@ -3546,9 +3298,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -3573,7 +3322,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 972
           }
@@ -3601,9 +3349,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -3628,7 +3373,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 972
           }
@@ -3656,9 +3400,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -3683,7 +3424,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 972
           }
@@ -3711,9 +3451,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -3738,7 +3475,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 972
           }
@@ -3766,9 +3502,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -3793,7 +3526,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 972
           }
@@ -3821,9 +3553,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -3848,7 +3577,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 972
           }
@@ -3876,9 +3604,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -3903,7 +3628,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 972
           }
@@ -3931,9 +3655,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -3958,7 +3679,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 972
           }
@@ -3986,9 +3706,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -4013,7 +3730,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 972
           }
@@ -4041,9 +3757,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -4068,7 +3781,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 972
           }
@@ -4096,9 +3808,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -4123,7 +3832,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 972
           }
@@ -4151,9 +3859,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -4178,7 +3883,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 972
           }
@@ -4206,9 +3910,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -4233,7 +3934,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 972
           }
@@ -4263,9 +3963,6 @@
         "measures": [
           {
             "name": "call_count"
-          },
-          {
-            "name": "error_count"
           },
           {
             "name": "request_bytes",
@@ -4303,7 +4000,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           }
@@ -4328,9 +4024,6 @@
         "measures": [
           {
             "name": "call_count"
-          },
-          {
-            "name": "error_count"
           },
           {
             "name": "request_bytes",
@@ -4358,7 +4051,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 289
           }
@@ -4378,9 +4070,6 @@
         "measures": [
           {
             "name": "call_count"
-          },
-          {
-            "name": "error_count"
           },
           {
             "name": "request_bytes",
@@ -4403,7 +4092,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 2
           }
@@ -4426,9 +4114,6 @@
         "measures": [
           {
             "name": "call_count"
-          },
-          {
-            "name": "error_count"
           },
           {
             "name": "request_bytes",
@@ -4458,7 +4143,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 51
           }
@@ -4481,9 +4165,6 @@
         "measures": [
           {
             "name": "call_count"
-          },
-          {
-            "name": "error_count"
           },
           {
             "name": "request_bytes",
@@ -4511,7 +4192,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 0
           }
@@ -4534,9 +4214,6 @@
         "measures": [
           {
             "name": "call_count"
-          },
-          {
-            "name": "error_count"
           },
           {
             "name": "request_bytes",
@@ -4564,7 +4241,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 62
           }
@@ -4594,9 +4270,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -4621,7 +4294,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 120
           }
@@ -4653,9 +4325,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -4672,7 +4341,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 120
           },
@@ -4711,9 +4379,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -4730,7 +4395,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 120
           },
@@ -4769,9 +4433,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -4788,7 +4449,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 70000
           },
@@ -4825,9 +4485,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -4852,7 +4509,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 8
           }
@@ -4882,9 +4538,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -4901,7 +4554,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 8
           },
@@ -4938,9 +4590,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -4961,7 +4610,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 0
           }
@@ -4989,9 +4637,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -5016,7 +4661,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 120
           }
@@ -5039,9 +4683,6 @@
         "measures": [
           {
             "name": "call_count"
-          },
-          {
-            "name": "error_count"
           },
           {
             "name": "request_bytes",
@@ -5073,7 +4714,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 120
           }
@@ -5101,9 +4741,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -5127,7 +4764,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 80
           }
@@ -5155,9 +4791,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -5181,7 +4814,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 80
           }
@@ -5211,9 +4843,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -5231,7 +4860,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 80
           },
@@ -5268,9 +4896,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -5288,7 +4913,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 80
           },
@@ -5335,9 +4959,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -5366,7 +4987,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 80
           }
@@ -5402,9 +5022,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -5421,7 +5038,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 142
           },
@@ -5463,9 +5079,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -5486,7 +5099,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 142
           }
@@ -5517,9 +5129,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -5536,7 +5145,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 142
           },
@@ -5592,9 +5200,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -5633,7 +5238,6 @@
         },
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 2
           }
@@ -5674,9 +5278,6 @@
             "name": "call_count"
           },
           {
-            "name": "error_count"
-          },
-          {
             "name": "request_bytes",
             "type": "sum",
             "function": "size",
@@ -5693,7 +5294,6 @@
         "context_keys": {},
         "measures": {
           "call_count": "call_count",
-          "error_count": "error_count",
           "request_bytes": {
             "request_bytes": 2
           },

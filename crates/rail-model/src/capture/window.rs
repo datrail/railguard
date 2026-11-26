@@ -211,11 +211,7 @@ impl Window {
             hosts: self
                 .hosts
                 .into_iter()
-                .map(|(host, count)| HostTotal {
-                    host,
-                    count,
-                    error_count: 0,
-                })
+                .map(|(host, count)| HostTotal { host, count })
                 .collect(),
             records: self.records.into_values().collect(),
             sequence,
@@ -415,7 +411,6 @@ fn write(
         .iter()
         .map(|reading| match reading {
             MeasureReading::CallCount => 1,
-            MeasureReading::ErrorCount => 0,
             MeasureReading::RequestBytes(bytes) => *bytes,
             MeasureReading::SizeInBytes(paths) => paths
                 .iter()

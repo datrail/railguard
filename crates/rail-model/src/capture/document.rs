@@ -119,8 +119,6 @@ pub(crate) struct BodyUnreadCounts {
 pub(crate) struct HostTotal {
     pub(crate) host: String,
     pub(crate) count: u64,
-    /// 0 until the contract defines an error and the callout sees responses.
-    pub(crate) error_count: u64,
 }
 
 #[derive(Debug, Serialize)]

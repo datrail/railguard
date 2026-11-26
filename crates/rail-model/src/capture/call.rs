@@ -82,7 +82,6 @@ pub enum KeyReading {
 #[derive(Debug, PartialEq)]
 pub enum MeasureReading {
     CallCount,
-    ErrorCount,
     /// The body's bytes as sent, read or not.
     RequestBytes(u64),
     /// What each of its paths adds.
@@ -243,7 +242,6 @@ pub(crate) fn read_record(
         .iter()
         .map(|measure| match measure {
             Measure::CallCount => MeasureReading::CallCount,
-            Measure::ErrorCount => MeasureReading::ErrorCount,
             Measure::RequestBytes => MeasureReading::RequestBytes(body_bytes),
             Measure::Named {
                 function: MeasureFunction::SizeInBytes,

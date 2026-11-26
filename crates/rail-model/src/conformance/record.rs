@@ -97,7 +97,6 @@ fn encode_key_reading(reading: &KeyReading) -> Value {
 fn encode_measure_reading(reading: &MeasureReading) -> Value {
     match reading {
         MeasureReading::CallCount => json!("call_count"),
-        MeasureReading::ErrorCount => json!("error_count"),
         MeasureReading::RequestBytes(bytes) => json!({"request_bytes": bytes}),
         MeasureReading::SizeInBytes(readings) => json!({"size_in_bytes": readings
             .iter()

@@ -70,7 +70,6 @@ fn test_reads_the_worked_example_as_written() {
         entry.record.measures,
         [
             Measure::CallCount,
-            Measure::ErrorCount,
             Measure::RequestBytes,
             Measure::Named {
                 name: "argument_bytes".into(),
@@ -92,11 +91,7 @@ fn test_reads_the_worked_example_as_written() {
     );
     assert_eq!(
         plan.catch_all.record.measures,
-        [
-            Measure::CallCount,
-            Measure::ErrorCount,
-            Measure::RequestBytes
-        ]
+        [Measure::CallCount, Measure::RequestBytes]
     );
 }
 
