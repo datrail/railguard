@@ -9,10 +9,10 @@ use serde_json::{Map, Value};
 use super::value::{Bytes, decode_unread, keep};
 use super::{DEFAULT_BYTE_BUDGET, read_written};
 use crate::body::BodyRead;
-use crate::capture::ObservedCall;
-use crate::condition::{Environment, Headers};
+use crate::capture::capture_environment;
+use crate::condition::Environment;
 use crate::endpoint::Endpoint;
-use crate::request_line::RequestLine;
+use crate::request::{Headers, ObservedRequest};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -74,7 +74,7 @@ enum BodySpec {
 }
 
 impl CallSpec {
-    pub(super) fn to_call(&self) -> Result<ObservedCall, String> {
+    pub(super) fn to_call(&self) -> Result<ObservedRequest, String> {
         let sent = |bytes: &[u8]| match keep(bytes, self.byte_budget.unwrap_or(DEFAULT_BYTE_BUDGET))
         {
             Ok(body) => BodyRead::Whole(Arc::new(body)),
@@ -91,13 +91,14 @@ impl CallSpec {
             BodySpec::Shorthand { text, bytes } => sent(&expand(text, *bytes)?),
             BodySpec::Sent(bytes) => sent(&bytes.to_bytes()?),
         };
-        Ok(ObservedCall {
-            authority: self.authority.to_bytes()?,
-            method: self.method.to_bytes()?,
-            path: self.path.to_bytes()?,
+        Ok(ObservedRequest::new(
+            self.authority.to_bytes()?,
+            self.method.to_bytes()?,
+            self.path.to_bytes()?,
+            Vec::new(),
             body,
-            body_bytes: self.body_bytes,
-        })
+            self.body_bytes,
+        ))
     }
 }
 
@@ -126,20 +127,20 @@ fn expand(text: &str, bytes: Option<usize>) -> Result<Vec<u8>, String> {
     Ok((expanded + &" ".repeat(padding)).into_bytes())
 }
 
-/// An environment's sources, owned, for an `Environment` to borrow.
-pub(super) enum Sources {
+/// What an environment reads, owned.
+pub(super) enum Built {
     Judging {
         ticket: Option<Map<String, Value>>,
         endpoint: Endpoint,
         headers: Headers,
     },
     Capture {
-        call: ObservedCall,
-        request_line: RequestLine,
+        call: Box<ObservedRequest>,
     },
 }
 
-impl Sources {
+impl Built {
+    /// The environment, built as its use builds it.
     pub(super) fn environment(&self) -> Environment<'_> {
         match self {
             Self::Judging {
@@ -147,16 +148,14 @@ impl Sources {
                 endpoint,
                 headers,
             } => Environment::for_judging(ticket.as_ref(), endpoint, headers),
-            Self::Capture { call, request_line } => {
-                Environment::for_capture(request_line, &call.body)
-            }
+            Self::Capture { call } => capture_environment(call),
         }
     }
 
     /// The call, for an environment built for capture.
-    pub(super) fn call(&self) -> Result<(&ObservedCall, &RequestLine), String> {
+    pub(super) fn call(&self) -> Result<&ObservedRequest, String> {
         match self {
-            Self::Capture { call, request_line } => Ok((call, request_line)),
+            Self::Capture { call } => Ok(call),
             Self::Judging { .. } => Err("an environment for judging, which holds no call".into()),
         }
     }
@@ -172,7 +171,7 @@ impl Named {
         Ok(Self(file.environments))
     }
 
-    pub(super) fn build(&self, name: &str) -> Result<Sources, String> {
+    pub(super) fn build(&self, name: &str) -> Result<Built, String> {
         let spec = self
             .0
             .get(name)
@@ -182,7 +181,7 @@ impl Named {
                 ticket,
                 endpoint,
                 headers,
-            } => Sources::Judging {
+            } => Built::Judging {
                 ticket: ticket.clone(),
                 endpoint: match endpoint {
                     EndpointSpec::Keyless => Endpoint::Keyless,
@@ -191,11 +190,9 @@ impl Named {
                 },
                 headers: Headers::from_lines(headers.iter().map(|(name, value)| (name, value))),
             },
-            Spec::Capture { call } => {
-                let call = call.to_call()?;
-                let request_line = RequestLine::read(&call.authority, &call.method, &call.path);
-                Sources::Capture { call, request_line }
-            }
+            Spec::Capture { call } => Built::Capture {
+                call: Box::new(call.to_call()?),
+            },
         })
     }
 }

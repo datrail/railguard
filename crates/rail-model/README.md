@@ -28,9 +28,16 @@ By module:
   reader refuses it or only Rail Center; **`compile_condition`** and **`evaluate_condition`** evaluate one, as the judge
   does. A **`Path`** is spelled as a dotted string or as a list, in a bundle or a plan; it's read for a
   **`ConditionUse`** (a gateway policy, a capture plan entry's match), which decides the paths it reads; a condition is
-  compiled for one and evaluated in the **`Environment`** that use fills (`for_judging`, or `for_capture`, from a
-  **`RequestLine`** and the body). A body value that can't be told, or isn't read, is a verdict of its own (`Ambiguous`,
-  `BodyUnread`), never false; a refusal keeps its cause.
+  compiled for one and evaluated in an **`Environment`**: **`Environment::of`** an **`ObservedRequest`** and its
+  ticket's claims; `for_judging` a call given as a policy reads it (its claims, endpoint and headers), its request line
+  read as absent and its body as not sent. A body value that can't be told, or isn't read, is a verdict of its own
+  (`Ambiguous`, `BodyUnread`), never false; a refusal keeps its cause.
+- **`request`:** **`ObservedRequest`**, an agent's request as a host received it, before any rewrite: its request line
+  as sent, the header lines its host passes (capture's carry none), its body as a `BodyRead` and its length; its
+  **`RequestLine`**, its **`Headers`** as conditions read them (names lowercased, values split on commas) and the
+  endpoint it names, each read once, when first read. **`read_path`** reads a URI's path as the gateway does;
+  **`XRAIL`** is the header carrying an agent's ticket; **`is_withheld_header`** tells an agent's header kept from the
+  upstream: `x-rail`, `x-rail-*`, or any name with `_`.
 - **`endpoint`:** **`Endpoint`** and **`ResolvedKey`**, the endpoint a call asks for, keyed as a bundle binds it, and
   **`Resolution`**, whether a message is judged at all.
 - **`agent`:** **`AgentId`**, which agent a host serves, as Rail Center names it: its tickets are fetched for it, and a
@@ -50,7 +57,7 @@ By module:
   with a condition it can't evaluate for a plan is refused with why (**`EntryRefusal`**), and a call reaching it goes to
   the catch-all; nothing else is checked, Rail Center's own rules for a plan being its own. An entry is tried only for
   the host an `eq` on `request.host` among its conditions names, as written, or for every host if none does.
-  **`CompiledPlan::capture`** matches an **`ObservedCall`**, what the callout hands over, as a **`CapturedCall`**:
+  **`CompiledPlan::capture`** matches an **`ObservedRequest`**, what the callout hands over, as a **`CapturedCall`**:
   **`Taken`** by the first entry whose conditions all hold, or by the catch-all and why (**`Untaken`**: no entry took
   it, its path can't match one, or its walk stopped at an entry refused, one whose conditions read a body value that
   can't be told or a body unread, or one that spent the step budget); and what that record, the entry's or the

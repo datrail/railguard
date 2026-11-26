@@ -2,8 +2,10 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use rail_model::body::{BodyRead, Unread};
-use rail_model::capture::{ObservedCall, Window, compile_plan, parse_plan};
+use rail_model::capture::{Window, compile_plan, parse_plan};
 use serde_json::Value;
+
+use crate::observed;
 
 const PLANS: &str = include_str!("../../../../vectors/capture/plans.json");
 
@@ -17,12 +19,14 @@ fn test_tells_what_a_closed_window_holds() {
     let mut plan = plans["plans"]["worked-example"].clone();
     plan["budget"]["max_unsent_windows"] = 3.into();
     let compiled = Arc::new(compile_plan(parse_plan(&plan.to_string()).unwrap()));
-    let call = |path: &str| ObservedCall {
-        authority: b"api.github.com".to_vec(),
-        method: b"GET".to_vec(),
-        path: path.as_bytes().to_vec(),
-        body: BodyRead::Unread(Unread::NotSent),
-        body_bytes: 0,
+    let call = |path: &str| {
+        observed(
+            "api.github.com",
+            "GET",
+            path,
+            BodyRead::Unread(Unread::NotSent),
+            0,
+        )
     };
     // (paths called, calls dropped) and what the closed window holds: its records and steps,
     // and whether it's empty.

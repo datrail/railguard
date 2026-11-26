@@ -31,7 +31,7 @@ pub(super) fn run_cases(text: &str, environments: &Named) -> Result<Vec<Outcome>
 }
 
 fn run_case(case: &Case, environments: &Named) -> Result<Value, String> {
-    let sources = environments.build(&case.environment)?;
+    let built = environments.build(&case.environment)?;
     // Refused as read, its use never resolving it; or as resolved, in the environment.
     let path = match read_path(&case.path, case.use_case) {
         Err(refused) => return Ok(json!({"refused_reading": refused})),
@@ -39,7 +39,7 @@ fn run_case(case: &Case, environments: &Named) -> Result<Value, String> {
     };
     let mut budget = build_budget(case.step_limit);
     Ok(
-        match resolve_path(&path, &sources.environment(), &mut budget) {
+        match resolve_path(&path, &built.environment(), &mut budget) {
             Ok((lookup, _)) => encode_lookup(&lookup),
             Err(refusal) => encode_refusal(refusal),
         },

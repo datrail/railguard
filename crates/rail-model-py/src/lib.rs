@@ -11,14 +11,15 @@ mod _native {
     use pyo3::types::{PyBytes, PyBytesMethods};
     use pyo3::{Bound, IntoPyObject, PyResult, pyclass, pyfunction};
     use rail_model::condition::{
-        Budget, ConditionUse, Environment, Evaluation, Headers, Items, Lookup, Refusal,
-        TicketClaimsSchema, Verdict,
+        Budget, ConditionUse, Environment, Evaluation, Items, Lookup, Refusal, TicketClaimsSchema,
+        Verdict,
     };
     use rail_model::endpoint::Endpoint;
     use rail_model::policy::{
         Decision, EnforcementMode, FallbackDenial, JudgingMode, SignedTicketConfig, TicketState,
         Tracer, judge_traced, parse_bundle, parse_ticket,
     };
+    use rail_model::request::Headers;
     use rail_model::sanitize::sanitize;
     use serde::Serialize;
     use serde_json::{Map, Value};

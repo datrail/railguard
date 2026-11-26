@@ -3,10 +3,13 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use rail_model::body::{BodyRead, Unread};
 use rail_model::capture::{
-    CallOutcome, ClosedWindow, CompiledPlan, ObservedCall, Windowing, compile_plan, parse_plan,
+    CallOutcome, ClosedWindow, CompiledPlan, Windowing, compile_plan, parse_plan,
 };
+use rail_model::request::ObservedRequest;
 use serde_json::Value;
 use uuid::Uuid;
+
+use crate::observed;
 
 const PLANS: &str = include_str!("../../../../vectors/capture/plans.json");
 
@@ -28,17 +31,11 @@ fn plans() -> [Arc<CompiledPlan>; 2] {
     })
 }
 
-fn call(method: &str, path: &str, why: Unread) -> ObservedCall {
-    ObservedCall {
-        authority: b"api.github.com".to_vec(),
-        method: method.as_bytes().to_vec(),
-        path: path.as_bytes().to_vec(),
-        body: BodyRead::Unread(why),
-        body_bytes: 0,
-    }
+fn call(method: &str, path: &str, why: Unread) -> ObservedRequest {
+    observed("api.github.com", method, path, BodyRead::Unread(why), 0)
 }
 
-fn get() -> ObservedCall {
+fn get() -> ObservedRequest {
     call("GET", "/a", Unread::NotSent)
 }
 

@@ -7,9 +7,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime};
 
 use rail_model::body::{BodyBuffer, BodyRead, ByteBudget, Unread};
-use rail_model::capture::{
-    BodyUnreadReason, CallOutcome, ClosedWindow, CompiledPlan, ObservedCall, Windowing,
-};
+use rail_model::capture::{BodyUnreadReason, CallOutcome, ClosedWindow, CompiledPlan, Windowing};
+use rail_model::request::ObservedRequest;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::{mpsc, oneshot};
@@ -62,7 +61,7 @@ pub struct Capture {
 #[derive(Clone)]
 pub struct CaptureSender {
     plans: Arc<CapturePlanHolder>,
-    calls: mpsc::Sender<ObservedCall>,
+    calls: mpsc::Sender<ObservedRequest>,
     // Calls the full queue turned away, read into the open window.
     dropped: Arc<AtomicU64>,
     // Past it, a body is handed over unread.
@@ -148,7 +147,7 @@ impl CaptureSender {
     }
 
     /// Hands `call` over; one the full queue turns away is counted as dropped.
-    pub fn send(&self, call: ObservedCall) {
+    pub fn send(&self, call: ObservedRequest) {
         if let Err(TrySendError::Full(_)) = self.calls.try_send(call) {
             self.dropped.fetch_add(1, Ordering::Relaxed);
         }
@@ -198,13 +197,14 @@ impl CaptureSender {
                 (body, body_bytes)
             }
         };
-        self.send(ObservedCall {
-            authority: request.authority.to_vec(),
-            method: request.method.to_vec(),
-            path: request.path.to_vec(),
+        self.send(ObservedRequest::new(
+            request.authority.to_vec(),
+            request.method.to_vec(),
+            request.path.to_vec(),
+            Vec::new(),
             body,
             body_bytes,
-        });
+        ));
     }
 }
 
@@ -229,7 +229,7 @@ struct Task {
 impl Task {
     async fn run(
         mut self,
-        mut queued: mpsc::Receiver<ObservedCall>,
+        mut queued: mpsc::Receiver<ObservedRequest>,
         mut stopped: oneshot::Receiver<()>,
     ) {
         let mut changes = self.plans.changes();
@@ -280,7 +280,7 @@ impl Task {
         self.hand_over(closed, gone);
     }
 
-    fn record(&mut self, call: &ObservedCall) {
+    fn record(&mut self, call: &ObservedRequest) {
         let (plan, now) = self.read();
         let gone = plan.is_none();
         // The window the call's time closes handed over first, so a panic below can't lose it.

@@ -5,7 +5,7 @@
 use std::sync::{Arc, Mutex};
 
 use rail_model::body::{BodyRead, Unread};
-use rail_model::capture::{ClosedWindow, ObservedCall, Window, compile_plan, parse_plan};
+use rail_model::capture::{ClosedWindow, Window, compile_plan, parse_plan};
 use rail_runtime::{CallRecordReporter, CallRecordSink, FetchError, Jitter};
 use reqwest::StatusCode;
 use serde_json::{Value, json};
@@ -13,6 +13,7 @@ use tokio::runtime::Handle;
 use tokio::sync::Semaphore;
 
 use crate::capture_plans::{hash, plan};
+use crate::captures::{post, to_catch_all};
 use crate::holder::TestClock;
 use crate::scripted::{Answer, Script, answer};
 
@@ -97,13 +98,7 @@ pub fn window(max_unsent_windows: u32, paths: &[&str]) -> ClosedWindow {
     let clock = TestClock::new();
     let mut window = Window::open(plan, clock.at(0));
     for path in paths {
-        let call = ObservedCall {
-            authority: b"api.github.com".to_vec(),
-            method: b"GET".to_vec(),
-            path: path.as_bytes().to_vec(),
-            body: BodyRead::Unread(Unread::NotSent),
-            body_bytes: 0,
-        };
+        let call = post(path, BodyRead::Unread(Unread::NotSent));
         window.record(&call, clock.at(1));
     }
     window.close(clock.at(2))
@@ -118,13 +113,7 @@ pub fn window_of(calls: u32) -> ClosedWindow {
     let plan = Arc::new(compile_plan(parse_plan(&plan.to_string()).unwrap()));
     let clock = TestClock::new();
     let mut window = Window::open(plan, clock.at(0));
-    let call = ObservedCall {
-        authority: b"api.github.com".to_vec(),
-        method: b"GET".to_vec(),
-        path: b"/a".to_vec(),
-        body: BodyRead::Unread(Unread::NotSent),
-        body_bytes: 0,
-    };
+    let call = to_catch_all();
     for _ in 0..calls {
         window.record(&call, clock.at(1));
     }

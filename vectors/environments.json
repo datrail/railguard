@@ -295,6 +295,22 @@
       },
       "body_bytes": 60
     },
+    "capture-path-escaped-tools-call": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/m%63p?x=1",
+      "body": "{\"method\": \"tools/call\", \"params\": {\"name\": \"a\"}}",
+      "body_bytes": 49
+    },
+    "capture-body-session": {
+      "for": "capture",
+      "authority": "mcp.example.com",
+      "method": "POST",
+      "path": "/mcp",
+      "body": "{\"method\": \"initialize\"}",
+      "body_bytes": 24
+    },
     "capture-host-unparseable": {
       "for": "capture",
       "authority": "user@mcp.example.com",

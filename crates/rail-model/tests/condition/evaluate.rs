@@ -3,14 +3,14 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use rail_model::body::BodyRead;
 use rail_model::condition::{
-    Budget, Condition, ConditionUse, Environment, Headers, Predicate, Refusal, Verdict,
-    compile_condition, evaluate_condition,
+    Budget, Condition, ConditionUse, Environment, Predicate, Refusal, Verdict, compile_condition,
+    evaluate_condition,
 };
 use rail_model::endpoint::Endpoint;
-use rail_model::request_line::RequestLine;
+use rail_model::request::{Headers, ObservedRequest};
 use serde_json::{Value, json};
 
-use crate::keep_body;
+use crate::{keep_body, observed};
 
 fn evaluate_on_header(condition: Value, value: &str, budget: &mut Budget) -> Verdict {
     let condition: Condition = serde_json::from_value(condition).unwrap();
@@ -117,9 +117,15 @@ fn test_charges_a_long_value_by_its_length() {
 
 // As a plan writes a condition, its path a list.
 fn evaluate_on_call(condition: Value, body: &BodyRead, budget: &mut Budget) -> Verdict {
-    let request_line = RequestLine::read(b"mcp.example", b"POST", b"/finretail-production-mcp/mcp");
+    let request = observed(
+        "mcp.example",
+        "POST",
+        "/finretail-production-mcp/mcp",
+        body.clone(),
+        0,
+    );
     let predicate: Predicate = serde_json::from_value(condition).unwrap();
-    let environment = Environment::for_capture(&request_line, body);
+    let environment = Environment::of(&request, None);
     evaluate_condition(
         &compile_condition(&Condition::Valid(predicate), ConditionUse::CapturePlan),
         &environment,
@@ -175,5 +181,23 @@ fn test_charges_a_key_by_the_members_it_reads() {
     assert_eq!(
         evaluate_on_call(first(), &body, &mut Budget::new(10)),
         Verdict::Refused(Refusal::BudgetExceeded)
+    );
+}
+
+// A policy reads a request's header lines, every value split on commas, a byte not UTF-8 replaced.
+#[test]
+fn test_reads_a_policys_headers_from_an_observed_request() {
+    let header = vec![(b"X-A".to_vec(), b"1, a\xff".to_vec())];
+    let (authority, method, path) = (b"mcp.example".to_vec(), b"POST".to_vec(), b"/mcp".to_vec());
+    let request = ObservedRequest::new(authority, method, path, header, keep_body(b"{}"), 2);
+    let condition = json!({"path": "request.headers.x-a", "op": "contains", "value": "a\u{fffd}"});
+    let compiled = compile_condition(
+        &serde_json::from_value(condition).unwrap(),
+        ConditionUse::GatewayPolicy,
+    );
+    let environment = Environment::of(&request, None);
+    assert_eq!(
+        evaluate_condition(&compiled, &environment, &mut Budget::default()).verdict,
+        Verdict::Holds
     );
 }

@@ -1,38 +1,24 @@
-//! A call as the callout hands it over, matched against a compiled plan, and what the record
-//! counting it, an entry's or the catch-all's, reads of it.
+//! A call matched against a compiled plan, and what the record counting it, an entry's or the
+//! catch-all's, reads of it.
 
 use sha2::{Digest, Sha256};
 
 use super::compile::{CompiledEntry, CompiledPlan, EntryRefusal};
 use super::plan::{CatchAll, ContextKey, Entry, KeyFunction, Measure, MeasureFunction, Record};
-use crate::body::BodyRead;
 use crate::condition::{
     BodyPath, BodyUnread, Budget, Environment, Items, Lookup, Path, Refusal, RequestPath, Verdict,
     evaluate_condition, resolve_path,
 };
 use crate::redaction::{REDACTED, is_secret_token};
-use crate::request_line::{HostReading, ReportedMethod, RequestLine, Unmatchable};
+use crate::request::ObservedRequest;
+use crate::request_line::{HostReading, ReportedMethod, Unmatchable};
 
 // Past this, a kept value could carry data of any length.
 const MAX_KEPT_CHARS: usize = 256;
 
-/// A call as the callout hands it to the capture thread, its request whole.
-#[derive(Debug)]
-pub struct ObservedCall {
-    /// `:authority` as the agent sent it, before the proxy rewrites it.
-    pub authority: Vec<u8>,
-    pub method: Vec<u8>,
-    /// `:path` as received: the path and its query, never decoded.
-    pub path: Vec<u8>,
-    pub body: BodyRead,
-    /// Every byte of the body the callout was sent, kept or not.
-    pub body_bytes: u64,
-}
-
 /// A call matched against a plan, and what the record counting it reads of it.
 #[derive(Debug)]
 pub struct CapturedCall<'p> {
-    pub request_line: RequestLine,
     pub taken: Taken<'p>,
     /// What the record counting it reads: the taking entry's, or the catch-all's.
     pub record: RecordReading,
@@ -140,33 +126,25 @@ pub enum Replacement {
 
 impl CompiledPlan {
     /// Matches `call`, then reads what the record counting it holds.
-    pub fn capture(&self, call: &ObservedCall) -> CapturedCall<'_> {
-        let request_line = RequestLine::read(&call.authority, &call.method, &call.path);
-        let mut reader = CallReader::new(&request_line, call);
+    pub fn capture(&self, call: &ObservedRequest) -> CapturedCall<'_> {
+        let mut reader = CallReader::new(call);
         let taken = reader.take(self);
         let record = reader.read(taken.record().1);
-        CapturedCall {
-            request_line,
-            taken,
-            record,
-        }
+        CapturedCall { taken, record }
     }
 
     // The first entry taking the call, unless the walk stops first.
-    fn walk(
-        &self,
-        request_line: &RequestLine,
-        environment: &Environment,
-        budget: &mut Budget,
-    ) -> Result<&Entry, Untaken<'_>> {
+    fn walk(&self, call: &ObservedRequest, budget: &mut Budget) -> Result<&Entry, Untaken<'_>> {
+        let request_line = call.request_line();
         if let Some(why) = request_line.unmatchable() {
             return Err(Untaken::Unmatchable(why));
         }
+        let environment = capture_environment(call);
         for (entry, compiled) in self.entries_for(request_line.host()) {
             if let Some(refused) = compiled.refusal() {
                 return Err(Untaken::Refused(entry, refused));
             }
-            match answer(compiled, environment, budget) {
+            match answer(compiled, &environment, budget) {
                 Verdict::Holds => return Ok(entry),
                 Verdict::DoesNotHold => {}
                 Verdict::Ambiguous => return Err(Untaken::Ambiguous(entry)),
@@ -178,28 +156,24 @@ impl CompiledPlan {
     }
 }
 
-/// One call as it's read: its request line, the environment its conditions and records read, and
-/// its step budget, spent by matching it and reading its record alike.
+/// One call as it's read: the call, and its step budget, spent by matching it and reading its
+/// record alike.
 pub(crate) struct CallReader<'c> {
-    request_line: &'c RequestLine,
-    environment: Environment<'c>,
+    call: &'c ObservedRequest,
     budget: Budget,
-    body_bytes: u64,
 }
 
 impl<'c> CallReader<'c> {
-    pub(crate) fn new(request_line: &'c RequestLine, call: &'c ObservedCall) -> Self {
+    pub(crate) fn new(call: &'c ObservedRequest) -> Self {
         Self {
-            request_line,
-            environment: Environment::for_capture(request_line, &call.body),
+            call,
             budget: Budget::default(),
-            body_bytes: call.body_bytes,
         }
     }
 
     /// Which of `plan`'s records counts the call.
     pub(crate) fn take<'p>(&mut self, plan: &'p CompiledPlan) -> Taken<'p> {
-        match plan.walk(self.request_line, &self.environment, &mut self.budget) {
+        match plan.walk(self.call, &mut self.budget) {
             Ok(entry) => Taken::Entry(entry),
             Err(why) => Taken::CatchAll(&plan.plan().catch_all, why),
         }
@@ -207,14 +181,13 @@ impl<'c> CallReader<'c> {
 
     /// What `record` reads of the call.
     pub(crate) fn read(&mut self, record: &Record) -> RecordReading {
-        read_record(
-            record,
-            self.request_line,
-            &self.environment,
-            self.body_bytes,
-            &mut self.budget,
-        )
+        read_record(record, self.call, &mut self.budget)
     }
+}
+
+// The proxy reads no ticket: it strips the agent's.
+pub(crate) fn capture_environment(call: &ObservedRequest) -> Environment<'_> {
+    Environment::of(call, None)
 }
 
 // The entry's "and": a condition that doesn't hold, or a refusal, decides it; else the first that
@@ -241,11 +214,12 @@ pub(crate) fn answer(
 
 pub(crate) fn read_record(
     record: &Record,
-    request_line: &RequestLine,
-    environment: &Environment,
-    body_bytes: u64,
+    call: &ObservedRequest,
     budget: &mut Budget,
 ) -> RecordReading {
+    let request_line = call.request_line();
+    let environment = &capture_environment(call);
+    let body_bytes = call.body_bytes;
     let context_keys = record
         .context_keys
         .iter()

@@ -3404,6 +3404,29 @@
       }
     },
     {
+      "id": "a-path-not-utf-8-matches-no-entry",
+      "plan": "matching",
+      "call": {
+        "authority": "api.github.com",
+        "method": "POST",
+        "path": {
+          "hex": "2f6d63702fff"
+        },
+        "body": "{}",
+        "body_bytes": 2
+      },
+      "expect": {
+        "refused": [],
+        "entries_skipped": 0,
+        "taken": {
+          "catch_all": "catch_all",
+          "why": {
+            "unmatchable": "not_utf8"
+          }
+        }
+      }
+    },
+    {
       "id": "the-catch-alls-id-as-written",
       "plan": {
         "schema_version": "1.0",

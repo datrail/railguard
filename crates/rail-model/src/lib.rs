@@ -11,6 +11,7 @@ pub mod conformance;
 pub mod endpoint;
 pub mod policy;
 pub mod redaction;
+pub mod request;
 pub mod request_line;
 pub mod sanitize;
 pub mod schema_version;
