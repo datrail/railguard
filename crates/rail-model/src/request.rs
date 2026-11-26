@@ -59,6 +59,15 @@ impl ObservedRequest {
         }
     }
 
+    pub fn body(&self) -> &BodyRead {
+        &self.body
+    }
+
+    /// Every byte of the body the host was sent, kept or not.
+    pub fn body_bytes(&self) -> u64 {
+        self.body_bytes
+    }
+
     /// Its authority, method and path as matching reads them.
     pub(crate) fn request_line(&self) -> &RequestLine {
         self.request_line.get_or_init(|| {

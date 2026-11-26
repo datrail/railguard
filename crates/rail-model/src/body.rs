@@ -160,6 +160,21 @@ impl BodyBuffer {
         self.bytes.extend_from_slice(chunk);
     }
 
+    /// Keeps `body` as `append` would, without a copy if it's the first: its capacity charged.
+    pub fn adopt(&mut self, body: Vec<u8>) {
+        if self.received_bytes != 0 {
+            return self.append(&body);
+        }
+        self.received_bytes = body.len() as u64;
+        if body.len() > self.cap_bytes {
+            return self.drop_bytes(Unkept::PastCap);
+        }
+        if !self.charge.grow(body.capacity()) {
+            return self.drop_bytes(Unkept::PastBudget);
+        }
+        self.bytes = body;
+    }
+
     /// Every byte appended, kept or not.
     pub fn received_bytes(&self) -> u64 {
         self.received_bytes
