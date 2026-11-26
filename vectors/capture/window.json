@@ -315,7 +315,13 @@
             "measures": [
               {
                 "name": "call_count",
-                "type": "count"
+                "type": "sum",
+                "function": "is_set",
+                "paths": [
+                  [
+                    "request"
+                  ]
+                ]
               },
               {
                 "name": "request_bytes",
@@ -672,7 +678,13 @@
               "measures": [
                 {
                   "name": "call_count",
-                  "type": "count"
+                  "type": "sum",
+                  "function": "is_set",
+                  "paths": [
+                    [
+                      "request"
+                    ]
+                  ]
                 },
                 {
                   "name": "request_bytes",
@@ -724,7 +736,13 @@
             "measures": [
               {
                 "name": "call_count",
-                "type": "count"
+                "type": "sum",
+                "function": "is_set",
+                "paths": [
+                  [
+                    "request"
+                  ]
+                ]
               },
               {
                 "name": "request_bytes",
@@ -825,7 +843,7 @@
       }
     },
     {
-      "id": "a-count-over-a-path-counts-a-call-where-it-finds-a-value-a-loss-counted-nothing-there-not",
+      "id": "is-set-over-a-path-adds-a-call-where-it-finds-a-value-a-loss-counted-nothing-there-not",
       "plan": {
         "schema_version": "1.0",
         "content_hash": "sha256:fb3733bbe47258024770ac2cc2521f60c5709ddc2a31b87744ed1c213229d77c",
@@ -861,11 +879,18 @@
               "measures": [
                 {
                   "name": "call_count",
-                  "type": "count"
+                  "type": "sum",
+                  "function": "is_set",
+                  "paths": [
+                    [
+                      "request"
+                    ]
+                  ]
                 },
                 {
                   "name": "with_content",
-                  "type": "count",
+                  "type": "sum",
+                  "function": "is_set",
                   "paths": [
                     [
                       "request",
@@ -901,7 +926,13 @@
             "measures": [
               {
                 "name": "call_count",
-                "type": "count"
+                "type": "sum",
+                "function": "is_set",
+                "paths": [
+                  [
+                    "request"
+                  ]
+                ]
               },
               {
                 "name": "request_bytes",
@@ -1123,7 +1154,13 @@
               "measures": [
                 {
                   "name": "call_count",
-                  "type": "count"
+                  "type": "sum",
+                  "function": "is_set",
+                  "paths": [
+                    [
+                      "request"
+                    ]
+                  ]
                 },
                 {
                   "name": "request_bytes",
@@ -1175,7 +1212,13 @@
             "measures": [
               {
                 "name": "call_count",
-                "type": "count"
+                "type": "sum",
+                "function": "is_set",
+                "paths": [
+                  [
+                    "request"
+                  ]
+                ]
               },
               {
                 "name": "request_bytes",
@@ -1378,7 +1421,13 @@
             "measures": [
               {
                 "name": "call_count",
-                "type": "count"
+                "type": "sum",
+                "function": "is_set",
+                "paths": [
+                  [
+                    "request"
+                  ]
+                ]
               },
               {
                 "name": "request_bytes",
@@ -1793,7 +1842,13 @@
               "measures": [
                 {
                   "name": "call_count",
-                  "type": "count"
+                  "type": "sum",
+                  "function": "is_set",
+                  "paths": [
+                    [
+                      "request"
+                    ]
+                  ]
                 },
                 {
                   "name": "request_bytes",
@@ -1845,7 +1900,13 @@
             "measures": [
               {
                 "name": "call_count",
-                "type": "count"
+                "type": "sum",
+                "function": "is_set",
+                "paths": [
+                  [
+                    "request"
+                  ]
+                ]
               },
               {
                 "name": "request_bytes",
@@ -2142,7 +2203,13 @@
             "measures": [
               {
                 "name": "call_count",
-                "type": "count"
+                "type": "sum",
+                "function": "is_set",
+                "paths": [
+                  [
+                    "request"
+                  ]
+                ]
               },
               {
                 "name": "request_bytes",
@@ -2366,7 +2433,13 @@
             "measures": [
               {
                 "name": "call_count",
-                "type": "count"
+                "type": "sum",
+                "function": "is_set",
+                "paths": [
+                  [
+                    "request"
+                  ]
+                ]
               },
               {
                 "name": "request_bytes",
@@ -3014,7 +3087,13 @@
             "measures": [
               {
                 "name": "call_count",
-                "type": "count"
+                "type": "sum",
+                "function": "is_set",
+                "paths": [
+                  [
+                    "request"
+                  ]
+                ]
               },
               {
                 "name": "request_bytes",
@@ -3082,7 +3161,13 @@
             "measures": [
               {
                 "name": "call_count",
-                "type": "count"
+                "type": "sum",
+                "function": "is_set",
+                "paths": [
+                  [
+                    "request"
+                  ]
+                ]
               },
               {
                 "name": "request_bytes",
@@ -3291,7 +3376,13 @@
             "measures": [
               {
                 "name": "call_count",
-                "type": "count"
+                "type": "sum",
+                "function": "is_set",
+                "paths": [
+                  [
+                    "request"
+                  ]
+                ]
               },
               {
                 "name": "request_bytes",

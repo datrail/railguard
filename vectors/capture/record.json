@@ -21,7 +21,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -48,7 +54,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -85,7 +97,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -104,7 +122,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -128,7 +152,7 @@
       }
     },
     {
-      "id": "count-body-string",
+      "id": "is-set-body-string",
       "environment": "capture-sample",
       "record_of": "entry",
       "record": {
@@ -136,7 +160,8 @@
         "measures": [
           {
             "name": "m",
-            "type": "count",
+            "type": "sum",
+            "function": "is_set",
             "paths": [
               [
                 "request",
@@ -149,7 +174,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -168,7 +199,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -180,9 +217,11 @@
             ]
           },
           "m": {
-            "count": [
+            "is_set": [
               {
-                "found": null
+                "found": {
+                  "set": true
+                }
               }
             ]
           }
@@ -210,7 +249,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -237,7 +282,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -275,7 +326,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -294,7 +351,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -340,7 +403,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -367,7 +436,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -406,7 +481,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -425,7 +506,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -469,7 +556,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -494,7 +587,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -531,7 +630,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -550,7 +655,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -594,7 +705,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -613,7 +730,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -656,7 +779,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -681,7 +810,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -717,7 +852,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -736,7 +877,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -780,7 +927,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -805,7 +958,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -842,7 +1001,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -861,7 +1026,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -905,7 +1076,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -930,7 +1107,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -967,7 +1150,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -986,7 +1175,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -1030,7 +1225,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -1053,7 +1254,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -1090,7 +1297,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -1109,7 +1322,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -1129,7 +1348,7 @@
       }
     },
     {
-      "id": "count-body-null",
+      "id": "is-set-body-null",
       "environment": "capture-sample",
       "record_of": "entry",
       "record": {
@@ -1137,7 +1356,8 @@
         "measures": [
           {
             "name": "m",
-            "type": "count",
+            "type": "sum",
+            "function": "is_set",
             "paths": [
               [
                 "request",
@@ -1150,7 +1370,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -1169,7 +1395,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -1181,8 +1413,12 @@
             ]
           },
           "m": {
-            "count": [
-              "absent"
+            "is_set": [
+              {
+                "found": {
+                  "set": false
+                }
+              }
             ]
           }
         }
@@ -1209,7 +1445,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -1232,7 +1474,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -1269,7 +1517,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -1288,7 +1542,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -1329,7 +1589,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -1352,7 +1618,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -1389,7 +1661,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -1408,7 +1686,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -1428,7 +1712,7 @@
       }
     },
     {
-      "id": "count-body-key-in-another-case",
+      "id": "is-set-body-key-in-another-case",
       "environment": "capture-sample",
       "record_of": "entry",
       "record": {
@@ -1436,7 +1720,8 @@
         "measures": [
           {
             "name": "m",
-            "type": "count",
+            "type": "sum",
+            "function": "is_set",
             "paths": [
               [
                 "request",
@@ -1449,7 +1734,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -1468,7 +1759,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -1480,7 +1777,7 @@
             ]
           },
           "m": {
-            "count": [
+            "is_set": [
               "ambiguous"
             ]
           }
@@ -1505,7 +1802,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -1530,7 +1833,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -1564,7 +1873,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -1583,7 +1898,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -1625,7 +1946,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -1652,7 +1979,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -1687,7 +2020,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -1706,7 +2045,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -1749,7 +2094,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -1772,7 +2123,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -1807,7 +2164,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -1826,7 +2189,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -1850,7 +2219,7 @@
       }
     },
     {
-      "id": "count-query-several-values-found",
+      "id": "is-set-query-several-values-found",
       "environment": "capture-sample",
       "record_of": "entry",
       "record": {
@@ -1858,7 +2227,8 @@
         "measures": [
           {
             "name": "m",
-            "type": "count",
+            "type": "sum",
+            "function": "is_set",
             "paths": [
               [
                 "request",
@@ -1869,7 +2239,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -1888,7 +2264,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -1900,9 +2282,11 @@
             ]
           },
           "m": {
-            "count": [
+            "is_set": [
               {
-                "found": null
+                "found": {
+                  "set": true
+                }
               }
             ]
           }
@@ -1929,7 +2313,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -1956,7 +2346,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -1992,7 +2388,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -2011,7 +2413,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -2053,7 +2461,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -2080,7 +2494,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -2115,7 +2535,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -2134,7 +2560,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -2176,7 +2608,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -2203,7 +2641,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -2238,7 +2682,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -2257,7 +2707,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -2299,7 +2755,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -2326,7 +2788,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -2361,7 +2829,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -2380,7 +2854,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -2422,7 +2902,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -2449,7 +2935,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -2484,7 +2976,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -2503,7 +3001,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -2562,7 +3066,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -2581,7 +3091,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -2640,7 +3156,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -2674,7 +3196,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -2708,7 +3236,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -2735,7 +3269,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -2768,7 +3308,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -2795,7 +3341,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -2828,7 +3380,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -2855,7 +3413,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -2890,7 +3454,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -2917,7 +3487,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -2951,7 +3527,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -2978,7 +3560,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -3013,7 +3601,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -3040,7 +3634,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -3075,7 +3675,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -3102,7 +3708,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -3137,7 +3749,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -3164,7 +3782,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -3198,7 +3822,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -3225,7 +3855,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -3259,7 +3895,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -3286,7 +3928,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -3319,7 +3967,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -3344,7 +3998,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -3378,7 +4038,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -3401,7 +4067,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -3435,7 +4107,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -3462,7 +4140,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -3496,7 +4180,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -3523,7 +4213,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -3556,7 +4252,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -3583,7 +4285,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -3616,7 +4324,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -3643,7 +4357,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -3676,7 +4396,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -3703,7 +4429,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -3736,7 +4468,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -3763,7 +4501,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -3796,7 +4540,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -3823,7 +4573,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -3856,7 +4612,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -3883,7 +4645,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -3916,7 +4684,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -3943,7 +4717,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -3976,7 +4756,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -4003,7 +4789,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -4036,7 +4828,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -4063,7 +4861,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -4096,7 +4900,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -4123,7 +4933,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -4156,7 +4972,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -4183,7 +5005,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -4216,7 +5044,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -4243,7 +5077,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -4276,7 +5116,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -4303,7 +5149,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -4336,7 +5188,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -4363,7 +5221,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -4396,7 +5260,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -4423,7 +5293,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -4456,7 +5332,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -4483,7 +5365,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -4516,7 +5404,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -4543,7 +5437,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -4576,7 +5476,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -4603,7 +5509,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -4636,7 +5548,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -4663,7 +5581,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -4696,7 +5620,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -4723,7 +5653,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -4756,7 +5692,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -4783,7 +5725,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -4816,7 +5764,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -4843,7 +5797,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -4880,7 +5840,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -4918,7 +5884,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -4950,7 +5922,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -4978,7 +5956,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -5005,7 +5989,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -5028,7 +6018,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -5058,7 +6054,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -5088,7 +6090,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -5118,7 +6126,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -5146,7 +6160,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -5176,7 +6196,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -5204,7 +6230,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -5239,7 +6271,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -5266,7 +6304,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -5303,7 +6347,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -5322,7 +6372,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -5346,7 +6402,7 @@
       }
     },
     {
-      "id": "unread-body-count",
+      "id": "unread-body-is-set",
       "environment": "capture-body-not-sent",
       "record_of": "entry",
       "record": {
@@ -5354,7 +6410,8 @@
         "measures": [
           {
             "name": "m",
-            "type": "count",
+            "type": "sum",
+            "function": "is_set",
             "paths": [
               [
                 "request",
@@ -5367,7 +6424,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -5386,7 +6449,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -5398,7 +6467,7 @@
             ]
           },
           "m": {
-            "count": [
+            "is_set": [
               {
                 "body_unread": {
                   "unread": "not_sent"
@@ -5430,7 +6499,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -5449,7 +6524,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -5493,7 +6574,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -5512,7 +6599,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -5554,7 +6647,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -5581,7 +6680,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -5616,7 +6721,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -5635,7 +6746,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -5677,7 +6794,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -5700,7 +6823,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -5733,7 +6862,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -5760,7 +6895,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -5790,7 +6931,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -5822,7 +6969,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -5855,7 +7008,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -5881,7 +7040,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -5914,7 +7079,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -5940,7 +7111,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -5975,7 +7152,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -5995,7 +7178,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -6017,7 +7206,7 @@
       }
     },
     {
-      "id": "count-past-the-step-limit-refused",
+      "id": "is-set-past-the-step-limit-refused",
       "environment": "capture-body-ten-members",
       "record_of": "entry",
       "record": {
@@ -6025,7 +7214,8 @@
         "measures": [
           {
             "name": "m",
-            "type": "count",
+            "type": "sum",
+            "function": "is_set",
             "paths": [
               [
                 "request",
@@ -6036,7 +7226,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -6056,7 +7252,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -6068,7 +7270,7 @@
             ]
           },
           "m": {
-            "count": [
+            "is_set": [
               {
                 "refused": "budget_exceeded"
               }
@@ -6098,7 +7300,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -6118,7 +7326,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -6170,7 +7384,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -6201,7 +7421,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -6242,7 +7468,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -6261,7 +7493,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -6308,7 +7546,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -6331,7 +7575,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -6367,7 +7617,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -6386,7 +7642,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -6447,7 +7709,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -6488,7 +7756,13 @@
         },
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [
@@ -6534,7 +7808,13 @@
           },
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -6553,7 +7833,13 @@
         "context_keys": {},
         "measures": {
           "call_count": {
-            "count": []
+            "is_set": [
+              {
+                "found": {
+                  "set": true
+                }
+              }
+            ]
           },
           "request_bytes": {
             "size_in_bytes": [

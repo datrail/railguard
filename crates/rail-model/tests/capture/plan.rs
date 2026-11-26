@@ -69,16 +69,17 @@ fn test_reads_the_worked_example_as_written() {
     assert_eq!(
         entry.record.measures,
         [
-            Measure::Count {
+            Measure {
                 name: "call_count".into(),
-                paths: Vec::new(),
+                function: MeasureFunction::IsSet,
+                paths: vec![Path::Request(RequestPath::Whole)],
             },
-            Measure::Sum {
+            Measure {
                 name: "request_bytes".into(),
                 function: MeasureFunction::SizeInBytes,
                 paths: vec![body(&[])],
             },
-            Measure::Sum {
+            Measure {
                 name: "argument_bytes".into(),
                 function: MeasureFunction::SizeInBytes,
                 paths: vec![body(&["params", "arguments", "content"])],
@@ -98,11 +99,12 @@ fn test_reads_the_worked_example_as_written() {
     assert_eq!(
         plan.catch_all.record.measures,
         [
-            Measure::Count {
+            Measure {
                 name: "call_count".into(),
-                paths: Vec::new(),
+                function: MeasureFunction::IsSet,
+                paths: vec![Path::Request(RequestPath::Whole)],
             },
-            Measure::Sum {
+            Measure {
                 name: "request_bytes".into(),
                 function: MeasureFunction::SizeInBytes,
                 paths: vec![body(&[])],
@@ -150,13 +152,14 @@ fn test_passes_over_a_key_or_measures_unknown_field_unread() {
             r#""field_type":"repository","x":1e400"#,
         ),
         (
-            r#"{"name":"call_count","type":"count"}"#,
-            r#"{"name":"call_count","type":"count","x":1e400}"#,
+            r#""paths":[["request"]],"type":"sum"}"#,
+            r#""paths":[["request"]],"type":"sum","x":1e400}"#,
         ),
         (r#"{"name":"host"}"#, r#"{"name":"host","x":1e400}"#),
     ] {
         let plan = vectors().plan.to_string().replacen(from, to, 1);
 
+        assert!(plan.contains(to), "{from} not in the plan");
         assert!(parse_plan(&plan).is_ok(), "{to}");
     }
 }

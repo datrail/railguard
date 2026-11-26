@@ -278,7 +278,7 @@ impl Window {
         let measures = spec
             .measures
             .iter()
-            .map(|measure| (measure.name().to_owned(), 0))
+            .map(|measure| (measure.name.clone(), 0))
             .collect();
         let record = CallRecord {
             record_id: record_id(self.records.len()),
@@ -410,39 +410,29 @@ fn write(
         .measures
         .iter()
         .map(|reading| match reading {
-            // 1 if every path found a value, with none too; nothing there is the answer, not a loss.
-            MeasureReading::Count(paths) => paths
-                .iter()
-                .map(|path| match path {
-                    PathReading::Found(()) => 1,
-                    PathReading::Absent => 0,
-                    PathReading::Ambiguous => {
-                        written.ambiguous = true;
-                        0
-                    }
-                    PathReading::BodyUnread(_) | PathReading::Refused(_) => {
-                        written.path_unresolved = true;
-                        0
-                    }
-                })
-                .product(),
-            MeasureReading::SizeInBytes(paths) => paths
-                .iter()
-                .map(|path| match path {
-                    PathReading::Found(bytes) => *bytes,
-                    PathReading::Ambiguous => {
-                        written.ambiguous = true;
-                        0
-                    }
-                    PathReading::Absent | PathReading::BodyUnread(_) | PathReading::Refused(_) => {
-                        written.path_unresolved = true;
-                        0
-                    }
-                })
-                .sum(),
+            MeasureReading::SizeInBytes(paths) => add_up(paths, |bytes| *bytes, &mut written),
+            MeasureReading::IsSet(paths) => add_up(paths, |set| u64::from(*set), &mut written),
         })
         .collect();
     (values, written)
+}
+
+// What a measure's paths add, a path that found nothing a loss.
+fn add_up<T>(paths: &[PathReading<T>], number: impl Fn(&T) -> u64, written: &mut Written) -> u64 {
+    paths
+        .iter()
+        .map(|path| match path {
+            PathReading::Found(found) => number(found),
+            PathReading::Ambiguous => {
+                written.ambiguous = true;
+                0
+            }
+            PathReading::Absent | PathReading::BodyUnread(_) | PathReading::Refused(_) => {
+                written.path_unresolved = true;
+                0
+            }
+        })
+        .sum()
 }
 
 // A value found, kept, hashed or replaced; `null` for nothing found or a value a key doesn't

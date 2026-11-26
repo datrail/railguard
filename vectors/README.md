@@ -107,7 +107,7 @@ object of it:
 | An endpoint              | `"discovery"`, or `{"judged": "keyless" \| "unrecognised" \| {"resolved": key}}`                                                                                                                                             |
 | A condition read         | `reading`: `"valid"`, `"unknown"`, `"invalid"`; each problem's `location`, `code`, `scope`, and `expected_shape` where it has one                                                                                            |
 | A record's key           | `{"method": …}`, `{"host": …}`, `{"path_prefix": "…"}`, `{"operation": <a record's path>}`, `{"path": <a record's path>}`                                                                                                    |
-| A record's measure       | `{"count": [<a record's path>, …]}`, `{"size_in_bytes": [<a record's path>, …]}`, one per path                                                                                                                               |
+| A record's measure       | `{"size_in_bytes": [<a record's path>, …]}`, `{"is_set": [<a record's path>, …]}`, one per path                                                                                                                              |
 | Taken, and why not       | `{"entry": id}`, `{"catch_all": id, "why": …}`: `"no_entry"`, `{"unmatchable": why}`, `{"refused": {entry, location, refusal}}`, `{"stopped": …}`, `{"ambiguous": {entry}}`, `{"body_unread": {entry, why}}`                 |
 
 Resolving a path refuses only `budget_exceeded`; `unknown_op`, `invalid` and `not_for_use` come from a compiled

@@ -71,7 +71,13 @@
         "measures": [
           {
             "name": "call_count",
-            "type": "count"
+            "type": "sum",
+            "function": "is_set",
+            "paths": [
+              [
+                "request"
+              ]
+            ]
           },
           {
             "name": "request_bytes",
@@ -109,7 +115,13 @@
       "measures": [
         {
           "name": "call_count",
-          "type": "count"
+          "type": "sum",
+          "function": "is_set",
+          "paths": [
+            [
+              "request"
+            ]
+          ]
         },
         {
           "name": "request_bytes",

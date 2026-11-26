@@ -81,10 +81,10 @@ pub enum KeyReading {
 
 #[derive(Debug, PartialEq)]
 pub enum MeasureReading {
-    /// Whether each of its paths finds a value.
-    Count(Vec<PathReading<()>>),
     /// What each of its paths adds.
     SizeInBytes(Vec<PathReading<u64>>),
+    /// Whether each of its paths finds a value; nothing there is found, as not set.
+    IsSet(Vec<PathReading<bool>>),
 }
 
 /// What a record's path found.
@@ -239,24 +239,24 @@ pub(crate) fn read_record(
     let measures = record
         .measures
         .iter()
-        .map(|measure| match measure {
-            Measure::Count { paths, .. } => MeasureReading::Count(
-                paths
-                    .iter()
-                    .map(|path| read_presence(path, environment, budget))
-                    .collect(),
-            ),
-            Measure::Sum {
-                function: MeasureFunction::SizeInBytes,
-                paths,
-                ..
-            } => MeasureReading::SizeInBytes(
-                paths
-                    .iter()
-                    .map(|path| read_size_in_bytes(path, environment, body_bytes, budget))
-                    .collect(),
-            ),
-        })
+        .map(
+            |Measure {
+                 function, paths, ..
+             }| match function {
+                MeasureFunction::SizeInBytes => MeasureReading::SizeInBytes(
+                    paths
+                        .iter()
+                        .map(|path| read_size_in_bytes(path, environment, body_bytes, budget))
+                        .collect(),
+                ),
+                MeasureFunction::IsSet => MeasureReading::IsSet(
+                    paths
+                        .iter()
+                        .map(|path| read_is_set(path, environment, budget))
+                        .collect(),
+                ),
+            },
+        )
         .collect();
     RecordReading {
         context_keys,
@@ -302,13 +302,13 @@ fn read_key(
     }
 }
 
-// Any value but a JSON `null`: a parameter sent several times is there, whichever a server reads.
-fn read_presence(path: &Path, environment: &Environment, budget: &mut Budget) -> PathReading<()> {
+// Any value but a JSON `null`: a parameter sent several times is set, whichever a server reads.
+fn read_is_set(path: &Path, environment: &Environment, budget: &mut Budget) -> PathReading<bool> {
     match resolve_path(path, environment, budget) {
-        Ok((Lookup::Absent, _)) => PathReading::Absent,
+        Ok((Lookup::Absent, _)) => PathReading::Found(false),
         Ok((Lookup::Ambiguous, _)) => PathReading::Ambiguous,
         Ok((Lookup::BodyUnread(why), _)) => PathReading::BodyUnread(why),
-        Ok(_) => PathReading::Found(()),
+        Ok(_) => PathReading::Found(true),
         Err(refusal) => PathReading::Refused(refusal),
     }
 }

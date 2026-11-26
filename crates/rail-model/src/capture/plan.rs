@@ -102,24 +102,19 @@ pub enum ContextKey {
     },
 }
 
+/// What its function makes of the values its paths find, added up over the paths and the calls.
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(try_from = "Fields")]
-pub enum Measure {
-    /// The calls in which every path finds a value: with none, every call.
-    Count { name: String, paths: Vec<Path> },
-    /// What its function makes of the values its paths find, added up over the calls.
-    Sum {
-        name: String,
-        function: MeasureFunction,
-        paths: Vec<Path>,
-    },
+pub struct Measure {
+    pub name: String,
+    pub function: MeasureFunction,
+    pub paths: Vec<Path>,
 }
 
-// A measure's `type`: how its calls add up.
-#[derive(Clone, Copy, Deserialize)]
+// A measure's `type`: how its numbers add up.
+#[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
 enum Combine {
-    Count,
     Sum,
 }
 
@@ -140,6 +135,8 @@ pub enum MeasureFunction {
     /// The bytes the values take, as the call sends them.
     #[serde(rename = "size")]
     SizeInBytes,
+    /// 1 for a value other than `null`, 0 for none; over `["request"]`, always 1.
+    IsSet,
 }
 
 impl ContextKey {
@@ -150,14 +147,6 @@ impl ContextKey {
             Self::PathPrefix { .. } => "path_prefix",
             Self::Operation => "operation",
             Self::Named { name, .. } => name,
-        }
-    }
-}
-
-impl Measure {
-    pub(crate) fn name(&self) -> &str {
-        match self {
-            Self::Count { name, .. } | Self::Sum { name, .. } => name,
         }
     }
 }
@@ -270,7 +259,10 @@ fn check_catch_all(catch_all: &CatchAll) -> Result<(), String> {
 
 // A set by name.
 fn check_measures(measures: &[Measure]) -> Result<(), String> {
-    unique("measure", measures.iter().map(Measure::name))
+    unique(
+        "measure",
+        measures.iter().map(|measure| measure.name.as_str()),
+    )
 }
 
 fn unique<'a>(what: &str, names: impl Iterator<Item = &'a str>) -> Result<(), String> {
@@ -344,53 +336,43 @@ impl TryFrom<Fields> for ContextKey {
     }
 }
 
-// A measure's fields depend on its type.
+// A measure's fields, each required.
 impl TryFrom<Fields> for Measure {
     type Error = String;
 
     fn try_from(fields: Fields) -> Result<Self, String> {
         let name = read_name(fields.name, "measure")?;
         let at = format!("measure {name}");
-        let unlisted = |field: &str| format!("{at}: its {field} is none the reference lists");
         let combine = present(fields.combine, "type", &at)?;
-        let combine: Combine = read_listed(combine).ok_or_else(|| unlisted("type"))?;
-        let read_paths = |paths: Vec<Value>| {
-            paths
-                .iter()
-                .map(read_record_path)
-                .collect::<Result<_, _>>()
-                .map_err(|why| format!("{at}: {why}"))
+        let function = present(fields.function, "function", &at)?;
+        let paths = present(fields.paths, "paths", &at)?;
+        let unlisted = |field: &str| format!("{at}: its {field} is none the reference lists");
+        let Combine::Sum = read_listed(combine).ok_or_else(|| unlisted("type"))?;
+        let function: MeasureFunction =
+            read_listed(function).ok_or_else(|| unlisted("function"))?;
+        let paths = match paths {
+            Value::Array(paths) if !paths.is_empty() => paths,
+            _ => return Err(format!("{at}: its paths aren't a list of one or more")),
         };
-        match combine {
-            Combine::Count => {
-                // It counts calls, not values: a function would be passed over.
-                if fields.function.is_some() {
-                    return Err(format!("{at}: a count takes no function"));
+        let paths = paths
+            .iter()
+            .map(|steps| {
+                // Counting the calls: the request, always there, is no record path but this.
+                if function == MeasureFunction::IsSet
+                    && steps.as_array().is_some_and(|steps| *steps == ["request"])
+                {
+                    Ok(Path::Request(RequestPath::Whole))
+                } else {
+                    read_record_path(steps)
                 }
-                let paths = match fields.paths {
-                    None | Some(Value::Null) => Vec::new(),
-                    Some(Value::Array(paths)) => paths,
-                    Some(_) => return Err(format!("{at}: its paths aren't a list")),
-                };
-                let paths = read_paths(paths)?;
-                Ok(Self::Count { name, paths })
-            }
-            Combine::Sum => {
-                let function = present(fields.function, "function", &at)?;
-                let function: MeasureFunction =
-                    read_listed(function).ok_or_else(|| unlisted("function"))?;
-                let paths = match present(fields.paths, "paths", &at)? {
-                    Value::Array(paths) if !paths.is_empty() => paths,
-                    _ => return Err(format!("{at}: its paths aren't a list of one or more")),
-                };
-                let paths = read_paths(paths)?;
-                Ok(Self::Sum {
-                    name,
-                    function,
-                    paths,
-                })
-            }
-        }
+            })
+            .collect::<Result<_, _>>()
+            .map_err(|why| format!("{at}: {why}"))?;
+        Ok(Self {
+            name,
+            function,
+            paths,
+        })
     }
 }
 
