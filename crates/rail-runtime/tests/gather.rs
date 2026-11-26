@@ -79,3 +79,22 @@ fn a_body_is_read_whole_only_if_it_came_whole_within_the_cap_and_the_budget() {
         );
     }
 }
+
+// The gateway's request keeps its header lines, but not the pseudo-headers; capture's keeps none.
+#[test]
+fn a_request_keeps_its_header_lines_only_if_asked_to() {
+    let lines = [
+        (":method", "POST"),
+        (":scheme", "https"),
+        ("x-a", "1"),
+        ("X-B", "2"),
+    ];
+    for (keep, kept) in [
+        (Lines::All, vec![("x-a", "1"), ("X-B", "2")]),
+        (Lines::None, vec![]),
+    ] {
+        let gatherer = RequestGatherer::start(lines, keep, CAP_BYTES, &ByteBudget::new(usize::MAX));
+        let request = gatherer.finish(BodyEnding::Whole);
+        assert_eq!(request.header_lines().collect::<Vec<_>>(), kept, "{keep:?}");
+    }
+}
