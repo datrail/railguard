@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime};
 
-use rail_model::body::{BodyBuffer, BodyRead, ByteBudget, Unread};
+use rail_model::body::ByteBudget;
 use rail_model::capture::{BodyUnreadReason, CallOutcome, ClosedWindow, CompiledPlan, Windowing};
 use rail_model::request::ObservedRequest;
 use tokio::runtime::Handle;
@@ -18,6 +18,7 @@ use tokio::time::sleep;
 use crate::call_record::CallRecordReporter;
 use crate::capture_plan_holder::CapturePlanHolder;
 use crate::clock::WallClock;
+use crate::gather::{BodyEnding, RequestGatherer};
 use crate::runtime_thread::RuntimeThread;
 
 // Calls waiting for the capture task: past it, a call is dropped and counted.
@@ -69,29 +70,12 @@ pub struct CaptureSender {
     budget: Arc<ByteBudget>,
 }
 
-/// A request as a callout was sent it.
-pub struct SentRequest<'a> {
-    pub authority: &'a [u8],
-    pub method: &'a [u8],
-    /// The path and its query, as received.
-    pub path: &'a [u8],
-    pub body: SentBody<'a>,
-}
-
-/// A request's body as a callout was sent it, and its length as the request declares it, if it
-/// does.
-pub enum SentBody<'a> {
-    Sent {
-        bytes: &'a [u8],
-        declared: Option<u64>,
-    },
-    /// What the callout's configuration kept from it.
-    NotSent { declared: Option<u64> },
-    /// Only its first `sent_bytes` were sent, and the callout knows the rest weren't.
-    CutShort {
-        sent_bytes: u64,
-        declared: Option<u64>,
-    },
+/// A call held for capture from its headers until its host sees its body end; dropped first, it's
+/// handed over as its stream ending first: `BodyEnding::CutShort`.
+pub struct HeldRequest {
+    // Taken when handed over.
+    gatherer: Option<RequestGatherer>,
+    sender: CaptureSender,
 }
 
 impl Capture {
@@ -153,64 +137,45 @@ impl CaptureSender {
         }
     }
 
-    /// Hands `request` over, its body read whole if it was sent whole within the cap and the
-    /// budget, else unread: not sent, cut short (of its declared length, or as the callout tells),
-    /// or past either.
-    pub fn send_request(&self, request: SentRequest<'_>) {
-        let max_body_bytes = self.max_body_bytes as u64;
-        let (body, body_bytes) = match request.body {
-            SentBody::NotSent { declared } => {
-                (BodyRead::Unread(Unread::NotSent), declared.unwrap_or(0))
-            }
-            SentBody::CutShort {
-                sent_bytes,
-                declared,
-            } => {
-                let body_bytes = body_length(sent_bytes, declared);
-                let unread = if body_bytes > max_body_bytes {
-                    Unread::PastCap
-                } else {
-                    Unread::CutShort
-                };
-                (BodyRead::Unread(unread), body_bytes)
-            }
-            SentBody::Sent { bytes, declared } => {
-                let sent = bytes.len() as u64;
-                let body_bytes = body_length(sent, declared);
-                let body = if body_bytes > max_body_bytes {
-                    BodyRead::Unread(Unread::PastCap)
-                } else if sent < body_bytes {
-                    let unread = if bytes.is_empty() {
-                        Unread::NotSent
-                    } else {
-                        Unread::CutShort
-                    };
-                    BodyRead::Unread(unread)
-                } else {
-                    let mut buffer = BodyBuffer::new(self.max_body_bytes, &self.budget);
-                    buffer.append(bytes);
-                    match buffer.finish() {
-                        Ok(body) => BodyRead::Whole(Arc::new(body)),
-                        Err(unkept) => BodyRead::Unread(unkept.into()),
-                    }
-                };
-                (body, body_bytes)
-            }
-        };
-        self.send(ObservedRequest::new(
-            request.authority.to_vec(),
-            request.method.to_vec(),
-            request.path.to_vec(),
-            Vec::new(),
-            body,
-            body_bytes,
-        ));
+    /// The call whose header lines are `lines`, held until its body ends; `None` unless capturing.
+    pub fn hold<N, V>(&self, lines: impl IntoIterator<Item = (N, V)>) -> Option<HeldRequest>
+    where
+        N: AsRef<[u8]>,
+        V: AsRef<[u8]> + Into<Vec<u8>>,
+    {
+        self.is_capturing().then(|| HeldRequest {
+            gatherer: Some(RequestGatherer::start(
+                lines,
+                self.max_body_bytes,
+                &self.budget,
+            )),
+            sender: self.clone(),
+        })
     }
 }
 
-// A declared length below what was sent isn't the body's.
-fn body_length(sent_bytes: u64, declared: Option<u64>) -> u64 {
-    declared.unwrap_or(sent_bytes).max(sent_bytes)
+impl HeldRequest {
+    /// Keeps `body`, sent in one message.
+    pub fn adopt(&mut self, body: Vec<u8>) {
+        if let Some(gatherer) = &mut self.gatherer {
+            gatherer.adopt(body);
+        }
+    }
+
+    /// Hands the call over, its body as `ending` tells.
+    pub fn finish(mut self, ending: BodyEnding) {
+        if let Some(gatherer) = self.gatherer.take() {
+            self.sender.send(gatherer.finish(ending));
+        }
+    }
+}
+
+impl Drop for HeldRequest {
+    fn drop(&mut self) {
+        if let Some(gatherer) = self.gatherer.take() {
+            self.sender.send(gatherer.finish(BodyEnding::CutShort));
+        }
+    }
 }
 
 // The task's state: it owns the windowing, so nothing locks it.

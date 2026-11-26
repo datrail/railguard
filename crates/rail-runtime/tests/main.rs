@@ -15,6 +15,7 @@ mod config;
 mod denials;
 mod gateway;
 mod gateway_call;
+mod gather;
 mod holder;
 mod key_set;
 mod keys;

@@ -11,6 +11,7 @@
 //! The binary as a library: `run`, and the configuration and callouts it serves, which its tests
 //! drive.
 
+mod capture;
 mod config;
 mod gateway;
 mod headers;

@@ -121,12 +121,6 @@ async fn ext_authz_calls_are_counted_and_their_window_sent_when_stopped() {
         capture: Some(capture),
     };
     let whole = mcp_call("docs", "x");
-    let within = mcp_call("uploads", &"w".repeat(3 * MIB / 2));
-    let large = mcp_call("uploads", &"r".repeat(3 * MIB));
-    let at_cap = vec![b' '; 2 * MIB];
-    let padding = 2 * MIB - mcp_call("exact", "").len();
-    let exact = mcp_call("exact", &"e".repeat(padding));
-    let lower = mcp_call("lower", "x");
 
     check(&callouts, post(&whole, Some(whole.len()))).await;
     // Sent as text, without `pack_as_bytes`.
@@ -136,12 +130,8 @@ async fn ext_authz_calls_are_counted_and_their_window_sent_when_stopped() {
         ..post(&whole, Some(whole.len()))
     };
     check(&callouts, as_text).await;
-    check(&callouts, post(&within, Some(within.len()))).await;
-    // Exactly at the cap; and declaring less than it sent, counted as sent.
-    check(&callouts, post(&exact, Some(exact.len()))).await;
-    check(&callouts, post(&lower, Some(1))).await;
-    // Not sent: declared, or a POST of a size Envoy doesn't know.
-    check(&callouts, post(b"", Some(whole.len()))).await;
+    // Empty, of a size Envoy knows is 0: read, so not counted; not sent, of a size it doesn't know.
+    check(&callouts, post(b"", None)).await;
     check(
         &callouts,
         HttpRequest {
@@ -164,9 +154,17 @@ async fn ext_authz_calls_are_counted_and_their_window_sent_when_stopped() {
         ..post(&whole[..10], None)
     };
     check(&callouts, in_header_map).await;
-    // Past the cap: sent whole, and cut at the cap of a longer body.
-    check(&callouts, post(&large, None)).await;
-    check(&callouts, post(&at_cap, Some(at_cap.len() + 1))).await;
+    // Cut where Envoy says it may be, with no `Content-Length` to tell.
+    let partial = HttpRequest {
+        headers: HashMap::from([("x-envoy-auth-partial-body".to_owned(), "true".to_owned())]),
+        ..post(&whole[..10], None)
+    };
+    check(&callouts, partial).await;
+    let not_partial = HttpRequest {
+        headers: HashMap::from([("x-envoy-auth-partial-body".to_owned(), "false".to_owned())]),
+        ..post(&whole, None)
+    };
+    check(&callouts, not_partial).await;
     // As the binary stops it, once its server has drained.
     tokio::task::spawn_blocking(move || stop.stop())
         .await
@@ -184,19 +182,12 @@ async fn ext_authz_calls_are_counted_and_their_window_sent_when_stopped() {
             .unwrap_or_else(|| panic!("{document}"))
     };
     assert_eq!(e1("docs")["entry_id"], "e1");
-    assert_eq!(e1("docs")["measures"]["call_count"], 2);
-    assert_eq!(e1("docs")["measures"]["request_bytes"], 2 * whole.len());
-    assert_eq!(e1("uploads")["measures"]["request_bytes"], within.len());
-    assert_eq!(e1("exact")["measures"]["request_bytes"], exact.len());
-    assert_eq!(e1("lower")["measures"]["request_bytes"], lower.len());
+    assert_eq!(e1("docs")["measures"]["call_count"], 3);
+    assert_eq!(e1("docs")["measures"]["request_bytes"], 3 * whole.len());
     let unread = &document["truncated"]["body_unread"];
     assert_eq!(
-        (
-            &unread["not_sent"],
-            &unread["cut_short"],
-            &unread["past_cap"]
-        ),
-        (&Value::from(2), &Value::from(2), &Value::from(2)),
+        (&unread["not_sent"], &unread["cut_short"]),
+        (&Value::from(1), &Value::from(3)),
         "{document}"
     );
 }
@@ -270,7 +261,6 @@ async fn ext_proc_calls_are_kept_from_their_buffered_body() {
     };
     let (_socket, channel) = serve_ext_proc("ext-proc-capture", callouts).await;
     let whole = mcp_call("docs", "x");
-    let large = mcp_call("uploads", &"r".repeat(3 * MIB));
     let partial = Some(BodySendMode::BufferedPartial);
     let buffered = Some(BodySendMode::Buffered);
     let sized = || headers(Some(whole.len()), false);
@@ -285,18 +275,13 @@ async fn ext_proc_calls_are_kept_from_their_buffered_body() {
     // trailers follow.
     let trailed = body(&whole, false);
     process(&channel, buffered, vec![headers(None, false), trailed]).await;
-    // Partial, not ending the stream, as when trailers follow, but whole by its `Content-Length`.
-    let declared_whole = body(&whole, false);
-    process(&channel, partial, vec![sized(), declared_whole]).await;
     // An empty body, ending the stream at its headers, or at its trailers: counted, its body read.
     process(&channel, partial, vec![headers(Some(0), true)]).await;
     let trailers = Phase::RequestTrailers(HttpTrailers::default());
     process(&channel, buffered, vec![headers(None, false), trailers]).await;
-    // Partial, chunked, not ending the stream: cut short at the cap, and past it.
-    let chunked = body(&[b' '; 2 * MIB], false);
+    // Partial, chunked, not ending the stream: cut short.
+    let chunked = body(&mcp_call("chunked", "x"), false);
     process(&channel, partial, vec![headers(None, false), chunked]).await;
-    let past = body(&large, false);
-    process(&channel, partial, vec![headers(None, false), past]).await;
     // Not sent: `NONE`, as when no mode is named, and a streamed mode, whose body isn't kept.
     process(&channel, None, vec![sized()]).await;
     let streamed = Some(BodySendMode::Streamed);
@@ -315,21 +300,17 @@ async fn ext_proc_calls_are_kept_from_their_buffered_body() {
         .iter()
         .find(|record| record["context_keys"]["destination"] == "docs")
         .unwrap_or_else(|| panic!("{document}"));
-    assert_eq!(docs["measures"]["call_count"], 3);
-    assert_eq!(docs["measures"]["request_bytes"], 3 * whole.len());
+    assert_eq!(docs["measures"]["call_count"], 2);
+    assert_eq!(docs["measures"]["request_bytes"], 2 * whole.len());
     let calls: u64 = records
         .iter()
         .map(|record| record["measures"]["call_count"].as_u64().unwrap())
         .sum();
-    assert_eq!(calls, 10, "{document}");
+    assert_eq!(calls, 8, "{document}");
     let unread = &document["truncated"]["body_unread"];
     assert_eq!(
-        (
-            &unread["not_sent"],
-            &unread["cut_short"],
-            &unread["past_cap"]
-        ),
-        (&Value::from(2), &Value::from(2), &Value::from(1)),
+        (&unread["not_sent"], &unread["cut_short"]),
+        (&Value::from(2), &Value::from(2)),
         "{document}"
     );
 }

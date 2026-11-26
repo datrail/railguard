@@ -14,6 +14,7 @@ mod denial;
 mod gateway;
 mod gateway_call;
 mod gateway_start;
+mod gather;
 mod holder;
 mod key_set;
 pub mod logging;
@@ -34,7 +35,7 @@ pub use call_record::{CallRecordReporter, CallRecordSink, RailCenterCallRecords}
 pub use callout::{
     GATEWAY_MAX_BODY_MB, HostLimit, read_callout_port, read_max_body_bytes, read_max_message_bytes,
 };
-pub use capture::{Capture, CaptureSender, CaptureThread, SentBody, SentRequest};
+pub use capture::{Capture, CaptureSender, CaptureThread, HeldRequest};
 pub use capture_plan::{CapturePlanSource, RailCenterCapturePlans, read_capture_plan_refresh};
 pub use capture_plan_holder::CapturePlanHolder;
 pub use client::{FetchError, Limits, RailCenterClient, Response};
@@ -46,6 +47,7 @@ pub use denial::{Denial, DenialReporter, DenialSink, DeniedBy, RailCenterDenials
 pub use gateway::{Answer, Call, UnitSettings};
 pub use gateway_call::{Gateway, GatewaySettings};
 pub use gateway_start::start_gateway;
+pub use gather::{BodyEnding, RequestGatherer};
 pub use key_set::{KeySet, KeySetHolder, KeySource, RailCenterKeys};
 pub use logging::{read_log_format, read_log_level};
 pub use protected_hosts::{ProtectedHost, ProtectedHosts, read_protected_hosts};
