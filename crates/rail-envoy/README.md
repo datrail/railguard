@@ -122,8 +122,8 @@ Recommended: a body within `RAIL_MAX_BODY_MB` sent whole, a larger one cut short
 With the default cap, 1 MiB:
 
 ```yaml
-# The listener: Envoy's buffer limit (1 MiB by default) above RAIL_MAX_BODY_MB. A route's
-# `request_body_buffer_limit` raises it too, the larger of the two applying.
+# The listener: Envoy's buffer limit (1 MiB by default) above RAIL_MAX_BODY_MB, over HTTP/1. A
+# route's or virtual host's `request_body_buffer_limit` can only raise it, the larger applying.
 per_connection_buffer_limit_bytes: 2097152
 
 # ext_authz: as bytes, so one that isn't UTF-8 arrives unchanged; cut at `max_request_bytes`,
@@ -145,13 +145,14 @@ allow_content_length_header: true
 
 Past these, Envoy answers 413 itself, in front of rail-envoy:
 
-- ext_authz without `allow_partial_message`, to a body past `max_request_bytes`; with it, to one past the buffer limit
-  if `max_request_bytes` is above it;
+- ext_authz without `allow_partial_message`, to a body past `max_request_bytes`, which then replaces the buffer limit;
+  with it, to one past the buffer limit if `max_request_bytes` is above it;
 - ext_proc `BUFFERED`, which works too, to a body past the buffer limit.
 
 Keep `max_request_bytes`, and the buffer limit with ext_proc, below `RAIL_CALLOUT_GRPC_MAX_MESSAGE_MB` (16 MiB by
 default) with room for the headers: a message past it fails its stream, and the call goes on under Envoy's failure mode,
-as [`CONFIGURATION.md`](../../CONFIGURATION.md#rail_callout_grpc_max_message_mb) says.
+as [`CONFIGURATION.md`](../../CONFIGURATION.md#rail_callout_grpc_max_message_mb) says. Over HTTP/2, the buffer limit is
+the stream's `initial_stream_window_size` (16 MiB by default), not the listener's: with ext_proc, set it below too.
 
 `BUFFERED_PARTIAL` drops `Content-Length` without `allow_content_length_header`, so the upstream gets the body chunked;
 without `request_trailer_mode: SEND`, a request with trailers and no body is counted as cut short. ext_proc's other
