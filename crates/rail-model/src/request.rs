@@ -12,9 +12,6 @@ use crate::body::{BodyRead, Unread};
 use crate::endpoint::Resolution;
 use crate::request_line::RequestLine;
 
-/// The ticket, for the gateway to check.
-pub const XRAIL: &str = "x-rail";
-
 /// An agent's request as a host received it, before any rewrite.
 pub struct ObservedRequest {
     /// `:authority` as the agent sent it, before the proxy rewrites it.
@@ -161,13 +158,6 @@ impl WireText {
             Self::Text(text) | Self::NotText { lossy: text, .. } => text,
         }
     }
-}
-
-/// Whether an agent's header is kept from the upstream: an x-rail header, or any name with `_`.
-/// Takes a lowercased name.
-pub fn is_withheld_header(name: &str) -> bool {
-    // Some upstreams read `_` and `-` alike, so `x_rail` could pass for `x-rail`.
-    name == XRAIL || name.starts_with("x-rail-") || name.contains('_')
 }
 
 /// The path of `uri`, without the query, percent-decoded: an invalid escape is kept, and invalid

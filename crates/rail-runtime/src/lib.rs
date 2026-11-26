@@ -56,10 +56,11 @@ pub use rail_center::{
     CenterUrl, RailCenterSettings, read_disabled, read_rail_center, read_rail_center_with,
 };
 pub use rail_center_thread::RailCenterThread;
-pub use rail_model::request::{XRAIL, is_withheld_header};
 pub use retry::Jitter;
 pub use ticket::{
     OpaqueTicket, RailCenterTickets, TicketSettings, TicketSource, read_ticket_settings,
 };
 pub use ticket_holder::TicketHolder;
-pub use xrail::{Route, Unavailable, XRailHeader, XRailHeaders, withheld_headers};
+pub use xrail::{
+    Route, Unavailable, XRAIL, XRailHeader, XRailHeaders, is_withheld_header, withheld_headers,
+};

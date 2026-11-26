@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
 use rail_model::authority::parse_authority;
-use rail_model::request::{XRAIL, is_withheld_header};
 
 use crate::config::Secret;
 use crate::protected_hosts::{ProtectedHost, ProtectedHosts};
 use crate::ticket::OpaqueTicket;
 
+/// The ticket, for the gateway to check.
+pub const XRAIL: &str = "x-rail";
 /// Why there is no ticket, when there is none.
 pub(crate) const XRAIL_STATUS: &str = "x-rail-status";
 /// The route a protected request takes, `tls` or `plain`; Envoy removes it before the upstream.
@@ -170,4 +171,11 @@ pub fn withheld_headers<'a>(sent: impl IntoIterator<Item = &'a str>) -> Vec<Stri
     names.sort();
     names.dedup();
     names
+}
+
+/// Whether an agent's header is kept from the upstream: an x-rail header, or any name with `_`.
+/// Takes a lowercased name.
+pub fn is_withheld_header(name: &str) -> bool {
+    // Some upstreams read `_` and `-` alike, so `x_rail` could pass for `x-rail`.
+    name == XRAIL || name.starts_with("x-rail-") || name.contains('_')
 }

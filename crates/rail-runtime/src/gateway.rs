@@ -10,12 +10,12 @@ use rail_model::policy::{
     Decision, DecodedTicket, JudgingMode, Outcome, SignedTicketConfig, TicketState, decode_ticket,
     judge,
 };
-use rail_model::request::{ObservedRequest, XRAIL};
+use rail_model::request::ObservedRequest;
 
 use crate::bundle_holder::HeldBundle;
 use crate::denial::{Denial, DeniedBy, ticket_state};
 use crate::key_set::KeySet;
-use crate::xrail::XRAIL_STATUS;
+use crate::xrail::{XRAIL, XRAIL_STATUS};
 
 /// How every call is judged, the same for each.
 #[derive(Clone, Copy, Debug)]
