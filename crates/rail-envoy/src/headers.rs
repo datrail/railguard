@@ -1,9 +1,16 @@
 //! The request headers as Envoy sends them to either callout.
 
 use envoy_types::pb::envoy::config::core::v3::HeaderValue;
+use envoy_types::pb::envoy::service::ext_proc::v3::HttpHeaders;
 
-// Set by Envoy when `allow_partial_message` cut the body at `max_request_bytes`.
-pub(crate) const PARTIAL_BODY: &str = "x-envoy-auth-partial-body";
+/// ext_proc's header lines, as sent in its headers message.
+pub(crate) fn process_lines(headers: &HttpHeaders) -> impl Iterator<Item = (&str, &[u8])> + Clone {
+    headers
+        .headers
+        .iter()
+        .flat_map(|map| &map.headers)
+        .map(|header| (header.key.as_str(), value_of(header)))
+}
 
 /// A header's value: Envoy sends it in `raw_value`, or in `value` when not asked for raw headers.
 pub(crate) fn value_of(header: &HeaderValue) -> &[u8] {

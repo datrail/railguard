@@ -59,6 +59,18 @@ impl ObservedRequest {
         }
     }
 
+    /// Its method as text, bytes that aren't UTF-8 replaced.
+    pub fn method(&self) -> &str {
+        self.method.as_str()
+    }
+
+    /// Its header lines as text, in order, bytes that aren't UTF-8 replaced.
+    pub fn header_lines(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.header_lines
+            .iter()
+            .map(|(name, value)| (name.as_str(), value.as_str()))
+    }
+
     pub fn body(&self) -> &BodyRead {
         &self.body
     }
@@ -79,19 +91,21 @@ impl ObservedRequest {
         })
     }
 
-    /// Its header lines as conditions read them.
+    /// Its header lines as conditions read them, its authority as `host` where no `host` line was
+    /// sent: rules read `host` whether the request came as HTTP/1 or HTTP/2.
     pub(crate) fn headers(&self) -> &Headers {
         self.headers.get_or_init(|| {
-            Headers::from_lines(
-                self.header_lines
-                    .iter()
-                    .map(|(name, value)| (name.as_str(), value.as_str())),
-            )
+            let sent = self
+                .header_lines()
+                .any(|(name, _)| name.eq_ignore_ascii_case("host"));
+            let authority = (!self.authority.as_bytes().is_empty() && !sent)
+                .then(|| ("host", self.authority.as_str()));
+            Headers::from_lines(self.header_lines().chain(authority))
         })
     }
 
     /// What its decoded path and MCP message name, unless its body is unread.
-    pub(crate) fn endpoint(&self) -> Result<&Resolution, Unread> {
+    pub fn endpoint(&self) -> Result<&Resolution, Unread> {
         match &self.body {
             BodyRead::Unread(why) => Err(*why),
             BodyRead::Whole(body) => Ok(self

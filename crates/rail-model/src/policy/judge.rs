@@ -178,7 +178,7 @@ pub fn judge_traced(
         }
     }
     // A message naming no tool by design isn't an unbound endpoint: it faces the whole chain.
-    // None read, for a session message or a body unread, which a host doesn't judge: unbound.
+    // None, for a session message or an unread body, neither ever judged: unbound.
     let (narrowed, unbound) = match environment.endpoint() {
         Ok(Some(Endpoint::Keyless)) => (None, false),
         Ok(Some(Endpoint::Unrecognised) | None) | Err(_) => (None, true),
@@ -233,8 +233,7 @@ fn walk<'a>(
                 return ChainOutcome { decision, alerts };
             }
             Verdict::Refused(refusal) => refusal,
-            // Never: a policy reads the body only through its endpoint, and a host judges a body
-            // only once it has read it whole.
+            // Never: a policy reads a body only by its endpoint, and an unread one isn't judged.
             Verdict::Ambiguous | Verdict::BodyUnread(_) => Refusal::NotForUse,
         };
         // A refused call reports nothing, its alerts included.

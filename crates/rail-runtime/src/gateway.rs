@@ -4,33 +4,18 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use rail_model::body::mcp::{McpReading, read_endpoint};
 use rail_model::condition::{Budget, DEFAULT_STEP_LIMIT, Environment};
 use rail_model::endpoint::{Endpoint, Resolution};
 use rail_model::policy::{
     Decision, DecodedTicket, JudgingMode, Outcome, SignedTicketConfig, TicketState, decode_ticket,
     judge,
 };
-use rail_model::request::{Headers, XRAIL};
+use rail_model::request::{ObservedRequest, XRAIL};
 
 use crate::bundle_holder::HeldBundle;
 use crate::denial::{Denial, DeniedBy, ticket_state};
 use crate::key_set::KeySet;
 use crate::xrail::XRAIL_STATUS;
-
-/// One call, as the host received it, its body in whatever the host holds bytes in. No `Debug`,
-/// which would print its ticket and credentials.
-#[derive(Clone)]
-pub struct Call<B> {
-    /// Without the query, percent-decoded.
-    pub path: String,
-    /// Only a `POST` is judged.
-    pub method: String,
-    /// As sent.
-    pub body: B,
-    /// Every header line as sent, `x-rail` and `x-rail-status` included.
-    pub headers: Vec<(String, String)>,
-}
 
 /// How every call is judged, the same for each.
 #[derive(Clone, Copy, Debug)]
@@ -56,7 +41,7 @@ pub enum Answer {
     Deny,
     /// The rules couldn't be applied to the call: 503.
     CannotApply,
-    /// The body is past what's judged: 413.
+    /// The body is past what's judged, or cut short: 413.
     TooLarge,
 }
 
@@ -75,8 +60,8 @@ impl Answer {
 
 /// One call's judgement, with everything it reads: gathered where the call arrives, run where
 /// the work can take its time.
-pub(crate) struct Unit<B> {
-    pub(crate) call: Arc<Call<B>>,
+pub(crate) struct Unit {
+    pub(crate) call: Arc<ObservedRequest>,
     /// The call's `x-rail`, decoded once where it arrived.
     pub(crate) ticket: DecodedTicket,
     pub(crate) bundle: Arc<HeldBundle>,
@@ -91,7 +76,7 @@ pub(crate) struct Unit<B> {
 
 /// Judges `unit`'s call against its bundle. A denial acted on goes to `report`, which mustn't
 /// wait.
-pub(crate) fn judge_call<B: AsRef<[u8]>>(unit: Unit<B>, report: &dyn Fn(&Denial)) -> Answer {
+pub(crate) fn judge_call(unit: Unit, report: &dyn Fn(&Denial)) -> Answer {
     let Unit {
         call,
         ticket,
@@ -101,14 +86,16 @@ pub(crate) fn judge_call<B: AsRef<[u8]>>(unit: Unit<B>, report: &dyn Fn(&Denial)
         settings,
         stop,
     } = unit;
-    let endpoint = match read_endpoint(&call.path, &McpReading::read(call.body.as_ref())) {
-        Resolution::Discovery => {
+    let endpoint = match call.endpoint() {
+        Ok(Resolution::Discovery) => {
             tracing::debug!("forwarded a session message, unjudged");
             return Answer::Forward;
         }
-        Resolution::Judged(endpoint) => endpoint,
+        Ok(Resolution::Judged(endpoint)) => endpoint,
+        // Only a body read whole is judged.
+        Err(_) => return Answer::CannotApply,
     };
-    let named = name(&endpoint);
+    let named = name(endpoint);
     let Some(mode) = bundle.posture.mode.judging_mode() else {
         tracing::info!(endpoint = named, "forwarded unjudged, at enforcement none");
         return Answer::Forward;
@@ -120,14 +107,12 @@ pub(crate) fn judge_call<B: AsRef<[u8]>>(unit: Unit<B>, report: &dyn Fn(&Denial)
         audience: bundle.ticket_audience.as_deref(),
     };
     let ticket = ticket.verify(&config, now_epoch_seconds);
-    let headers = Headers::from_lines(call.headers.iter().map(|(name, value)| (name, value)));
-    let environment = Environment::for_judging(
+    let environment = Environment::of(
+        &call,
         match &ticket {
             TicketState::Valid(ticket) => Some(&ticket.claims),
             _ => None,
         },
-        &endpoint,
-        &headers,
     );
     let mut budget = Budget::new(settings.step_limit).stopped_by(Arc::clone(&stop));
     let outcome = judge(&bundle.compiled, &environment, mode, &mut budget);
@@ -142,7 +127,7 @@ pub(crate) fn judge_call<B: AsRef<[u8]>>(unit: Unit<B>, report: &dyn Fn(&Denial)
     if let Some(denied_by) = DeniedBy::of(&outcome) {
         report(&Denial {
             denied_by,
-            endpoint: &endpoint,
+            endpoint,
             ticket: &ticket,
             claimed_status: one_value(&call, XRAIL_STATUS),
         });
@@ -156,7 +141,7 @@ pub(crate) fn judge_call<B: AsRef<[u8]>>(unit: Unit<B>, report: &dyn Fn(&Denial)
 
 /// The call's `x-rail`, decoded: none is absent, and two are undecodable, since hosts collapse
 /// repeated headers differently.
-pub(crate) fn decode_x_rail<B>(call: &Call<B>) -> DecodedTicket {
+pub(crate) fn decode_x_rail(call: &ObservedRequest) -> DecodedTicket {
     let mut values = values(call, XRAIL);
     match (values.next(), values.next()) {
         (None, _) => DecodedTicket::Read(TicketState::Absent),
@@ -165,15 +150,14 @@ pub(crate) fn decode_x_rail<B>(call: &Call<B>) -> DecodedTicket {
     }
 }
 
-fn values<'a, B>(call: &'a Call<B>, header: &'a str) -> impl Iterator<Item = &'a str> {
-    call.headers
-        .iter()
+fn values<'a>(call: &'a ObservedRequest, header: &'a str) -> impl Iterator<Item = &'a str> {
+    call.header_lines()
         .filter(move |(name, _)| name.eq_ignore_ascii_case(header))
-        .map(|(_, value)| value.as_str())
+        .map(|(_, value)| value)
 }
 
 // A header's value if it was sent once: two claims aren't a claim.
-fn one_value<'a, B>(call: &'a Call<B>, header: &'a str) -> Option<&'a str> {
+fn one_value<'a>(call: &'a ObservedRequest, header: &'a str) -> Option<&'a str> {
     let mut values = values(call, header);
     match (values.next(), values.next()) {
         (Some(value), None) => Some(value),

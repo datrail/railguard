@@ -172,6 +172,11 @@ impl BodyBuffer {
         self.bytes = body;
     }
 
+    /// Whether every byte so far is kept: none is past the cap or the budget.
+    pub fn is_kept(&self) -> bool {
+        self.unkept.is_none()
+    }
+
     /// Every byte appended or adopted, kept or not.
     pub fn received_bytes(&self) -> u64 {
         self.received_bytes
@@ -209,6 +214,11 @@ pub struct RequestBody {
 impl RequestBody {
     pub fn as_bytes(&self) -> &[u8] {
         &self.bytes
+    }
+
+    /// The bytes, for a host to send on, its charge given back.
+    pub fn into_bytes(self) -> Vec<u8> {
+        self.bytes
     }
 
     /// The body read as JSON: its top value, past one UTF-8 BOM.

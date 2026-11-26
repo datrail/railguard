@@ -4,9 +4,10 @@ use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::Value;
 
-use rail_runtime::{Call, Gateway, GatewaySettings};
+use rail_runtime::{Gateway, GatewaySettings};
 
 use crate::bundles::{self, Script};
+use crate::calls::{Call, handle};
 use crate::holder::{TestClock, until};
 use crate::keys;
 use crate::scripted::answer;
@@ -47,7 +48,7 @@ struct Expect {
 
 impl Request {
     // The names cased otherwise, as a host may send them.
-    fn into_call(self) -> Call<String> {
+    fn into_call(self) -> Call {
         let headers = (self
             .x_rail
             .into_iter()
@@ -75,7 +76,7 @@ async fn every_enforcement_case_is_answered_and_reported_as_it_says() {
         let gateway = start(&clock, case.bundle.as_ref(), case.key_set.as_ref(), &sink);
         until(&clock, 0).await;
 
-        let (answer, _) = gateway.handle(case.request.into_call()).await;
+        let (answer, _) = handle(&gateway, case.request.into_call()).await;
 
         let refusal = answer
             .refusal()

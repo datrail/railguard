@@ -184,20 +184,50 @@ fn test_charges_a_key_by_the_members_it_reads() {
     );
 }
 
-// A policy reads a request's header lines, every value split on commas, a byte not UTF-8 replaced.
+// A header line as sent.
+type Line<'a> = (&'a [u8], &'a [u8]);
+
+// A policy reads a request's header lines, every value split on commas, a byte not UTF-8
+// replaced; its authority as `host` only where no `host` line was sent, and an empty one as none.
 #[test]
 fn test_reads_a_policys_headers_from_an_observed_request() {
-    let header = vec![(b"X-A".to_vec(), b"1, a\xff".to_vec())];
-    let (authority, method, path) = (b"mcp.example".to_vec(), b"POST".to_vec(), b"/mcp".to_vec());
-    let request = ObservedRequest::new(authority, method, path, header, keep_body(b"{}"), 2);
-    let condition = json!({"path": "request.headers.x-a", "op": "contains", "value": "a\u{fffd}"});
-    let compiled = compile_condition(
-        &serde_json::from_value(condition).unwrap(),
-        ConditionUse::GatewayPolicy,
-    );
-    let environment = Environment::of(&request, None);
-    assert_eq!(
-        evaluate_condition(&compiled, &environment, &mut Budget::default()).verdict,
-        Verdict::Holds
-    );
+    let header = |name: &str, op: &str, value: &str| json!({"path": format!("request.headers.{name}"), "op": op, "value": value});
+    let cases: [(_, &[Line], _); 4] = [
+        (
+            "a.test",
+            &[(b"X-A", b"1, a\xff")],
+            header("x-a", "contains", "a\u{fffd}"),
+        ),
+        ("a.test", &[], header("host", "eq", "a.test")),
+        (
+            "a.test",
+            &[(b"Host", b"b.test")],
+            header("host", "eq", "b.test"),
+        ),
+        (
+            "",
+            &[],
+            json!({"path": "request.headers.host", "op": "not_existing"}),
+        ),
+    ];
+    for (authority, lines, condition) in cases {
+        let sent = lines
+            .iter()
+            .map(|(name, value)| (name.to_vec(), value.to_vec()))
+            .collect();
+        let (method, path) = (b"POST".to_vec(), b"/mcp".to_vec());
+        let request =
+            ObservedRequest::new(authority.into(), method, path, sent, keep_body(b"{}"), 2);
+        let compiled = compile_condition(
+            &serde_json::from_value(condition).unwrap(),
+            ConditionUse::GatewayPolicy,
+        );
+        let verdict = evaluate_condition(
+            &compiled,
+            &Environment::of(&request, None),
+            &mut Budget::default(),
+        )
+        .verdict;
+        assert_eq!(verdict, Verdict::Holds, "{authority:?} {lines:?}");
+    }
 }

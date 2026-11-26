@@ -34,10 +34,10 @@ By module:
   (`Ambiguous`, `BodyUnread`), never false; a refusal keeps its cause.
 - **`request`:** **`ObservedRequest`**, an agent's request as a host received it, before any rewrite: its request line
   as sent, the header lines its host passes (capture's carry none), its body as a `BodyRead` and its length; its
-  **`RequestLine`**, its **`Headers`** as conditions read them (names lowercased, values split on commas) and the
-  endpoint it names, each read once, when first read. **`read_path`** reads a URI's path as the gateway does;
-  **`XRAIL`** is the header carrying an agent's ticket; **`is_withheld_header`** tells an agent's header kept from the
-  upstream: `x-rail`, `x-rail-*`, or any name with `_`.
+  **`RequestLine`**, its **`Headers`** as conditions read them (names lowercased, values split on commas, its authority
+  as `host` where no `host` line was sent) and the endpoint it names, each read once, when first read. **`read_path`**
+  reads a URI's path as an endpoint key reads it; **`XRAIL`** is the header carrying an agent's ticket;
+  **`is_withheld_header`** tells an agent's header kept from the upstream: `x-rail`, `x-rail-*`, or any name with `_`.
 - **`endpoint`:** **`Endpoint`** and **`ResolvedKey`**, the endpoint a call asks for, keyed as a bundle binds it, and
   **`Resolution`**, whether a message is judged at all.
 - **`agent`:** **`AgentId`**, which agent a host serves, as Rail Center names it: its tickets are fetched for it, and a
@@ -47,8 +47,7 @@ By module:
 - **`body`:** **`BodyBuffer`** keeps a body as it arrives, up to a cap and within a **`ByteBudget`** every kept body
   shares, as a **`RequestBody`**: read once into a JSON tree (**`json`**, walked with `tree::Node`, a walk finding a
   value, nothing, or one that can't be told) and an MCP reading (**`mcp`**, or why it names nothing). **`BodyRead`** is
-  a call's body as a reader has it: kept whole, or unread and why. **`mcp::read_endpoint`** reads the endpoint an MCP
-  message names, from its method and tool; **`McpReading::read`** reads one from bytes a host holds itself.
+  a call's body as a reader has it: kept whole, or unread and why.
 - **`capture`:** **`parse_plan`** reads a capture plan as `parse_bundle` reads a bundle, passing over fields it doesn't
   know, refusing one that breaks the field reference with why (**`InvalidPlan`**). A **`Plan`**'s entries keep their
   conditions as written, checked when compiled; its values are as Rail Center writes them. It checks the proxy's

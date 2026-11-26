@@ -6,7 +6,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::available_parallelism;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use rail_model::body::{BodyRead, ByteBudget, RequestBody, Unread};
 use rail_model::policy::{EnforcementMode, Fallback};
+use rail_model::request::ObservedRequest;
 use tokio::sync::Semaphore;
 use tokio::task::spawn_blocking;
 use tokio::time::{Instant, timeout_at};
@@ -15,7 +17,8 @@ use crate::bundle_holder::{BundleHolder, HeldBundle};
 use crate::callout::{GATEWAY_MAX_BODY_MB, MB};
 use crate::clock::WallClock;
 use crate::denial::DenialReporter;
-use crate::gateway::{Answer, Call, Unit, UnitSettings, decode_x_rail, judge_call};
+use crate::gateway::{Answer, Unit, UnitSettings, decode_x_rail, judge_call};
+use crate::gather::{BodyEnding, RequestGatherer};
 use crate::key_set::KeySetHolder;
 
 // The longest a call waits for a bundle, and for a key it names: each within the deadline too.
@@ -60,6 +63,8 @@ pub struct Gateway {
     reporter: Arc<DenialReporter>,
     now: WallClock,
     judgements: Arc<Semaphore>,
+    // Unbounded: a body is bounded by the cap alone.
+    budget: Arc<ByteBudget>,
     settings: GatewaySettings,
 }
 
@@ -79,13 +84,22 @@ impl Gateway {
             reporter,
             now,
             judgements: Arc::new(Semaphore::new(settings.max_concurrent_judgements.get())),
+            budget: ByteBudget::new(usize::MAX),
             settings,
         }
     }
 
-    /// The largest body it judges; a host gathering a body can refuse it sooner.
-    pub fn max_body_bytes(&self) -> usize {
-        self.settings.max_body_bytes
+    /// The call whose header lines are `lines`, its body to gather within the cap. Its declared
+    /// length isn't checked against its body.
+    pub fn gather<N, V>(&self, lines: impl IntoIterator<Item = (N, V)>) -> RequestGatherer
+    where
+        N: AsRef<[u8]>,
+        V: AsRef<[u8]> + Into<Vec<u8>>,
+    {
+        let mut gatherer =
+            RequestGatherer::keeping_lines(lines, self.settings.max_body_bytes, &self.budget);
+        gatherer.ignore_declared_length();
+        gatherer
     }
 
     /// Whether it's ready, and its state in readiness's words: `held` once a bundle is, else
@@ -97,23 +111,35 @@ impl Gateway {
         }
     }
 
-    /// What to do with `call`, by its deadline, and the call back. Only a `POST` is judged, and
-    /// no call whose body is past `max_body_bytes` is forwarded.
-    pub async fn handle<B>(&self, call: Call<B>) -> (Answer, Call<B>)
-    where
-        B: AsRef<[u8]> + Clone + Send + Sync + 'static,
-    {
-        let bytes = call.body.as_ref().len();
-        if bytes > self.settings.max_body_bytes {
-            tracing::warn!(
-                bytes,
-                limit = self.settings.max_body_bytes,
-                "refused unjudged: the body is past RAIL_MAX_BODY_MB"
-            );
-            return (Answer::TooLarge, call);
-        }
-        if call.method != "POST" {
-            return (Answer::Forward, call);
+    /// What to do with the call `gatherer` gathered, its body ended as `ending`, by its deadline,
+    /// and its body back for the host to send on. Only a `POST` is judged, and no call whose body
+    /// is past `max_body_bytes` or cut short is forwarded.
+    pub async fn handle(&self, gatherer: RequestGatherer, ending: BodyEnding) -> (Answer, Vec<u8>) {
+        let call = Arc::new(gatherer.finish(ending));
+        let answer = self.answer(&call).await;
+        (answer, into_bytes(call))
+    }
+
+    async fn answer(&self, call: &Arc<ObservedRequest>) -> Answer {
+        let bytes = call.body_bytes();
+        match call.body() {
+            BodyRead::Unread(Unread::PastCap | Unread::PastBudget) => {
+                tracing::warn!(
+                    bytes,
+                    limit = self.settings.max_body_bytes,
+                    "refused unjudged: the body is past RAIL_MAX_BODY_MB"
+                );
+                return Answer::TooLarge;
+            }
+            // A body cut short could read as another call, so it's never judged as whole.
+            BodyRead::Unread(Unread::CutShort) => {
+                tracing::warn!(bytes, "refused unjudged: the host sent part of the body");
+                return Answer::TooLarge;
+            }
+            _ if call.method() != "POST" => return Answer::Forward,
+            // Logged by its host, which knows what it wasn't configured to send.
+            BodyRead::Unread(Unread::NotSent) => return Answer::CannotApply,
+            BodyRead::Whole(_) => {}
         }
         let now = Instant::now();
         let deadline = now
@@ -124,9 +150,9 @@ impl Gateway {
         let Some(bundle) = self.bundles.wait_for_bundle(within(MAX_WAIT)).await else {
             let answer = answer_unjudged(None, self.settings.no_bundle_fallback);
             tracing::error!(?answer, "no policy bundle held; the call went unjudged");
-            return (answer, call);
+            return answer;
         };
-        let ticket = decode_x_rail(&call);
+        let ticket = decode_x_rail(call);
         // Only where a signed ticket can be read and accepted: any caller can name a key.
         let judging = bundle.posture.mode != EnforcementMode::None;
         let keys = match ticket.kid() {
@@ -142,16 +168,12 @@ impl Gateway {
         };
         let Ok(Ok(slot)) = timeout_at(deadline, Arc::clone(&self.judgements).acquire_owned()).await
         else {
-            return (
-                unjudged("its deadline passed waiting for a free slot"),
-                call,
-            );
+            return unjudged("its deadline passed waiting for a free slot");
         };
-        let call = Arc::new(call);
         let stop = Arc::new(AtomicBool::new(false));
         let _stop_if_dropped = StopOnDrop(Arc::clone(&stop));
         let unit = Unit {
-            call: Arc::clone(&call),
+            call: Arc::clone(call),
             ticket,
             bundle: Arc::clone(&bundle),
             keys,
@@ -168,20 +190,24 @@ impl Gateway {
             Ok(finished) => finished,
             // Unless the worker claimed the answer first, with only its report left to make.
             Err(_) if stop.swap(true, Ordering::AcqRel) => worker.await,
-            Err(_) => {
-                let answer = unjudged("its deadline passed while it was judged");
-                // Copied, with the worker still reading it.
-                return (answer, Arc::unwrap_or_clone(call));
-            }
+            Err(_) => return unjudged("its deadline passed while it was judged"),
         };
-        let answer = match finished {
+        match finished {
             Ok(answer) => answer,
             Err(error) if error.is_cancelled() => unjudged("judging it was cancelled"),
             // Not the panic's message, which may quote the call.
             Err(_) => unjudged("judging it panicked"),
-        };
-        (answer, Arc::unwrap_or_clone(call))
+        }
     }
+}
+
+// Its body's bytes, moved out unless a judgement past its deadline still reads them: then copied.
+fn into_bytes(call: Arc<ObservedRequest>) -> Vec<u8> {
+    let BodyRead::Whole(body) = call.body().clone() else {
+        return Vec::new();
+    };
+    drop(call);
+    Arc::try_unwrap(body).map_or_else(|shared| shared.as_bytes().to_vec(), RequestBody::into_bytes)
 }
 
 // Stops the judgement once the call is answered or dropped: nobody waits for it then.
