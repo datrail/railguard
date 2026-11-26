@@ -129,8 +129,8 @@ impl Capture {
         (Self { stop, task }, sender)
     }
 
-    /// Counts the calls already handed over, closes the open window and sends the windows waiting,
-    /// for up to 2 s.
+    /// Counts the calls already handed over (at most 4096 waiting, untimed), closes the open window
+    /// and sends the windows waiting, waiting up to 2 s for them.
     pub async fn stop(self) {
         let _ = self.stop.send(());
         // Cancelled by its runtime stopping first, or panicked: what it held isn't sent.
@@ -308,7 +308,7 @@ impl Task {
     // plan held and the time now.
     fn read(&mut self) -> (Option<Arc<CompiledPlan>>, SystemTime) {
         let dropped = self.dropped.swap(0, Ordering::Relaxed);
-        if dropped > 0 && self.windowing.end().is_none() {
+        if dropped > 0 && !self.windowing.is_open() {
             tracing::debug!(calls = dropped, "calls dropped with no capture window open");
         }
         self.windowing.count_dropped(dropped);

@@ -75,14 +75,15 @@ services:
       - ./certs.sh:/certs.sh:ro
       - certs:/certs
 
-  # Plain HTTP: upstream.test isn't protected, upstream-plain.test is as http://.
+  # Plain HTTP: upstream.test isn't protected, upstream-plain.test is as http://;
+  # upstream-capture.test isn't, and only its calls can match the capture plan's entry.
   upstream:
     <<: *wiremock
     volumes:
       - ./upstream-mappings:/home/wiremock/mappings:ro
     networks:
       default:
-        aliases: [upstream.test, upstream-plain.test]
+        aliases: [upstream.test, upstream-plain.test, upstream-capture.test]
 
   # HTTPS on 8443, its journal on 8080: upstream-tls.test is protected with that port,
   # upstream-agent-port.test without one. misresolved.test is protected too, but not in its
@@ -129,7 +130,8 @@ services:
     volumes:
       - ./rail-center:/home/wiremock:ro
 
-  # One extension per ticket state.
+  # One extension per ticket state; `ext`'s sandbox alone has a capture plan, its windows a minute
+  # long, and its body cap RAIL_MAX_BODY_MB's default, 1 MiB.
   ext:
     <<: *ext
     environment:

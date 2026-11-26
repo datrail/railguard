@@ -83,7 +83,7 @@ alone. Elsewhere, keep it reachable from Apigee only.
 - **Capture.** A call record carries counts and the values the plan names, read from a call's host, path and body (up to
   `RAIL_MAX_BODY_MB`), within bounds on their length and shape, and hashed where the plan says `sha256`. A value leaving
   that the plan didn't name, or unhashed where it said to hash, is a report. The bodies kept share 256 MiB and at most
-  4096 calls wait, so an agent can't grow the proxy's memory through capture.
+  4096 calls wait, so an agent can't grow the proxy's memory through capture without bound.
 - **The socket, or the port.** Whatever can connect to it can ask what rail-envoy would attach to a request, ticket
   included. The socket is made `0660`, for rail-envoy's own user and group; Envoy reaches it by sharing the group: don't
   put the agent in it. A port (`RAIL_CALLOUT_PORT`) is bound on every interface, so anything that reaches it can read

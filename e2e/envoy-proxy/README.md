@@ -11,33 +11,36 @@ Envoy fails open as described when rail-envoy is down. See [the stacks](../READM
 flowchart LR
   driver[driver.py] -->|calls, as an agent| envoy[an Envoy per case]
   envoy <-->|ext_authz or ext_proc, over a shared socket| ext[a rail-envoy per ticket state]
-  ext -->|ticket; capture plan, 404| center[rail-center: WireMock]
+  ext <-->|ticket, capture plan; call records| center[rail-center: WireMock]
   envoy -->|plain| plain[upstream]
   envoy -->|HTTPS on 8443| tls[upstream-tls]
   envoy -->|HTTPS on 443| tls443[upstream-443]
   driver -.->|journals| plain
   driver -.->|journals| tls
   driver -.->|journals| tls443
+  driver -.->|journal: documents| center
 ```
 
 `compose.yml` holds:
 
-- `rail-center`, a WireMock stub answering by sandbox name (`rail-center/mappings`); it maps no capture plan, so
-  `GET /v1/capture-plan` gets a 404 and no proxy captures;
+- `rail-center`, a WireMock stub answering by sandbox name (`rail-center/mappings`): `ext`'s sandbox alone gets a
+  capture plan (`rail-center/__files/capture-plan.json`, windows a minute long), and it keeps the call record documents
+  posted, for the driver to read;
 - one rail-envoy per ticket state (`ext`, `ext-not-found`, `ext-expired`, `ext-issuer-down`, `ext-disabled`), each with
   an Envoy in front on `envoy-ext-authz.yaml`; and `envoy-ext-proc`, on `envoy-ext-proc.yaml`;
 - `envoy-no-ext-authz` and `envoy-no-ext-proc`, whose socket nothing serves on, so every callout fails and Envoy fails
   open;
 - `envoy-variants`, on `envoy-variants.yaml` (below);
-- the upstreams, WireMock: plain HTTP, HTTPS on 8443, and HTTPS on 443 (`upstream-mappings`);
+- the upstreams, WireMock: plain HTTP, HTTPS on 8443, and HTTPS on 443 (`upstream-mappings`); the plain one serves
+  `upstream-capture.test` too, the only host the plan's entry takes;
 - `driver.py`, which sends requests through each Envoy and asserts what reached each upstream.
 
 ## The tree
 
 - `envoy-ext-authz.yaml` and `envoy-ext-proc.yaml` are the working examples rail-envoy's README points to
-  ([Run it beside Envoy](../../crates/rail-envoy/README.md#run-it-beside-envoy)).
+  ([Run it beside Envoy](../../crates/rail-envoy/README.md#run-it-beside-envoy)), sending the body as it recommends.
 - `envoy-variants.yaml` is one Envoy with a listener per config the examples don't show: both callouts in one chain,
-  ext_authz's `encode_raw_headers` and body, and each ext_proc body mode, each failing closed.
+  ext_authz's `encode_raw_headers` without the body, and each ext_proc body mode, each failing closed.
 - `certs.sh` makes the TLS upstreams a test CA and key at each start, for that run only.
 - `rail-center/` and `upstream-mappings/` are the stubs' answers.
 
@@ -56,13 +59,18 @@ left.
   rail-envoy is down.
 - **Each ticket state** gives the header it should, from a Rail Center stub answering as Rail Center does.
 - **A body crosses whole,** in each body mode, with the agent's trailers or past ext_authz's `max_request_bytes`, and
-  the agent gets the upstream's answer.
+  the agent gets the upstream's answer; under the recommended configurations, with its `Content-Length`.
+- **Capture reads what Envoy sends,** under both callouts: Rail Center gets documents counting each call, a body within
+  the cap read whole or chunked, and one past it, not JSON, or not sent, counted unread and why.
 
 ## Easy to get wrong
 
 - **The first ticket fetch is in flight** as the stack comes up, so the driver waits for each extension's.
 - **The full-duplex body mode is expected to fail** (`xfail`), and only as known, a 500 with nothing received:
   rail-envoy doesn't send that body back yet. A pass fails the run, so the case is updated when it's fixed.
+- **A window's document is sent once it closes,** at the next minute, so the driver waits up to a minute and a half for
+  the capture cases'. Every call through `ext` is captured, but only `upstream-capture.test`'s can match the plan's
+  entry, so only theirs count a body unread; the driver checks the documents' window-wide counts against them.
 - **Envoy may drop a change silently** when a rule refuses it, so the driver asserts on what reached the upstream, never
   on what rail-envoy answered.
 
@@ -71,4 +79,5 @@ left.
 - **Judging:** the proxy role judges nothing; [`envoy-gateway`](../envoy-gateway/README.md) covers the gateway.
 - **Signed tickets:** no case sends one.
 - **The drain and SIGTERM:** `rail-envoy`'s own tests (`tests/shutdown.rs`).
-- **Capture:** the stub serves no capture plan; `rail-envoy`'s own tests (`tests/capture.rs`) cover it.
+- **Capture's own rules:** what a document holds, its retries, and a body cut short of its length are `rail-model`'s,
+  `rail-runtime`'s and `rail-envoy`'s own tests (`tests/capture.rs`); the stack checks what crosses Envoy.

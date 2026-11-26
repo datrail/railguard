@@ -120,7 +120,8 @@ message, which holds a whole buffered body.
   larger than the request.
 - **In `rail-envoy`, a message past it** fails its stream while the call is unanswered, so Envoy applies its failure
   mode: closed (`failure_mode_allow: false`), as the gateway must, it refuses the call; open, as the proxy may, it
-  forwards the call as the agent sent it, with no ticket, and uncaptured.
+  forwards the call as the agent sent it, with no ticket, and uncaptured. An ext_proc body message past it comes after
+  the headers were answered: the call keeps its ticket and is counted, its body unread.
 
 ### `RAIL_MAX_BODY_MB`
 
@@ -136,7 +137,8 @@ The largest request body judged or captured, in MiB, as sent (an encoded body is
   a value of 4 or more is logged with the limit in force. In `rail-envoy`, a body streamed in full duplex is refused as
   soon as it's past it.
 - **In `rail-envoy`'s proxy, past it, a body isn't read:** the call is forwarded as ever, and captured with its body
-  counted as past the cap (`truncated.body_unread.past_cap`).
+  counted as past the cap (`truncated.body_unread.past_cap`). Envoy's limits go above it, as its README
+  [recommends](crates/rail-envoy/README.md#the-body-for-capture).
 
 ## The gateway
 
