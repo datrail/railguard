@@ -9,6 +9,7 @@ use serde_json::{Map, Value};
 use super::value::{Bytes, decode_unread, keep};
 use super::{DEFAULT_BYTE_BUDGET, read_written};
 use crate::body::BodyRead;
+use crate::capture::capture_environment;
 use crate::condition::{self, Environment, Headers};
 use crate::endpoint::Endpoint;
 use crate::request::ObservedRequest;
@@ -127,7 +128,7 @@ fn expand(text: &str, bytes: Option<usize>) -> Result<Vec<u8>, String> {
 }
 
 /// An environment's sources, owned.
-pub(super) enum Sources {
+pub(super) enum Built {
     Judging {
         ticket: Option<Map<String, Value>>,
         endpoint: Endpoint,
@@ -138,40 +139,28 @@ pub(super) enum Sources {
     },
 }
 
-impl Sources {
-    /// As an `Environment` borrows them, nothing read yet.
-    pub(super) fn open(&self) -> Opened<'_> {
+impl Built {
+    /// What `read` reads of the environment, built as its use builds it, nothing read yet.
+    pub(super) fn read<T>(&self, read: impl FnOnce(&Environment) -> T) -> T {
         match self {
             Self::Judging {
                 ticket,
                 endpoint,
                 headers,
-            } => Opened::Judging(Environment::for_judging(ticket.as_ref(), endpoint, headers)),
-            Self::Capture { call } => Opened::Capture(condition::Sources::new(call)),
-        }
-    }
-}
-
-/// An environment's sources, opened for an `Environment` to borrow.
-pub(super) enum Opened<'s> {
-    Judging(Environment<'s>),
-    Capture(condition::Sources<'s>),
-}
-
-impl Opened<'_> {
-    pub(super) fn environment(&self) -> Environment<'_> {
-        match self {
-            Self::Judging(environment) => *environment,
-            // Capture reads no ticket: the proxy strips the agent's.
-            Self::Capture(sources) => Environment::of(sources, None),
+            } => read(&Environment::for_judging(
+                ticket.as_ref(),
+                endpoint,
+                headers,
+            )),
+            Self::Capture { call } => read(&capture_environment(&condition::Sources::new(call))),
         }
     }
 
-    /// The call's sources, for an environment built for capture.
-    pub(super) fn call(&self) -> Result<&condition::Sources<'_>, String> {
+    /// The call, for an environment built for capture.
+    pub(super) fn call(&self) -> Result<&ObservedRequest, String> {
         match self {
-            Self::Capture(sources) => Ok(sources),
-            Self::Judging(_) => Err("an environment for judging, which holds no call".into()),
+            Self::Capture { call } => Ok(call),
+            Self::Judging { .. } => Err("an environment for judging, which holds no call".into()),
         }
     }
 }
@@ -186,7 +175,7 @@ impl Named {
         Ok(Self(file.environments))
     }
 
-    pub(super) fn build(&self, name: &str) -> Result<Sources, String> {
+    pub(super) fn build(&self, name: &str) -> Result<Built, String> {
         let spec = self
             .0
             .get(name)
@@ -196,7 +185,7 @@ impl Named {
                 ticket,
                 endpoint,
                 headers,
-            } => Sources::Judging {
+            } => Built::Judging {
                 ticket: ticket.clone(),
                 endpoint: match endpoint {
                     EndpointSpec::Keyless => Endpoint::Keyless,
@@ -205,7 +194,7 @@ impl Named {
                 },
                 headers: Headers::from_lines(headers.iter().map(|(name, value)| (name, value))),
             },
-            Spec::Capture { call } => Sources::Capture {
+            Spec::Capture { call } => Built::Capture {
                 call: call.to_call()?,
             },
         })

@@ -13,6 +13,7 @@ use crate::capture::{
     KeptValue, KeyReading, MeasureReading, PathReading, Plan, Record, RecordReading, Replacement,
     read_record,
 };
+use crate::condition;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -46,9 +47,8 @@ pub(super) fn run_cases(
 }
 
 fn run_case(case: &Case, environments: &Named, plans: &NamedPlans) -> Result<Value, String> {
-    let sources = environments.build(&case.environment)?;
-    let opened = sources.open();
-    let call = opened.call()?;
+    let built = environments.build(&case.environment)?;
+    let sources = condition::Sources::new(built.call()?);
     let (pointer, written): (&str, fn(&Plan) -> &Record) = match case.record_of {
         RecordOf::Entry => ("/entries/0/record", |plan| &plan.entries[0].record),
         RecordOf::CatchAll => ("/catch_all/record", |plan| &plan.catch_all.record),
@@ -62,13 +62,7 @@ fn run_case(case: &Case, environments: &Named, plans: &NamedPlans) -> Result<Val
     })?;
     let record = written(plan.plan());
     let mut budget = build_budget(case.step_limit);
-    let reading = read_record(
-        record,
-        call.request_line(),
-        &opened.environment(),
-        call.request.body_bytes,
-        &mut budget,
-    );
+    let reading = read_record(record, &sources, &mut budget);
     Ok(encode_record_reading(record, &reading))
 }
 

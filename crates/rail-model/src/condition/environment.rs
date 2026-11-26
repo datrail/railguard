@@ -76,12 +76,10 @@ impl<'a> Environment<'a> {
     pub(crate) fn body(&self) -> &'a BodyRead {
         match self.request {
             Request::Observed(sources) => &sources.request.body,
-            Request::Sample { .. } => &NOT_SENT,
+            Request::Sample { .. } => &BodyRead::Unread(Unread::NotSent),
         }
     }
 }
-
-static NOT_SENT: BodyRead = BodyRead::Unread(Unread::NotSent);
 
 /// What a call's conditions and records read of its request, each built the first time a path
 /// reads it. One per call. No `Debug`, which would print its headers once read.

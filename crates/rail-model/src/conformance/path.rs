@@ -31,19 +31,19 @@ pub(super) fn run_cases(text: &str, environments: &Named) -> Result<Vec<Outcome>
 }
 
 fn run_case(case: &Case, environments: &Named) -> Result<Value, String> {
-    let sources = environments.build(&case.environment)?;
+    let built = environments.build(&case.environment)?;
     // Refused as read, its use never resolving it; or as resolved, in the environment.
     let path = match read_path(&case.path, case.use_case) {
         Err(refused) => return Ok(json!({"refused_reading": refused})),
         Ok(path) => path,
     };
     let mut budget = build_budget(case.step_limit);
-    Ok(
-        match resolve_path(&path, &sources.open().environment(), &mut budget) {
+    Ok(built.read(
+        |environment| match resolve_path(&path, environment, &mut budget) {
             Ok((lookup, _)) => encode_lookup(&lookup),
             Err(refusal) => encode_refusal(refusal),
         },
-    )
+    ))
 }
 
 // The path as its use reads it, or why it doesn't.

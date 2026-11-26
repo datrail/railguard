@@ -13,7 +13,7 @@ pub use call::{
     Taken, Untaken,
 };
 #[cfg(feature = "conformance")]
-pub(crate) use call::{answer, read_record};
+pub(crate) use call::{answer, capture_environment, read_record};
 pub use compile::{CompiledEntry, CompiledPlan, EntryRefusal, compile_plan};
 
 pub use document::Document;

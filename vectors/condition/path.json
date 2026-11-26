@@ -1244,17 +1244,17 @@
       }
     },
     {
-      "id": "policy-in-a-capture-environment-ticket-absent",
-      "environment": "capture-body-empty",
-      "use": "gateway_policy",
-      "path": "ticket.a",
-      "expect": "absent"
-    },
-    {
       "id": "policy-in-a-capture-environment-header-absent",
       "environment": "capture-body-empty",
       "use": "gateway_policy",
       "path": "request.headers.accept",
+      "expect": "absent"
+    },
+    {
+      "id": "policy-in-a-capture-environment-ticket-whole-absent",
+      "environment": "capture-body-empty",
+      "use": "gateway_policy",
+      "path": "ticket",
       "expect": "absent"
     },
     {
@@ -1265,15 +1265,34 @@
       "expect": "absent"
     },
     {
-      "id": "policy-in-a-capture-environment-headers-object",
-      "environment": "capture-body-empty",
+      "id": "policy-in-a-capture-environment-endpoint-key-from-the-decoded-path",
+      "environment": "capture-path-escaped-tools-call",
       "use": "gateway_policy",
-      "path": "request.headers",
-      "expect": "object"
+      "path": "request.endpoint_key",
+      "expect": {
+        "string": "/mcp#tools/call#a"
+      }
+    },
+    {
+      "id": "policy-in-a-capture-environment-endpoint-key-of-a-session-message-absent",
+      "environment": "capture-body-session",
+      "use": "gateway_policy",
+      "path": "request.endpoint_key",
+      "expect": "absent"
+    },
+    {
+      "id": "policy-in-a-capture-environment-endpoint-key-of-a-body-cut-short-unread",
+      "environment": "capture-body-cut-short",
+      "use": "gateway_policy",
+      "path": "request.endpoint_key",
+      "expect": {
+        "body_unread": {
+          "unread": "cut_short"
+        }
+      }
     },
     {
       "id": "policy-in-a-capture-environment-request-whole",
-      "note": "Filled by every environment.",
       "environment": "capture-body-empty",
       "use": "gateway_policy",
       "path": "request",
@@ -1303,21 +1322,6 @@
         "host"
       ],
       "expect": "absent"
-    },
-    {
-      "id": "plan-in-a-judging-environment-mcp-tool-not-sent",
-      "environment": "judging-keyless",
-      "use": "capture_plan",
-      "path": [
-        "request",
-        "mcp",
-        "tool"
-      ],
-      "expect": {
-        "body_unread": {
-          "unread": "not_sent"
-        }
-      }
     },
     {
       "id": "plan-dotted-segment-invalid",

@@ -73,7 +73,8 @@ a Rust test's.
 - **`environments.json`:** named environments, each built as its use builds it. One `for` judging: the ticket's claims
   (`null` for no usable ticket, so every ticket path is absent), the `endpoint` (`keyless`, `unrecognised` or
   `{"resolved": key}`) and the `headers` as sent; its request line reads absent, its body as not sent. One `for`
-  capture: a call, with no ticket and no header lines, its endpoint the one its path and body name.
+  capture: a call, with no ticket and no header lines, its endpoint the one its path and body name; a body unread reads
+  its endpoint key as unread.
 - **A call:** its `authority`, `method` and `path` as sent; its `body` as text, as `{"hex": …}` for bytes that aren't
   UTF-8, as `{"unread": why}` (`past_cap`, `past_budget`, `not_sent`, `cut_short`), or as `{"text": …, "bytes": n}`,
   where `<N bytes>` stands for N bytes of `x` and the text is padded with spaces to `bytes`; `body_bytes`, its length as
@@ -108,6 +109,9 @@ object of it:
 | A record's key           | `{"method": …}`, `{"host": …}`, `{"path_prefix": "…"}`, `{"operation": <a record's path>}`, `{"path": <a record's path>}`                                                                                                    |
 | A record's measure       | `"call_count"`, `"error_count"`, `{"request_bytes": n}`, `{"size_in_bytes": [<a record's path>, …]}`, one per path                                                                                                           |
 | Taken, and why not       | `{"entry": id}`, `{"catch_all": id, "why": …}`: `"no_entry"`, `{"unmatchable": why}`, `{"refused": {entry, location, refusal}}`, `{"stopped": …}`, `{"ambiguous": {entry}}`, `{"body_unread": {entry, why}}`                 |
+
+Resolving a path refuses only `budget_exceeded`; `unknown_op`, `invalid` and `not_for_use` come from a compiled
+condition, as evaluated.
 
 A list's items are written as a body and read as one, so an item that can't be told is a string that doesn't decode, and
 one past a double is written past it.

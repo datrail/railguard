@@ -1,16 +1,16 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use rail_model::body::{BodyRead, Unread};
+use rail_model::body::BodyRead;
 use rail_model::condition::{
-    BodyUnread, Budget, Condition, ConditionUse, Environment, Headers, Predicate, Refusal, Sources,
-    Verdict, compile_condition, evaluate_condition,
+    Budget, Condition, ConditionUse, Environment, Headers, Predicate, Refusal, Sources, Verdict,
+    compile_condition, evaluate_condition,
 };
 use rail_model::endpoint::Endpoint;
 use rail_model::request::ObservedRequest;
 use serde_json::{Value, json};
 
-use crate::keep_body;
+use crate::{keep_body, observed};
 
 fn evaluate_on_header(condition: Value, value: &str, budget: &mut Budget) -> Verdict {
     let condition: Condition = serde_json::from_value(condition).unwrap();
@@ -115,14 +115,15 @@ fn test_charges_a_long_value_by_its_length() {
     );
 }
 
-fn observe(path: &[u8], headers: Vec<(Vec<u8>, Vec<u8>)>, body: BodyRead) -> ObservedRequest {
-    let (method, authority) = (b"POST".to_vec(), b"mcp.example".to_vec());
-    ObservedRequest::new(authority, method, path.to_vec(), headers, body, 0)
-}
-
 // As a plan writes a condition, its path a list.
 fn evaluate_on_call(condition: Value, body: &BodyRead, budget: &mut Budget) -> Verdict {
-    let request = observe(b"/finretail-production-mcp/mcp", Vec::new(), body.clone());
+    let request = observed(
+        "mcp.example",
+        "POST",
+        "/finretail-production-mcp/mcp",
+        body.clone(),
+        0,
+    );
     let sources = Sources::new(&request);
     let predicate: Predicate = serde_json::from_value(condition).unwrap();
     let environment = Environment::of(&sources, None);
@@ -184,42 +185,21 @@ fn test_charges_a_key_by_the_members_it_reads() {
     );
 }
 
-// A policy's paths read from the request: its header lines, and its endpoint from its decoded path
-// and its body: none for a session message, none told for a body unread.
+// A policy reads a request's header lines, every value split on commas, a byte not UTF-8 replaced.
 #[test]
-fn test_reads_a_policys_paths_from_an_observed_request() {
-    let tool = || keep_body(br#"{"method": "tools/call", "params": {"name": "a"}}"#);
-    let header = vec![(b"X-A".to_vec(), b"1, 2".to_vec())];
-    let session = keep_body(br#"{"method": "initialize"}"#);
-    let unread = BodyRead::Unread(Unread::CutShort);
-    let endpoint = |op, value| json!({"path": "request.endpoint_key", "op": op, "value": value});
-    for (request, condition, verdict) in [
-        (
-            observe(b"/m%63p?x=1", header, tool()),
-            json!({"path": "request.headers.x-a", "op": "contains", "value": "2"}),
-            Verdict::Holds,
-        ),
-        (
-            observe(b"/m%63p?x=1", Vec::new(), tool()),
-            endpoint("eq", json!("/mcp#tools/call#a")),
-            Verdict::Holds,
-        ),
-        (
-            observe(b"/mcp", Vec::new(), session),
-            endpoint("not_existing", Value::Null),
-            Verdict::Holds,
-        ),
-        (
-            observe(b"/mcp", Vec::new(), unread),
-            endpoint("existing", Value::Null),
-            Verdict::BodyUnread(BodyUnread::Unread(Unread::CutShort)),
-        ),
-    ] {
-        let read: Condition = serde_json::from_value(condition.clone()).unwrap();
-        let sources = Sources::new(&request);
-        let compiled = compile_condition(&read, ConditionUse::GatewayPolicy);
-        let environment = Environment::of(&sources, None);
-        let found = evaluate_condition(&compiled, &environment, &mut Budget::default()).verdict;
-        assert_eq!(found, verdict, "{condition}");
-    }
+fn test_reads_a_policys_headers_from_an_observed_request() {
+    let header = vec![(b"X-A".to_vec(), b"1, a\xff".to_vec())];
+    let (authority, method, path) = (b"mcp.example".to_vec(), b"POST".to_vec(), b"/mcp".to_vec());
+    let request = ObservedRequest::new(authority, method, path, header, keep_body(b"{}"), 2);
+    let sources = Sources::new(&request);
+    let condition = json!({"path": "request.headers.x-a", "op": "contains", "value": "a\u{fffd}"});
+    let compiled = compile_condition(
+        &serde_json::from_value(condition).unwrap(),
+        ConditionUse::GatewayPolicy,
+    );
+    let environment = Environment::of(&sources, None);
+    assert_eq!(
+        evaluate_condition(&compiled, &environment, &mut Budget::default()).verdict,
+        Verdict::Holds
+    );
 }

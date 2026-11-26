@@ -233,8 +233,8 @@ fn walk<'a>(
                 return ChainOutcome { decision, alerts };
             }
             Verdict::Refused(refusal) => refusal,
-            // Never for a policy: it reads no body but through its endpoint, which a host reads
-            // whole before judging.
+            // Never: a policy reads the body only through its endpoint, and a host judges a body
+            // only once it has read it whole.
             Verdict::Ambiguous | Verdict::BodyUnread(_) => Refusal::NotForUse,
         };
         // A refused call reports nothing, its alerts included.

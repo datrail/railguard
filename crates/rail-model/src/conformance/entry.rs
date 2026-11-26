@@ -34,7 +34,7 @@ pub(super) fn run_cases(
 }
 
 fn run_case(case: &Case, environments: &Named, plans: &NamedPlans) -> Result<Value, String> {
-    let sources = environments.build(&case.environment)?;
+    let built = environments.build(&case.environment)?;
     let plan = plans.compile_edited("one-entry", |plan| {
         let entry_match = plan
             .pointer_mut("/entries/0/match")
@@ -47,10 +47,7 @@ fn run_case(case: &Case, environments: &Named, plans: &NamedPlans) -> Result<Val
     if entry.refusal().is_some() {
         return Err("an entry its plan's compiling refuses".into());
     }
-    let verdict = answer(
-        entry,
-        &sources.open().environment(),
-        &mut build_budget(case.step_limit),
-    );
+    let mut budget = build_budget(case.step_limit);
+    let verdict = built.read(|environment| answer(entry, environment, &mut budget));
     Ok(encode_verdict(verdict))
 }

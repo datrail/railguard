@@ -34,9 +34,10 @@ By module:
   body value that can't be told, or isn't read, is a verdict of its own (`Ambiguous`, `BodyUnread`), never false; a
   refusal keeps its cause.
 - **`request`:** **`ObservedRequest`**, an agent's request as a host received it, before any rewrite: its request line
-  as sent and the header lines its host passes, its body as a `BodyRead` and its length, and the endpoint it names, read
-  once. **`read_path`** reads a URI's path as the gateway does; **`is_withheld_header`** tells an agent's header kept
-  from the upstream: `x-rail`, `x-rail-*`, or any name with `_`.
+  as sent, the header lines its host passes (capture's carry none), its body as a `BodyRead` and its length, and the
+  endpoint it names, read once. **`read_path`** reads a URI's path as the gateway does; **`XRAIL`** is the header
+  carrying an agent's ticket; **`is_withheld_header`** tells an agent's header kept from the upstream: `x-rail`,
+  `x-rail-*`, or any name with `_`.
 - **`endpoint`:** **`Endpoint`** and **`ResolvedKey`**, the endpoint a call asks for, keyed as a bundle binds it, and
   **`Resolution`**, whether a message is judged at all.
 - **`agent`:** **`AgentId`**, which agent a host serves, as Rail Center names it: its tickets are fetched for it, and a
