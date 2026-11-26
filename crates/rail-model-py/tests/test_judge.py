@@ -24,11 +24,6 @@ from datrail_model import (
 
 _VECTORS = Path(__file__).parents[3] / "vectors"
 _WALK_CASES = json.loads((_VECTORS / "policy" / "judge.json").read_text())["cases"]
-# Decimal, so an operand past what a double holds is written back as sent.
-_CONDITION_CASES = json.loads(
-    (_VECTORS / "judge_condition_conformance_cases.json").read_text(), parse_float=Decimal
-)["cases"]
-_CONDITION_OUTCOMES = {"holds": "denied", "does_not_hold": "allowed", "refused": "refused"}
 
 
 def _dump_json(value):
@@ -88,7 +83,6 @@ def _format_outcome(judgement):
 
 def test_has_cases():
     assert _WALK_CASES
-    assert _CONDITION_CASES
 
 
 @pytest.mark.parametrize("case", _WALK_CASES, ids=lambda case: case["id"])
@@ -103,20 +97,6 @@ def test_walk_vectors(case):
     )
 
     assert _format_outcome(judgement) == case["expect"]
-
-
-@pytest.mark.parametrize("case", _CONDITION_CASES, ids=lambda case: case["name"])
-def test_condition_vectors(case):
-    judgement = judge_sample(
-        _compile_bundle([_build_policy(1, case["condition"])]),
-        endpoint_key=case["endpoint_key"],
-        headers=[tuple(line) for line in case["headers"]],
-        # Claims hold no number past a double, so they can go back to floats.
-        claims=None if case["ticket"] is None else json.loads(_dump_json(case["ticket"])),
-    )
-
-    assert isinstance(judgement, Judgement), judgement
-    assert judgement.chain.decision == _CONDITION_OUTCOMES[case["expect"]]
 
 
 def test_traces_each_policy_evaluated_until_one_decides():

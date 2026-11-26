@@ -8,7 +8,7 @@ use rail_model::capture::{
 use serde_json::Value;
 use uuid::Uuid;
 
-const VECTORS: &str = include_str!("../../../../vectors/capture_window_conformance_cases.json");
+const PLANS: &str = include_str!("../../../../vectors/capture/plans.json");
 
 // Each plan's `window_seconds`, by index.
 const WINDOW_SECONDS: [u64; 2] = [60, 300];
@@ -19,9 +19,9 @@ fn time(seconds: u64) -> SystemTime {
 
 // Plans told apart by their version, one more than their index, with 60 s and 300 s windows.
 fn plans() -> [Arc<CompiledPlan>; 2] {
-    let vectors: Value = serde_json::from_str(VECTORS).unwrap();
+    let plans: Value = serde_json::from_str(PLANS).unwrap();
     [0, 1].map(|index| {
-        let mut plan = vectors["plan"].clone();
+        let mut plan = plans["plans"]["worked-example"].clone();
         plan["window_seconds"] = WINDOW_SECONDS[index].into();
         plan["plan_version"] = (index + 1).into();
         Arc::new(compile_plan(parse_plan(&plan.to_string()).unwrap()))

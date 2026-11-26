@@ -9,8 +9,8 @@ input and what this reader answers. They're for two things:
   to a behaviour shows as the `expect`s it changes.
 
 Run them with `cargo test -p rail-model -- vectors::` (`make coverage-vectors` for what they alone cover), and in Python
-with `make test-py`. `gateway_enforcement_conformance_cases.json` is `rail-runtime`'s, of the gateway role; the files
-whose names end `_conformance_cases.json` beside it are being replaced by the files below.
+with `make test-py`. `gateway_enforcement_conformance_cases.json` is `rail-runtime`'s, of the gateway role, in a format
+of its own.
 
 ## The format
 
@@ -171,6 +171,10 @@ Each names its source in `_source`; what changed on the way:
   proxy's ceilings: `window_seconds` 60 to 86400, `max_groups_per_window` up to 100000, `max_steps_per_window` up to
   1000000, `max_unsent_windows` up to 1000. Not here, since they're the caller's to check: the `content_hash`'s form,
   the `schema_version`'s major, the agent, the `redaction_version`.
+
+Layers 3 to 5 hold, among their own, the condition cases of datrail/gateway's
+`gateway-core/tests/vectors/v2/decide.json` at `041c92f`, each split into its path, its reading and its op; being no one
+source's file, they name no `_source`.
 
 ## Queries
 

@@ -7,7 +7,6 @@ use rail_model::conformance::{FILES, SHARED, run_vectors};
 use serde::Deserialize;
 
 mod bundle;
-mod check;
 mod judge;
 mod plan;
 mod redaction;

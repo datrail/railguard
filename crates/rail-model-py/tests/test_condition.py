@@ -1,6 +1,4 @@
-import json
 import math
-from pathlib import Path
 from types import MappingProxyType
 
 import pytest
@@ -8,29 +6,9 @@ import pytest
 import datrail_model
 from datrail_model import ConditionCheck, ConditionProblem, check_condition
 
-_VECTORS = Path(__file__).parents[3] / "vectors"
-_CASES = json.loads((_VECTORS / "judge_condition_conformance_cases.json").read_text())["cases"]
-# What makes a reader refuse the request that reaches the condition, or Rail Center refuse it.
-_REFUSING_CODES = {"unknown_op", "unwritable_number"}
-
 
 def _get_codes(check):
     return [(problem.location, problem.code, problem.scope) for problem in check.problems]
-
-
-def test_has_cases():
-    assert _CASES
-
-
-@pytest.mark.parametrize("case", _CASES, ids=lambda case: case["name"])
-def test_condition_vectors(case):
-    check = check_condition(case["condition"])
-
-    refused = any(
-        problem.scope == "enforcement" or problem.code in _REFUSING_CODES
-        for problem in check.problems
-    )
-    assert refused is (case["expect"] == "refused"), check
 
 
 def test_accepts_a_condition_rail_center_publishes():

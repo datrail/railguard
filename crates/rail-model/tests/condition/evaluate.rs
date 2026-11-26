@@ -8,73 +8,9 @@ use rail_model::condition::{
 };
 use rail_model::endpoint::Endpoint;
 use rail_model::request_line::RequestLine;
-use serde::Deserialize;
-use serde_json::value::RawValue;
-use serde_json::{Map, Value, json};
+use serde_json::{Value, json};
 
 use crate::keep_body;
-
-const VECTORS: &str = include_str!("../../../../vectors/judge_condition_conformance_cases.json");
-
-#[derive(Deserialize)]
-struct Vectors {
-    cases: Vec<Case>,
-}
-
-#[derive(Deserialize)]
-struct Case {
-    name: String,
-    // Raw, since some operands are past what a `Value` holds.
-    condition: Box<RawValue>,
-    ticket: Option<Map<String, Value>>,
-    endpoint_key: Option<String>,
-    headers: Vec<(String, String)>,
-    expect: String,
-}
-
-fn evaluate_case(case: &Case) -> Verdict {
-    let condition: Condition = serde_json::from_str(case.condition.get()).unwrap();
-    let endpoint = match &case.endpoint_key {
-        Some(key) => Endpoint::Resolved(key.parse().unwrap()),
-        None => Endpoint::Keyless,
-    };
-    let headers = Headers::from_lines(case.headers.iter().map(|(n, v)| (n, v)));
-    let environment = Environment::for_judging(case.ticket.as_ref(), &endpoint, &headers);
-    evaluate_condition(
-        &compile_condition(&condition, ConditionUse::GatewayPolicy),
-        &environment,
-        &mut Budget::default(),
-    )
-    .verdict
-}
-
-fn get_outcome_name(outcome: &Verdict) -> &'static str {
-    match outcome {
-        Verdict::Holds => "holds",
-        Verdict::DoesNotHold => "does_not_hold",
-        Verdict::Ambiguous => "ambiguous",
-        Verdict::BodyUnread(_) => "body_unread",
-        Verdict::Refused(_) => "refused",
-    }
-}
-
-#[test]
-fn test_vectors() {
-    let vectors: Vectors = serde_json::from_str(VECTORS).unwrap();
-    assert!(!vectors.cases.is_empty());
-
-    let failures: Vec<String> = vectors
-        .cases
-        .iter()
-        .filter_map(|case| {
-            let outcome = evaluate_case(case);
-            let name = get_outcome_name(&outcome);
-            (name != case.expect)
-                .then(|| format!("{}: want {}, got {outcome:?}", case.name, case.expect))
-        })
-        .collect();
-    assert!(failures.is_empty(), "\n{}", failures.join("\n"));
-}
 
 fn evaluate_on_header(condition: Value, value: &str, budget: &mut Budget) -> Verdict {
     let condition: Condition = serde_json::from_value(condition).unwrap();
